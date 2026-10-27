@@ -256,6 +256,9 @@ export const useConfigurationManager = () => {
             if (mapped.companyNameKOT !== undefined) {
               localStorage.setItem("companyNameKot", mapped.companyNameKOT ? "Enable" : "Disable");
             }
+            if (mapped.enableVat !== undefined) {
+              localStorage.setItem("enableVat", mapped.enableVat ? "true" : "false");
+            }
           }
         } catch (e) {
           console.warn("Failed to load POS configuration in Backoffice:", e);
@@ -299,8 +302,14 @@ export const useConfigurationManager = () => {
       if (form.printPrice || payload.printPrice) {
         localStorage.setItem("printPrice", form.printPrice || payload.printPrice || "Exclusive");
       }
+      if (form.discCalc || payload.discCalc) {
+        localStorage.setItem("discCalc", form.discCalc || payload.discCalc || "Exclusive");
+      }
       if (payload.companyNameKot !== undefined) {
         localStorage.setItem("companyNameKot", payload.companyNameKot);
+      }
+      if (form.enableVat !== undefined) {
+        localStorage.setItem("enableVat", form.enableVat ? "true" : "false");
       }
 
       if (form.defaultEmployee && form.employeeId) {
@@ -331,6 +340,7 @@ export const useConfigurationManager = () => {
           parsed.configs.kotArabic = payload.kotArabic;
           parsed.configs.billArabic = payload.billArabic;
           parsed.configs.masterKot = payload.masterKot;
+          parsed.configs.masterKotBillPrinter = payload.masterKotBillPrinter;
           parsed.configs.defaultOrderTypeId = payload.defaultOrderTypeId;
           parsed.configs.defaultEmployee = payload.defaultEmployee;
           parsed.configs.employeeId = payload.employeeId;
@@ -340,6 +350,8 @@ export const useConfigurationManager = () => {
           parsed.configs.productView = form.productView || "English";
           parsed.configs.priceView = form.priceView || payload.priceView;
           parsed.configs.printPrice = form.printPrice || payload.printPrice;
+          parsed.configs.discCalc = form.discCalc || payload.discCalc || "Exclusive";
+          parsed.configs.discountCalc = form.discCalc || payload.discCalc || "Exclusive";
           parsed.configs.companyNameKot = payload.companyNameKot;
         }
         parsed.itemSeperation = payload.itemSeperation;
@@ -354,7 +366,17 @@ export const useConfigurationManager = () => {
         parsed.productView = form.productView || "English";
         parsed.priceView = form.priceView || payload.priceView;
         parsed.printPrice = form.printPrice || payload.printPrice;
+        parsed.discCalc = form.discCalc || payload.discCalc || "Exclusive";
+        parsed.discountCalc = form.discCalc || payload.discCalc || "Exclusive";
         parsed.companyNameKot = payload.companyNameKot;
+        parsed.masterKot = payload.masterKot;
+        parsed.masterKotBillPrinter = payload.masterKotBillPrinter;
+        if (payload.masterKot) {
+          localStorage.setItem("masterKot", payload.masterKot);
+        }
+        if (payload.masterKotBillPrinter) {
+          localStorage.setItem("masterKotBillPrinter", payload.masterKotBillPrinter);
+        }
         localStorage.setItem("posConfigs", JSON.stringify(parsed));
       } catch {}
 

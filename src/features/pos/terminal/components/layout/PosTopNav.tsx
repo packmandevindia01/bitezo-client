@@ -122,8 +122,8 @@ const PosTopNav = ({
         <div className="flex items-center justify-center w-[75px] sm:w-[85px] md:w-[90px] lg:w-[95px] xl:w-[120px] h-full shrink-0 px-1 transition-all duration-200">
           <div className="w-full h-full flex items-center justify-center">
             <img 
-               src="/LOGO6.png" 
-               alt="Bitezo" 
+               src="/LOGO6.png?v=bitevo" 
+               alt="Bitevo" 
                className="h-5.5 sm:h-6 md:h-6.5 xl:h-8 max-w-full object-contain brightness-0 invert" 
             />
           </div>

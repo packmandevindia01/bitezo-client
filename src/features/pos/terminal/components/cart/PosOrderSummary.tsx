@@ -1,5 +1,6 @@
 import { useCurrency } from "../../../../../hooks/useCurrency";
 import { t } from "../../../utils/posLocalization";
+import { getPriceView } from "../../utils/billing";
 
 interface PosOrderSummaryProps {
   subtotal: number;
@@ -27,6 +28,7 @@ interface PosOrderSummaryProps {
 
 export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender, tenderOptions, selectedCustomerId, onDiscount, onCom }: PosOrderSummaryProps) => {
   const { formatAmount } = useCurrency();
+  const isTaxInclusive = getPriceView() === "Inclusive";
   return (
     <div className="shrink-0 p-2 lg:p-2.5 [@media(max-height:800px)]:p-1 bg-slate-50/80 border-t border-slate-200 space-y-1.5 lg:space-y-2 [@media(max-height:800px)]:space-y-0.5">
       {/* Financial Breakdown */}
@@ -78,7 +80,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             </div>
           )}
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
-            <span>{t("VAT")}</span>
+            <span>{isTaxInclusive ? t("VAT (Included)") : t("VAT")}</span>
             <span>{formatAmount(Math.max(0, tax))}</span>
           </div>
         </div>

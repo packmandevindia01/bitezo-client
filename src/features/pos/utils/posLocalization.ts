@@ -134,6 +134,8 @@ export const POS_TRANSLATIONS: Record<string, string> = {
   "Net Value": "القيمة الصافية",
   "Delivery Charge": "رسوم التوصيل",
   "VAT": "الضريبة",
+  "VAT (Included)": "الضريبة (شاملة)",
+  "Included": "شامل",
   "Grand Total": "المجموع الكلي",
 
   // Cart Action Buttons
@@ -164,6 +166,7 @@ export const POS_TRANSLATIONS: Record<string, string> = {
   "Qty": "الكمية",
   "Quantity": "الكمية",
   "Price": "السعر",
+  "DISC": "الخصم",
   "DISCOUNT": "الخصم",
   "Void": "إلغاء",
   "VOID": "إلغاء",
@@ -490,6 +493,8 @@ export const POS_THAI_TRANSLATIONS: Record<string, string> = {
   "Net Value": "มูลค่าสุทธิ",
   "Delivery Charge": "ค่าจัดส่ง",
   "VAT": "ภาษีมูลค่าเพิ่ม",
+  "VAT (Included)": "ภาษีมูลค่าเพิ่ม (รวม)",
+  "Included": "รวม",
   "Grand Total": "ยอดรวมทั้งสิ้น",
 
   // Cart Action Buttons
@@ -520,6 +525,7 @@ export const POS_THAI_TRANSLATIONS: Record<string, string> = {
   "Qty": "จำนวน",
   "Quantity": "จำนวน",
   "Price": "ราคา",
+  "DISC": "ส่วนลด",
   "DISCOUNT": "ส่วนลด",
   "Void": "ยกเลิก",
   "VOID": "ยกเลิก",

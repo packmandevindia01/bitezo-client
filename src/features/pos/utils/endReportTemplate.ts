@@ -289,28 +289,85 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
   }
 
   // Sales Details — 2 columns (60% / 40%)
-  const salesDetails = (data as any).salesDetails || {};
-  const saleAmount = Number(salesDetails.saleAmount ?? data.salesSummary?.sales ?? 0);
-  const complimentary = Number(salesDetails.complimentary ?? (data as any).complimentary ?? 0);
-  const discount = Number(salesDetails.discount ?? (data as any).discount ?? 0);
-  const deliveryCharge = Number(salesDetails.deliveryCharge ?? data.salesSummary?.deliveryCharge ?? 0);
+  const rawSalesDetails = (data as any).salesDetails;
+  const salesDetailsMap: Record<string, number> = {};
+  if (Array.isArray(rawSalesDetails)) {
+    rawSalesDetails.forEach((it: any) => {
+      const desc = String(it.description || it.name || it.label || "").trim().toLowerCase();
+      const val = Number(it.total ?? it.amount ?? it.value ?? 0);
+      if (desc.includes("sale") || desc.includes("amount")) salesDetailsMap.saleAmount = val;
+      else if (desc.includes("comp")) salesDetailsMap.complimentary = val;
+      else if (desc.includes("disc")) salesDetailsMap.discount = val;
+    });
+  } else if (rawSalesDetails && typeof rawSalesDetails === "object") {
+    salesDetailsMap.saleAmount = Number(rawSalesDetails.saleAmount ?? rawSalesDetails.sales ?? 0);
+    salesDetailsMap.complimentary = Number(rawSalesDetails.complimentary ?? 0);
+    salesDetailsMap.discount = Number(rawSalesDetails.discount ?? 0);
+    salesDetailsMap.deliveryCharge = Number(rawSalesDetails.deliveryCharge ?? 0);
+    if (rawSalesDetails.totalSale !== undefined) {
+      salesDetailsMap.totalSale = Number(rawSalesDetails.totalSale);
+    }
+  }
+
+  // Reconcile settled sales total across all payment modes or order types
+  const paymodesListForTotal = data.paymodes || (data as any).payments || (data as any).paymodeSummary || (data as any).paymentSummary || [];
+  const paymodeSum = Array.isArray(paymodesListForTotal)
+    ? paymodesListForTotal.reduce((sum: number, p: any) => sum + Number(p.amount ?? p.total ?? 0), 0)
+    : 0;
+  const orderTypesListForTotal = Array.isArray(data.orderTypes) ? data.orderTypes : [];
+  const orderTypeSum = orderTypesListForTotal.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0);
+
+  const settledTotal = paymodeSum > 0
+    ? paymodeSum
+    : (orderTypeSum > 0 ? orderTypeSum : (salesDetailsMap.saleAmount || 0));
+
+  const deliveryCharge = Number(
+    data.salesSummary?.deliveryCharge 
+    ?? salesDetailsMap.deliveryCharge 
+    ?? (data as any).deliveryCharge 
+    ?? 0
+  );
+
+  const discount = Number(
+    salesDetailsMap.discount 
+    ?? (data as any).discount 
+    ?? (data as any).totalDiscount 
+    ?? (gs as any).totalDiscount 
+    ?? 0
+  );
+
+  const complimentary = Number(
+    salesDetailsMap.complimentary 
+    ?? (data as any).complimentary 
+    ?? 0
+  );
 
   const taxSummaryList = Array.isArray(data.taxSummary) ? data.taxSummary : [];
   const taxSummaryVatTotal = taxSummaryList.reduce((sum, t) => sum + (Number(t.vatAmount) || 0), 0);
-  const vatAmount = Number(
-    salesDetails.vatAmount 
-    ?? salesDetails.vat 
-    ?? salesDetails.tax 
-    ?? salesDetails.taxAmount 
+
+  const rawBaseSale = Number(data.salesSummary?.sales ?? 0);
+
+  // If backend omitted modifier/extra VAT, reconcile actual VAT from (settledTotal - rawBaseSale - deliveryCharge)
+  let vatAmount = Number(
+    (rawSalesDetails && !Array.isArray(rawSalesDetails) ? (rawSalesDetails.vatAmount ?? rawSalesDetails.vat ?? rawSalesDetails.tax) : undefined)
     ?? data.salesSummary?.vatAmount 
     ?? taxSummaryVatTotal 
     ?? 0
   );
 
-  const calculatedTotalSale = saleAmount + deliveryCharge + (taxSummaryVatTotal > 0 ? taxSummaryVatTotal : vatAmount);
-  const totalSale = salesDetails.totalSale != null && Number(salesDetails.totalSale) >= calculatedTotalSale
-    ? Number(salesDetails.totalSale)
-    : calculatedTotalSale;
+  if (settledTotal > 0 && rawBaseSale > 0 && (settledTotal - (rawBaseSale + deliveryCharge)) > vatAmount) {
+    const diff = Number((settledTotal - rawBaseSale - deliveryCharge).toFixed(decimalPart));
+    if (diff > vatAmount) {
+      vatAmount = diff;
+    }
+  }
+
+  let saleAmount = rawBaseSale;
+  let totalSale = settledTotal > 0 ? settledTotal : (saleAmount + deliveryCharge + vatAmount);
+
+  if (saleAmount <= 0 && totalSale > 0) {
+    saleAmount = Math.max(0, Number((totalSale - deliveryCharge - vatAmount).toFixed(decimalPart)));
+  }
 
   let vatRowsHtml = '';
   if (taxSummaryList.length > 0 && taxSummaryVatTotal > 0) {
@@ -781,6 +838,9 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     vatTotal += t.vatAmount;
     taxRows += `<tr><td style="text-align: left;">${t.vatName}</td><td style="text-align: right;">${fmt(t.exclAmount)}</td><td style="text-align: right;">${fmt(t.vatAmount)}</td></tr>`;
   });
+  if (vatAmount > vatTotal + 0.001) {
+    vatTotal = vatAmount;
+  }
   const taxHtml = `
     <div class="section-title">Tax Summary</div>
     <div class="sep"></div>
@@ -998,9 +1058,9 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
   }
 
   // Sales Summary — 2 columns (60% / 40%)
-  const grandTotal = (data.salesSummary?.sales || 0) + vatTotal + (data.salesSummary?.deliveryCharge || 0);
+  const grandTotal = totalSale > 0 ? totalSale : ((data.salesSummary?.sales || 0) + vatTotal + (data.salesSummary?.deliveryCharge || 0));
   const refund = (data as any).refund ?? (gs as any).refund ?? 0;
-  const totalDiscount = (data as any).totalDiscount ?? (gs as any).totalDiscount ?? 0;
+  const totalDiscount = discount > 0 ? discount : ((data as any).totalDiscount ?? (gs as any).totalDiscount ?? 0);
   const driverDiscount = (data as any).driverDiscount ?? (gs as any).driverDiscount ?? 0;
 
   const salesSummaryHtml = `
@@ -1008,9 +1068,9 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     <div class="sep"></div>
     <table style="width: 100%; table-layout: fixed;">
       <tbody>
-        <tr><td style="width: 60%; text-align: left;">Sale</td><td style="width: 40%; text-align: right;">${fmt(data.salesSummary?.sales)}</td></tr>
-        <tr><td style="text-align: left;">Delivery Charge</td><td style="text-align: right;">${fmt(data.salesSummary?.deliveryCharge)}</td></tr>
-        <tr><td style="text-align: left;">VAT Amount</td><td style="text-align: right;">${fmt(data.salesSummary?.vatAmount)}</td></tr>
+        <tr><td style="width: 60%; text-align: left;">Sale</td><td style="width: 40%; text-align: right;">${fmt(saleAmount)}</td></tr>
+        <tr><td style="text-align: left;">Delivery Charge</td><td style="text-align: right;">${fmt(deliveryCharge)}</td></tr>
+        <tr><td style="text-align: left;">VAT Amount</td><td style="text-align: right;">${fmt(vatAmount)}</td></tr>
         <tr><td style="text-align: left; font-weight: 700;">Grand Total</td><td style="text-align: right; font-weight: 700;">${fmt(grandTotal)}</td></tr>
         <tr><td style="text-align: left;">Refund</td><td style="text-align: right;">${fmt(refund)}</td></tr>
         <tr><td style="text-align: left;">Cancelled Sales</td><td style="text-align: right;">${fmt(gs.voidSales)}</td></tr>

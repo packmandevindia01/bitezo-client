@@ -1,20 +1,15 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Plus, Trash2, Save, Users, UserPlus, UserX, Search, Check, RotateCw, ArrowLeft, X } from "lucide-react";
-import { Modal, FormInput, Button, ConfirmDialog, SelectInput } from "../../../../components/common";
+import { Modal, FormInput, Button, ConfirmDialog } from "../../../../components/common";
 import { useCustomer, useCustomerList } from "../hooks/useCustomer";
 import { TouchKeyboard } from "../../../../components/common/TouchKeyboard";
 import { FormProvider } from "react-hook-form";
 import { getDecimalPart } from "../../../../utils/currency";
 import { handleFocusNextInput } from "../../../../utils/keyboard";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
-import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
-import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
-import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 import { setSelectedCustomer, clearSelectedCustomer } from "../../terminal/store/posSlice";
 import { useToast } from "../../../../app/providers/useToast";
 import type { Customer } from "../types/customer";
-
 interface PosCustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,7 +19,6 @@ interface PosCustomerModalProps {
 export const PosCustomerModal = ({ isOpen, onClose, onSelectCustomer }: PosCustomerModalProps) => {
   const { showToast } = useToast();
   const dispatch = useAppDispatch();
-  const queryClient = useQueryClient();
 
   const currentSelectedCustomerId = useAppSelector((state) => state.pos.selectedCustomerId);
   const currentSelectedCustomerName = useAppSelector((state) => state.pos.selectedCustomerName);
@@ -42,7 +36,10 @@ export const PosCustomerModal = ({ isOpen, onClose, onSelectCustomer }: PosCusto
 
   const firstInputRef = useRef<HTMLInputElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const masterBranches = useAppSelector((state) => state.masterData.branches);
+
+  // Use the terminal's registered branch from localStorage — no restricted API calls needed for POS cashiers
+  const terminalBranchId = localStorage.getItem("systemBranchId") ?? "";
+  const terminalBranchName = localStorage.getItem("systemBranchName") ?? "Main Branch";
 
   // Customer List Query from /api/v1/menu/customer-list
   const {
@@ -71,66 +68,6 @@ export const PosCustomerModal = ({ isOpen, onClose, onSelectCustomer }: PosCusto
 
   const { methods, loading, saveCustomer, deleteCustomer, resetForm } = useCustomer(handleSaveCustomerSuccess);
 
-  const { data: branchesData = [], refetch: refetchBranches } = useQuery({
-    queryKey: ["customerBranches"],
-    queryFn: async () => {
-      try {
-        const [branchMasterRes, directBranchesRes] = await Promise.allSettled([
-          fetchBranches(),
-          fetchBranchNames(true),
-        ]);
-        const branchMap = new Map<string, string>();
-        if (branchMasterRes.status === "fulfilled" && Array.isArray(branchMasterRes.value)) {
-          branchMasterRes.value.forEach((b: any) => {
-            const id = String(b.id ?? b.branchId ?? "");
-            const name = String(b.branchName ?? b.name ?? "");
-            if (id && id !== "0" && name) branchMap.set(id, name);
-          });
-        }
-        if (directBranchesRes.status === "fulfilled" && Array.isArray(directBranchesRes.value)) {
-          directBranchesRes.value.forEach((b: any) => {
-            const id = String(b.id ?? b.branchId ?? "");
-            const name = String(b.branchName ?? b.name ?? "");
-            if (id && id !== "0" && name) branchMap.set(id, name);
-          });
-        }
-        return Array.from(branchMap.entries()).map(([value, label]) => ({ label, value }));
-      } catch {
-        return [];
-      }
-    },
-    staleTime: 5 * 60 * 1000,
-    enabled: isOpen && activeTab === "form",
-  });
-
-  useEffect(() => {
-    const unsubscribe = subscribeToBranchUpdates(() => {
-      queryClient.removeQueries({ queryKey: ["customerBranches"] });
-      queryClient.removeQueries({ queryKey: ["branchNames"] });
-      queryClient.removeQueries({ queryKey: ["branches"] });
-      queryClient.invalidateQueries({ queryKey: ["customerBranches"], refetchType: "all" });
-      void refetchBranches();
-      void dispatch(fetchGlobalBranches());
-    });
-    return () => unsubscribe();
-  }, [queryClient, refetchBranches, dispatch]);
-
-  const branchOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    if (Array.isArray(masterBranches)) {
-      masterBranches.forEach((b) => {
-        const id = String(b.id);
-        if (id && id !== "0" && b.name) map.set(id, b.name);
-      });
-    }
-    if (Array.isArray(branchesData)) {
-      branchesData.forEach((b) => {
-        if (b.value && b.value !== "0" && b.label) map.set(b.value, b.label);
-      });
-    }
-    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
-  }, [masterBranches, branchesData]);
-
   const { register, formState: { errors }, watch } = methods;
   const customerId = watch("id");
 
@@ -151,6 +88,8 @@ export const PosCustomerModal = ({ isOpen, onClose, onSelectCustomer }: PosCusto
       setActiveTab("list");
       setSearchTerm("");
       resetForm();
+      // Pre-fill the branch with the terminal's registered branch so it's ready if user opens the form
+      methods.setValue("branch", terminalBranchId);
       if (window.innerWidth > 1024) {
         setTimeout(() => searchInputRef.current?.focus(), 120);
       }
@@ -212,6 +151,8 @@ export const PosCustomerModal = ({ isOpen, onClose, onSelectCustomer }: PosCusto
 
   const handleNewCustomer = () => {
     resetForm();
+    // Always pre-fill the branch with the terminal's registered branch
+    methods.setValue("branch", terminalBranchId);
     if (searchTerm.trim()) {
       const isNum = /^[0-9+\-\s()]+$/.test(searchTerm.trim());
       if (isNum) {
@@ -792,37 +733,14 @@ export const PosCustomerModal = ({ isOpen, onClose, onSelectCustomer }: PosCusto
                       inputMode={isKeyboardEnabled ? "none" : undefined}
                       tabIndex={10}
                     />
-                    <SelectInput
+                    <FormInput
                       label="Branch"
-                      placeholder="Select Branch"
-                      {...register("branch")}
-                      error={errors.branch?.message}
-                      tabIndex={11}
-                      onFocus={(e) => {
-                        try {
-                          e.target.showPicker();
-                        } catch {
-                          // Fallback for older browsers
-                        }
-                      }}
-                      onChange={(e) => {
-                        register("branch").onChange(e);
-                        setTimeout(() => {
-                          handleFocusNextInput(e.target as HTMLElement);
-                        }, 50);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          setTimeout(() => {
-                            handleFocusNextInput(e.target as HTMLElement);
-                          }, 50);
-                        }
-                      }}
-                      options={branchOptions.length > 0 ? branchOptions : [
-                        { label: "Main Branch", value: "main" }
-                      ]}
+                      value={terminalBranchName}
+                      readOnly
+                      disabled
+                      tabIndex={-1}
+                      className="cursor-not-allowed"
+                      inputClassName="cursor-not-allowed bg-slate-100 text-slate-500"
                     />
                     <FormInput
                       label="Opening Balance"

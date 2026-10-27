@@ -19,7 +19,16 @@ export const mapApiToState = (data: PosConfigResponseData): ConfigurationState =
   const configs = data?.configs || {};
   return {
     ...INITIAL_CONFIG,
-    discCalc: (configs.discountCalc as any) || "Exclusive",
+    enableVat: (() => {
+      const stored = localStorage.getItem("enableVat");
+      if (stored !== null) return stored === "true" || stored === "Enable" || stored === "1";
+      const val = configs.enableVat ?? (configs as any)?.EnableVat;
+      if (val !== undefined && val !== null) {
+        return val === true || val === "Enable" || String(val).toLowerCase() === "true" || String(val).toLowerCase() === "enable";
+      }
+      return false;
+    })(),
+    discCalc: (localStorage.getItem("discCalc") as any) || (configs.discCalc as any) || (configs.discountCalc as any) || "Exclusive",
     kotHeader: (configs.kotHeader as any) || "QTY,DESCRIPTION,AMT",
     kotArabic: configs.kotArabic === "Enable",
     billArabic: configs.billArabic === "Enable",
@@ -92,6 +101,7 @@ export const mapApiToState = (data: PosConfigResponseData): ConfigurationState =
 export const mapStateToApi = (state: ConfigurationState, branchId: number): PosConfigUpdatePayload => {
   return {
     branchId,
+    enableVat: state.enableVat ? "Enable" : "Disable",
     discountCalc: state.discCalc,
     kotHeader: state.kotHeader,
     kotArabic: state.kotArabic ? "Enable" : "Disable",
@@ -405,8 +415,15 @@ export const usePosConfiguration = () => {
       if (form.printPrice || payload.printPrice) {
         localStorage.setItem("printPrice", form.printPrice || payload.printPrice || "Exclusive");
       }
+      if (form.discCalc || payload.discountCalc) {
+        localStorage.setItem("discCalc", form.discCalc || payload.discountCalc || "Exclusive");
+        localStorage.setItem("discountCalc", form.discCalc || payload.discountCalc || "Exclusive");
+      }
       if (payload.companyNameKot !== undefined) {
         localStorage.setItem("companyNameKot", payload.companyNameKot);
+      }
+      if (form.enableVat !== undefined) {
+        localStorage.setItem("enableVat", form.enableVat ? "true" : "false");
       }
 
       // ─── Frontend override for default employee ───────────────────────────────
@@ -437,6 +454,7 @@ export const usePosConfiguration = () => {
           parsed.configs.kotArabic = payload.kotArabic;
           parsed.configs.billArabic = payload.billArabic;
           parsed.configs.masterKot = payload.masterKot;
+          parsed.configs.masterKotBillPrinter = payload.masterKotBillPrinter;
           parsed.configs.defaultOrderTypeId = payload.defaultOrderTypeId;
           parsed.configs.isRecipeEnable = payload.isRecipeEnable;
           parsed.configs.isDayDateEnable = payload.isDayDateEnable;
@@ -465,14 +483,20 @@ export const usePosConfiguration = () => {
           parsed.configs.productView = form.productView || "English";
           parsed.configs.priceView = form.priceView || payload.priceView;
           parsed.configs.printPrice = form.printPrice || payload.printPrice;
+          parsed.configs.discCalc = form.discCalc || payload.discountCalc;
+          parsed.configs.discountCalc = form.discCalc || payload.discountCalc;
           parsed.configs.companyNameKot = payload.companyNameKot;
+          parsed.configs.enableVat = form.enableVat ? "Enable" : "Disable";
         }
+        parsed.enableVat = form.enableVat ? "Enable" : "Disable";
         parsed.itemSeperation = payload.itemSeperation;
         parsed.otherKitchenItem = payload.otherKitchenItem;
         parsed.posLanguage = form.posLanguage || "English";
         parsed.productView = form.productView || "English";
         parsed.priceView = form.priceView || payload.priceView;
         parsed.printPrice = form.printPrice || payload.printPrice;
+        parsed.discCalc = form.discCalc || payload.discountCalc;
+        parsed.discountCalc = form.discCalc || payload.discountCalc;
         parsed.companyNameKot = payload.companyNameKot;
         localStorage.setItem("itemSeperation", payload.itemSeperation ? "true" : "false");
         localStorage.setItem("otherKitchenItem", payload.otherKitchenItem ? "true" : "false");
@@ -481,6 +505,13 @@ export const usePosConfiguration = () => {
         parsed.kotArabic = payload.kotArabic;
         parsed.billArabic = payload.billArabic;
         parsed.masterKot = payload.masterKot;
+        parsed.masterKotBillPrinter = payload.masterKotBillPrinter;
+        if (payload.masterKot) {
+          localStorage.setItem("masterKot", payload.masterKot);
+        }
+        if (payload.masterKotBillPrinter) {
+          localStorage.setItem("masterKotBillPrinter", payload.masterKotBillPrinter);
+        }
         parsed.deliveryCharge = payload.deliveryCharge;
         parsed.defaultDeliveryCharge = payload.deliveryCharge;
         parsed.deliverycharges = payload.deliveryCharges;

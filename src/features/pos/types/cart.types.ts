@@ -13,6 +13,7 @@ export interface PosAlternative {
   unitId: number;
   promoPrice?: number;
   promoIsIncl?: boolean;
+  vatValue?: number;
 }
 
 export interface PosExtra {

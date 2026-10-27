@@ -63,7 +63,7 @@ export const OrderModals: React.FC<OrderModalsProps> = React.memo((props) => {
             props.resetTerminalState();
             props.setActiveProvider({ provider, orderNo });
             props.dispatch(
-              setOrderType({ orderTypeId: provider.providerId, orderType: provider.providerName })
+              setOrderType({ orderTypeId: 5, orderType: provider.providerName || "Providers" })
             );
             props.showToast(`${provider.providerName} order #${orderNo} started`, "success");
           }

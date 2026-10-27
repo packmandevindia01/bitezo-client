@@ -53,6 +53,16 @@ export const executeKotRouting = async (
     console.error("[Printer Routing] Failed to fetch printer data", e);
   }
 
+  if (!printerData) {
+    try {
+      const cached = localStorage.getItem("posPrinterData");
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        printerData = parsed?.data || parsed;
+      }
+    } catch {}
+  }
+
   const generalPrinter = printerData?.generalPrinter;
   const productPrinter = printerData?.productPrinter;
   const categoryPrinter = printerData?.categoryPrinter;
@@ -177,9 +187,26 @@ export const executeKotRouting = async (
     console.error("[Printer Routing] Error parsing cached posConfigs:", e);
   }
 
+  if (!isMasterKotEnabled) {
+    const directMaster = localStorage.getItem("masterKot");
+    if (directMaster) {
+      const s = directMaster.trim().toLowerCase();
+      isMasterKotEnabled = s === "enable" || s === "true" || s === "1";
+    }
+  }
+  if (!isMasterKotBillEnabled) {
+    const directMasterBill = localStorage.getItem("masterKotBillPrinter");
+    if (directMasterBill) {
+      const s = directMasterBill.trim().toLowerCase();
+      isMasterKotBillEnabled = s === "enable" || s === "true" || s === "1";
+    }
+  }
+
   // 1. Dispatch Standard KOT for each station printer
   const shouldDispatchStandard = isStandardKotEnabled || Boolean(basePrintOptions?.forcedPrint) || isUpdate;
   console.log(`[Printer Routing] Standard KOT: groups=${printerGroups.size}, items=${items.length}, shouldDispatch=${shouldDispatchStandard}, otherKitchenItem=${otherKitchenItemActive}`);
+
+  const printedStationPrinters = new Map<string, number>();
 
   if (shouldDispatchStandard) {
     const isVoidOrder = Boolean(
@@ -206,6 +233,7 @@ export const executeKotRouting = async (
         });
 
         await printFn(kotOutput, printerName);
+        printedStationPrinters.set(printerName, groupedItems.length);
         console.log(`[Printer Routing] Standard KOT printed successfully to "${printerName}" for ${groupedItems.length} items (otherItems=${otherKitchenItems.length}).`);
       } catch (err: any) {
         console.error(`[Print Error: Standard KOT - ${printerName}]`, err);
@@ -223,9 +251,22 @@ export const executeKotRouting = async (
   );
 
   if (!isVoidOrder && (isMasterKotEnabled || isMasterKotBillEnabled)) {
-    const masterTitle = basePrintOptions?.headerTitle && basePrintOptions.headerTitle !== "KOT"
-      ? (isUpdate ? `UPDATE ${basePrintOptions.headerTitle}` : basePrintOptions.headerTitle)
-      : (isUpdate ? "UPDATE MASTER KOT" : "MASTER KOT");
+    let masterTitle = "MASTER KOT";
+    if (basePrintOptions?.headerTitle) {
+      if (basePrintOptions.headerTitle === "RE-ORDER") {
+        masterTitle = "MASTER RE-ORDER";
+      } else if (basePrintOptions.headerTitle !== "KOT") {
+        masterTitle = isUpdate && !basePrintOptions.headerTitle.startsWith("UPDATE")
+          ? `UPDATE ${basePrintOptions.headerTitle}`
+          : basePrintOptions.headerTitle;
+      } else {
+        masterTitle = isUpdate ? "UPDATE MASTER KOT" : "MASTER KOT";
+      }
+    } else {
+      masterTitle = isUpdate ? "UPDATE MASTER KOT" : "MASTER KOT";
+    }
+
+    const firstActiveStationPrinter = Array.from(printerGroups.keys())[0];
 
     let masterPrinter = isMasterKotEnabled
       ? (isNative
@@ -233,14 +274,16 @@ export const executeKotRouting = async (
               generalPrinter?.masterKOT,
               localStorage.getItem('cachedMasterKotPrinter'),
               localStorage.getItem('cachedMasterKotPrinterIp'),
-              !isMasterKotBillEnabled ? singlePrinter : undefined
+              !isMasterKotBillEnabled ? singlePrinter : undefined,
+              firstActiveStationPrinter
             )
           : pickFirstValidPrinter(
               !isIp(generalPrinter?.masterKOT) ? generalPrinter?.masterKOT : undefined,
               !isIp(localStorage.getItem('cachedMasterKotPrinter')) ? localStorage.getItem('cachedMasterKotPrinter') : undefined,
               generalPrinter?.masterKOT,
               localStorage.getItem('cachedMasterKotPrinterIp'),
-              !isMasterKotBillEnabled ? singlePrinter : undefined
+              !isMasterKotBillEnabled ? singlePrinter : undefined,
+              firstActiveStationPrinter
             ))
       : '';
 
@@ -268,19 +311,24 @@ export const executeKotRouting = async (
             generalPrinter?.billPrinter,
             localStorage.getItem('cachedBillPrinter'),
             localStorage.getItem('cachedBillPrinterIp'),
-            singlePrinter
+            singlePrinter,
+            firstActiveStationPrinter
           )
         : pickFirstValidPrinter(
             !isIp(generalPrinter?.billPrinter) ? generalPrinter?.billPrinter : undefined,
             !isIp(localStorage.getItem('cachedBillPrinter')) ? localStorage.getItem('cachedBillPrinter') : undefined,
             generalPrinter?.billPrinter,
             localStorage.getItem('cachedBillPrinterIp'),
-            singlePrinter
+            singlePrinter,
+            firstActiveStationPrinter
           );
 
       const masterKotBillCount = Math.max(1, Number(generalPrinter?.masterKOTBillCount) || 1);
 
-      if (billPrinter && (!isMasterKotEnabled || billPrinter !== masterPrinter)) {
+      // If billPrinter is the exact same printer as masterPrinter and master KOT was already printed, skip duplicate
+      const isBillSameAsMaster = isMasterKotEnabled && billPrinter === masterPrinter;
+
+      if (billPrinter && !isBillSameAsMaster) {
         try {
           const masterOutput = await generateFn(items, {
             ...basePrintOptions,

@@ -69,6 +69,24 @@ export const getRuntimePosConfig = async (): Promise<RuntimePosConfig | null> =>
         if (companyKotVal !== undefined && companyKotVal !== null) {
           localStorage.setItem("companyNameKot", String(companyKotVal));
         }
+        const enableVatVal = response.data.configs?.enableVat ?? (response.data.configs as any)?.EnableVat ?? (response.data as any)?.enableVat;
+        if (enableVatVal !== undefined && enableVatVal !== null) {
+          const norm = String(enableVatVal).trim().toLowerCase();
+          localStorage.setItem("enableVat", norm === "true" || norm === "enable" || norm === "1" ? "true" : "false");
+        }
+        const pv = response.data.configs?.priceView ?? (response.data.configs as any)?.PriceView;
+        if (pv) {
+          localStorage.setItem("priceView", String(pv));
+        }
+        const pp = response.data.configs?.printPrice ?? (response.data.configs as any)?.PrintPrice;
+        if (pp) {
+          localStorage.setItem("printPrice", String(pp));
+        }
+        const dc = response.data.configs?.discCalc ?? response.data.configs?.discountCalc ?? (response.data.configs as any)?.DiscCalc ?? (response.data.configs as any)?.DiscountCalc;
+        if (dc) {
+          localStorage.setItem("discCalc", String(dc));
+          localStorage.setItem("discountCalc", String(dc));
+        }
         return applyDefaultEmployeeOverride(response.data.configs);
       }
     } catch (e) {

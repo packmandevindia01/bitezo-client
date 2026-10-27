@@ -79,7 +79,7 @@ export const PosDiscountKeypadModal: React.FC<PosDiscountKeypadModalProps> = ({
               {discountType === 'bill' 
                 ? `Bill: ${formatCurrency(subtotal)}` 
                 : currentItem 
-                  ? `${currentItem.product.name.split(' - ')[0]}: ${formatCurrency(currentItem.amount)}` 
+                  ? `${currentItem.product.name.split(' - ')[0]}: ${formatCurrency(currentItem.originalLineTotal ?? currentItem.lineTotal ?? currentItem.amount)}` 
                   : 'Item Amount: 0.000'}
             </span>
             <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Enter reduction</span>

@@ -1,6 +1,8 @@
 import { sortOrderDetailsBySequence } from "./orderSort";
 import { mapOrderDetailsToCartItems } from "../mappers/orderDetailToCartMapper";
-import { getBillingConfig, getVatStatus, roundCalc, getPriceView } from "./billing";
+import { getBillingConfig, getVatStatus, roundCalc, getPriceView, getDiscountCalculation } from "./billing";
+import { buildUnifiedOrderPricing } from "../../utils/orderPricing";
+import { checkOrderHasBillDiscount } from "./orderDiscountCheck";
 import {
   loadRecalledOrder,
   setDeliveryDetails,
@@ -39,7 +41,8 @@ export const loadSettledOrderIntoCart = ({
   }
 
   try {
-    const master = orderData.masterData || orderData;
+    const rawMaster = orderData.masterData || orderData.master || orderData;
+    const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
     const details = sortOrderDetailsBySequence(
       orderData.detailsData || orderData.details || []
     );
@@ -154,7 +157,20 @@ export const loadSettledOrderIntoCart = ({
       resolvedVatAmount = roundCalc(netAmount - netAmount / (1 + vatRate));
     }
 
-    let resolvedDiscount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0);
+    let resolvedDiscount = Number(
+      master.discAmount ??
+      master.DiscAmount ??
+      master.discAmt ??
+      master.DiscAmt ??
+      master.discount ??
+      master.Discount ??
+      master.discountAmount ??
+      master.DiscountAmount ??
+      master.billDiscount ??
+      master.BillDiscount ??
+      master.billDiscountValue ??
+      0
+    );
     if (resolvedDiscount <= 0 && lineDiscountsSum > 0) {
       resolvedDiscount = roundCalc(lineDiscountsSum);
     }
@@ -173,6 +189,8 @@ export const loadSettledOrderIntoCart = ({
     const isBillLevelDiscount =
       isBillComplimentary ||
       masterDiscPer > 0 ||
+      checkOrderHasBillDiscount(orderData) ||
+      checkOrderHasBillDiscount({ master, details }) ||
       (!hasLineItemDiscounts && resolvedDiscount > 0) ||
       (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001);
 
@@ -181,49 +199,37 @@ export const loadSettledOrderIntoCart = ({
         ? "percentage"
         : "amount";
 
-    let resolvedBillDiscVal = isBillComplimentary
-      ? 100
-      : masterDiscPer > 0
-      ? masterDiscPer
-      : (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001)
-      ? roundCalc(resolvedDiscount - lineDiscountsSum)
-      : isBillLevelDiscount
-      ? resolvedDiscount
-      : 0;
-
-    if (
-      isBillLevelDiscount &&
-      resolvedBillDiscType === "amount" &&
-      isIncl &&
-      resolvedBillDiscVal > 0
-    ) {
-      const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.1;
-      resolvedBillDiscVal = roundCalc(resolvedBillDiscVal * (1 + vatRate), 4);
-    }
-
     const mappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
       products,
       productCache,
-      priceView,
+      priceView: priceView,
       masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
       isOrderBillDiscount: isBillLevelDiscount,
     });
 
-    const serviceCharge = Number(master.serviceCharge || 0);
-    const levy = Number(master.levyAmt || master.levy || 0);
-    const deliveryCharge = Number(master.deliveryCharge || 0);
-    const netTaxableBase = roundCalc(
-      netAmount - resolvedVatAmount - serviceCharge - levy - deliveryCharge
-    );
-    let resolvedSubTotal = Number(
-      master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0
-    );
-    if (
-      resolvedSubTotal <= 0 ||
-      (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)
-    ) {
-      resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
-    }
+    const unifiedPricing = buildUnifiedOrderPricing(orderData, {
+      orderType: orderTypeName,
+      priceView,
+      isBillDiscount: isBillLevelDiscount,
+      products,
+      productCache,
+    });
+    const authSubtotal = isIncl
+      ? unifiedPricing.summary.subTotalInclusive
+      : unifiedPricing.summary.subTotalExclusive;
+    const authDiscount = isBillComplimentary
+      ? authSubtotal
+      : (isIncl ? unifiedPricing.summary.totalDiscountIncl : unifiedPricing.summary.totalDiscountExcl);
+    const authTax = isBillComplimentary ? 0 : unifiedPricing.summary.vatAmount;
+    const authNet = isBillComplimentary ? 0 : unifiedPricing.summary.grandTotal;
+
+    let resolvedBillDiscVal = isBillComplimentary
+      ? 100
+      : masterDiscPer > 0
+      ? masterDiscPer
+      : isBillLevelDiscount
+      ? (getDiscountCalculation() === "Inclusive" ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0))
+      : 0;
 
     dispatch(
       loadRecalledOrder({
@@ -235,7 +241,7 @@ export const loadSettledOrderIntoCart = ({
         orderTypeName: orderTypeName,
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: resolvedBillDiscVal,
+        billDiscountValue: Number(resolvedBillDiscVal || 0),
         billDiscountType: resolvedBillDiscType,
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
@@ -260,10 +266,10 @@ export const loadSettledOrderIntoCart = ({
         vehicleCustomerName: master.vehicleCustomerName,
         vehicleNo: master.vehicleNo,
         isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
-        authoritativeSubtotal: resolvedSubTotal,
-        authoritativeDiscount: resolvedDiscount,
-        authoritativeTax: isBillComplimentary ? 0 : resolvedVatAmount,
-        authoritativeNetAmount: isBillComplimentary ? 0 : netAmount,
+        authoritativeSubtotal: authSubtotal,
+        authoritativeDiscount: authDiscount,
+        authoritativeTax: authTax,
+        authoritativeNetAmount: authNet,
         prevUpdatedAt,
       })
     );

@@ -101,6 +101,29 @@ export const settledOrdersApi = {
     return { isSuccess: true, data: body, statusCode: res.status || 200, message: "" };
   },
 
+  getSettledPrintData: async (saleId: number, orderId: number): Promise<ApiResponse<any>> => {
+    try {
+      const res = await axiosInstance.get(`/settled-orders/settled-print-data/${saleId}/${orderId}`);
+      const body = res?.data;
+      if (body && typeof body === 'object') {
+        if (body.isSuccess === false) {
+          throw new Error(body.message || "An unexpected error occurred");
+        }
+        const dataObj = body.data !== undefined ? body.data : body;
+        return {
+          isSuccess: true,
+          data: dataObj,
+          statusCode: body.statusCode || res.status || 200,
+          message: body.message || "",
+        };
+      }
+      return { isSuccess: true, data: body, statusCode: res.status || 200, message: "" };
+    } catch (e: any) {
+      console.warn("[settledOrdersApi] getSettledPrintData fallback failed:", e);
+      return { isSuccess: false, data: null, statusCode: 500, message: e.message || "" };
+    }
+  },
+
   cancelSalesInvoice: async (orderId: number): Promise<ApiResponse<any>> => {
     const res = await unwrap<any>(axiosInstance.put(`/settled-orders/cancel-sales-invoice/${orderId}`));
     notifyTransactionsUpdated("sale");

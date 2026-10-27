@@ -28,6 +28,7 @@ export interface RuntimePosConfig {
   kotPrint?: string;
   displayPort?: string;
   printPrice?: string;
+  discCalc?: string;
   deliverySettle?: string;
   showDeliveryRecall?: string;
   colorChangeGuestPrint?: string;
@@ -61,6 +62,8 @@ export interface RuntimePosConfig {
   productView?: string;
   ProductView?: string;
   otherKitchenItem?: boolean;
+  enableVat?: string | boolean;
+  EnableVat?: string | boolean;
 }
 
 export interface PosConfigResponseData {

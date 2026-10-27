@@ -40,6 +40,10 @@ export interface SalesInvoicePayload {
   netAmount: number;
   deliveryCharge?: number;
   complimentaryStatus?: boolean;
+  billDiscount?: number;
+  billDiscountValue?: number;
+  billDiscountType?: 'percentage' | 'amount';
+  isBillDiscount?: boolean;
   orderMaster: {
     isOrderEdited?: boolean;
     sectionId?: number;
@@ -135,8 +139,22 @@ export const salesInvoiceApi = {
             0
           );
           const lineDiscounts = postPayload.details.reduce((sum: number, d: any) => sum + Number(d.discAmount || 0), 0);
-          const totalDisc = roundCalc(Math.max(0, Number(postPayload.discAmount || 0), lineDiscounts));
-          postPayload.discAmount = totalDisc;
+          const isBillDisc = Boolean(
+            (postPayload as any).isBillDiscount ||
+            Number((postPayload as any).billDiscountValue || (postPayload as any).billDiscount || 0) > 0 ||
+            (Number(postPayload.discAmount || 0) > 0 && lineDiscounts === 0)
+          );
+
+          if (isBillDisc) {
+            postPayload.details.forEach((d: any) => {
+              d.discAmount = 0;
+              d.discPer = 0;
+            });
+            postPayload.discAmount = roundCalc(Number(postPayload.discAmount || 0));
+          } else {
+            postPayload.discAmount = 0;
+            postPayload.discPer = 0;
+          }
 
           let calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
           let calcVatAmt = roundCalc(postPayload.details.reduce((sum: number, d: any) => sum + Number(d.vatAmount || 0), 0));
@@ -150,7 +168,12 @@ export const salesInvoiceApi = {
             postPayload.vatExclAmount = incomingVatExcl;
             postPayload.vatAmount = incomingVatAmt;
           } else {
-            if (isVatEnabled && calcVatAmt <= 0.0001 && payableBase > 0 && !postPayload.complimentaryStatus) {
+            if (isVatEnabled && !postPayload.complimentaryStatus && payableBase > calcVatExcl) {
+              const reconciledVat = roundCalc(payableBase - calcVatExcl);
+              if (reconciledVat > calcVatAmt) {
+                calcVatAmt = reconciledVat;
+              }
+            } else if (isVatEnabled && calcVatAmt <= 0.0001 && payableBase > 0 && !postPayload.complimentaryStatus) {
               const vatRate = 0.10;
               calcVatAmt = roundCalc(payableBase - (payableBase / (1 + vatRate)));
               calcVatExcl = roundCalc(payableBase - calcVatAmt);
@@ -231,7 +254,22 @@ export const salesInvoiceApi = {
         0
       );
       const lineDiscounts = cleanedDetails.reduce((sum, d) => sum + Number(d.discAmount || 0), 0);
-      const totalDisc = roundCalc(Math.max(0, Number(payload.discAmount || 0), lineDiscounts));
+      const isBillDisc = Boolean(
+        (payload as any).isBillDiscount ||
+        Number((payload as any).billDiscountValue || (payload as any).billDiscount || 0) > 0 ||
+        (Number(payload.discAmount || 0) > 0 && lineDiscounts === 0)
+      );
+
+      if (isBillDisc) {
+        cleanedDetails.forEach((d: any) => {
+          d.discAmount = 0;
+          d.discPer = 0;
+        });
+        payload.discAmount = roundCalc(Number(payload.discAmount || 0));
+      } else {
+        payload.discAmount = 0;
+        payload.discPer = 0;
+      }
 
       let calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
       let calcVatAmt = roundCalc(cleanedDetails.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
@@ -243,10 +281,17 @@ export const salesInvoiceApi = {
       if (incomingVatExcl > 0 && incomingVatAmt > 0 && Math.abs((incomingVatExcl + incomingVatAmt) - payableBase) < 0.05) {
         calcVatExcl = incomingVatExcl;
         calcVatAmt = incomingVatAmt;
-      } else if (isVatEnabled && calcVatAmt <= 0.0001 && payableBase > 0 && !payload.complimentaryStatus) {
-        const vatRate = 0.10;
-        calcVatAmt = roundCalc(payableBase - (payableBase / (1 + vatRate)));
-        calcVatExcl = roundCalc(payableBase - calcVatAmt);
+      } else {
+        if (isVatEnabled && !payload.complimentaryStatus && payableBase > calcVatExcl) {
+          const reconciledVat = roundCalc(payableBase - calcVatExcl);
+          if (reconciledVat > calcVatAmt) {
+            calcVatAmt = reconciledVat;
+          }
+        } else if (isVatEnabled && calcVatAmt <= 0.0001 && payableBase > 0 && !payload.complimentaryStatus) {
+          const vatRate = 0.10;
+          calcVatAmt = roundCalc(payableBase - (payableBase / (1 + vatRate)));
+          calcVatExcl = roundCalc(payableBase - calcVatAmt);
+        }
       }
 
       const putPayload = {
@@ -257,7 +302,7 @@ export const salesInvoiceApi = {
         orderTypeId: Number(payload.orderTypeId || 1),
         orderId: Number(payload.orderId || 0),
         voucherDate: voucherDateStr,
-        discAmount: totalDisc,
+        discAmount: Number(payload.discAmount || 0),
         discPer: Number(payload.discPer || 0),
         serviceCharge: Number(payload.serviceCharge || 0),
         levy: Number(payload.levy || 0),

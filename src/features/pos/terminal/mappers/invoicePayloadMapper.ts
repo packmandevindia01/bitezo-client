@@ -116,6 +116,12 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
 
   const resolvedVoucherDate = formatDateOnly(orderPayload.voucherDate || transDate || new Date());
 
+    const isOrderBillDiscount = Boolean(
+      (orderPayload as any).isBillDiscount ||
+      Number((orderPayload as any).billDiscountValue || (orderPayload as any).billDiscount || 0) > 0 ||
+      (Number(orderPayload.discAmount || 0) > 0 && !(orderPayload.details || []).some((d: any) => Number(d.discAmount || 0) > 0.001))
+    );
+
     const sanitizedDetails = (orderPayload.details || []).map((d: any) => {
       const sanitized = sanitizeTaxExclusiveDetail(d);
       return {
@@ -127,8 +133,8 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
         basePrice: sanitized.basePrice,
         exclusivePrice: sanitized.exclusivePrice,
         isPriceTaxExclusive: true,
-        discPer: sanitized.discPer || 0,
-        discAmount: sanitized.discAmount || 0,
+        discPer: isOrderBillDiscount ? 0 : (sanitized.discPer || 0),
+        discAmount: isOrderBillDiscount ? 0 : (sanitized.discAmount || 0),
         serviceCharge: sanitized.serviceCharge || 0,
         levy: sanitized.levy || 0,
         vatAmount: sanitized.vatAmount || 0,
@@ -141,24 +147,31 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
 
     const totalModifierGross = (orderPayload.modifiers || []).reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0);
     const lineExclSum = sanitizedDetails.reduce(
-      (sum, d) => sum + (Number(d.price || 0) * Number(d.qty || 1) - Number(d.discAmount || 0) + Number(d.serviceCharge || 0) + Number(d.levy || 0)),
+      (sum, d) => sum + (Number(d.price || 0) * Number(d.qty || 1) - Number(d.discAmount || 0)),
       0
     );
     let calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
-    let calcVatAmt = roundCalc(sanitizedDetails.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
-    const lineDiscounts = sanitizedDetails.reduce((sum, d) => sum + Number(d.discAmount || 0), 0);
-    const totalOrderDiscount = roundCalc(Math.max(0, Number(orderPayload.discAmount || 0), lineDiscounts));
+    const lineVatSum = roundCalc(sanitizedDetails.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
+
+    const invoiceDiscAmount = isOrderBillDiscount ? roundCalc(Number(orderPayload.discAmount || 0)) : 0;
+    const invoiceDiscPer = isOrderBillDiscount ? Number(orderPayload.discPer || 0) : 0;
+    if (isOrderBillDiscount) {
+      calcVatExcl = roundCalc(Math.max(0, calcVatExcl - invoiceDiscAmount));
+    }
 
     const isVatEnabled = getVatStatus();
-    const payableBase = Math.max(0, Number(orderPayload.netAmount || 0) - Number(orderPayload.deliveryCharge || 0));
     const isComplimentary = Boolean((orderPayload as any).complimentaryStatus || Number(orderPayload.discPer) === 100);
-
-    // Fallback self-healing: ensure taxable order never sends vatAmount: 0 or vatExclAmount === netAmount
-    if (isVatEnabled && calcVatAmt <= 0.0001 && payableBase > 0 && !isComplimentary) {
-      const vatRate = 0.10;
-      calcVatAmt = roundCalc(payableBase - (payableBase / (1 + vatRate)));
-      calcVatExcl = roundCalc(payableBase - calcVatAmt);
+    const detailsSc = sanitizedDetails.reduce((sum, d) => sum + Number(d.serviceCharge || 0), 0);
+    const detailsLevy = sanitizedDetails.reduce((sum, d) => sum + Number(d.levy || 0), 0);
+    const totalSc = Number(orderPayload.serviceCharge || 0) || detailsSc;
+    const totalLevy = Number(orderPayload.levy || 0) || detailsLevy;
+    const taxableBase = Math.max(0, calcVatExcl + totalSc + totalLevy);
+    let calcVatAmt = 0;
+    if (isVatEnabled && !isComplimentary) {
+      const expectedVat = roundCalc(taxableBase * 0.10);
+      calcVatAmt = lineVatSum >= expectedVat ? lineVatSum : expectedVat;
     }
+    const netPayable = roundCalc(taxableBase + calcVatAmt + Number(orderPayload.deliveryCharge || 0));
 
   return {
     seriesId: systemSeriesId,
@@ -174,13 +187,17 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     saleId: editingSaleId || 0,
     orderId: orderPayload.orderId,
     voucherDate: resolvedVoucherDate,
-    discAmount: totalOrderDiscount,
-    discPer: orderPayload.discPer,
+    discAmount: invoiceDiscAmount,
+    discPer: invoiceDiscPer,
+    billDiscount: (orderPayload as any).billDiscount ?? (orderPayload as any).billDiscountValue ?? invoiceDiscAmount,
+    billDiscountValue: (orderPayload as any).billDiscountValue ?? invoiceDiscAmount,
+    billDiscountType: (orderPayload as any).billDiscountType ?? (Number(orderPayload.discPer) > 0 ? "percentage" : "amount"),
+    isBillDiscount: isOrderBillDiscount,
     serviceCharge: orderPayload.serviceCharge,
     levy: orderPayload.levy,
     vatExclAmount: calcVatExcl,
     vatAmount: calcVatAmt,
-    netAmount: Math.max(0, orderPayload.netAmount),
+    netAmount: netPayable,
     deliveryCharge: Math.max(0, orderPayload.deliveryCharge),
     complimentaryStatus: Boolean((orderPayload as any).complimentaryStatus || Number(orderPayload.discPer) === 100),
     createdAt: new Date().toISOString(),

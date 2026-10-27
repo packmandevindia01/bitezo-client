@@ -38,11 +38,89 @@ export const getPriceView = (override?: string): "Inclusive" | "Exclusive" => {
           if (norm === "inclusive") return "Inclusive";
           if (norm === "exclusive") return "Exclusive";
         }
+        const vt = configs?.vatType ?? configs?.VatType ?? parsed?.vatType ?? parsed?.VatType;
+        if (vt) {
+          const norm = String(vt).trim().toLowerCase();
+          if (norm === "inclusive") return "Inclusive";
+          if (norm === "exclusive") return "Exclusive";
+        }
       }
     } catch {}
   }
 
-  return "Exclusive";
+  return "Inclusive";
+};
+
+export const getPrintPrice = (override?: string): "Inclusive" | "Exclusive" => {
+  if (override) {
+    const norm = String(override).trim().toLowerCase();
+    if (norm === "inclusive") return "Inclusive";
+    if (norm === "exclusive") return "Exclusive";
+  }
+
+  // Priority 1: Check printPrice in localStorage
+  const directPrintPrice = localStorage.getItem("printPrice");
+  if (directPrintPrice) {
+    const norm = String(directPrintPrice).trim().toLowerCase();
+    if (norm === "inclusive") return "Inclusive";
+    if (norm === "exclusive") return "Exclusive";
+  }
+
+  // Priority 2: Check cached posConfigs JSON
+  for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configs = parsed?.configs || parsed;
+        const pp = configs?.printPrice ?? configs?.PrintPrice ?? parsed?.printPrice ?? parsed?.PrintPrice;
+        if (pp) {
+          const norm = String(pp).trim().toLowerCase();
+          if (norm === "inclusive") return "Inclusive";
+          if (norm === "exclusive") return "Exclusive";
+        }
+      }
+    } catch {}
+  }
+
+  return getPriceView();
+};
+
+export const getDiscountCalculation = (override?: string): "Inclusive" | "Exclusive" => {
+  if (override) {
+    const norm = String(override).trim().toLowerCase();
+    if (norm === "inclusive") return "Inclusive";
+    if (norm === "exclusive") return "Exclusive";
+  }
+
+  // Priority 1: Check discCalc / discountCalc in localStorage
+  for (const key of ["discCalc", "discountCalc", "discountCalculation"]) {
+    const direct = localStorage.getItem(key);
+    if (direct) {
+      const norm = String(direct).trim().toLowerCase();
+      if (norm === "inclusive") return "Inclusive";
+      if (norm === "exclusive") return "Exclusive";
+    }
+  }
+
+  // Priority 2: Check cached posConfigs JSON
+  for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configs = parsed?.configs || parsed;
+        const dc = configs?.discCalc ?? configs?.discountCalc ?? configs?.DiscCalc ?? configs?.DiscountCalc ?? configs?.discountCalculation;
+        if (dc) {
+          const norm = String(dc).trim().toLowerCase();
+          if (norm === "inclusive") return "Inclusive";
+          if (norm === "exclusive") return "Exclusive";
+        }
+      }
+    } catch {}
+  }
+
+  return getPriceView();
 };
 
 /**
@@ -95,8 +173,6 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
       }
     }
     
-    const rawDiscCalc = configs.discCalc || configs.discountCalc || configs.DiscCalc || configs.DiscountCalc || '';
-    const rawPriceView = configs.priceView || configs.PriceView || '';
     const rawVat = configs.vat ?? configs.Vat ?? configs.vatRate ?? configs.VatRate ?? 0;
     const rawSc = configs.serviceCharges ?? configs.serviceCharge ?? configs.ServiceCharges ?? 0;
     const rawLevy = configs.levy ?? configs.Levy ?? 0;
@@ -104,9 +180,9 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
     return {
       serviceChargeRate: Number(rawSc) / 100,
       levyRate: Number(rawLevy) / 100,
-      vatRate: Number(rawVat) / 100,
-      vatType: getPriceView(rawPriceView),
-      discountType: String(rawDiscCalc).toLowerCase() === 'inclusive' ? 'Inclusive' : 'Exclusive',
+      vatRate: Number(rawVat) > 0 ? Number(rawVat) / 100 : 0.10,
+      vatType: getPriceView(),
+      discountType: getDiscountCalculation(),
       orderType
     };
   } catch {
@@ -115,7 +191,7 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
       levyRate: 0.05,
       vatRate: 0.10,
       vatType: getPriceView(),
-      discountType: 'Exclusive',
+      discountType: getDiscountCalculation(),
       orderType
     };
   }
@@ -123,12 +199,32 @@ export const getBillingConfig = (orderType: string): BillingConfig => {
 
 export const getVatStatus = (): boolean => {
   try {
-    for (const key of ['posConfigs', 'posConfig', 'pos_configs']) {
+    // Priority 1: Check direct localStorage vatStatus / enableVat / isVatEnabled
+    for (const key of ['vatStatus', 'VatStatus', 'enableVat', 'EnableVat', 'isVatEnabled']) {
+      const direct = localStorage.getItem(key);
+      if (direct !== null && direct !== undefined) {
+        const norm = String(direct).trim().toLowerCase();
+        if (norm === 'true' || norm === 'enable' || norm === '1') return true;
+        if (norm === 'false' || norm === 'disable' || norm === '0') return false;
+      }
+    }
+
+    // Priority 2: Check cached posConfigs JSON
+    for (const key of ['posConfigs', 'posConfig', 'pos_configs', 'pos_config']) {
       const saved = localStorage.getItem(key);
       if (!saved) continue;
       const parsed = JSON.parse(saved);
       const configs = parsed?.configs || parsed;
-      const val = configs?.VatStatus ?? configs?.vatStatus ?? parsed?.VatStatus ?? parsed?.vatStatus;
+      const val =
+        configs?.VatStatus ??
+        configs?.vatStatus ??
+        configs?.enableVat ??
+        configs?.EnableVat ??
+        configs?.isVatEnabled ??
+        parsed?.VatStatus ??
+        parsed?.vatStatus ??
+        parsed?.enableVat ??
+        parsed?.EnableVat;
       if (val !== undefined && val !== null) {
         return (
           val === true ||
@@ -195,16 +291,16 @@ export const calculateLineItem = (
       baseDiscount = amount * (pct / 100);
     } else {
       const rawVal = Math.max(0, Number(discount.value) || 0);
-      if ((isInclusive || config.discountType === 'Inclusive') && isVatEnabled && activeVatRate > 0) {
+      if (config.discountType === 'Inclusive' && isVatEnabled && activeVatRate > 0) {
         baseDiscount = rawVal / (1 + activeVatRate);
       } else {
         baseDiscount = rawVal;
       }
     }
   } else {
-    // Reverse Calculation for Discount based on Discount config or inclusive price
+    // Reverse Calculation for Discount based on Discount config
     const rawVal = Math.max(0, Number(discount) || 0);
-    if ((isInclusive || config.discountType === 'Inclusive') && isVatEnabled && activeVatRate > 0) {
+    if (config.discountType === 'Inclusive' && isVatEnabled && activeVatRate > 0) {
       baseDiscount = rawVal / (1 + activeVatRate);
     } else {
       baseDiscount = rawVal;
@@ -303,6 +399,7 @@ export interface CalculatedLineItem {
   productId: number;
   unitId?: number;
   quantity: number;
+  catalogPrice?: number;
   price: number;
   basePrice: number;
   exclusivePrice: number;
@@ -325,6 +422,9 @@ export interface CalculatedLineItem {
   amount: number;
   itemDiscount?: number;
   itemDiscountAmount: number;
+  itemDiscountExcl?: number;
+  itemDiscountIncl?: number;
+  itemDiscountGross?: number;
   billDiscountAmount: number;
   effectiveDiscountAmount: number;
   netValue: number;
@@ -347,9 +447,13 @@ export interface CalculatedLineItem {
 export interface OrderCalculationSummary {
   baseSubtotal: number;
   subtotal: number;
+  subTotalInclusive?: number;
+  subTotalExclusive?: number;
   itemDiscountsTotal: number;
   billDiscountTotal: number;
   totalDiscount: number;
+  totalDiscountIncl?: number;
+  totalDiscountExcl?: number;
   serviceCharge: number;
   levy: number;
   charges: number;
@@ -382,6 +486,7 @@ export const calculateOrder = (
 ): OrderCalculationResult => {
   const config = options.config || getBillingConfig(options.orderType || 'DineIn');
   const isVatEnabled = getVatStatus();
+  const isTaxInclusive = config.vatType === 'Inclusive';
   const billDiscVal = Number(options.billDiscountValue) || 0;
   const billDiscType = options.billDiscountType || 'percentage';
 
@@ -498,6 +603,8 @@ export const calculateOrder = (
       const effectiveDiscountAmount = calcs.discountAmount ?? 0;
       const itemDiscountAmount = isBillDisc ? 0 : effectiveDiscountAmount;
       const billDiscountAmount = isBillDisc ? effectiveDiscountAmount : 0;
+      const itemDiscountGross = itemDiscountAmount;
+      const displayItemDiscount = itemDiscountAmount;
 
       // Deduct extras proportionally from main detail line for backend payload compatibility
       let mainNetAmount = calcs.lineNetAmount;
@@ -526,7 +633,6 @@ export const calculateOrder = (
       }
 
         const resolvedUnitId = item.unitId || product.unitId || 1;
-        const isTaxInclusive = config.vatType === 'Inclusive';
         const effectiveUnitRate = isTaxInclusive
           ? (isVatEnabled && effectiveVatRate > 0 ? roundCalc(calcs.basePrice * (1 + effectiveVatRate / 100), CALC_PRECISION) : calcs.basePrice)
           : calcs.basePrice;
@@ -571,8 +677,10 @@ export const calculateOrder = (
         baseAmount: calcs.baseAmount,
         extrasTotal: totalExtrasForLine,
         amount: calcs.amount,
-        itemDiscount: itemDiscountAmount,
+        itemDiscount: displayItemDiscount,
         itemDiscountAmount,
+        itemDiscountExcl: itemDiscountAmount,
+        itemDiscountIncl: itemDiscountGross,
         billDiscountAmount,
         effectiveDiscountAmount,
         netValue: calcs.netValue,
@@ -606,16 +714,47 @@ export const calculateOrder = (
     }
   }
 
+  const grossSubtotal = roundCalc(
+    Math.max(
+      0,
+      calculatedLines.reduce(
+        (sum, l) => sum + (l.originalLineTotal ?? (l.price * l.quantity + l.extrasTotal)),
+        0
+      )
+    )
+  );
+  const exclSubtotal = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.amount, 0)));
   const baseSubtotal = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.baseAmount, 0)));
-  const subtotal = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.amount, 0)));
-  const itemDiscountsTotal = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.itemDiscountAmount, 0)));
-  const billDiscountTotal = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.billDiscountAmount, 0)));
-  const totalDiscount = roundCalc(Math.min(subtotal, Math.max(0, calculatedLines.reduce((sum, l) => sum + l.effectiveDiscountAmount, 0))));
+  const subtotal = isTaxInclusive ? grossSubtotal : exclSubtotal;
+
+  const isBillDisc = billDiscVal > 0;
+
+  // Aggregate line-level discounts
+  const itemDiscountsExcl = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + (l.itemDiscountExcl ?? l.itemDiscountAmount ?? 0), 0)));
+  const itemDiscountsIncl = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + (l.itemDiscountIncl ?? l.itemDiscountGross ?? l.itemDiscountAmount ?? 0), 0)));
+
+  // Aggregate bill discount
+  const billDiscountExcl = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.billDiscountAmount, 0)));
+  let billDiscountIncl = 0;
+  if (isBillDisc) {
+    if (billDiscType === 'percentage') {
+      billDiscountIncl = roundCalc(grossSubtotal * (billDiscVal / 100), CALC_PRECISION);
+    } else {
+      billDiscountIncl = roundCalc(billDiscVal, CALC_PRECISION);
+    }
+  }
+
+  const totalDiscountExcl = roundCalc(Math.min(exclSubtotal, isBillDisc ? billDiscountExcl : itemDiscountsExcl));
+  const totalDiscountIncl = roundCalc(Math.min(grossSubtotal, isBillDisc ? billDiscountIncl : itemDiscountsIncl));
+  const displayDiscount = isTaxInclusive ? totalDiscountIncl : totalDiscountExcl;
+
+  const itemDiscountsTotal = isTaxInclusive ? itemDiscountsIncl : itemDiscountsExcl;
+  const billDiscountTotal = isTaxInclusive ? billDiscountIncl : billDiscountExcl;
   const serviceCharge = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.sc, 0)));
   const levy = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.levy, 0)));
   const charges = roundCalc(serviceCharge + levy);
   const vatAmount = roundCalc(Math.max(0, calculatedLines.reduce((sum, l) => sum + l.vatAmount, 0)));
-  const vatExclAmount = roundCalc(Math.max(0, subtotal - totalDiscount));
+  const vatExclAmount = roundCalc(Math.max(0, exclSubtotal - totalDiscountExcl));
   const itemCount = calculatedLines.reduce((sum, l) => sum + l.quantity, 0);
   const totalExtras = roundCalc(calculatedLines.reduce((sum, l) => sum + l.extrasTotal, 0));
 
@@ -628,9 +767,13 @@ export const calculateOrder = (
     summary: {
       baseSubtotal,
       subtotal,
+      subTotalInclusive: grossSubtotal,
+      subTotalExclusive: exclSubtotal,
       itemDiscountsTotal,
       billDiscountTotal,
-      totalDiscount,
+      totalDiscount: displayDiscount,
+      totalDiscountIncl,
+      totalDiscountExcl,
       serviceCharge,
       levy,
       charges,
@@ -695,7 +838,7 @@ export const getTaxExclusivePrice = (
 
   const qty = Number(item.qty ?? item.quantity ?? 1);
   const vatAmt = Number(item.vatAmount ?? 0);
-  const discAmt = Number(item.discAmount ?? item.discountAmount ?? 0);
+  const discAmt = Number(item.discAmount ?? item.discountAmount ?? item.itemDiscount ?? item.effectiveDiscountAmount ?? item.discountValue ?? 0);
   const sc = Number(item.serviceCharge ?? item.sc ?? 0);
   const levy = Number(item.levy ?? 0);
   const netAmt = Number(item.netAmount ?? item.lineNetAmount ?? 0);
@@ -747,6 +890,11 @@ export const getTaxExclusivePrice = (
  * is STRICTLY tax-exclusive, while `netAmount` includes tax (net payable amount).
  */
 export const sanitizeTaxExclusiveDetail = (d: any, config?: BillingConfig) => {
+  if (!d) return d;
+  if (d.isSanitized === true || d.isPriceTaxExclusive === true) {
+    return d;
+  }
+
   const qty = Number(d.qty ?? d.quantity ?? 1);
   let discAmt = roundCalc(Number(d.discAmount ?? d.DiscAmount ?? 0));
   const sc = roundCalc(Number(d.serviceCharge ?? d.ServiceCharge ?? 0));
@@ -788,7 +936,16 @@ export const sanitizeTaxExclusiveDetail = (d: any, config?: BillingConfig) => {
   }
 
   // 4. If line discount was entered as gross/inclusive discount on an inclusive price, convert to tax-exclusive
-  if (!d.isPriceTaxExclusive && exclPrice < rawPrice && discAmt > 0 && isVatEnabled && activeVatRate > 0) {
+  const grossExpectedDisc = (d.discPer && Number(d.discPer) > 0) ? (rawPrice * qty * Number(d.discPer) / 100) : 0;
+  const isAlreadyExcl = Boolean(
+    d.isPriceTaxExclusive ||
+    d.isSanitized ||
+    (grossExpectedDisc > 0 && Math.abs(discAmt - (grossExpectedDisc / (1 + activeVatRate))) < 0.05) ||
+    (d.basePrice !== undefined && d.discountAmount !== undefined) ||
+    (d.basePrice !== undefined && d.effectiveDiscountAmount !== undefined)
+  );
+
+  if (!isAlreadyExcl && !d.isPriceTaxExclusive && exclPrice < rawPrice && discAmt > 0 && isVatEnabled && activeVatRate > 0) {
     if (Math.abs((rawPrice * qty - discAmt + sc + levy) - rawNet) < 0.05 || Math.abs((rawPrice * qty - discAmt) - rawNet) < 0.05) {
       discAmt = roundCalc(discAmt / (1 + activeVatRate), CALC_PRECISION);
     }
@@ -826,6 +983,7 @@ export const sanitizeTaxExclusiveDetail = (d: any, config?: BillingConfig) => {
     basePrice: exclPrice,
     exclusivePrice: exclPrice,
     isPriceTaxExclusive: true,
+    isSanitized: true,
     discAmount: discAmt,
     serviceCharge: sc,
     levy,

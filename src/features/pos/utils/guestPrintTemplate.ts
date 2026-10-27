@@ -1,11 +1,13 @@
 import type { PosCartItem } from "../types";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
-import { isBillArabicEnabled, getAlternativeArabicName, containsArabic, formatItemDisplayName } from "./alternativeHelpers";
+import { isBillArabicEnabled, getAlternativeArabicName, containsArabic } from "./alternativeHelpers";
 export { isBillArabicEnabled };
 import { getDecimalPart } from "../../../utils/currency";
 import { getModifierTypeNameById } from "../services/menuApi";
-import { getBillingConfig, getPriceView } from "../terminal/utils/billing";
+import { getBillingConfig, getPriceView, getVatStatus } from "../terminal/utils/billing";
+import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
+import { checkOrderHasBillDiscount } from "../terminal/utils/orderDiscountCheck";
 
 export interface GuestPrintData {
   orderNo: string;
@@ -50,6 +52,8 @@ export interface GuestPrintData {
   printPrice?: "Inclusive" | "Exclusive";
   priceView?: "Inclusive" | "Exclusive";
   isBillDiscount?: boolean;
+  billDiscount?: number;
+  billDiscountValue?: number;
 }
 
 const formatOrderNo = (orderNo: any): string => {
@@ -142,6 +146,30 @@ export const resolvePrintTaxSetting = (data?: GuestPrintData): "Inclusive" | "Ex
   return normalizeTaxSetting(getPriceView()) ?? "Exclusive";
 };
 
+export const isEnableVatGuestPrint = (_data?: GuestPrintData): boolean => {
+  const stored = localStorage.getItem("enableVat");
+  if (stored !== null && stored !== undefined) {
+    const norm = String(stored).trim().toLowerCase();
+    if (norm === "true" || norm === "enable" || norm === "1") return true;
+    if (norm === "false" || norm === "disable" || norm === "0") return false;
+  }
+  try {
+    for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const configs = parsed?.configs || parsed;
+        const val = configs?.enableVat ?? configs?.EnableVat ?? parsed?.enableVat ?? parsed?.EnableVat;
+        if (val !== undefined && val !== null) {
+          const norm = String(val).trim().toLowerCase();
+          return norm === "true" || norm === "enable" || norm === "1";
+        }
+      }
+    }
+  } catch {}
+  return false;
+};
+
 export const resolveViewTaxSetting = (data?: GuestPrintData): "Inclusive" | "Exclusive" => {
   const explicitView = normalizeTaxSetting(data?.priceView);
   if (explicitView) return explicitView;
@@ -179,6 +207,7 @@ export const generateGuestPrintHtml = async (
   const now = new Date();
   const dateStr = data.date || now.toLocaleDateString('en-GB'); // DD/MM/YYYY
   const timeStr = data.time || now.toLocaleTimeString('en-US'); // h:mm:ss A
+  const formattedTimeStr = timeStr.replace(/\s+/g, '\u00A0');
 
   let customHeadersHtml = "";
   let customFootersHtml = "";
@@ -294,20 +323,23 @@ export const generateGuestPrintHtml = async (
   else if (isDelivery) orderTypeSuffix = isBillArabic ? "(DELIVERY / توصيل)" : "(DELIVERY)";
 
   const arabicInvoiceTitle = data.enableVat
-    ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px;">فاتورة ضريبية مبسطة</div>'
-    : '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px;">فاتورة مبسطة</div>';
+    ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px; line-height:1.3;">فاتورة ضريبية مبسطة</div>'
+    : '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px; line-height:1.3;">فاتورة مبسطة</div>';
 
-  const arabicGuestTitle = '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px;">فاتورة ضيف</div>';
+  const arabicGuestTitle = '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px; line-height:1.3;">فاتورة ضيف</div>';
+
+  const orderTypeHtml = orderTypeSuffix
+    ? `<div style="font-size: 13px; font-weight: 700; margin-top: 3px; line-height: 1.3; letter-spacing: 0;">${orderTypeSuffix}</div>`
+    : '';
 
   let headerTitle = "";
   if (isGuestPrint) {
-    headerTitle = `GUEST PRINT${isBillArabic ? `${arabicGuestTitle}` : ''}${orderTypeSuffix ? `<div style="margin-top:2px;">${orderTypeSuffix}</div>` : ''}`;
+    headerTitle = `<div>GUEST PRINT</div>${isBillArabic ? arabicGuestTitle : ''}${orderTypeHtml}`;
   } else if (data.isPackager) {
-    headerTitle = `PACKAGER${orderTypeSuffix ? `<div style="margin-top:2px;">${orderTypeSuffix}</div>` : ''}`;
+    headerTitle = `<div>PACKAGER</div>${orderTypeHtml}`;
   } else {
-    headerTitle = data.enableVat 
-      ? `SIMPLIFIED TAX INVOICE${isBillArabic ? `${arabicInvoiceTitle}` : ''}${orderTypeSuffix ? `<div style="margin-top:2px;">${orderTypeSuffix}</div>` : ''}` 
-      : `SIMPLIFIED INVOICE${isBillArabic ? `${arabicInvoiceTitle}` : ''}${orderTypeSuffix ? `<div style="margin-top:2px;">${orderTypeSuffix}</div>` : ''}`;
+    const mainTitle = data.enableVat ? "SIMPLIFIED TAX INVOICE" : "SIMPLIFIED INVOICE";
+    headerTitle = `<div>${mainTitle}</div>${isBillArabic ? arabicInvoiceTitle : ''}${orderTypeHtml}`;
   }
 
   const decimalPart = getDecimalPart();
@@ -316,239 +348,107 @@ export const generateGuestPrintHtml = async (
     return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
   };
 
-  // Calculate VAT totals and conversion ratio prior to item iteration
-  const cartVatSum = cartDetails.reduce((sum, item: any) => sum + (item.vatAmount || 0), 0);
-  const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
-  const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0 || (data.vatAmount && data.vatAmount > 0);
-  const totalNet = Number(data.netAmount || 0);
-  const authoritativeSubTotal = (data.subTotal !== undefined && Number(data.subTotal) > 0) ? Number(data.subTotal) : 0;
-  const authoritativeVatAmount = (data.vatAmount !== undefined && !isNaN(Number(data.vatAmount))) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
-
-  // Conversion ratio for inclusive pricing when baseAmount is missing
-  const vatRatio = (authoritativeSubTotal > 0 && authoritativeVatAmount > 0 && totalNet > 0 && Math.abs((authoritativeSubTotal + authoritativeVatAmount) - totalNet) < 0.05)
-    ? (authoritativeSubTotal / totalNet)
-    : (isVatActive ? (1 / 1.10) : 1);
-
   const printTaxSetting = resolvePrintTaxSetting(data);
-  const viewTaxSetting = resolveViewTaxSetting(data);
-
-  // Product Price View in Print: Respect configured Print Price (Inclusive vs Exclusive)
+  const rawLines = Array.isArray(cartDetails)
+    ? cartDetails
+    : Array.isArray((cartDetails as any)?.lines)
+    ? (cartDetails as any).lines
+    : [];
+  const isVatActive = isGuestPrint
+    ? isEnableVatGuestPrint(data)
+    : Boolean(
+        data.enableVat === true ||
+        (data.vatAmount && data.vatAmount > 0) ||
+        rawLines.some((it: any) => (it.vatAmount || 0) > 0) ||
+        getVatStatus()
+      );
   const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
-  const isViewInclusive = viewTaxSetting === "Inclusive";
+
+  // Single Source of Truth: Unified deterministic order pricing
+  const unified: UnifiedOrderPricingResult = (cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary)
+    ? (cartDetails as any)
+    : buildUnifiedOrderPricing(cartDetails, data);
+
+  const rawDetailsList = (cartDetails as any)?.lines || (Array.isArray(cartDetails) ? cartDetails : []);
+  const hasLineDiscounts = unified.lines.some(l => {
+    const raw = l.rawItem;
+    return (
+      (raw?.discountValue !== undefined && Number(raw.discountValue) > 0) ||
+      (raw?.itemDiscount !== undefined && Number(raw.itemDiscount) > 0) ||
+      (raw?.discAmount !== undefined && Number(raw.discAmount) > 0) ||
+      (l.lineDiscount !== undefined && Number(l.lineDiscount) > 0) ||
+      (l.lineDiscountExcl !== undefined && Number(l.lineDiscountExcl) > 0)
+    );
+  });
 
   const isOrderBillDiscount = Boolean(
+    unified.summary.isBillDiscount ||
     data.isBillDiscount ||
-    (cartDetails.length > 0 && cartDetails.some((it: any) => (it.billDiscountAmount && it.billDiscountAmount > 0))) ||
-    (
-      data.discount && data.discount > 0 && cartDetails.length > 0 && (
-        cartDetails.every((it: any) => !it.itemDiscount || it.itemDiscount <= 0.0001) ||
-        (
-          Number((cartDetails[0] as any).discPer ?? (cartDetails[0] as any).DiscPer ?? 0) > 0 &&
-          cartDetails.every((it: any) => Number((it as any).discPer ?? (it as any).DiscPer ?? 0) === Number((cartDetails[0] as any).discPer ?? (cartDetails[0] as any).DiscPer ?? 0))
-        )
-      )
-    )
+    checkOrderHasBillDiscount({ master: data, details: rawDetailsList }) ||
+    (!hasLineDiscounts && data.discount && data.discount > 0)
   );
-
   let itemsHtml = "";
-  let displaySubTotal = 0; // Sum of rounded display amounts for consistency
-  cartDetails.forEach((item) => {
-    const name = formatItemDisplayName(
-      item.product?.name || `Item #${item.productId}`,
-      item.variantName
-    ).toUpperCase();
-    const qty = item.quantity;
-    
-    const altArabicName = isBillArabic ? getAlternativeArabicName(item) : "";
-
-    let extrasSum = 0;
-    if (item.extras && item.extras.length > 0) {
-      item.extras.forEach(ex => extrasSum += (ex.price * (ex.qty || 1)));
-    }
-
-    const origUnitPrice = Number(item.price ?? item.product?.price ?? 0);
-    // Shape A (calculateOrder): has baseAmount = exclusive base (product only, no extras)
-    // Shape B (API direct):     no baseAmount, item.price is already the exclusive price
-    const itemBaseAmount: number | undefined = (item as any).baseAmount;
-    const itemLineTotal: number | undefined = (item as any).lineTotal;
-    const itemLineNetAmount: number | undefined = (item as any).lineNetAmount ?? (item as any).LineNetAmount;
-    const itemVat = Number((item as any).vatAmount || (item as any).VatAmount || 0);
+  unified.lines.forEach((line) => {
+    const name = line.productName.toUpperCase();
+    const qty = line.quantity;
+    const altArabicName = isBillArabic ? getAlternativeArabicName(line.rawItem) : "";
     const totalItemDisc = isOrderBillDiscount
       ? 0
-      : Number(
-          (item as any).itemDiscount ||
-          (item as any).discAmount ||
-          (item as any).DiscAmount ||
-          (item as any).discount ||
-          0
-        );
+      : Number(line.lineDiscountExcl ?? line.lineDiscount ?? (typeof line.getDiscount === "function" ? line.getDiscount(false) : 0));
 
-    const knownBasePrice = (item as any).basePrice !== undefined && Number((item as any).basePrice) > 0
-      ? Number((item as any).basePrice)
-      : (itemBaseAmount !== undefined && itemBaseAmount > 0 && qty > 0 ? (itemBaseAmount / qty) : undefined);
+    const origRate = line.getRate(isTaxInclusive);
+    const origGrossAmt = isTaxInclusive ? line.inclusiveGross : line.exclusiveGross;
+    const netAmt = isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount;
 
-    // ── 1. Calculate Catalog Unit Prices (Exclusive & Inclusive) ──
-    const catalogExclusivePrice = knownBasePrice !== undefined
-      ? knownBasePrice
-      : (isViewInclusive
-          ? ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (origUnitPrice * vatRatio) : origUnitPrice)
-          : origUnitPrice);
-
-    const catalogInclusivePrice = knownBasePrice !== undefined
-      ? ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (knownBasePrice / vatRatio) : knownBasePrice)
-      : (isViewInclusive
-          ? origUnitPrice
-          : ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (origUnitPrice / vatRatio) : origUnitPrice));
-
-    // ── 2. Calculate Exclusive Amounts (Tax-Exclusive) ──
-    let exclusiveUnitPrice: number;
-    let exclusiveProductLineAmount: number;
-
-    if (isOrderBillDiscount) {
-      exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : origUnitPrice;
-      exclusiveProductLineAmount = exclusiveUnitPrice * qty;
-    } else {
-      const netValueVal = (item as any).netValue !== undefined ? Number((item as any).netValue) : undefined;
-
-      if (netValueVal !== undefined && qty > 0) {
-        exclusiveProductLineAmount = Math.max(0, netValueVal);
-        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : Math.max(0, (netValueVal + totalItemDisc) / qty);
-      } else if (itemBaseAmount !== undefined && qty > 0) {
-        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (itemBaseAmount / qty);
-        exclusiveProductLineAmount = Math.max(0, itemBaseAmount - totalItemDisc);
-      } else if (!isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        exclusiveProductLineAmount = Math.max(0, itemLineTotal - extrasSum);
-        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (qty > 0 ? Math.max(0, (exclusiveProductLineAmount + totalItemDisc) / qty) : origUnitPrice);
-      } else if (isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        exclusiveProductLineAmount = itemVat > 0
-          ? Math.max(0, itemLineTotal - extrasSum - itemVat)
-          : Math.max(0, (itemLineTotal - extrasSum) * vatRatio);
-        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (qty > 0 ? Math.max(0, (exclusiveProductLineAmount + totalItemDisc) / qty) : origUnitPrice);
-      } else {
-        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : origUnitPrice;
-        exclusiveProductLineAmount = Math.max(0, (exclusiveUnitPrice * qty) - totalItemDisc);
-      }
-    }
-
-    // ── 3. Calculate Inclusive Amounts (Tax-Inclusive) ──
-    let lineInclusiveAmt: number;
-    let inclusiveUnitPrice: number;
-
-    if (isOrderBillDiscount) {
-      inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : origUnitPrice;
-      lineInclusiveAmt = inclusiveUnitPrice * qty;
-    } else {
-      if (itemLineNetAmount !== undefined && itemLineNetAmount > 0) {
-        lineInclusiveAmt = Math.max(0, itemLineNetAmount - extrasSum);
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-      } else if (isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        lineInclusiveAmt = Math.max(0, itemLineTotal - extrasSum);
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-      } else if (!isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        lineInclusiveAmt = itemVat > 0
-          ? Math.max(0, itemLineTotal - extrasSum) + itemVat
-          : (isVatActive && vatRatio > 0 && vatRatio < 1 ? Math.max(0, itemLineTotal - extrasSum) / vatRatio : Math.max(0, itemLineTotal - extrasSum));
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-      } else if (itemVat > 0) {
-        lineInclusiveAmt = exclusiveProductLineAmount + itemVat;
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-      } else if (isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1) {
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : origUnitPrice;
-        lineInclusiveAmt = Math.max(0, (inclusiveUnitPrice * qty) - totalItemDisc);
-      } else {
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : origUnitPrice;
-        lineInclusiveAmt = Math.max(0, (origUnitPrice * qty) - totalItemDisc);
-      }
-    }
-
-    // ── 4. Select Rate & Amt based on tax setting (Inclusive vs Exclusive) ──
-    const finalRate = isTaxInclusive ? inclusiveUnitPrice : exclusiveUnitPrice;
-    const finalAmt = isTaxInclusive ? lineInclusiveAmt : exclusiveProductLineAmount;
-
-    // displaySubTotal accumulates line amounts for fallback
-    displaySubTotal += parseFloat(fmt(finalAmt));
-
-    const rate = fmt(finalRate);
-    const amt = fmt(finalAmt);
+    const rate = fmt(origRate);
+    const amt = fmt(origGrossAmt);
 
     itemsHtml += `
       <tr>
-        <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;">${qty}</td>
-        <td style="width: 44%; text-align: left; vertical-align: top; padding: 0.5px 0;">
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 1px 0;">${qty}</td>
+        <td style="width: 46%; text-align: left; vertical-align: top; padding: 1px 0;">
           <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">${name}</div>
           ${altArabicName ? `<div dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:bold; line-height:1.25; margin-top:1px; color:#000000; text-align:left; white-space:normal;">${altArabicName}</div>` : ''}
-          ${totalItemDisc > 0 ? `<div style="font-size:10px; color:#555; font-style:italic;">(Disc: -${fmt(totalItemDisc)})</div>` : ''}
         </td>
-        <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;">${rate}</td>
-        <td style="width: 24%; text-align: right; vertical-align: top; padding: 0.5px 0;">${amt}</td>
+        <td style="width: 18%; text-align: right; vertical-align: top; padding: 1px 0;">${rate}</td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 1px 0;">${amt}</td>
       </tr>
+      ${totalItemDisc > 0 ? `
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+        <td colspan="2" style="text-align: right; vertical-align: top; padding: 0.5px 0; font-size: 11px; font-weight: bold; white-space: nowrap;">
+          Disc : ${fmt(totalItemDisc)}${isBillArabic ? ` <span dir="rtl" lang="ar" class="arabic-text" style="font-size:9.5px; font-weight:normal;">(الخصم)</span>` : ''}
+        </td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0; font-weight: bold;">
+          ${fmt(netAmt)}
+        </td>
+      </tr>
+      ` : ''}
     `;
 
-    if (item.extras && item.extras.length > 0) {
-      const dedupedExtrasMap = new Map<string, any>();
-      item.extras.forEach((ex: any) => {
-        const rawExName = (ex.name || ex.modifierName || "").trim();
-        if (!rawExName) return;
-        const exId = ex.id || ex.modifierId || 0;
-        const typeId = ex.typeId || 0;
-        const key = exId > 0 ? `${exId}-${typeId}` : `${typeId}-${rawExName.toLowerCase()}`;
-        if (dedupedExtrasMap.has(key)) {
-          const existing = dedupedExtrasMap.get(key);
-          existing.qty = (existing.qty || 1) + (ex.qty || 1);
-        } else {
-          dedupedExtrasMap.set(key, { ...ex, qty: ex.qty || 1 });
-        }
-      });
-
-      Array.from(dedupedExtrasMap.values()).forEach((ex: any) => {
+    if (line.extras && line.extras.length > 0) {
+      line.extras.forEach((ex) => {
         const exName = (ex.name || "EXTRA").toUpperCase();
-        const exArabic = isBillArabic ? (ex.arabicName || ex.arabic || "") : "";
+        const exArabic = isBillArabic ? (ex.arabicName || "") : "";
         const exDisplay = exArabic
           ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-weight:normal; margin-left:4px; color:#000000; white-space:nowrap;">(${exArabic})</span>`
           : `+ ${exName}`;
-        const rawExPrice = Number(ex.price || 0);
-        let exUnitPrice = rawExPrice;
-        if (isVatActive && vatRatio > 0 && vatRatio < 1) {
-          if (isTaxInclusive && !isViewInclusive) {
-            exUnitPrice = rawExPrice / vatRatio;
-          } else if (!isTaxInclusive && isViewInclusive) {
-            exUnitPrice = rawExPrice * vatRatio;
-          }
-        }
-        const exLineAmt = exUnitPrice * (ex.qty || 1);
-        displaySubTotal += parseFloat(fmt(exLineAmt));
-        const exRate = fmt(exUnitPrice);
-        const exAmt = fmt(exLineAmt);
+        const qtyLabel = (ex.qty && ex.qty > 1) ? ` (x${ex.qty})` : "";
         itemsHtml += `
           <tr>
-            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;">${ex.qty || 1}</td>
-            <td style="width: 44%; text-align: left; vertical-align: top; padding: 0.5px 0;">${exDisplay}</td>
-            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;">${exRate}</td>
-            <td style="width: 24%; text-align: right; vertical-align: top; padding: 0.5px 0;">${exAmt}</td>
+            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 46%; text-align: left; vertical-align: top; padding: 0.5px 0; font-style: italic; color: #555;">${exDisplay}${qtyLabel}</td>
+            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
           </tr>
         `;
       });
     }
 
-    if (item.modifiers && item.modifiers.length > 0) {
-      const dedupedModsMap = new Map<string, any>();
-      item.modifiers.forEach((mod: any) => {
-        const rawModName = (mod.name || mod.modifierName || "").trim();
-        if (!rawModName) return;
-        const modId = mod.id || mod.modifierId || 0;
-        const typeId = mod.typeId || 0;
-        const key = modId > 0 ? `${modId}-${typeId}` : `${typeId}-${rawModName.toLowerCase()}`;
-        if (dedupedModsMap.has(key)) {
-          const existing = dedupedModsMap.get(key);
-          existing.qty = (existing.qty || 1) + (mod.qty || 1);
-        } else {
-          dedupedModsMap.set(key, { ...mod, qty: mod.qty || 1 });
-        }
-      });
-
-      Array.from(dedupedModsMap.values()).forEach((mod: any) => {
-        const rawTypeName = (mod.typeName || mod.modifierTypeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
-        const rawModName = (mod.name || mod.modifierName || "MODIFIER").trim();
+    if (line.modifiers && line.modifiers.length > 0) {
+      line.modifiers.forEach((mod) => {
+        const rawTypeName = (mod.typeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
+        const rawModName = (mod.name || "MODIFIER").trim();
         const typeUpper = rawTypeName.toUpperCase();
         const nameUpper = rawModName.toUpperCase();
         const qtyPart = (mod.qty && mod.qty > 1) ? `${mod.qty} x ` : "";
@@ -567,30 +467,23 @@ export const generateGuestPrintHtml = async (
           text = `${qtyPart}${nameUpper}`;
         }
 
-        const modArabic = isBillArabic ? (mod.arabicName || mod.arabic || "") : "";
+        const modArabic = isBillArabic ? (mod.arabicName || "") : "";
         const modDisplay = modArabic
           ? `* ${text} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-style:normal; margin-left:4px;">(${modArabic})</span>`
           : `* ${text}`;
         itemsHtml += `
           <tr>
-            <td style="text-align: left; vertical-align: top;"></td>
-            <td style="text-align: left; vertical-align: top; font-style: italic;">${modDisplay}</td>
-            <td style="text-align: right; vertical-align: top;"></td>
-            <td style="text-align: right; vertical-align: top;"></td>
+            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 46%; text-align: left; vertical-align: top; font-style: italic; padding: 0.5px 0;">${modDisplay}</td>
+            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
           </tr>
         `;
       });
     }
 
-    if (item.messages && item.messages.length > 0) {
-      const seenMsgs = new Set<string>();
-      const dedupedMsgs = item.messages.filter((msg: any) => {
-        const k = String(msg.name || "").trim().toLowerCase();
-        if (!k || seenMsgs.has(k)) return false;
-        seenMsgs.add(k);
-        return true;
-      });
-      dedupedMsgs.forEach((msg: any) => {
+    if (line.messages && line.messages.length > 0) {
+      line.messages.forEach((msg) => {
         const rawName = msg.name || "NOTE";
         const isMsgArabic = containsArabic(rawName);
         const msgDisplay = isMsgArabic
@@ -598,58 +491,54 @@ export const generateGuestPrintHtml = async (
           : `MSG: ${rawName.toUpperCase()}`;
         itemsHtml += `
           <tr>
-            <td style="text-align: left; vertical-align: top;"></td>
-            <td style="text-align: left; vertical-align: top; font-style: italic;">${msgDisplay}</td>
-            <td style="text-align: right; vertical-align: top;"></td>
-            <td style="text-align: right; vertical-align: top;"></td>
+            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 46%; text-align: left; vertical-align: top; font-style: italic; padding: 0.5px 0;">${msgDisplay}</td>
+            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
           </tr>
         `;
       });
     }
   });
 
-  displaySubTotal = parseFloat(fmt(displaySubTotal));
-  
-  const cartTotalDiscounts = cartDetails.reduce((sum, item: any) => {
-    return sum + Number(
-      (item as any).itemDiscount ||
-      (item as any).discAmount ||
-      (item as any).DiscAmount ||
-      (item as any).discount ||
-      0
-    );
-  }, 0);
-  const totalDiscount = (data.discount && data.discount > 0) ? data.discount : cartTotalDiscounts;
-
-  const hasAuthoritativeTotals = authoritativeSubTotal > 0;
-
-  const netTaxableBase = Math.max(
-    0,
-    Number(data.netAmount || 0) -
-      Number(data.vatAmount || 0) -
-      Number(data.serviceCharge || 0) -
-      Number(data.levy || 0) -
-      Number(data.deliveryCharge || 0)
+  const resolvedDiscount = Number(
+    data.discount ??
+    (data as any).discAmount ??
+    (unified.summary.totalDiscountExcl ?? unified.summary.totalDiscount ?? 0)
   );
 
-  const subTotalBeforeDiscount = isTaxInclusive
-    ? parseFloat(fmt(displaySubTotal + totalDiscount))
-    : (hasAuthoritativeTotals && Math.abs(authoritativeSubTotal - (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0))) < 0.05
-      ? authoritativeSubTotal
-      : hasAuthoritativeTotals && Math.abs(authoritativeSubTotal - netTaxableBase) < 0.05
-      ? authoritativeSubTotal + (totalDiscount > 0 ? totalDiscount : 0)
-      : (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0)));
+  const effectiveBillDiscount = isOrderBillDiscount
+    ? resolvedDiscount
+    : Number(data.billDiscount || (data as any).billDiscountValue || 0);
+
+  const subTotalBeforeDiscount = (data.subTotal !== undefined && data.subTotal !== null && Number(data.subTotal) > 0)
+    ? Number(data.subTotal)
+    : ((data as any).vatExclAmount !== undefined && (data as any).vatExclAmount !== null && Number((data as any).vatExclAmount) > 0)
+    ? (Number((data as any).vatExclAmount) + (isOrderBillDiscount ? resolvedDiscount : 0))
+    : (isOrderBillDiscount
+        ? (unified.summary.subTotalExclusive ? unified.summary.subTotalExclusive + resolvedDiscount : 0)
+        : (unified.summary.subTotalExclusive ?? 0));
+
+  const displaySubTotal = isOrderBillDiscount
+    ? subTotalBeforeDiscount
+    : ((data as any).vatExclAmount !== undefined && Number((data as any).vatExclAmount) > 0
+        ? Number((data as any).vatExclAmount)
+        : (unified.summary.subTotalExclusive ?? subTotalBeforeDiscount));
 
   if (isVatActive) {
     data.enableVat = true;
-    const computedVat = data.vatAmount !== undefined
-      ? Number(data.vatAmount)
-      : (authoritativeVatAmount > 0 ? authoritativeVatAmount : Math.max(0, data.netAmount - displaySubTotal));
-    data.vatAmount = parseFloat(fmt(Math.max(0, computedVat)));
-    data.subTotal = parseFloat(fmt(subTotalBeforeDiscount));
+    data.vatAmount = parseFloat(fmt(unified.summary.vatAmount > 0 ? unified.summary.vatAmount : (data.vatAmount ?? 0)));
+    data.subTotal = parseFloat(fmt(displaySubTotal));
   } else {
-    data.subTotal = parseFloat(fmt(subTotalBeforeDiscount));
+    data.enableVat = false;
+    data.subTotal = parseFloat(fmt(displaySubTotal));
     data.vatAmount = 0;
+  }
+  data.netAmount = parseFloat(fmt(unified.summary.grandTotal > 0 ? unified.summary.grandTotal : (data.netAmount ?? 0)));
+  if (effectiveBillDiscount > 0) {
+    data.discount = parseFloat(fmt(effectiveBillDiscount));
+  } else {
+    delete (data as any).discount;
   }
 
   return `
@@ -664,7 +553,7 @@ export const generateGuestPrintHtml = async (
             font-weight: 600;
             color: #000000;
             margin: 0 auto;
-            padding: 2px 0 0 0;
+            padding: 2px 8px 0 8px;
             width: 100%;
             max-width: 576px;
             background-color: #ffffff;
@@ -688,7 +577,7 @@ export const generateGuestPrintHtml = async (
           }
           .text-center { text-align: center; }
           .font-bold { font-weight: bold; }
-          .header-title { font-size: 16px; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: 800; color: #000000; }
+          .header-title { font-size: 16px; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: 800; color: #000000; line-height: 1.3; }
           
           table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
           
@@ -699,17 +588,24 @@ export const generateGuestPrintHtml = async (
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            margin-bottom: 2px;
-            font-size: 13px;
+            margin-bottom: 3px;
+            font-size: 11px;
             font-weight: 600;
             color: #000000;
           }
           table.meta-table td {
-            padding: 1.5px 0;
-            vertical-align: top;
+            padding: 2px 2px;
+            vertical-align: middle;
             font-weight: 600;
             color: #000000;
-            line-height: 1.25;
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: visible;
+          }
+          table.meta-table .arabic-text {
+            padding: 0;
+            line-height: 1.2;
+            display: inline;
           }
           
           table.items-table {
@@ -815,24 +711,24 @@ export const generateGuestPrintHtml = async (
         ${data.invoiceNo ? `
         <table class="meta-table">
           <tr>
-            <td style="width: 50%;">Invoice No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(رقم الفاتورة)</bdi>' : ''} &nbsp; <span style="font-size: 16px; font-weight: bold;">${data.invoiceNo.startsWith('#') ? data.invoiceNo : (isNaN(Number(data.invoiceNo)) ? data.invoiceNo : '#' + data.invoiceNo)}</span></td>
-            <td style="width: 50%;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} &nbsp; <span style="font-size: 16px; font-weight: bold;">${formatOrderNo(data.orderNo)}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Invoice No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم الفاتورة)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${data.invoiceNo.startsWith('#') ? data.invoiceNo : (isNaN(Number(data.invoiceNo)) ? data.invoiceNo : '#' + data.invoiceNo)}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${formatOrderNo(data.orderNo)}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp; <span style="font-size: 16px; font-weight: bold;">#${data.ticketNo}</span></td>
-            <td style="width: 50%;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(التاريخ)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${dateStr}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">#${data.ticketNo}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(التاريخ)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${dateStr}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%;">Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الوقت)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${timeStr}</span></td>
-            <td style="width: 50%;">Employee${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الموظف)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.waiter}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الوقت)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${formattedTimeStr}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Employee${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الموظف)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.waiter}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الكاونتر)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.counter}</span></td>
-            ${isDineIn ? `<td style="width: 50%;">Section${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(القسم)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.section}</span></td>` : (driverVal ? `<td style="width: 50%;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(السائق)</bdi>' : ''} &nbsp; <span style="font-weight: bold;">${driverVal}</span></td>` : '<td style="width: 50%;"></td>')}
+            <td style="width: 50%; white-space: nowrap;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الكاونتر)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.counter}</span></td>
+            ${isDineIn ? `<td style="width: 50%; white-space: nowrap;">Section${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(القسم)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.section}</span></td>` : (driverVal ? `<td style="width: 50%; white-space: nowrap;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(السائق)</bdi>' : ''} &nbsp;<span style="font-weight: bold; white-space: nowrap;">${driverVal}</span></td>` : '<td style="width: 50%;"></td>')}
           </tr>
           ${isDineIn ? `
           <tr>
-            <td style="width: 50%;">Table${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الطاولة)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.table}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Table${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الطاولة)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.table}</span></td>
             <td style="width: 50%;"></td>
           </tr>
           ` : ''}
@@ -840,25 +736,25 @@ export const generateGuestPrintHtml = async (
         ` : `
         <table class="meta-table">
           <tr>
-            <td style="width: 50%;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} &nbsp; <span style="font-size: 16px; font-weight: bold;">${formatOrderNo(data.orderNo)}</span></td>
-            <td style="width: 50%;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp; <span style="font-size: 16px; font-weight: bold;">#${data.ticketNo}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${formatOrderNo(data.orderNo)}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">#${data.ticketNo}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(التاريخ)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${dateStr}</span></td>
-            <td style="width: 50%;">Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الوقت)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${timeStr}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(التاريخ)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${dateStr}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الوقت)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${formattedTimeStr}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%;">Employee${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الموظف)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.waiter}</span></td>
-            <td style="width: 50%;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الكاونتر)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.counter}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Employee${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الموظف)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.waiter}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الكاونتر)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.counter}</span></td>
           </tr>
           ${isDineIn ? `
           <tr>
-            <td style="width: 50%;">Section${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(القسم)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.section}</span></td>
-            <td style="width: 50%;">Table${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(الطاولة)</bdi>' : ''} &nbsp; <span style="font-weight: normal">${data.table}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Section${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(القسم)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.section}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Table${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الطاولة)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.table}</span></td>
           </tr>
           ` : (driverVal ? `
           <tr>
-            <td style="width: 50%;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal;">(السائق)</bdi>' : ''} &nbsp; <span style="font-weight: bold;">${driverVal}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(السائق)</bdi>' : ''} &nbsp;<span style="font-weight: bold; white-space: nowrap;">${driverVal}</span></td>
             <td style="width: 50%;"></td>
           </tr>
           ` : '')}
@@ -871,9 +767,9 @@ export const generateGuestPrintHtml = async (
           <thead>
             <tr>
               <th style="width: 14%; text-align: left;">Qty${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">الكمية</span>' : ''}</th>
-              <th style="width: 44%; text-align: left;">Description${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">الوصف</span>' : ''}</th>
+              <th style="width: 46%; text-align: left;">Description${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">الوصف</span>' : ''}</th>
               <th class="col-rate" style="width: 18%; text-align: right;">Rate${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">السعر</span>' : ''}</th>
-              <th class="col-amt" style="width: 24%; text-align: right;">Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ</span>' : ''}</th>
+              <th class="col-amt" style="width: 22%; text-align: right;">Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:10px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ</span>' : ''}</th>
             </tr>
           </thead>
           <tbody>
@@ -886,12 +782,12 @@ export const generateGuestPrintHtml = async (
         <table class="totals-table">
           <tr>
             <td class="totals-label">Sub Total${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(المجموع الفرعي)</bdi>' : ''}</td>
-            <td class="totals-value">${fmt(subTotalBeforeDiscount)}</td>
+            <td class="totals-value">${fmt(displaySubTotal)}</td>
           </tr>
-          ${totalDiscount > 0 ? `
+          ${effectiveBillDiscount > 0 ? `
           <tr>
             <td class="totals-label">Discount${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(الخصم)</bdi>' : ''}</td>
-            <td class="totals-value">-${fmt(totalDiscount)}</td>
+            <td class="totals-value">-${fmt(effectiveBillDiscount)}</td>
           </tr>
           ` : ''}
           ${data.serviceCharge > 0 ? `
@@ -912,7 +808,7 @@ export const generateGuestPrintHtml = async (
             <td class="totals-value">${fmt(data.deliveryCharge || 0)}</td>
           </tr>
           ` : ''}
-          ${isVatActive ? `
+          ${isVatActive && (data.vatAmount || 0) > 0 ? `
           <tr>
             <td class="totals-label">VAT Amount${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(ضريبة القيمة المضافة)</bdi>' : ''}</td>
             <td class="totals-value">${fmt(data.vatAmount)}</td>
@@ -942,63 +838,94 @@ export const generateGuestPrintHtml = async (
           ` : ''}
         </table>
 
-        ${isVatActive ? `
+        ${isVatActive && (data.vatAmount || 0) > 0 ? (() => {
+          const effectiveDeliveryCharge = Number(
+            data.deliveryCharge ?? 
+            (data as any).deliveryAmount ?? 
+            (data as any).customDeliveryCharge ?? 
+            unified.summary?.deliveryCharge ?? 
+            0
+          );
+          const hasDeliveryCharge = isDelivery && effectiveDeliveryCharge > 0;
+          const vatPercent = unified.lines.find(l => (l.vatRate || 0) > 0)?.vatRate || 10;
+          // Option B: Service charge and levy are part of the taxable base (Excl Amt)
+          const exclAmount = Math.max(0, data.netAmount - (hasDeliveryCharge ? effectiveDeliveryCharge : 0) - data.vatAmount);
+
+          return `
         <div class="dashed-hr"></div>
         <table class="vat-table" style="margin-top: 4px; width: 100%;">
           <thead>
             <tr>
+              ${hasDeliveryCharge ? `
+              <th style="text-align: left; width: 18%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">VAT Code${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">رمز الضريبة</span>' : ''}</th>
+              <th style="text-align: right; width: 22%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Excl Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ غير شامل</span>' : ''}</th>
+              <th style="text-align: right; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">VAT Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">مبلغ الضريبة</span>' : ''}</th>
+              <th style="text-align: right; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Delivery${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">رسوم التوصيل</span>' : ''}</th>
+              <th style="text-align: right; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Net Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ الصافي</span>' : ''}</th>
+              ` : `
               <th style="text-align: left; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">VAT Code${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">رمز الضريبة</span>' : ''}</th>
               <th style="text-align: right; width: 30%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Excl Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ غير شامل</span>' : ''}</th>
               <th style="text-align: right; width: 24%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">VAT Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">مبلغ الضريبة</span>' : ''}</th>
               <th style="text-align: right; width: 26%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Net Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ الصافي</span>' : ''}</th>
+              `}
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td style="text-align: left; font-weight: normal; width: 20%; padding-top: 4px;">10%</td>
-              <td style="text-align: right; font-weight: normal; width: 30%; padding-top: 4px;">${fmt(Math.max(0, data.netAmount - (data.deliveryCharge || 0) - data.vatAmount))}</td>
+              ${hasDeliveryCharge ? `
+              <td style="text-align: left; font-weight: normal; width: 18%; padding-top: 4px;">${vatPercent}%</td>
+              <td style="text-align: right; font-weight: normal; width: 22%; padding-top: 4px;">${fmt(exclAmount)}</td>
+              <td style="text-align: right; font-weight: normal; width: 20%; padding-top: 4px;">${fmt(data.vatAmount)}</td>
+              <td style="text-align: right; font-weight: normal; width: 20%; padding-top: 4px;">${fmt(effectiveDeliveryCharge)}</td>
+              <td style="text-align: right; font-weight: normal; width: 20%; padding-top: 4px;">${fmt(data.netAmount)}</td>
+              ` : `
+              <td style="text-align: left; font-weight: normal; width: 20%; padding-top: 4px;">${vatPercent}%</td>
+              <td style="text-align: right; font-weight: normal; width: 30%; padding-top: 4px;">${fmt(exclAmount)}</td>
               <td style="text-align: right; font-weight: normal; width: 24%; padding-top: 4px;">${fmt(data.vatAmount)}</td>
               <td style="text-align: right; font-weight: normal; width: 26%; padding-top: 4px;">${fmt(data.netAmount)}</td>
+              `}
             </tr>
           </tbody>
         </table>
         <div class="dashed-hr"></div>
-        ` : '<div class="dashed-hr"></div>'}
+        `;
+        })() : '<div class="dashed-hr"></div>'}
         
         ${(() => {
           const keepChangeVal = (data.change || data.keepChanges || "").trim();
           const hasValidKeepChange = keepChangeVal !== "" && keepChangeVal !== "0" && keepChangeVal !== "0.00" && keepChangeVal !== "0.000";
+          const formattedKeepChange = hasValidKeepChange && !isNaN(Number(keepChangeVal)) ? fmt(Number(keepChangeVal)) : keepChangeVal;
           if (!isDelivery) return '';
           if (!(data.contactNo || effectiveCallBack || hasValidKeepChange || data.customerName || driverVal || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo)) return '';
 
           return `
-        <div style="margin-top: 10px; font-size: 12px;">
+        <div style="margin-top: 10px; font-size: 12px; width: 100%;">
           <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 3px;">
             DELIVERY DETAILS
             ${isBillArabic ? '<bdi class="arabic-text" style="font-size: 11px; margin-left: 6px; white-space:nowrap;">(بيانات التوصيل)</bdi>' : ''}
           </div>
-          <div class="solid-hr" style="border-top: 1px solid #000; margin-bottom: 5px;"></div>
-          <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
-            ${data.contactNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Mob No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم الجوال)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.contactNo}</td></tr>` : ''}
-            ${effectiveCallBack ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Call Back${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(معاودة الاتصال)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${effectiveCallBack}</td></tr>` : ''}
-            ${hasValidKeepChange ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Keep Change${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(الباقي)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${keepChangeVal}</td></tr>` : ''}
-            ${data.customerName ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Customer${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العميل)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.customerName}</td></tr>` : ''}
-            ${driverVal ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(السائق)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${driverVal}</td></tr>` : ''}
-            ${data.flatNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Flat No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(شقة)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.flatNo}</td></tr>` : ''}
-            ${data.buildingNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Building${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مبنى)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.buildingNo}</td></tr>` : ''}
-            ${data.blockNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Block${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مجمع)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.blockNo}</td></tr>` : ''}
-            ${data.roadNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Road${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(طريق)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.roadNo}</td></tr>` : ''}
-            ${data.area ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Area${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(المنطقة)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.area}</td></tr>` : ''}
-            ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Address${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العنوان)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.address}</td></tr>` : ''}
-            ${data.providerNo ? `<tr><td style="width: 35%; padding: 2px 0; font-weight: bold;">Provider No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم المزود)</bdi>' : ''} :</td><td style="font-weight: normal; padding: 2px 0;">${data.providerNo}</td></tr>` : ''}
-          </table>
+          <div class="solid-hr" style="border-top: 1px solid #000; margin-bottom: 6px;"></div>
+          <div style="width: 100%; font-size: 12px;">
+            ${data.contactNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Mob No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم الجوال)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.contactNo}</span></div>` : ''}
+            ${effectiveCallBack ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Call Back${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(معاودة الاتصال)</bdi>' : ''} : </span><span style="font-weight: normal;">${effectiveCallBack}</span></div>` : ''}
+            ${hasValidKeepChange ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Keep Change${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(الباقي)</bdi>' : ''} : </span><span style="font-weight: normal;">${formattedKeepChange}</span></div>` : ''}
+            ${data.customerName ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Customer${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العميل)</bdi>' : ''} : </span><span style="font-weight: normal;" dir="auto">${data.customerName}</span></div>` : ''}
+            ${driverVal ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(السائق)</bdi>' : ''} : </span><span style="font-weight: normal;" dir="auto">${driverVal}</span></div>` : ''}
+            ${data.flatNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Flat No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(شقة)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.flatNo}</span></div>` : ''}
+            ${data.buildingNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Building${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مبنى)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.buildingNo}</span></div>` : ''}
+            ${data.blockNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Block${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مجمع)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.blockNo}</span></div>` : ''}
+            ${data.roadNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Road${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(طريق)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.roadNo}</span></div>` : ''}
+            ${data.area ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Area${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(المنطقة)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.area}</span></div>` : ''}
+            ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Address${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العنوان)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.address}</span></div>` : ''}
+            ${data.providerNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Provider No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم المزود)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.providerNo}</span></div>` : ''}
+          </div>
         </div>
         `;
         })()}
 
         <div class="barcode-container">*${String(data.orderNo || '').split(',')[0].trim()}*</div>
         
-        <div style="font-size: 11px; margin-top: 5px;">Print Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(وقت الطباعة)</bdi>' : ''} : ${dateStr} ${timeStr}</div>
+        <div style="font-size: 11px; margin-top: 5px; white-space: nowrap;">Print Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(وقت الطباعة)</bdi>' : ''} : ${dateStr} ${formattedTimeStr}</div>
 
         ${customFootersHtml ? `
         <div style="margin-top: 10px; margin-bottom: 8px; padding: 0 4px; width: 100%; box-sizing: border-box; text-align: center;">

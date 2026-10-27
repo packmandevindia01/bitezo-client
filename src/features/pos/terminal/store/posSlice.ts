@@ -251,10 +251,10 @@ const posSlice = createSlice({
       discountValue?: number;
       discountType?: 'percentage' | 'amount';
       unitId?: number;
-      createNewRow?: boolean;
+      forceNewRow?: boolean;
     }>) => {
       state.isCartModified = true;
-      const { uniqueId, productId, variantName, variantArabic, price, isIncl, discountValue, discountType, unitId, createNewRow } = action.payload;
+      const { uniqueId, productId, variantName, variantArabic, price, isIncl, discountValue, discountType, unitId, forceNewRow } = action.payload;
       
       const matchVariant = (a?: string, b?: string) => {
         const getNormalizedVariant = (name?: string) => {
@@ -273,7 +273,7 @@ const posSlice = createSlice({
         return hasExtras || hasModifiers || hasMessages || hasNote;
       };
 
-      const isSeparation = createNewRow ?? isItemSeperationEnabled();
+      const isSeparation = forceNewRow === true ? true : isItemSeperationEnabled();
 
       let existing = null;
       if (!isSeparation) {
@@ -294,6 +294,8 @@ const posSlice = createSlice({
               Math.abs(Number(item.price) - Number(price ?? 0)) < 0.001 &&
               (item.isIncl === undefined || isIncl === undefined || Boolean(item.isIncl) === Boolean(isIncl)) &&
               (item.unitId === undefined || unitId === undefined || item.unitId === unitId) &&
+              (item.discountValue || 0) === (discountValue || 0) &&
+              item.discountType === discountType &&
               !hasCustomizations(item)
           );
         }

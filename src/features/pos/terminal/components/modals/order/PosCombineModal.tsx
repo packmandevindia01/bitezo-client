@@ -34,9 +34,9 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
   const [selectedAvailableId, setSelectedAvailableId] = useState<number | null>(null);
   const [selectedSelectedId, setSelectedSelectedId] = useState<number | null>(null);
   const [showBillDiscountConfirm, setShowBillDiscountConfirm] = useState(false);
+  const [confirmMessage, setConfirmMessage] = useState<string>("Bill discount will be erased while performing this action. Do you want to continue?");
+  const hasDiscountRef = useRef(false);
 
-  const billDiscountOrderIdsRef = useRef<Set<number>>(new Set());
-  const billDiscountDetailIdsRef = useRef<Set<number | string>>(new Set());
 
   const productCache = useAppSelector(state => state.pos.productCache);
   const { 
@@ -63,6 +63,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       setSelectedAvailableId(null);
       setSelectedSelectedId(null);
       setShowBillDiscountConfirm(false);
+      hasDiscountRef.current = false;
     }
   }, [isOpen, editingOrderId]);
 
@@ -119,10 +120,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       return;
     }
 
-    // Check if any order to be combined contains a bill discount
-    billDiscountOrderIdsRef.current = new Set();
-    billDiscountDetailIdsRef.current = new Set();
-
+    // Check if any order to be combined contains a bill discount (ONLY bill discount!)
     let currentOrderHasBillDisc = Number(billDiscountValue || 0) > 0;
     let curRes: any = null;
     if (editingOrderId) {
@@ -136,17 +134,6 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       }
     }
 
-    if (currentOrderHasBillDisc && editingOrderId) {
-      billDiscountOrderIdsRef.current.add(Number(editingOrderId));
-      if (curRes) {
-        const { details } = extractMasterAndDetails(curRes);
-        details.forEach((d: any) => {
-          const dId = d.id ?? d.detailId ?? d.orderDetailId ?? d.OrderDetailId;
-          if (dId !== undefined) billDiscountDetailIdsRef.current.add(dId);
-        });
-      }
-    }
-
     let anyOrderHasBillDisc = currentOrderHasBillDisc;
 
     if (selectedOrders.length > 0) {
@@ -157,23 +144,16 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
         for (let i = 0; i < detailsResponses.length; i++) {
           const res = detailsResponses[i];
           const o = selectedOrders[i];
-          let isOrderBillDisc = checkOrderHasBillDiscount(res);
-          if (!isOrderBillDisc && typeof o?.details === "string") {
-            const discMatch = o.details.match(/disc(?:ount)?\s*[:=]\s*([0-9.]+)/i);
-            if (discMatch && parseFloat(discMatch[1]) > 0) {
-              isOrderBillDisc = true;
-            }
+          const isBillDisc = checkOrderHasBillDiscount(res);
+
+          if (isBillDisc) {
+            anyOrderHasBillDisc = true;
           }
 
-          if (isOrderBillDisc) {
-            anyOrderHasBillDisc = true;
-            billDiscountOrderIdsRef.current.add(Number(o.orderId));
-            if (res) {
-              const { details } = extractMasterAndDetails(res);
-              details.forEach((d: any) => {
-                const dId = d.id ?? d.detailId ?? d.orderDetailId ?? d.OrderDetailId;
-                if (dId !== undefined) billDiscountDetailIdsRef.current.add(dId);
-              });
+          if (typeof o?.details === "string") {
+            const discMatch = o.details.match(/disc(?:ount)?\s*[:=]\s*([0-9.]+)/i);
+            if (discMatch && parseFloat(discMatch[1]) > 0) {
+              anyOrderHasBillDisc = true;
             }
           }
         }
@@ -184,14 +164,16 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
             const discMatch = o.details.match(/disc(?:ount)?\s*[:=]\s*([0-9.]+)/i);
             if (discMatch && parseFloat(discMatch[1]) > 0) {
               anyOrderHasBillDisc = true;
-              billDiscountOrderIdsRef.current.add(Number(o.orderId));
             }
           }
         }
       }
     }
 
+    hasDiscountRef.current = anyOrderHasBillDisc;
+
     if (anyOrderHasBillDisc) {
+      setConfirmMessage("Bill discount will be erased while performing this action. Do you want to continue?");
       setShowBillDiscountConfirm(true);
       return;
     }
@@ -205,26 +187,125 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       const selectedIds = selectedOrders.map(o => o.orderId);
       // We pass the current order AND the selected ones to completely fetch the new combined cart state
       const orderIdsToCombine = [editingOrderId as number, ...selectedIds];
-      const response = await orderApi.getCombinedOrderDetails(orderIdsToCombine);
 
+      // Fetch individual order details to distinguish inherited bill discounts from genuine item discounts
+      const individualResponses = await Promise.all(
+        orderIdsToCombine.map((id) => orderApi.getOrderDetails(id).catch(() => null))
+      );
+
+      const knownItemDiscountsById = new Map<number | string, { discValue: number; discType: "percentage" | "amount"; isComplimentary: boolean }>();
+      const inheritedBillDetailIds = new Set<number | string>();
+      const billDiscountPercentages = new Set<number>();
+
+      individualResponses.forEach((res) => {
+        if (!res) return;
+        const { master, details } = extractMasterAndDetails(res);
+        const orderHasBillDisc = checkOrderHasBillDiscount(res);
+        const masterDiscPer = Number(master?.discPer ?? master?.DiscPer ?? master?.billDiscountPer ?? 0);
+        const isMasterComplimentary = Boolean(master?.complimentaryStatus || master?.ComplimentaryStatus || masterDiscPer === 100);
+
+        if (orderHasBillDisc) {
+          if (masterDiscPer > 0) billDiscountPercentages.add(masterDiscPer);
+          if (isMasterComplimentary) billDiscountPercentages.add(100);
+        }
+
+        details.forEach((d: any) => {
+          const dId = d.id ?? d.detailId ?? d.orderDetailId ?? d.OrderDetailId;
+          const dDiscPer = Number(d.discPer ?? d.DiscPer ?? 0);
+          const dDiscAmount = Number(d.discAmount ?? d.DiscAmount ?? 0);
+          const isComplimentary = Boolean(d.complimentaryStatus || d.ComplimentaryStatus);
+
+          let isItemDiscount = false;
+          let itemDiscValue = 0;
+          let itemDiscType: "percentage" | "amount" = "percentage";
+
+          if (orderHasBillDisc) {
+            if (isMasterComplimentary) {
+              // Inherited complimentary bill discount
+              if (dId !== undefined && dId !== null) {
+                inheritedBillDetailIds.add(Number(dId));
+                inheritedBillDetailIds.add(String(dId));
+              }
+            } else if (masterDiscPer > 0) {
+              if (dDiscPer > 0 && Math.abs(dDiscPer - masterDiscPer) < 0.01) {
+                // Inherited bill discount percentage
+                if (dId !== undefined && dId !== null) {
+                  inheritedBillDetailIds.add(Number(dId));
+                  inheritedBillDetailIds.add(String(dId));
+                }
+              } else if (dDiscPer > 0) {
+                isItemDiscount = true;
+                itemDiscValue = dDiscPer;
+                itemDiscType = "percentage";
+              } else if (dDiscAmount > 0) {
+                isItemDiscount = true;
+                itemDiscValue = dDiscAmount;
+                itemDiscType = "amount";
+              }
+            } else {
+              if (dDiscPer > 0) {
+                isItemDiscount = true;
+                itemDiscValue = dDiscPer;
+                itemDiscType = "percentage";
+              }
+            }
+          } else {
+            // Order had NO bill discount: ANY discount on this line is a genuine ITEM discount!
+            if (isComplimentary || dDiscPer === 100) {
+              isItemDiscount = true;
+              itemDiscValue = 100;
+              itemDiscType = "percentage";
+            } else if (dDiscPer > 0) {
+              isItemDiscount = true;
+              itemDiscValue = dDiscPer;
+              itemDiscType = "percentage";
+            } else if (dDiscAmount > 0) {
+              isItemDiscount = true;
+              itemDiscValue = dDiscAmount;
+              itemDiscType = "amount";
+            }
+          }
+
+          if (isItemDiscount && dId !== undefined && dId !== null) {
+            const info = { discValue: itemDiscValue, discType: itemDiscType, isComplimentary };
+            knownItemDiscountsById.set(Number(dId), info);
+            knownItemDiscountsById.set(String(dId), info);
+          }
+        });
+      });
+
+      const response = await orderApi.getCombinedOrderDetails(orderIdsToCombine);
       const combinedData = response?.data || response;
 
       if (combinedData && (combinedData.detailsData || combinedData.details)) {
         const detailsData = sortOrderDetailsBySequence(combinedData.detailsData || combinedData.details || []);
         const modifiersData = combinedData.modifiersData || combinedData.modifiers || [];
 
-        const hasAnyBillDiscount = billDiscountOrderIdsRef.current.size > 0;
-
-        // Clean detailsData: remove bill discounts from items belonging to bill-discounted orders
+        // Clean detailsData: strip inherited bill discounts, but strictly PRESERVE item discounts!
         const cleanedDetailsData = detailsData.map((d: any) => {
-          const dOrderId = Number(d.orderId ?? d.OrderId ?? 0);
           const dId = d.id ?? d.detailId ?? d.orderDetailId ?? d.OrderDetailId;
-          const isFromBillDiscOrder =
-            (dOrderId > 0 && billDiscountOrderIdsRef.current.has(dOrderId)) ||
-            (dId !== undefined && billDiscountDetailIdsRef.current.has(dId)) ||
-            (hasAnyBillDiscount && Number(d.discPer ?? d.DiscPer ?? 0) === 100);
+          const dDiscPer = Number(d.discPer ?? d.DiscPer ?? 0);
 
-          if (isFromBillDiscOrder) {
+          const knownItem = dId !== undefined ? knownItemDiscountsById.get(dId) : undefined;
+          if (knownItem) {
+            return {
+              ...d,
+              discPer: knownItem.discType === 'percentage' ? knownItem.discValue : 0,
+              DiscPer: knownItem.discType === 'percentage' ? knownItem.discValue : 0,
+              discAmount: knownItem.discType === 'amount' ? knownItem.discValue : 0,
+              DiscAmount: knownItem.discType === 'amount' ? knownItem.discValue : 0,
+              discountValue: knownItem.discValue,
+              complimentaryStatus: knownItem.isComplimentary,
+              ComplimentaryStatus: knownItem.isComplimentary,
+            };
+          }
+
+          const isInheritedBill =
+            (dId !== undefined && inheritedBillDetailIds.has(dId)) ||
+            (billDiscountPercentages.size > 0 && billDiscountPercentages.has(dDiscPer)) ||
+            (billDiscountPercentages.has(100) && (d.complimentaryStatus || d.ComplimentaryStatus));
+
+          if (isInheritedBill) {
             return {
               ...d,
               discPer: 0,
@@ -236,6 +317,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
               ComplimentaryStatus: false,
             };
           }
+
           return d;
         });
 
@@ -245,30 +327,13 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
         });
 
         const mappedCartItems = rawMappedCartItems.map((item, idx) => {
-          const itemDetail = (item as any).detail;
-          const dOrderId = Number(itemDetail?.orderId ?? itemDetail?.OrderId ?? 0);
-          const dId = itemDetail?.id ?? itemDetail?.detailId ?? itemDetail?.orderDetailId ?? itemDetail?.OrderDetailId;
-          const isFromBillDiscOrder =
-            (dOrderId > 0 && billDiscountOrderIdsRef.current.has(dOrderId)) ||
-            (dId !== undefined && billDiscountDetailIdsRef.current.has(dId)) ||
-            (hasAnyBillDiscount && Number(item.discountValue || 0) === 100);
-
-          if (isFromBillDiscOrder) {
-            return {
-              ...item,
-              mapId: idx + 1,
-              discountValue: 0,
-              discountType: undefined,
-              complimentaryStatus: false,
-              itemDiscount: 0,
-              itemDiscountAmount: 0,
-              billDiscountAmount: 0,
-            };
-          }
-
           return {
             ...item,
             mapId: idx + 1, // Sequentially recalculate mapId to prevent collisions across combined orders
+            discountValue: item.discountValue || 0,
+            discountType: item.discountType,
+            itemDiscount: item.itemDiscount || 0,
+            billDiscountAmount: 0,
           };
         });
 
@@ -445,7 +510,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
     <ConfirmDialog
       isOpen={showBillDiscountConfirm}
       title="Warning"
-      message="Bill discount will be erased while performing this action. Do you want to continue?"
+      message={confirmMessage}
       confirmLabel="Continue"
       cancelLabel="Cancel"
       confirmVariant="danger"

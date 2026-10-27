@@ -37,6 +37,7 @@ export const useProductSelection = ({
 
   // Ref to debounce rapid double-clicks on zero price items
   const zeroPriceLockRef = useRef<number>(0);
+  const inFlightProductDataPromises = useRef<Record<string, Promise<any>>>({});
 
   const resolveProductPricing = async (product: {
     id: number;
@@ -49,10 +50,15 @@ export const useProductSelection = ({
 
     if (!cachedData) {
       try {
-        cachedData = await menuApi.getProductData(product.id, safeOrderTypeId);
+        if (!inFlightProductDataPromises.current[cacheKey]) {
+          inFlightProductDataPromises.current[cacheKey] = menuApi.getProductData(product.id, safeOrderTypeId);
+        }
+        cachedData = await inFlightProductDataPromises.current[cacheKey];
         productDataCache[cacheKey] = cachedData;
       } catch (e) {
         console.warn("Failed to fetch product data:", e);
+      } finally {
+        delete inFlightProductDataPromises.current[cacheKey];
       }
     }
 

@@ -11,7 +11,7 @@ import { getBillingConfig, calculateLineItem, calculateOrder, roundCalc, getTaxE
 import { useCashierLog } from "../../../../cashier";
 import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { mapOrderDetailToCartItem } from "../../../mappers/orderDetailToCartMapper";
-import { checkOrderHasBillDiscount, checkOrderHasAnyDiscount } from "../../../utils/orderDiscountCheck";
+import { checkOrderHasBillDiscount } from "../../../utils/orderDiscountCheck";
 
 interface PosSplitModalProps {
   isOpen: boolean;
@@ -29,6 +29,9 @@ interface SplitCartItem {
   modifiers: any[];
   isIncl: boolean;
   variantName?: string;
+  discountValue?: number;
+  discountType?: "percentage" | "amount";
+  complimentaryStatus?: boolean;
 }
 
 interface SplitBucket {
@@ -94,6 +97,9 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
 
       setOriginalOrder(masterData);
 
+      const isOrderBillDisc = checkOrderHasBillDiscount(res) || checkOrderHasBillDiscount({ masterData, detailsData });
+      const masterDiscPer = Number(masterData.discPer ?? masterData.DiscPer ?? masterData.billDiscountPer ?? 0);
+
       const initialItems: SplitCartItem[] = detailsData.map((d: any, idx: number) => {
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
         
@@ -102,6 +108,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
           idx,
           modifiersData,
           products,
+          masterDiscPer,
+          isOrderBillDiscount: isOrderBillDisc,
         });
 
         const rawAlt = d.altName || d.AltName || d.variantName || d.VariantName || cartItem.variantName || "";
@@ -114,6 +122,9 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
           variantName: rawAlt || undefined,
           price: cartItem.price || 0,
           currentQty: d.qty || 1,
+          discountValue: cartItem.discountValue || 0,
+          discountType: cartItem.discountType,
+          complimentaryStatus: Boolean(cartItem.complimentaryStatus),
           detail: {
             ...d,
             vatValue: cartItem.vatValue,
@@ -357,20 +368,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         detailsData: allBucketDetails
       });
 
-    const hasAnyDiscount =
-      hasBillDiscount ||
-      checkOrderHasAnyDiscount(rawOrderResRef.current) ||
-      checkOrderHasAnyDiscount({
-        masterData: originalOrder,
-        detailsData: allBucketDetails
-      });
-
-    if (hasAnyDiscount) {
-      setConfirmMessage(
-        hasBillDiscount
-          ? "Bill discount will be erased while performing this action. Do you want to continue?"
-          : "Discounts will be erased while performing this action. Do you want to continue?"
-      );
+    if (hasBillDiscount) {
+      setConfirmMessage("Bill discount will be erased while performing this action. Do you want to continue?");
       setShowBillDiscountConfirm(true);
       return;
     }
@@ -404,8 +403,9 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         quantity: item.currentQty,
         price: item.price,
         isIncl: item.isIncl,
-        discountValue: 0,
-        discountType: undefined,
+        discountValue: item.discountValue || 0,
+        discountType: item.discountType,
+        complimentaryStatus: item.complimentaryStatus,
         extras,
         product: {
           id: item.detail?.productId ?? 1,
@@ -430,6 +430,9 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       const exclPrice = roundCalc(lineCalc?.basePrice ?? lineCalc?.exclusivePrice ?? getTaxExclusivePrice(item));
       const lineNet = roundCalc(lineCalc?.lineNetAmount ?? (exclPrice * item.currentQty + (lineCalc?.vatAmount || 0)));
 
+      const itemDiscPer = item.discountType === 'percentage' ? (item.discountValue || 0) : 0;
+      const itemDiscAmount = roundCalc(lineCalc?.itemDiscountAmount ?? lineCalc?.effectiveDiscountAmount ?? 0);
+
       return {
         ...item.detail,
         mapId: newMapId,
@@ -440,10 +443,10 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         vatAmount: roundCalc(lineCalc?.mainVatAmount ?? lineCalc?.vatAmount ?? 0),
         serviceCharge: roundCalc(lineCalc?.mainSc ?? lineCalc?.sc ?? 0),
         levy: roundCalc(lineCalc?.mainLevy ?? lineCalc?.levy ?? 0),
-        discPer: 0,
-        discAmount: 0,
-        complimentaryStatus: false,
-        ComplimentaryStatus: false,
+        discPer: itemDiscPer,
+        discAmount: itemDiscAmount,
+        complimentaryStatus: Boolean(item.complimentaryStatus || item.discountValue === 100),
+        ComplimentaryStatus: Boolean(item.complimentaryStatus || item.discountValue === 100),
       };
     });
 
@@ -591,10 +594,14 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
                   {bucket.items.map(item => {
                     const config = getBillingConfig(originalOrder?.orderTypeName || "DineIn");
                     
+                    const itemDiscount = item.discountValue && item.discountValue > 0
+                      ? { type: item.discountType || 'percentage', value: item.discountValue }
+                      : 0;
+
                     const calcs = calculateLineItem(
                       item.currentQty,
                       item.price,
-                      0,
+                      itemDiscount,
                       0, // No extras in base calc for display purposes, we'll display extras separately
                       config,
                       item.detail.vatValue,

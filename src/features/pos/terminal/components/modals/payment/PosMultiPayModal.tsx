@@ -282,6 +282,7 @@ const getModeConfig = (label: string = '', index: number = 0) => {
 interface MultiPayAmountModalProps {
   isOpen: boolean;
   tender: TenderOption;
+  currentAmount?: number;
   remainingAmount: number;
   currencySymbol: string;
   decimalPart: number;
@@ -292,6 +293,7 @@ interface MultiPayAmountModalProps {
 const MultiPayAmountModal: React.FC<MultiPayAmountModalProps> = ({
   isOpen,
   tender,
+  currentAmount,
   remainingAmount,
   currencySymbol,
   decimalPart,
@@ -304,14 +306,17 @@ const MultiPayAmountModal: React.FC<MultiPayAmountModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      setValue(remainingAmount > 0 ? remainingAmount.toFixed(decimalPart) : '');
+      const defaultVal = (currentAmount !== undefined && currentAmount > 0)
+        ? currentAmount.toFixed(decimalPart)
+        : (remainingAmount > 0 ? remainingAmount.toFixed(decimalPart) : '');
+      setValue(defaultVal);
       setShouldOverwrite(true);
       setTimeout(() => {
         inputRef.current?.focus();
         inputRef.current?.select();
       }, 50);
     }
-  }, [isOpen, remainingAmount, decimalPart]);
+  }, [isOpen, currentAmount, remainingAmount, decimalPart]);
 
   const cfg = getModeConfig(tender.label);
   const Icon = cfg.icon;
@@ -540,11 +545,16 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
         return;
       }
 
+      const existingPayment = payments.find(p => String(p.paymodeId) === String(tender.id));
+      const existingAmount = existingPayment ? existingPayment.amount : 0;
+      const otherPaid = Math.max(0, totalPaid - existingAmount);
+
       // Validation Rule: Non-Cash methods cannot cause an overpayment
       if (!isCash) {
-        const potentialTotal = totalPaid + amount;
+        const potentialTotal = otherPaid + amount;
         if (Number(potentialTotal.toFixed(decimalPart)) > roundedDue) {
-          showToast(`Overpayment is only allowed for Cash. Maximum allowed for ${tender.label} is ${formatAmount(remaining)}`, "error");
+          const maxAllowed = Math.max(0, roundedDue - otherPaid);
+          showToast(`Overpayment is only allowed for Cash. Maximum allowed for ${tender.label} is ${formatAmount(maxAllowed)}`, "error");
           return;
         }
       }
@@ -553,7 +563,7 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
         const existing = prev.findIndex(p => String(p.paymodeId) === String(tender.id));
         if (existing >= 0) {
           const updated = [...prev];
-          updated[existing] = { ...updated[existing], amount: updated[existing].amount + amount };
+          updated[existing] = { ...updated[existing], amount };
           return updated;
         }
         return [...prev, { paymodeId: tender.id, label: tender.label, amount }];
@@ -807,17 +817,25 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
       </Modal>
 
       {/* ── Pop-up Entry Numpad Modal ── */}
-      {selectedTender && (
-        <MultiPayAmountModal
-          isOpen={selectedTender !== null}
-          tender={selectedTender}
-          remainingAmount={remaining}
-          currencySymbol={currencySymbol}
-          decimalPart={decimalPart}
-          onClose={() => setSelectedTender(null)}
-          onSubmit={handleAddPayment}
-        />
-      )}
+      {selectedTender && (() => {
+        const existingPayment = payments.find(p => String(p.paymodeId) === String(selectedTender.id));
+        const existingAmount = existingPayment ? existingPayment.amount : 0;
+        const otherPaid = Math.max(0, totalPaid - existingAmount);
+        const availableRemaining = Math.max(0, roundedDue - otherPaid);
+
+        return (
+          <MultiPayAmountModal
+            isOpen={selectedTender !== null}
+            tender={selectedTender}
+            currentAmount={existingAmount}
+            remainingAmount={availableRemaining}
+            currencySymbol={currencySymbol}
+            decimalPart={decimalPart}
+            onClose={() => setSelectedTender(null)}
+            onSubmit={handleAddPayment}
+          />
+        );
+      })()}
     </>
   );
 };

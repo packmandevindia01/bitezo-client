@@ -16,12 +16,13 @@
  */
 
 import type { PosCartItem } from "../types";
-import { type GuestPrintData, resolvePrintTaxSetting, resolveViewTaxSetting } from "./guestPrintTemplate";
+import { type GuestPrintData, resolvePrintTaxSetting, isEnableVatGuestPrint } from "./guestPrintTemplate";
 import { type KotPrintData, resolveKotPrintTaxSetting, resolveKotHeaderStyle } from "./kotTemplate";
 import type { EndReportData } from "../cashier/services/cashierLogService";
 import { getDayEndReportConfig } from "../services/posConfigApi";
-import { isKotArabicEnabled, isBillArabicEnabled, isCompanyNameKotEnabled, getAlternativeArabicName, formatItemDisplayName } from "./alternativeHelpers";
-import { getModifierTypeNameById } from "../services/menuApi";
+import { isKotArabicEnabled, isBillArabicEnabled, isCompanyNameKotEnabled, getAlternativeArabicName } from "./alternativeHelpers";
+import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
+import { checkOrderHasBillDiscount } from "../terminal/utils/orderDiscountCheck";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LINE_WIDTH = 48; // standard 48 chars per line on 80mm thermal paper
@@ -276,13 +277,19 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     displaySubTotal += parseFloat(fmt(baseAmt));
   });
 
-  const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0 || (data.vatAmount && data.vatAmount > 0) || (data.netAmount > 0 && Math.abs(data.netAmount - (displaySubTotal + (data.serviceCharge || 0) + (data.levy || 0) + (data.deliveryCharge || 0))) > 0.001);
-  const printTaxSetting = resolvePrintTaxSetting(data as any);
-  const viewTaxSetting = resolveViewTaxSetting(data as any);
-  const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
-  const isViewInclusive = viewTaxSetting === "Inclusive";
-
   const isGuestPrint = !data.isSettlement && !data.invoiceNo && !data.isPackager;
+
+  const isVatActive = isGuestPrint
+    ? isEnableVatGuestPrint(data)
+    : Boolean(
+        data.enableVat === true ||
+        rawVat > 0 ||
+        cartVatSum > 0 ||
+        (data.vatAmount && data.vatAmount > 0) ||
+        (data.netAmount > 0 && Math.abs(data.netAmount - (displaySubTotal + (data.serviceCharge || 0) + (data.levy || 0) + (data.deliveryCharge || 0))) > 0.001)
+      );
+  const printTaxSetting = resolvePrintTaxSetting(data as any);
+  const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
 
   let invoiceTitle = "";
   if (isGuestPrint) {
@@ -356,6 +363,31 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   }
   markup += `[L]${DASH_SEP}\n`;
 
+  // ── Items Pricing ───────────────────────────────────────────────────────────
+  // Single Source of Truth: Unified deterministic order pricing
+  const unified: UnifiedOrderPricingResult = ((cartDetails as any)?.lines && (cartDetails as any)?.summary)
+    ? (cartDetails as any)
+    : buildUnifiedOrderPricing(cartDetails, data);
+
+  const rawDetailsList = (cartDetails as any)?.lines || (Array.isArray(cartDetails) ? cartDetails : []);
+  const hasLineDiscounts = unified.lines.some(l => {
+    const raw = l.rawItem;
+    return (
+      (raw?.discountValue !== undefined && Number(raw.discountValue) > 0) ||
+      (raw?.itemDiscount !== undefined && Number(raw.itemDiscount) > 0) ||
+      (raw?.discAmount !== undefined && Number(raw.discAmount) > 0) ||
+      (l.lineDiscount !== undefined && Number(l.lineDiscount) > 0) ||
+      (l.lineDiscountExcl !== undefined && Number(l.lineDiscountExcl) > 0)
+    );
+  });
+
+  const isOrderBillDiscount = Boolean(
+    unified.summary.isBillDiscount ||
+    data.isBillDiscount ||
+    checkOrderHasBillDiscount({ master: data, details: rawDetailsList }) ||
+    (!hasLineDiscounts && data.discount && data.discount > 0)
+  );
+
   // ── Column headers ───────────────────────────────────────────────────────────
   markup += `[L]<b>${padRight("Description", LINE_WIDTH - 16)} ${padLeft("Qty", 4)} ${padLeft("Amount", 10)}</b>\n`;
   if (isBillArabic) {
@@ -364,172 +396,46 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   markup += `[L]${DASH_SEP}\n`;
 
   // ── Items ───────────────────────────────────────────────────────────────────
-  displaySubTotal = 0; // Reset for loop
+  unified.lines.forEach((line) => {
+    const name = line.productName.toUpperCase();
+    const qty = line.quantity;
+    const itemDisc = isOrderBillDiscount
+      ? 0
+      : Number(line.lineDiscountExcl ?? line.lineDiscount ?? (typeof line.getDiscount === "function" ? line.getDiscount(false) : 0));
 
-  const isOrderBillDiscount = Boolean(
-    data.isBillDiscount ||
-    (cartDetails.length > 0 && cartDetails.some((it: any) => (it.billDiscountAmount && it.billDiscountAmount > 0))) ||
-    (
-      data.discount && data.discount > 0 && cartDetails.length > 0 && (
-        cartDetails.every((it: any) => !it.itemDiscount || it.itemDiscount <= 0.0001) ||
-        (
-          Number((cartDetails[0] as any).discPer ?? (cartDetails[0] as any).DiscPer ?? 0) > 0 &&
-          cartDetails.every((it: any) => Number((it as any).discPer ?? (it as any).DiscPer ?? 0) === Number((cartDetails[0] as any).discPer ?? (cartDetails[0] as any).DiscPer ?? 0))
-        )
-      )
-    )
-  );
+    const origGrossAmt = isTaxInclusive ? line.inclusiveGross : line.exclusiveGross;
+    const netAmt = isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount;
+    const amt = fmt(origGrossAmt);
 
-  displaySubTotal = 0;
-  cartDetails.forEach((item) => {
-    const name = formatItemDisplayName(
-      item.product?.name || `Item #${item.productId}`,
-      item.variantName
-    ).toUpperCase();
-    const qty = item.quantity;
-
-    let extrasSum = 0;
-    if (item.extras && item.extras.length > 0) {
-      item.extras.forEach(ex => { extrasSum += ex.price * (ex.qty || 1); });
-    }
-
-    const origPrice = Number(item.price || item.product?.price || 0);
-    const itemBaseAmount: number | undefined = (item as any).baseAmount;
-    const itemLineTotal: number | undefined = (item as any).lineTotal;
-    const itemLineNetAmount: number | undefined = (item as any).lineNetAmount ?? (item as any).LineNetAmount;
-    const itemVat = Number((item as any).vatAmount || (item as any).VatAmount || 0);
-    const itemDisc = isOrderBillDiscount ? 0 : Number((item as any).itemDiscount ?? (item as any).discAmount ?? 0);
-
-    const knownBasePrice = (item as any).basePrice !== undefined && Number((item as any).basePrice) > 0
-      ? Number((item as any).basePrice)
-      : (itemBaseAmount !== undefined && itemBaseAmount > 0 && qty > 0 ? (itemBaseAmount / qty) : undefined);
-
-    const vatRatio = isVatActive ? (1 / 1.10) : 1;
-    const catalogExclusivePrice = knownBasePrice !== undefined
-      ? knownBasePrice
-      : (isViewInclusive
-          ? ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (origPrice * vatRatio) : origPrice)
-          : origPrice);
-
-    const catalogInclusivePrice = knownBasePrice !== undefined
-      ? ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (knownBasePrice / vatRatio) : knownBasePrice)
-      : (isViewInclusive
-          ? origPrice
-          : ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (origPrice / vatRatio) : origPrice));
-
-    let exclusiveProductLineAmount: number;
-    if (isOrderBillDiscount) {
-      exclusiveProductLineAmount = catalogExclusivePrice * qty;
-    } else {
-      const netValueVal = (item as any).netValue !== undefined ? Number((item as any).netValue) : undefined;
-      if (netValueVal !== undefined && qty > 0) {
-        exclusiveProductLineAmount = Math.max(0, netValueVal);
-      } else if (itemBaseAmount !== undefined && qty > 0) {
-        exclusiveProductLineAmount = Math.max(0, itemBaseAmount - itemDisc);
-      } else if (!isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        exclusiveProductLineAmount = Math.max(0, itemLineTotal - extrasSum);
-      } else if (isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        exclusiveProductLineAmount = itemVat > 0
-          ? Math.max(0, itemLineTotal - extrasSum - itemVat)
-          : Math.max(0, (itemLineTotal - extrasSum) * vatRatio);
-      } else {
-        exclusiveProductLineAmount = Math.max(0, (catalogExclusivePrice * qty) - itemDisc);
-      }
-    }
-
-    let lineInclusiveAmt: number;
-    if (isOrderBillDiscount) {
-      lineInclusiveAmt = catalogInclusivePrice * qty;
-    } else {
-      if (itemLineNetAmount !== undefined && itemLineNetAmount > 0) {
-        lineInclusiveAmt = Math.max(0, itemLineNetAmount - extrasSum);
-      } else if (isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        lineInclusiveAmt = Math.max(0, itemLineTotal - extrasSum);
-      } else if (!isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        lineInclusiveAmt = itemVat > 0
-          ? Math.max(0, itemLineTotal - extrasSum) + itemVat
-          : (isVatActive && vatRatio > 0 && vatRatio < 1 ? Math.max(0, itemLineTotal - extrasSum) / vatRatio : Math.max(0, itemLineTotal - extrasSum));
-      } else if (itemVat > 0) {
-        lineInclusiveAmt = exclusiveProductLineAmount + itemVat;
-      } else if (isVatActive && vatRatio > 0 && vatRatio < 1) {
-        lineInclusiveAmt = Math.max(0, (catalogInclusivePrice * qty) - itemDisc);
-      } else {
-        lineInclusiveAmt = Math.max(0, (origPrice * qty) - itemDisc);
-      }
-    }
-
-    const baseAmt = isTaxInclusive ? lineInclusiveAmt : exclusiveProductLineAmount;
-
-    const amt = fmt(baseAmt);
-    displaySubTotal += parseFloat(amt);
     markup += itemLine(name, qty, amt) + "\n";
 
-    const altArabicName = isBillArabic ? getAlternativeArabicName(item) : "";
+    const altArabicName = isBillArabic ? getAlternativeArabicName(line.rawItem) : "";
     if (altArabicName) {
       markup += `[R]${altArabicName}\n`;
     }
 
     if (itemDisc > 0) {
-      markup += `[L]  * DISC: -${fmt(itemDisc)}\n`;
+      const discLabel = `  Disc : ${fmt(itemDisc)}${isBillArabic ? ` (الخصم)` : ''}`;
+      const discAmtStr = padLeft(fmt(netAmt), 10);
+      const maxDiscLabel = Math.max(0, LINE_WIDTH - discAmtStr.length - 1);
+      const leftPart = padRight(discLabel, maxDiscLabel);
+      markup += `[L]${leftPart} ${discAmtStr}\n`;
     }
 
-    // Extras
-    if (item.extras && item.extras.length > 0) {
-      const dedupedExtrasMap = new Map<string, any>();
-      item.extras.forEach(ex => {
-        const rawExName = (ex.name || (ex as any).modifierName || "").trim();
-        if (!rawExName) return;
-        const exId = ex.id || (ex as any).modifierId || 0;
-        const typeId = ex.typeId || 0;
-        const key = exId > 0 ? `${exId}-${typeId}` : `${typeId}-${rawExName.toLowerCase()}`;
-        if (dedupedExtrasMap.has(key)) {
-          const existing = dedupedExtrasMap.get(key);
-          existing.qty = (existing.qty || 1) + (ex.qty || 1);
-        } else {
-          dedupedExtrasMap.set(key, { ...ex, qty: ex.qty || 1 });
-        }
-      });
-
-      Array.from(dedupedExtrasMap.values()).forEach(ex => {
-        const rawExPrice = Number(ex.price || 0);
-        let exUnitPrice = rawExPrice;
-        if (isVatActive && vatRatio > 0 && vatRatio < 1) {
-          if (isTaxInclusive && !isViewInclusive) {
-            exUnitPrice = rawExPrice / vatRatio;
-          } else if (!isTaxInclusive && isViewInclusive) {
-            exUnitPrice = rawExPrice * vatRatio;
-          }
-        }
-        const exName  = `  + ${(ex.name || "EXTRA").toUpperCase()}`;
-        const exAmt   = fmt(exUnitPrice * (ex.qty || 1));
-        displaySubTotal += parseFloat(exAmt);
-        markup += itemLine(exName, ex.qty || 1, exAmt) + "\n";
+    // Extras (displayed without separate amount, as extras are included in the item amount)
+    if (line.extras && line.extras.length > 0) {
+      line.extras.forEach((ex) => {
+        const exName = `  + ${ex.name.toUpperCase()}${ex.qty > 1 ? ` (x${ex.qty})` : ""}`;
+        markup += `[L]${exName}\n`;
       });
     }
 
     // Modifiers (no price, just name note)
-    if (item.modifiers && item.modifiers.length > 0) {
-      const dedupedModsMap = new Map<string, any>();
-      item.modifiers.forEach(mod => {
-        const rawModName = (mod.name || (mod as any).modifierName || "").trim();
-        if (!rawModName) return;
-        const modId = mod.id || (mod as any).modifierId || 0;
-        const typeId = mod.typeId || 0;
-        const key = modId > 0 ? `${modId}-${typeId}` : `${typeId}-${rawModName.toLowerCase()}`;
-        if (dedupedModsMap.has(key)) {
-          const existing = dedupedModsMap.get(key);
-          existing.qty = (existing.qty || 1) + (mod.qty || 1);
-        } else {
-          dedupedModsMap.set(key, { ...mod, qty: mod.qty || 1 });
-        }
-      });
-
-      Array.from(dedupedModsMap.values()).forEach(mod => {
-        const rawTypeName = (mod.typeName || (mod as any).modifierTypeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
-        const rawModName = (mod.name || (mod as any).modifierName || "MODIFIER").trim();
-        const typeUpper = rawTypeName.toUpperCase();
-        const nameUpper = rawModName.toUpperCase();
-        const qtyPart = (mod.qty && mod.qty > 1) ? `${mod.qty} x ` : "";
+    if (line.modifiers && line.modifiers.length > 0) {
+      line.modifiers.forEach((mod) => {
+        const typeUpper = (mod.typeName || "").toUpperCase();
+        const nameUpper = mod.name.toUpperCase();
+        const qtyPart = mod.qty > 1 ? `${mod.qty} x ` : "";
 
         let text = "";
         if (typeUpper) {
@@ -544,76 +450,61 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
         } else {
           text = `${qtyPart}${nameUpper}`;
         }
-
         markup += `[L]  * ${text}\n`;
       });
     }
 
-    // Messages / Notes
-    if (item.messages && item.messages.length > 0) {
-      const seenMsgs = new Set<string>();
-      const dedupedMsgs = item.messages.filter((msg: any) => {
-        const k = String(msg.name || "").trim().toLowerCase();
-        if (!k || seenMsgs.has(k)) return false;
-        seenMsgs.add(k);
-        return true;
-      });
-      dedupedMsgs.forEach(msg => {
+    // Messages
+    if (line.messages && line.messages.length > 0) {
+      line.messages.forEach((msg) => {
         markup += `[L]  MSG: ${(msg.name || "").toUpperCase()}\n`;
       });
     }
   });
 
+  // ── Totals ───────────────────────────────────────────────────────────────────
   markup += `[L]${DASH_SEP}\n`;
 
-  // ── Totals ──────────────────────────────────────────────────────────────────
-  const cartTotalDiscounts = cartDetails.reduce((sum, item: any) => {
-    return sum + Number(item.itemDiscount ?? item.discAmount ?? 0);
-  }, 0);
-  const totalDiscount = (data.discount && data.discount > 0) ? data.discount : cartTotalDiscounts;
-
-  displaySubTotal = parseFloat(fmt(displaySubTotal));
-  const hasAuthoritativeTotals = data.subTotal !== undefined && Number(data.subTotal) > 0;
-  const authoritativeSubTotal = hasAuthoritativeTotals ? Number(data.subTotal) : displaySubTotal;
-  const authoritativeVatAmount = (data.vatAmount !== undefined && !isNaN(Number(data.vatAmount))) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
-
-  let vatAmount = 0;
-  if (isVatActive) {
-    const computedVat = data.vatAmount !== undefined
-      ? Number(data.vatAmount)
-      : (authoritativeVatAmount > 0 ? authoritativeVatAmount : Math.max(0, data.netAmount - displaySubTotal - (data.serviceCharge || 0) - (data.levy || 0) - (data.deliveryCharge || 0)));
-    vatAmount  = parseFloat(fmt(Math.max(0, computedVat)));
-  }
-
-  const netTaxableBase = Math.max(
-    0,
-    Number(data.netAmount || 0) -
-      Number(vatAmount || 0) -
-      Number(data.serviceCharge || 0) -
-      Number(data.levy || 0) -
-      Number(data.deliveryCharge || 0)
+  const totalDiscount = Number(
+    data.discount ??
+    (data as any).discAmount ??
+    (unified.summary.totalDiscountExcl ?? unified.summary.totalDiscount ?? 0)
   );
 
-  const subTotalBeforeDiscount =
-    hasAuthoritativeTotals && Math.abs(authoritativeSubTotal - (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0))) < 0.05
-      ? authoritativeSubTotal
-      : hasAuthoritativeTotals && Math.abs(authoritativeSubTotal - netTaxableBase) < 0.05
-      ? authoritativeSubTotal + (totalDiscount > 0 ? totalDiscount : 0)
-      : (netTaxableBase + (totalDiscount > 0 ? totalDiscount : 0));
-  markup += totalsLine(isBillArabic ? "Sub Total (المجموع الفرعي)" : "Sub Total", fmt(subTotalBeforeDiscount)) + "\n";
-  if (totalDiscount > 0) {
-    markup += totalsLine(isBillArabic ? "Discount (الخصم)" : "Discount", `-${fmt(totalDiscount)}`) + "\n";
+  const effectiveBillDiscount = isOrderBillDiscount
+    ? totalDiscount
+    : Number(data.billDiscount || data.billDiscountValue || 0);
+
+  const subTotalBeforeDiscount = (data.subTotal !== undefined && data.subTotal !== null && Number(data.subTotal) > 0)
+    ? Number(data.subTotal)
+    : ((data as any).vatExclAmount !== undefined && (data as any).vatExclAmount !== null && Number((data as any).vatExclAmount) > 0)
+    ? (Number((data as any).vatExclAmount) + (isOrderBillDiscount ? totalDiscount : 0))
+    : (isOrderBillDiscount
+        ? (unified.summary.subTotalExclusive ? unified.summary.subTotalExclusive + totalDiscount : 0)
+        : (unified.summary.subTotalExclusive ?? 0));
+
+  const footerSubTotal = isOrderBillDiscount
+    ? subTotalBeforeDiscount
+    : ((data as any).vatExclAmount !== undefined && Number((data as any).vatExclAmount) > 0
+        ? Number((data as any).vatExclAmount)
+        : (unified.summary.subTotalExclusive ?? subTotalBeforeDiscount));
+
+  markup += totalsLine(isBillArabic ? "Sub Total (المجموع الفرعي)" : "Sub Total", fmt(footerSubTotal)) + "\n";
+  if (effectiveBillDiscount > 0) {
+    markup += totalsLine(isBillArabic ? "Discount (الخصم)" : "Discount", `-${fmt(effectiveBillDiscount)}`) + "\n";
   }
   if ((data.serviceCharge || 0) > 0) markup += totalsLine(isBillArabic ? "Service Charge (رسوم الخدمة)" : "Service Charge", fmt(data.serviceCharge)) + "\n";
   if ((data.levy || 0) > 0) markup += totalsLine(isBillArabic ? "Levy (5%) (الضريبة الانتقائية)" : "Levy (5%)", fmt(data.levy)) + "\n";
   if ((isDelivery || (data.deliveryCharge && data.deliveryCharge > 0))) {
     markup += totalsLine(isBillArabic ? "Delivery Charge (رسوم التوصيل)" : "Delivery Charge", fmt(data.deliveryCharge || 0)) + "\n";
   }
-  if (isVatActive || vatAmount > 0) markup += totalsLine(isBillArabic ? "VAT Amount (مبلغ الضريبة)" : "VAT Amount", fmt(vatAmount)) + "\n";
+  if (isVatActive && (unified.summary.vatAmount > 0 || (data.vatAmount || 0) > 0)) {
+    markup += totalsLine(isBillArabic ? "VAT Amount (مبلغ الضريبة)" : "VAT Amount", fmt(unified.summary.vatAmount || data.vatAmount || 0)) + "\n";
+  }
 
   markup += `[L]${DASH_SEP}\n`;
   const grandTotalLabel = isBillArabic ? "GRAND TOTAL (المجموع الكلي)" : "GRAND TOTAL";
-  markup += totalsLine(grandTotalLabel, fmt(data.netAmount), true) + "\n";
+  markup += totalsLine(grandTotalLabel, fmt(unified.summary.grandTotal), true) + "\n";
 
   // ── Payments ─────────────────────────────────────────────────────────────────
   if (data.payments && data.payments.length > 0) {
@@ -628,12 +519,30 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   }
 
   // ── VAT table (if enabled) ────────────────────────────────────────────────
-  if (isVatActive || vatAmount > 0) {
+  const vatAmount = unified.summary.vatAmount;
+  if (isVatActive && vatAmount > 0) {
+    const effectiveDeliveryCharge = Number(
+      data.deliveryCharge ?? 
+      (data as any).deliveryAmount ?? 
+      (data as any).customDeliveryCharge ?? 
+      unified.summary?.deliveryCharge ?? 
+      0
+    );
+    const hasDeliveryCharge = isDelivery && effectiveDeliveryCharge > 0;
+    const vatPercent = unified.lines.find(l => (l.vatRate || 0) > 0)?.vatRate || 10;
+    // Option B: Service charge and levy are part of the taxable base (Excl Amt)
+    const exclAmtVal = Math.max(0, unified.summary.grandTotal - (hasDeliveryCharge ? effectiveDeliveryCharge : 0) - vatAmount);
+
     markup += `[L]${DASH_SEP}\n`;
-    markup += `[L]<b>${padRight("VAT Code", 12)}${padLeft("Excl Amt", 12)}${padLeft("VAT Amt", 12)}${padLeft("Net Amt", 12)}</b>\n`;
-    markup += `[L]${DASH_SEP}\n`;
-    const exclAmt = fmt(data.netAmount - vatAmount);
-    markup += `[L]${padRight("10%", 12)}${padLeft(exclAmt, 12)}${padLeft(fmt(vatAmount), 12)}${padLeft(fmt(data.netAmount), 12)}\n`;
+    if (hasDeliveryCharge) {
+      markup += `[L]<b>${padRight("VAT Code", 8)}${padLeft("Excl Amt", 10)}${padLeft("VAT Amt", 10)}${padLeft("Delivery", 10)}${padLeft("Net Amt", 10)}</b>\n`;
+      markup += `[L]${DASH_SEP}\n`;
+      markup += `[L]${padRight(`${vatPercent}%`, 8)}${padLeft(fmt(exclAmtVal), 10)}${padLeft(fmt(vatAmount), 10)}${padLeft(fmt(effectiveDeliveryCharge), 10)}${padLeft(fmt(unified.summary.grandTotal), 10)}\n`;
+    } else {
+      markup += `[L]<b>${padRight("VAT Code", 12)}${padLeft("Excl Amt", 12)}${padLeft("VAT Amt", 12)}${padLeft("Net Amt", 12)}</b>\n`;
+      markup += `[L]${DASH_SEP}\n`;
+      markup += `[L]${padRight(`${vatPercent}%`, 12)}${padLeft(fmt(exclAmtVal), 12)}${padLeft(fmt(vatAmount), 12)}${padLeft(fmt(unified.summary.grandTotal), 12)}\n`;
+    }
     markup += `[L]${DASH_SEP}\n`;
   }
 
@@ -641,13 +550,15 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   const keepChangeVal = (data.change || data.keepChanges || "").trim();
   const hasValidKeepChange = keepChangeVal !== "" && keepChangeVal !== "0" && keepChangeVal !== "0.00" && keepChangeVal !== "0.000";
 
+  const formattedKeepChange = hasValidKeepChange && !isNaN(Number(keepChangeVal)) ? fmt(Number(keepChangeVal)) : keepChangeVal;
+
   if (isDelivery && (data.customerName || driverVal || data.contactNo || data.callBack || hasValidKeepChange || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo)) {
     markup += `[L]${DASH_SEP}\n`;
     markup += `[C]<b>DELIVERY DETAILS</b>\n`;
     markup += `[L]${DASH_SEP}\n`;
     if (data.contactNo)  markup += twoCol("Mob No",      data.contactNo)  + "\n";
     if (data.callBack)   markup += twoCol("Call Back",    data.callBack)   + "\n";
-    if (hasValidKeepChange) markup += twoCol("Keep Change", keepChangeVal) + "\n";
+    if (hasValidKeepChange) markup += twoCol("Keep Change", formattedKeepChange) + "\n";
     if (data.customerName) markup += twoCol("Customer",  data.customerName) + "\n";
     if (driverVal)       markup += twoCol("Driver",       driverVal)       + "\n";
     if (data.flatNo)     markup += twoCol("Flat No",     data.flatNo)     + "\n";
@@ -801,18 +712,9 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   const cartVatSum = cartDetails.reduce((sum, item: any) => sum + (item.vatAmount || 0), 0);
   const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
   const isVatActive = data.enableVat === true || rawVat > 0 || cartVatSum > 0;
-  const totalNet = Number(data.netAmount || 0);
-  const authoritativeSubTotal = (data.subTotal !== undefined && Number(data.subTotal) > 0) ? Number(data.subTotal) : 0;
-  const authoritativeVatAmount = (data.vatAmount !== undefined && !isNaN(Number(data.vatAmount))) ? Number(data.vatAmount) : (rawVat > 0 ? rawVat : 0);
-
-  const vatRatio = (authoritativeSubTotal > 0 && authoritativeVatAmount > 0 && totalNet > 0 && Math.abs((authoritativeSubTotal + authoritativeVatAmount) - totalNet) < 0.05)
-    ? (authoritativeSubTotal / totalNet)
-    : (isVatActive ? (1 / 1.10) : 1);
 
   const printTaxSetting = resolveKotPrintTaxSetting(data);
-  const viewTaxSetting = resolveViewTaxSetting(data as any);
   const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
-  const isViewInclusive = viewTaxSetting === "Inclusive";
 
   markup += `[L]${SEPARATOR}\n`;
   if (kotHeaderStyle.startsWith("DESCRIPTION")) {
@@ -834,117 +736,19 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   }
   markup += `[L]${SEPARATOR}\n`;
 
-  const isOrderBillDiscount = Boolean(
-    (data as any).isBillDiscount ||
-    (cartDetails.length > 0 && cartDetails.some((it: any) => (it.billDiscountAmount && it.billDiscountAmount > 0))) ||
-    (
-      (data as any).discount && (data as any).discount > 0 && cartDetails.length > 0 && (
-        cartDetails.every((it: any) => !it.itemDiscount || it.itemDiscount <= 0.0001) ||
-        (
-          Number((cartDetails[0] as any).discPer ?? (cartDetails[0] as any).DiscPer ?? 0) > 0 &&
-          cartDetails.every((it: any) => Number((it as any).discPer ?? (it as any).DiscPer ?? 0) === Number((cartDetails[0] as any).discPer ?? (cartDetails[0] as any).DiscPer ?? 0))
-        )
-      )
-    )
-  );
+  // Single Source of Truth: Unified deterministic order pricing
+  const unified: UnifiedOrderPricingResult = ((cartDetails as any)?.lines && (cartDetails as any)?.summary)
+    ? (cartDetails as any)
+    : buildUnifiedOrderPricing(cartDetails, data);
+  const isOrderBillDiscount = unified.summary.isBillDiscount;
 
   // ── KOT Items ───────────────────────────────────────────────────────────────
-  cartDetails.forEach((item) => {
-    const name = formatItemDisplayName(
-      item.product?.name || `Item #${item.productId}`,
-      item.variantName
-    ).toUpperCase();
-    const qty = item.quantity;
+  unified.lines.forEach((line) => {
+    const name = line.productName.toUpperCase();
+    const qty = line.quantity;
 
-    const origUnitPrice = Number(item.price ?? item.product?.price ?? 0);
-    const itemBaseAmount: number | undefined = (item as any).baseAmount;
-    const itemLineTotal: number | undefined = (item as any).lineTotal;
-    const itemVat: number = Number((item as any).vatAmount || 0);
-    const totalItemDisc = isOrderBillDiscount ? 0 : Number((item as any).itemDiscount ?? (item as any).discAmount ?? 0);
-
-    let extrasSum = 0;
-    if (item.extras && item.extras.length > 0) {
-      item.extras.forEach(ex => extrasSum += (Number(ex.price || 0) * (ex.qty || 1)));
-    }
-
-    const itemLineNetAmount: number | undefined = (item as any).lineNetAmount ?? (item as any).LineNetAmount;
-    const knownBasePrice = (item as any).basePrice !== undefined && Number((item as any).basePrice) > 0
-      ? Number((item as any).basePrice)
-      : (itemBaseAmount !== undefined && itemBaseAmount > 0 && qty > 0 ? (itemBaseAmount / qty) : undefined);
-
-    const catalogExclusivePrice = knownBasePrice !== undefined
-      ? knownBasePrice
-      : (isViewInclusive
-          ? ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (origUnitPrice * vatRatio) : origUnitPrice)
-          : origUnitPrice);
-
-    const catalogInclusivePrice = knownBasePrice !== undefined
-      ? ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (knownBasePrice / vatRatio) : knownBasePrice)
-      : (isViewInclusive
-          ? origUnitPrice
-          : ((isVatActive && vatRatio > 0 && vatRatio < 1) ? (origUnitPrice / vatRatio) : origUnitPrice));
-
-    let exclusiveUnitPrice: number;
-    let exclusiveProductLineAmount: number;
-
-    if (isOrderBillDiscount) {
-      exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : origUnitPrice;
-      exclusiveProductLineAmount = exclusiveUnitPrice * qty;
-    } else {
-      const netValueVal = (item as any).netValue !== undefined ? Number((item as any).netValue) : undefined;
-
-      if (netValueVal !== undefined && qty > 0) {
-        exclusiveProductLineAmount = Math.max(0, netValueVal);
-        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : Math.max(0, (netValueVal + totalItemDisc) / qty);
-      } else if (itemBaseAmount !== undefined && qty > 0) {
-        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (itemBaseAmount / qty);
-        exclusiveProductLineAmount = Math.max(0, itemBaseAmount - totalItemDisc);
-      } else if (!isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        exclusiveProductLineAmount = Math.max(0, itemLineTotal - extrasSum);
-        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (qty > 0 ? Math.max(0, (exclusiveProductLineAmount + totalItemDisc) / qty) : origUnitPrice);
-      } else if (isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        exclusiveProductLineAmount = itemVat > 0
-          ? Math.max(0, itemLineTotal - extrasSum - itemVat)
-          : Math.max(0, (itemLineTotal - extrasSum) * vatRatio);
-        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : (qty > 0 ? Math.max(0, (exclusiveProductLineAmount + totalItemDisc) / qty) : origUnitPrice);
-      } else {
-        exclusiveUnitPrice = catalogExclusivePrice > 0 ? catalogExclusivePrice : origUnitPrice;
-        exclusiveProductLineAmount = Math.max(0, (exclusiveUnitPrice * qty) - totalItemDisc);
-      }
-    }
-
-    let lineInclusiveAmt: number;
-    let inclusiveUnitPrice: number;
-
-    if (isOrderBillDiscount) {
-      inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : origUnitPrice;
-      lineInclusiveAmt = inclusiveUnitPrice * qty;
-    } else {
-      if (itemLineNetAmount !== undefined && itemLineNetAmount > 0) {
-        lineInclusiveAmt = Math.max(0, itemLineNetAmount - extrasSum);
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-      } else if (isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        lineInclusiveAmt = Math.max(0, itemLineTotal - extrasSum);
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-      } else if (!isViewInclusive && itemLineTotal !== undefined && itemLineTotal > 0) {
-        lineInclusiveAmt = itemVat > 0
-          ? Math.max(0, itemLineTotal - extrasSum) + itemVat
-          : (isVatActive && vatRatio > 0 && vatRatio < 1 ? Math.max(0, itemLineTotal - extrasSum) / vatRatio : Math.max(0, itemLineTotal - extrasSum));
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-      } else if (itemVat > 0) {
-        lineInclusiveAmt = exclusiveProductLineAmount + itemVat;
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : (qty > 0 ? Math.max(0, (lineInclusiveAmt + totalItemDisc) / qty) : origUnitPrice);
-      } else if (isVatActive && (authoritativeVatAmount > 0 || data.enableVat) && vatRatio > 0 && vatRatio < 1) {
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : origUnitPrice;
-        lineInclusiveAmt = Math.max(0, (inclusiveUnitPrice * qty) - totalItemDisc);
-      } else {
-        inclusiveUnitPrice = catalogInclusivePrice > 0 ? catalogInclusivePrice : origUnitPrice;
-        lineInclusiveAmt = Math.max(0, (origUnitPrice * qty) - totalItemDisc);
-      }
-    }
-
-    const finalRate = isTaxInclusive ? inclusiveUnitPrice : exclusiveUnitPrice;
-    const finalAmt = isTaxInclusive ? lineInclusiveAmt : exclusiveProductLineAmount;
+    const finalRate = line.getRate(isTaxInclusive);
+    const finalAmt = line.getAmount(isTaxInclusive, isOrderBillDiscount);
     const amtStr = padLeft(fmt(finalAmt), 8);
 
     if (kotHeaderStyle.startsWith("DESCRIPTION")) {
@@ -963,70 +767,25 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
       markup += `[L]  @ ${fmt(finalRate)}\n`;
     }
 
-    const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
+    const altArabicName = isKotArabic ? getAlternativeArabicName(line.rawItem) : "";
     if (altArabicName) {
       markup += `[R]${altArabicName}\n`;
     }
 
-    // Extras
-    if (item.extras && item.extras.length > 0) {
-      const dedupedExtrasMap = new Map<string, any>();
-      item.extras.forEach(ex => {
-        const rawExName = (ex.name || (ex as any).modifierName || "").trim();
-        if (!rawExName) return;
-        const exId = ex.id || (ex as any).modifierId || 0;
-        const typeId = ex.typeId || 0;
-        const key = exId > 0 ? `${exId}-${typeId}` : `${typeId}-${rawExName.toLowerCase()}`;
-        if (dedupedExtrasMap.has(key)) {
-          const existing = dedupedExtrasMap.get(key);
-          existing.qty = (existing.qty || 1) + (ex.qty || 1);
-        } else {
-          dedupedExtrasMap.set(key, { ...ex, qty: ex.qty || 1 });
-        }
-      });
-
-      Array.from(dedupedExtrasMap.values()).forEach(ex => {
-        const rawExPrice = Number(ex.price || 0);
-        let exUnitPrice = rawExPrice;
-        if (isVatActive && vatRatio > 0 && vatRatio < 1) {
-          if (isTaxInclusive && !isViewInclusive) {
-            exUnitPrice = rawExPrice / vatRatio;
-          } else if (!isTaxInclusive && isViewInclusive) {
-            exUnitPrice = rawExPrice * vatRatio;
-          }
-        }
-        const exLineAmt = exUnitPrice * (ex.qty || 1);
-        const exAmtStr = rawExPrice > 0 ? padLeft(fmt(exLineAmt), 8) : "";
-        const exName = `  + ${(ex.name || (ex as any).modifierName || "EXTRA").toUpperCase()}`;
-        const exQty = padLeft(String(ex.qty || 1), 4);
-        const maxExName = Math.max(8, LINE_WIDTH - exQty.length - (exAmtStr ? exAmtStr.length + 1 : 0) - 1);
-        markup += `[L]${padRight(trunc(exName, maxExName), maxExName)} ${exQty}${exAmtStr ? ` ${exAmtStr}` : ""}\n`;
+    // Extras (displayed without separate amount, as extras are included in the item amount)
+    if (line.extras && line.extras.length > 0) {
+      line.extras.forEach(ex => {
+        const exName = `  + ${ex.name.toUpperCase()}${ex.qty > 1 ? ` (x${ex.qty})` : ''}`;
+        markup += `[L]${exName}\n`;
       });
     }
 
     // Modifiers
-    if (item.modifiers && item.modifiers.length > 0) {
-      const dedupedModsMap = new Map<string, any>();
-      item.modifiers.forEach(mod => {
-        const rawModName = (mod.name || (mod as any).modifierName || "").trim();
-        if (!rawModName) return;
-        const modId = mod.id || (mod as any).modifierId || 0;
-        const typeId = mod.typeId || 0;
-        const key = modId > 0 ? `${modId}-${typeId}` : `${typeId}-${rawModName.toLowerCase()}`;
-        if (dedupedModsMap.has(key)) {
-          const existing = dedupedModsMap.get(key);
-          existing.qty = (existing.qty || 1) + (mod.qty || 1);
-        } else {
-          dedupedModsMap.set(key, { ...mod, qty: mod.qty || 1 });
-        }
-      });
-
-      Array.from(dedupedModsMap.values()).forEach(mod => {
-        const rawTypeName = (mod.typeName || (mod as any).modifierTypeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
-        const rawModName = (mod.name || (mod as any).modifierName || "").trim();
-        const typeUpper = rawTypeName.toUpperCase();
-        const nameUpper = rawModName.toUpperCase();
-        const qtyPart = (mod.qty && mod.qty > 1) ? `${mod.qty} x ` : "";
+    if (line.modifiers && line.modifiers.length > 0) {
+      line.modifiers.forEach(mod => {
+        const typeUpper = (mod.typeName || "").toUpperCase();
+        const nameUpper = mod.name.toUpperCase();
+        const qtyPart = mod.qty > 1 ? `${mod.qty} x ` : "";
 
         let text = "";
         if (typeUpper) {
@@ -1047,15 +806,8 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
     }
 
     // Messages / Kitchen Notes
-    if (item.messages && item.messages.length > 0) {
-      const seenMsgs = new Set<string>();
-      const dedupedMsgs = item.messages.filter((msg: any) => {
-        const k = String(msg.name || "").trim().toLowerCase();
-        if (!k || seenMsgs.has(k)) return false;
-        seenMsgs.add(k);
-        return true;
-      });
-      dedupedMsgs.forEach(msg => {
+    if (line.messages && line.messages.length > 0) {
+      line.messages.forEach(msg => {
         markup += `[L]  NOTE: ${(msg.name || "").toUpperCase()}\n`;
       });
     }
@@ -1188,26 +940,85 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
   }
 
   // Sales Details
-  const salesDetails = (data as any).salesDetails || {};
-  const saleAmount = Number(salesDetails.saleAmount ?? data.salesSummary?.sales ?? 0);
-  const complimentary = Number(salesDetails.complimentary ?? (data as any).complimentary ?? 0);
-  const discount = Number(salesDetails.discount ?? (data as any).discount ?? 0);
-  const deliveryCharge = Number(salesDetails.deliveryCharge ?? data.salesSummary?.deliveryCharge ?? 0);
+  const rawSalesDetails = (data as any).salesDetails;
+  const salesDetailsMap: Record<string, number> = {};
+  if (Array.isArray(rawSalesDetails)) {
+    rawSalesDetails.forEach((it: any) => {
+      const desc = String(it.description || it.name || it.label || "").trim().toLowerCase();
+      const val = Number(it.total ?? it.amount ?? it.value ?? 0);
+      if (desc.includes("sale") || desc.includes("amount")) salesDetailsMap.saleAmount = val;
+      else if (desc.includes("comp")) salesDetailsMap.complimentary = val;
+      else if (desc.includes("disc")) salesDetailsMap.discount = val;
+    });
+  } else if (rawSalesDetails && typeof rawSalesDetails === "object") {
+    salesDetailsMap.saleAmount = Number(rawSalesDetails.saleAmount ?? rawSalesDetails.sales ?? 0);
+    salesDetailsMap.complimentary = Number(rawSalesDetails.complimentary ?? 0);
+    salesDetailsMap.discount = Number(rawSalesDetails.discount ?? 0);
+    salesDetailsMap.deliveryCharge = Number(rawSalesDetails.deliveryCharge ?? 0);
+    if (rawSalesDetails.totalSale !== undefined) {
+      salesDetailsMap.totalSale = Number(rawSalesDetails.totalSale);
+    }
+  }
+
+  // Reconcile settled sales total across all payment modes or order types
+  const paymodesListForTotal = data.paymodes || (data as any).payments || (data as any).paymodeSummary || (data as any).paymentSummary || [];
+  const paymodeSum = Array.isArray(paymodesListForTotal)
+    ? paymodesListForTotal.reduce((sum: number, p: any) => sum + Number(p.amount ?? p.total ?? 0), 0)
+    : 0;
+  const orderTypesListForTotal = Array.isArray(data.orderTypes) ? data.orderTypes : [];
+  const orderTypeSum = orderTypesListForTotal.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0);
+
+  const settledTotal = paymodeSum > 0
+    ? paymodeSum
+    : (orderTypeSum > 0 ? orderTypeSum : (salesDetailsMap.saleAmount || 0));
+
+  const deliveryCharge = Number(
+    data.salesSummary?.deliveryCharge 
+    ?? salesDetailsMap.deliveryCharge 
+    ?? (data as any).deliveryCharge 
+    ?? 0
+  );
+
+  const discount = Number(
+    salesDetailsMap.discount 
+    ?? (data as any).discount 
+    ?? (data as any).totalDiscount 
+    ?? (gs as any).totalDiscount 
+    ?? 0
+  );
+
+  const complimentary = Number(
+    salesDetailsMap.complimentary 
+    ?? (data as any).complimentary 
+    ?? 0
+  );
+
   const taxSummaryList = Array.isArray(data.taxSummary) ? data.taxSummary : [];
   const taxSummaryVatTotal = taxSummaryList.reduce((sum, t) => sum + (Number(t.vatAmount) || 0), 0);
-  const vatAmount = Number(
-    salesDetails.vatAmount 
-    ?? salesDetails.vat 
-    ?? salesDetails.tax 
-    ?? salesDetails.taxAmount 
+
+  const rawBaseSale = Number(data.salesSummary?.sales ?? 0);
+
+  // If backend omitted modifier/extra VAT, reconcile actual VAT from (settledTotal - rawBaseSale - deliveryCharge)
+  let vatAmount = Number(
+    (rawSalesDetails && !Array.isArray(rawSalesDetails) ? (rawSalesDetails.vatAmount ?? rawSalesDetails.vat ?? rawSalesDetails.tax) : undefined)
     ?? data.salesSummary?.vatAmount 
     ?? taxSummaryVatTotal 
     ?? 0
   );
-  const calculatedTotalSale = saleAmount + deliveryCharge + (taxSummaryVatTotal > 0 ? taxSummaryVatTotal : vatAmount);
-  const totalSale = salesDetails.totalSale != null && Number(salesDetails.totalSale) >= calculatedTotalSale
-    ? Number(salesDetails.totalSale)
-    : calculatedTotalSale;
+
+  if (settledTotal > 0 && rawBaseSale > 0 && (settledTotal - (rawBaseSale + deliveryCharge)) > vatAmount) {
+    const diff = Number((settledTotal - rawBaseSale - deliveryCharge).toFixed(decimalPart));
+    if (diff > vatAmount) {
+      vatAmount = diff;
+    }
+  }
+
+  let saleAmount = rawBaseSale;
+  let totalSale = settledTotal > 0 ? settledTotal : (saleAmount + deliveryCharge + vatAmount);
+
+  if (saleAmount <= 0 && totalSale > 0) {
+    saleAmount = Math.max(0, Number((totalSale - deliveryCharge - vatAmount).toFixed(decimalPart)));
+  }
 
   markup += `[C]<b>SALES DETAILS</b>\n`;
   markup += `[L]${DASH_SEP}\n`;
@@ -1480,16 +1291,24 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
   if (data.taxSummary && data.taxSummary.length > 0) {
     data.taxSummary.forEach(t => vatTotal += t.vatAmount);
   }
+  if (vatAmount > vatTotal + 0.001) {
+    vatTotal = vatAmount;
+  }
+  const grandTotal = totalSale > 0 ? totalSale : ((data.salesSummary?.sales || 0) + vatTotal + (data.salesSummary?.deliveryCharge || 0));
+  const totalDiscount = discount > 0 ? discount : ((data as any).totalDiscount ?? (gs as any).totalDiscount ?? 0);
+
   markup += `[C]<b>GENERAL SUMMARY</b>\n`;
   markup += `[L]${DASH_SEP}\n`;
-  markup += twoCol("Sale:", fmt(data.salesSummary?.sales)) + "\n";
-  if ((data.salesSummary?.deliveryCharge || 0) > 0) {
-    markup += twoCol("Delivery Charge:", fmt(data.salesSummary?.deliveryCharge)) + "\n";
+  markup += twoCol("Sale:", fmt(saleAmount)) + "\n";
+  if (deliveryCharge > 0) {
+    markup += twoCol("Delivery Charge:", fmt(deliveryCharge)) + "\n";
   }
-  markup += twoCol("VAT Amount:", fmt(data.salesSummary?.vatAmount || vatTotal)) + "\n";
-  markup += twoCol("Grand Total:", fmt((data.salesSummary?.sales || 0) + vatTotal + (data.salesSummary?.deliveryCharge || 0))) + "\n";
+  markup += twoCol("VAT Amount:", fmt(vatAmount)) + "\n";
+  markup += twoCol("Grand Total:", fmt(grandTotal)) + "\n";
+  if (totalDiscount > 0) markup += twoCol("Total Discount:", fmt(totalDiscount)) + "\n";
   if (gs.voidSales) markup += twoCol("Cancelled Sales:", fmt(gs.voidSales)) + "\n";
   if (gs.voidOrders) markup += twoCol("Cancelled Order:", fmt(gs.voidOrders)) + "\n";
+  if (gs.pendingOrder) markup += twoCol("Pending Order:", fmt(gs.pendingOrder)) + "\n";
   markup += `[L]${DASH_SEP}\n`;
 
   // Cash Flow

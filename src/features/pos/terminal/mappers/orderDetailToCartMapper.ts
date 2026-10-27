@@ -172,11 +172,26 @@ export const mapOrderDetailToCartItem = ({
   // 6. Restore Unit Price & Tax Inclusivity with Strict Mathematical Invariants
   const lineBase = rawPrice * qty;
   const remainingBase = lineBase - rawDiscAmount;
+
+  const isBackendSavedDetail = Boolean(
+    detail.mapId !== undefined ||
+    detail.orderId !== undefined ||
+    detail.OrderId !== undefined ||
+    detail.detailId !== undefined ||
+    detail.transDate !== undefined
+  );
+
   const isStoredTaxExclusive =
     Boolean(detail.isPriceTaxExclusive) ||
     Boolean(detail.exclusivePrice) ||
     Boolean(detail.isExclusive) ||
-    (rawVatAmt > 0.001 && Math.abs(rawNetAmt - (remainingBase + rawVatAmt)) < 0.02);
+    Boolean(detail.basePrice && Number(detail.basePrice) > 0 && Math.abs(Number(detail.basePrice) - rawPrice) < 0.01) ||
+    (rawVatAmt > 0.001 && Math.abs(rawNetAmt - (remainingBase + rawVatAmt)) < 0.02) ||
+    (isBackendSavedDetail && (
+      Boolean(rawVatAmt > 0) ||
+      (catalogPrice !== undefined && activeVatFraction > 0 && Math.abs(roundCalc(rawPrice * (1 + activeVatFraction), 4) - catalogPrice) < 0.05) ||
+      (activeVatFraction > 0 && rawNetAmt > 0)
+    ));
   const isStoredTaxInclusive =
     !isStoredTaxExclusive &&
     ((rawVatAmt > 0.001 && Math.abs(rawNetAmt - remainingBase) < 0.02) ||
@@ -263,15 +278,9 @@ export const mapOrderDetailToCartItem = ({
     restoredPrice = trueBasePrice;
     itemIsIncl = false;
   } else {
-    // In Inclusive View:
-    // If product is inherently tax-exclusive (e.g. INCL unchecked in catalog or stored exclusive)
-    if (realProduct.isIncl === false) {
-      restoredPrice = trueBasePrice;
-      itemIsIncl = false;
-    } else {
-      restoredPrice = trueGrossPrice;
-      itemIsIncl = true;
-    }
+    // In Inclusive View: all items in the POS cart use gross tax-inclusive prices
+    restoredPrice = trueGrossPrice;
+    itemIsIncl = true;
   }
 
   // Strict Invariant Enforcement:
@@ -299,10 +308,31 @@ export const mapOrderDetailToCartItem = ({
     .map((m: any) => {
       const rawExtraPrice = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
       let restoredExtraPrice = rawExtraPrice;
-      if (itemIsIncl && activeVatFraction > 0) {
-        // Extras saved via orderPayloadMapper are tax-exclusive
-        restoredExtraPrice = roundCalc(rawExtraPrice * (1 + activeVatFraction), 4);
+
+      const extraIsAlreadyInclusive = Boolean(
+        m.isIncl ||
+        m.isPriceTaxInclusive ||
+        (activeVatFraction > 0 &&
+          rawNetAmt > 0 &&
+          Math.abs((trueGrossPrice + rawExtraPrice) * qty - (rawNetAmt + rawDiscAmount)) < 0.05)
+      );
+
+      if (itemIsIncl) {
+        if (!extraIsAlreadyInclusive && activeVatFraction > 0) {
+          // Extra was saved as tax-exclusive, convert to inclusive for cart
+          restoredExtraPrice = roundCalc(rawExtraPrice * (1 + activeVatFraction), 4);
+        } else {
+          restoredExtraPrice = rawExtraPrice;
+        }
+      } else {
+        if (extraIsAlreadyInclusive && activeVatFraction > 0) {
+          // Extra was saved as tax-inclusive, convert to exclusive base for cart
+          restoredExtraPrice = roundCalc(rawExtraPrice / (1 + activeVatFraction), 4);
+        } else {
+          restoredExtraPrice = rawExtraPrice;
+        }
       }
+
       return {
         id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id ?? 0,
         name: m.modifierName || m.ModifierName || m.name || m.Name || "Extra",
@@ -393,6 +423,7 @@ export const mapOrderDetailToCartItem = ({
 
   // Determine if this detail's discount was purely inherited from an order-level bill discount
   const isFromBillDiscount = Boolean(
+    isOrderBillDiscount ||
     (masterDiscPer !== undefined && masterDiscPer > 0 && Math.abs(detailDiscPer - masterDiscPer) < 0.01) ||
     (isOrderBillDiscount && (!masterDiscPer || masterDiscPer === 0 || Math.abs(detailDiscPer - masterDiscPer) < 0.01)) ||
     (isOrderBillDiscount && (masterDiscPer === 100 || detailDiscPer === 100 || isDetailComplimentary))
@@ -419,9 +450,10 @@ export const mapOrderDetailToCartItem = ({
     }
   }
 
-  // When prices are inclusive, detail.discAmount stored via orderPayloadMapper is tax-exclusive base.
+  // When prices and discount calculation are inclusive, detail.discAmount stored via orderPayloadMapper is tax-exclusive base.
   // Restore discountValue to gross inclusive so calculateLineItem does not divide by (1 + vatRate) a second time.
-  if (discountType === "amount" && itemIsIncl && activeVatFraction > 0 && (isStoredTaxExclusive || restoredPrice > rawPrice) && discountValue > 0) {
+  const isDiscCalcInclusive = getBillingConfig("DineIn").discountType === "Inclusive";
+  if (discountType === "amount" && isDiscCalcInclusive && itemIsIncl && activeVatFraction > 0 && (isStoredTaxExclusive || restoredPrice > rawPrice) && discountValue > 0) {
     discountValue = roundCalc(discountValue * (1 + activeVatFraction), 4);
   }
 

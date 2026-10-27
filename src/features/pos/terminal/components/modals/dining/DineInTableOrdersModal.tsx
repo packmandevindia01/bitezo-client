@@ -10,7 +10,7 @@ import { useToast } from '../../../../../../app/providers/useToast';
 import { formatAmount } from '../../../../../../utils/currency';
 import { Loader, Modal } from '../../../../../../components/common';
 import { GuestCountModal } from "./GuestCountModal";
-import { generateGuestPrintHtml } from '../../../../utils/guestPrintTemplate';
+import { generateGuestPrintHtml, isEnableVatGuestPrint } from '../../../../utils/guestPrintTemplate';
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from '../../../../utils/printHeadingUtils';
 import { printHtmlReceipt } from '../../../../services/qzService';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
@@ -19,6 +19,7 @@ import {
   roundCalc,
   getBillingConfig,
   getPriceView,
+  getPrintPrice,
   CALC_PRECISION,
   getTaxExclusiveExtraPrice,
   sanitizeTaxExclusiveDetail,
@@ -28,6 +29,8 @@ import { sortOrderDetailsBySequence } from '../../../utils/orderSort';
 import { mapOrderDetailsToCartItems } from '../../../mappers/orderDetailToCartMapper';
 import { getEmployeeNames, getEmployeeById } from "../../../../../general/employee/services/employeeService";
 import { PosMultiPayModal, type MultiPaymentLine } from '../payment/PosMultiPayModal';
+import { buildUnifiedOrderPricing } from '../../../../utils/orderPricing';
+import { checkOrderHasBillDiscount } from '../../../utils/orderDiscountCheck';
 import { EmployeePasswordModal } from '../system/EmployeePasswordModal';
 import { useEmployeeAuthorization } from '../../../hooks/useEmployeeAuthorization';
 import { useCashierLog } from '../../../../cashier';
@@ -318,7 +321,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       isBillComplimentary ||
       masterDiscPer > 0 ||
       (!hasLineItemDiscounts && resolvedDiscount > 0) ||
-      (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001);
+      (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001) ||
+      checkOrderHasBillDiscount({ master, details });
 
     const mappedItems = mapOrderDetailsToCartItems(details, dedupedModifiers, {
       productCache,
@@ -334,7 +338,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
   const handleEdit = async () => {
     if (!selectedMaster || !data || loading) return;
     try {
-      const { master, mappedItems, isBillComplimentary, isBillLevelDiscount, masterDiscPer, resolvedDiscount, lineDiscountsSum } = await fetchAndMapFullOrder(selectedMaster.orderId);
+      const { master, mappedItems, fullOrder, isBillComplimentary, isBillLevelDiscount, masterDiscPer } = await fetchAndMapFullOrder(selectedMaster.orderId);
       const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
       const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
       if (prevUpdatedAt) {
@@ -342,27 +346,35 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       }
 
       const priceView = getPriceView();
-      const billingConfig = getBillingConfig('DineIn');
       const isIncl = priceView === 'Inclusive';
 
       const resolvedBillDiscType: 'percentage' | 'amount' =
         (isBillComplimentary || masterDiscPer > 0)
           ? 'percentage'
           : 'amount';
+      const unifiedPricing = buildUnifiedOrderPricing(fullOrder, {
+        orderType: 'DineIn',
+        priceView,
+        isBillDiscount: isBillLevelDiscount,
+        productCache,
+        products: (posMasterData as any)?.products,
+      });
+      const authSubtotal = isIncl
+        ? unifiedPricing.summary.subTotalInclusive
+        : unifiedPricing.summary.subTotalExclusive;
+      const authDiscount = isBillComplimentary
+        ? authSubtotal
+        : (isIncl ? unifiedPricing.summary.totalDiscountIncl : unifiedPricing.summary.totalDiscountExcl);
+      const authTax = isBillComplimentary ? 0 : unifiedPricing.summary.vatAmount;
+      const authNet = isBillComplimentary ? 0 : unifiedPricing.summary.grandTotal;
+
       let resolvedBillDiscVal = isBillComplimentary
         ? 100
         : masterDiscPer > 0
         ? masterDiscPer
-        : (lineDiscountsSum > 0 && resolvedDiscount > lineDiscountsSum + 0.001)
-        ? roundCalc(resolvedDiscount - lineDiscountsSum)
         : isBillLevelDiscount
-        ? resolvedDiscount
+        ? (isIncl ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0))
         : 0;
-
-      if (isBillLevelDiscount && resolvedBillDiscType === 'amount' && isIncl && resolvedBillDiscVal > 0) {
-        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
-        resolvedBillDiscVal = roundCalc(resolvedBillDiscVal * (1 + vatRate), 4);
-      }
 
       dispatch(loadRecalledOrder({
         editingOrderId: selectedMaster.orderId,
@@ -371,13 +383,16 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         orderTypeName: 'DineIn',
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: resolvedBillDiscVal,
+        billDiscountValue: Number(resolvedBillDiscVal || 0),
         billDiscountType: resolvedBillDiscType,
         sectionId,
         tableId: table!.tableId,
         deliveryCharge: master.deliveryCharge || 0,
         waiterName: master.employeeName ?? "Waiter",
-        authoritativeNetAmount: isBillComplimentary ? 0 : Number(master.netAmount ?? selectedMaster.netAmount ?? 0),
+        authoritativeSubtotal: authSubtotal,
+        authoritativeDiscount: authDiscount,
+        authoritativeTax: authTax,
+        authoritativeNetAmount: authNet,
         prevUpdatedAt,
       }));
       showToast(`Order #${selectedMaster.orderNo} loaded for editing`, 'success');
@@ -579,6 +594,13 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         calculatedVatExcl = roundCalc(payableBase - calculatedVatAmt);
       }
 
+      const isBillLevelDiscount = Boolean(
+        isComplimentary ||
+        Number(master.discPer ?? master.DiscPer ?? 0) > 0 ||
+        Number(master.billDiscountValue || 0) > 0 ||
+        checkOrderHasBillDiscount({ master, details: mappedDetails })
+      );
+
       const directSettleOrder: DirectSettleOrderBase = {
         orderId: targetOrderId,
         customerId: master.customerId || 1,
@@ -586,6 +608,10 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         transDate: master.transDate || master.voucherDate || activeTransDate,
         discAmount: resolvedDiscAmount,
         discPer: Number(master.discPer ?? master.DiscPer ?? 0),
+        billDiscount: master.billDiscount || master.billDiscountValue || resolvedDiscAmount,
+        billDiscountValue: master.billDiscountValue || resolvedDiscAmount,
+        billDiscountType: master.billDiscountType || (Number(master.discPer) > 0 ? "percentage" : "amount"),
+        isBillDiscount: Boolean(master.isBillDiscount || isBillLevelDiscount),
         complimentaryStatus: isComplimentary,
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
@@ -645,8 +671,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
 
       // Try printing settled receipt
       try {
-        const enableVat = getVatStatus();
-        const settleNetAmount = Number(master.netAmount || selectedMaster.netAmount || 0);
+        const enableVat = isEnableVatGuestPrint();
 
         // Resolve employee name for settle print
         const settleRawEmpId = master.employeeId ?? master.empId ?? master.waiterId ?? employeeId;
@@ -660,66 +685,60 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           master.customer ||
           "CASH CUSTOMER";
 
-        // Pre-map items with VAT split
-        let settleDetailsVatSum = 0;
-        const settlePreMapped = settleOrderData.mappedItems.map((item: any) => {
-          const qty = item.quantity || 1;
-          const price = item.price || 0;
-          let lineBase = price * qty;
-          if (item.extras && item.extras.length > 0) {
-            item.extras.forEach((ex: any) => { lineBase += ex.price * ex.qty; });
-          }
-          const itemLineNetAmount = item.rawAmount || lineBase;
-          const itemVat = Number(item.rawVatAmount || 0);
-          settleDetailsVatSum += itemVat;
-          const itemVatBase = itemVat > 0 ? (itemLineNetAmount - itemVat) : itemLineNetAmount;
-          return { ...item, lineBase, itemLineNetAmount, itemVat, itemVatBase };
+        const printPriceSetting = getPrintPrice();
+        const isTaxInclusive = printPriceSetting === "Inclusive";
+
+        const unified = buildUnifiedOrderPricing(settleOrderData.rawData || settleOrderData.mappedItems, {
+          orderType: "DineIn",
+          printPrice: printPriceSetting,
         });
 
-        let settleResolvedVat = Number(master.vatAmount ?? master.vatAmt ?? 0);
-        if (settleResolvedVat <= 0 && settleDetailsVatSum > 0) settleResolvedVat = settleDetailsVatSum;
-        if (enableVat && settleResolvedVat <= 0 && settleNetAmount > 0) {
-          const bc = getBillingConfig("DINE IN");
-          const vr = bc.vatRate > 0 ? bc.vatRate : 0.10;
-          settleResolvedVat = roundCalc(settleNetAmount - settleNetAmount / (1 + vr));
-        }
+        const printMappedItems = unified.lines.map((l) => ({
+          ...l,
+          isUnifiedPricingLine: true,
+          productId: l.productId,
+          quantity: l.quantity,
+          price: l.getRate(isTaxInclusive),
+          baseAmount: l.exclusiveGross,
+          variantName: l.variantName,
+          variantArabic: l.variantArabic,
+          product: {
+            name: l.productName,
+            price: l.getRate(isTaxInclusive),
+            arabicName: l.productArabicName,
+          },
+          extras: l.extras,
+          modifiers: l.modifiers,
+          messages: l.messages,
+          itemDiscount: unified.summary.isBillDiscount ? 0 : l.lineDiscount,
+          lineTotal: l.getAmount(isTaxInclusive, unified.summary.isBillDiscount),
+          lineNetAmount: l.inclusiveAmount,
+          basePrice: l.exclusiveRate,
+          vatAmount: l.vatAmount,
+        }));
 
-        let settleDiscount = Number(master.discAmount ?? master.discount ?? 0);
-        if (settleDiscount <= 0) {
-          const lDiscs = settleOrderData.mappedItems.reduce((acc: number, it: any) => acc + Number(it.discountValue || it.discAmount || 0), 0);
-          if (lDiscs > 0) settleDiscount = roundCalc(lDiscs);
-        }
-
-        const netTaxableBase = roundCalc(
-          settleNetAmount - settleResolvedVat -
-          Number(master.serviceCharge || 0) -
-          Number(master.levyAmt || master.levy || 0) -
-          Number(master.deliveryCharge || 0)
+        const isDineInBillDisc = unified.summary.isBillDiscount;
+        const settleDiscount = isDineInBillDisc
+          ? Number(
+              master.discAmount ??
+              master.DiscAmount ??
+              master.discount ??
+              unified.summary.totalDiscountExcl ??
+              0
+            )
+          : 0;
+        const settleSubTotal = isDineInBillDisc
+          ? ((master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0)
+              ? (Number(master.vatExclAmount) + settleDiscount)
+              : (unified.summary.subTotalExclusive || 0))
+          : (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0
+              ? Number(master.vatExclAmount)
+              : (unified.summary.subTotalExclusive || 0));
+        const settleResolvedVat = Number(
+          (unified?.summary.vatAmount && unified.summary.vatAmount > 0)
+            ? unified.summary.vatAmount
+            : (master.vatAmount ?? master.VatAmount ?? 0)
         );
-
-        let settleSubTotal = Number(master.vatExclAmount ?? master.subTotal ?? 0);
-        if (settleSubTotal <= 0 || (enableVat && Math.abs(settleSubTotal - settleNetAmount) < 0.001 && settleResolvedVat > 0)) {
-          settleSubTotal = roundCalc(netTaxableBase + settleDiscount);
-        }
-
-        const printMappedItems = settlePreMapped.map((item: any) => {
-          let itemVat = item.itemVat;
-          if (enableVat && itemVat <= 0 && settleResolvedVat > 0 && settleNetAmount > 0) {
-            const ratio = (item.itemLineNetAmount || 0) / settleNetAmount;
-            itemVat = Number((settleResolvedVat * ratio).toFixed(3));
-          }
-          const itemLineNet = item.itemLineNetAmount || item.lineBase || ((item.price || 0) * (item.quantity || 1));
-          const baseAmount = item.baseAmount !== undefined ? item.baseAmount : (item.price || 0) * (item.quantity || 1);
-          return {
-            ...item,
-            baseAmount,
-            vatAmount: itemVat,
-            lineTotal: itemLineNet,
-            lineNetAmount: itemLineNet,
-            itemDiscount: Number(item.discountValue || item.discAmount || item.DiscAmount || item.itemDiscount || 0),
-            product: { ...item.product, price: item.price },
-          };
-        });
 
         const printData: any = {
           orderNo: master.orderNo ?? String(master.orderId),
@@ -738,7 +757,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           serviceCharge: master.serviceCharge || 0,
           levy: master.levyAmt || master.levy || 0,
           vatAmount: settleResolvedVat,
-          netAmount: settleNetAmount,
+          netAmount: unified.summary.grandTotal,
           deliveryCharge: master.deliveryCharge || 0,
           changeAmount: changeAmount,
           payments: mappedPayments.map((p) => ({
@@ -752,6 +771,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           enableVat,
           printPrice: (localStorage.getItem("printPrice") as any) || undefined,
           priceView: (localStorage.getItem("priceView") as any) || undefined,
+          isBillDiscount: unified.summary.isBillDiscount,
           billArabic:
             isBillArabicEnabled() ||
             printMappedItems.some((it: any) =>
@@ -759,7 +779,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
             ),
         };
 
-        const htmlContent = await generateGuestPrintHtml(printMappedItems as any, printData);
+        const htmlContent = await generateGuestPrintHtml(unified as any, printData);
         let billPrinter: string | undefined;
         try {
           const settingsRes = await printerSettingsApi.getGeneral();
@@ -1031,10 +1051,9 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     try {
       showToast(`Preparing receipt for Order #${selectedMaster.orderNo}...`, 'success');
 
-      const { master, mappedItems } = await fetchAndMapFullOrder(selectedMaster.orderId);
+      const { master, fullOrder } = await fetchAndMapFullOrder(selectedMaster.orderId);
 
-      const enableVat = getVatStatus();
-      const netAmount = Number(master.netAmount || 0);
+      const enableVat = isEnableVatGuestPrint();
 
       // ── Resolve date/time ──
       const isValidDateStr = (s: any) => {
@@ -1075,75 +1094,54 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         master.customer ||
         "CASH CUSTOMER";
 
-      // ── Pre-map items with VAT ──
-      let detailsVatSum = 0;
-      const preMapped = mappedItems.map((item: any) => {
-        const qty = item.quantity || 1;
-        const price = item.price || 0;
-        let lineBase = price * qty;
-        if (item.extras && item.extras.length > 0) {
-          item.extras.forEach((ex: any) => { lineBase += ex.price * ex.qty; });
-        }
-        const itemLineNetAmount = item.rawAmount || lineBase;
-        const itemVat = Number(item.rawVatAmount || 0);
-        detailsVatSum += itemVat;
-        const itemVatBase = itemVat > 0 ? (itemLineNetAmount - itemVat) : itemLineNetAmount;
-        return { ...item, lineBase, itemLineNetAmount, itemVat, itemVatBase };
+      const printPriceSetting = getPrintPrice();
+      const isTaxInclusive = printPriceSetting === "Inclusive";
+
+      const unified = buildUnifiedOrderPricing(fullOrder, {
+        orderType: "DineIn",
+        printPrice: printPriceSetting,
+        isVatActive: enableVat,
       });
 
-      // ── Resolve VAT amount ──
-      let resolvedVatAmount = Number(master.vatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
-      if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
-        resolvedVatAmount = detailsVatSum;
-      }
-      if (enableVat && resolvedVatAmount <= 0 && netAmount > 0) {
-        const billingConfig = getBillingConfig("DINE IN");
-        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
-        resolvedVatAmount = roundCalc(netAmount - netAmount / (1 + vatRate));
-      }
+      const printMappedItems = unified.lines.map((l) => ({
+        ...l,
+        isUnifiedPricingLine: true,
+        productId: l.productId,
+        quantity: l.quantity,
+        price: l.getRate(isTaxInclusive),
+        baseAmount: l.exclusiveGross,
+        variantName: l.variantName,
+        variantArabic: l.variantArabic,
+        product: {
+          name: l.productName,
+          price: l.getRate(isTaxInclusive),
+          arabicName: l.productArabicName,
+        },
+        extras: l.extras,
+        modifiers: l.modifiers,
+        messages: l.messages,
+        itemDiscount: unified.summary.isBillDiscount ? 0 : l.lineDiscount,
+        lineTotal: l.getAmount(isTaxInclusive, unified.summary.isBillDiscount),
+        lineNetAmount: l.inclusiveAmount,
+        basePrice: l.exclusiveRate,
+        vatAmount: l.vatAmount,
+      }));
 
-      let resolvedDiscount = Number(master.discAmount ?? master.discount ?? 0);
-      if (resolvedDiscount <= 0) {
-        const lDiscs = preMapped.reduce((acc: number, it: any) => acc + Number(it.discountValue || it.discAmount || 0), 0);
-        if (lDiscs > 0) resolvedDiscount = roundCalc(lDiscs);
-      }
-
-      const netTaxableBase = roundCalc(
-        netAmount -
-        resolvedVatAmount -
-        Number(master.serviceCharge || 0) -
-        Number(master.levyAmt || master.levy || 0) -
-        Number(master.deliveryCharge || 0)
+      const resolvedDiscount = Number(
+        master.discAmount ??
+        master.DiscAmount ??
+        master.discount ??
+        unified.summary.totalDiscountExcl ??
+        0
       );
-
-      // ── Resolve subTotal ──
-      let resolvedSubTotal = Number(master.vatExclAmount ?? master.subTotal ?? 0);
-      if (
-        resolvedSubTotal <= 0 ||
-        (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)
-      ) {
-        resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
-      }
-
-      // ── Build final mapped items with baseAmount, vatAmount, lineTotal ──
-      const printMappedItems = preMapped.map((item: any) => {
-        let itemVat = item.itemVat;
-        if (enableVat && itemVat <= 0 && resolvedVatAmount > 0 && netAmount > 0) {
-          const ratio = (item.itemLineNetAmount || 0) / netAmount;
-          itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
-        }
-        const itemLineNet = item.itemLineNetAmount || item.lineBase || ((item.price || 0) * (item.quantity || 1));
-        const baseAmount = item.baseAmount !== undefined ? item.baseAmount : (item.price || 0) * (item.quantity || 1);
-        return {
-          ...item,
-          baseAmount,
-          vatAmount: itemVat,
-          lineTotal: itemLineNet,
-            lineNetAmount: itemLineNet,
-          itemDiscount: Number(item.discountValue || item.discAmount || item.DiscAmount || item.itemDiscount || 0),
-          product: { ...item.product, price: item.price },
-        };
-      });
+      const resolvedSubTotal = (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0)
+        ? (Number(master.vatExclAmount) + resolvedDiscount)
+        : (unified.summary.subTotalExclusive || 0);
+      const resolvedVatAmount = Number(
+        (unified?.summary.vatAmount && unified.summary.vatAmount > 0)
+          ? unified.summary.vatAmount
+          : (master.vatAmount ?? master.VatAmount ?? 0)
+      );
 
       const billArabic =
         isBillArabicEnabled() ||
@@ -1167,15 +1165,16 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
         vatAmount: resolvedVatAmount,
-        netAmount,
+        netAmount: unified.summary.grandTotal,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat,
         printPrice: (localStorage.getItem("printPrice") as any) || undefined,
         priceView: (localStorage.getItem("priceView") as any) || undefined,
+        isBillDiscount: unified.summary.isBillDiscount,
         billArabic,
       };
 
-      const htmlContent = await generateGuestPrintHtml(printMappedItems as any, printData);
+      const htmlContent = await generateGuestPrintHtml(unified as any, printData);
 
       let billPrinter: string | undefined;
       try {

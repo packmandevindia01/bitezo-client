@@ -1,6 +1,6 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { MenuOrderRequest, MenuOrderResponse, RecallParams, RecallResponse } from "../types";
-import { getPriceView, sanitizeTaxExclusiveDetail, roundCalc } from "../terminal/utils/billing";
+import { getPriceView, sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
 
 /**
  * Standard unwrap helper to extract data and handle success/error based on the API response.
@@ -42,9 +42,33 @@ export const orderApi = {
             : 0;
           const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
           const lineDiscounts = payload.details.reduce((sum: number, d: any) => sum + Number(d.discAmount || 0), 0);
-          const totalDisc = roundCalc(Math.max(0, Number(payload.discAmount || 0), lineDiscounts));
-          payload.discAmount = totalDisc;
-          payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - totalDisc));
+          const isBillDisc = Boolean(
+            (payload as any).isBillDiscount ||
+            Number((payload as any).billDiscountValue || (payload as any).billDiscount || 0) > 0 ||
+            (Number(payload.discAmount || 0) > 0 && lineDiscounts === 0)
+          );
+
+          if (isBillDisc) {
+            payload.details.forEach((d: any) => {
+              d.discAmount = 0;
+              d.discPer = 0;
+            });
+            payload.discAmount = roundCalc(Number(payload.discAmount || 0));
+            payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - payload.discAmount));
+          } else {
+            payload.discAmount = 0;
+            payload.discPer = 0;
+            payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - lineDiscounts));
+          }
+
+          const isVatEnabled = getVatStatus();
+          const isComplimentary = Boolean((payload as any).complimentaryStatus || Number(payload.discPer) === 100);
+          if (isVatEnabled && !isComplimentary && (!payload.vatAmount || Number(payload.vatAmount) <= 0)) {
+            const payableBase = Math.max(0, Number(payload.netAmount || 0) - Number(payload.deliveryCharge || 0));
+            if (payableBase > payload.vatExclAmount) {
+              payload.vatAmount = roundCalc(payableBase - payload.vatExclAmount);
+            }
+          }
         }
 
         // Remove fields not in CreateKotOrderDto
@@ -199,9 +223,33 @@ export const orderApi = {
         : 0;
       const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
       const lineDiscounts = payload.details.reduce((sum: number, d: any) => sum + Number(d.discAmount || 0), 0);
-      const totalDisc = roundCalc(Math.max(0, Number(payload.discAmount || 0), lineDiscounts));
-      payload.discAmount = totalDisc;
-      payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - totalDisc));
+      const isBillDisc = Boolean(
+        (payload as any).isBillDiscount ||
+        Number((payload as any).billDiscountValue || (payload as any).billDiscount || 0) > 0 ||
+        (Number(payload.discAmount || 0) > 0 && lineDiscounts === 0)
+      );
+
+      if (isBillDisc) {
+        payload.details.forEach((d: any) => {
+          d.discAmount = 0;
+          d.discPer = 0;
+        });
+        payload.discAmount = roundCalc(Number(payload.discAmount || 0));
+        payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - payload.discAmount));
+      } else {
+        payload.discAmount = 0;
+        payload.discPer = 0;
+        payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - lineDiscounts));
+      }
+
+      const isVatEnabled = getVatStatus();
+      const isComplimentary = Boolean((payload as any).complimentaryStatus || Number(payload.discPer) === 100);
+      if (isVatEnabled && !isComplimentary && (!payload.vatAmount || Number(payload.vatAmount) <= 0)) {
+        const payableBase = Math.max(0, Number(payload.netAmount || 0) - Number(payload.deliveryCharge || 0));
+        if (payableBase > payload.vatExclAmount) {
+          payload.vatAmount = roundCalc(payableBase - payload.vatExclAmount);
+        }
+      }
     }
 
     return unwrap<MenuOrderResponse>(
@@ -233,9 +281,33 @@ export const orderApi = {
             : 0;
           const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
           const lineDiscounts = ord.details.reduce((sum: number, d: any) => sum + Number(d.discAmount || 0), 0);
-          const totalDisc = roundCalc(Math.max(0, Number(ord.discAmount || 0), lineDiscounts));
-          ord.discAmount = totalDisc;
-          ord.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - totalDisc));
+          const isBillDisc = Boolean(
+            (ord as any).isBillDiscount ||
+            Number((ord as any).billDiscountValue || (ord as any).billDiscount || 0) > 0 ||
+            (Number(ord.discAmount || 0) > 0 && lineDiscounts === 0)
+          );
+
+          if (isBillDisc) {
+            ord.details.forEach((d: any) => {
+              d.discAmount = 0;
+              d.discPer = 0;
+            });
+            ord.discAmount = roundCalc(Number(ord.discAmount || 0));
+            ord.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - ord.discAmount));
+          } else {
+            ord.discAmount = 0;
+            ord.discPer = 0;
+            ord.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - lineDiscounts));
+          }
+
+          const isVatEnabled = getVatStatus();
+          const isComplimentary = Boolean((ord as any).complimentaryStatus || Number(ord.discPer) === 100);
+          if (isVatEnabled && !isComplimentary && (!ord.vatAmount || Number(ord.vatAmount) <= 0)) {
+            const payableBase = Math.max(0, Number(ord.netAmount || 0) - Number(ord.deliveryCharge || 0));
+            if (payableBase > ord.vatExclAmount) {
+              ord.vatAmount = roundCalc(payableBase - ord.vatExclAmount);
+            }
+          }
         }
         return ord;
       });

@@ -242,8 +242,8 @@ const CashierInPage = () => {
     <div className="h-dvh flex flex-col md:flex-row bg-white overflow-hidden font-sans">
       <div className="flex flex-none md:flex-[1.2] h-40 md:h-auto relative overflow-hidden bg-[#1a0f18]">
         <img
-          src="/backoffice_logo.png"
-          alt="Bitezo POS"
+          src="/backoffice_logo.png?v=bitevo"
+          alt="Bitevo POS"
           className="w-full h-full object-cover object-left"
         />
       </div>
@@ -255,7 +255,7 @@ const CashierInPage = () => {
           <div className="text-center w-full mb-2 xl:mb-4">
             <div className="md:hidden mb-4 flex justify-center">
               <div className="w-36 h-16 flex items-center justify-center overflow-hidden relative">
-                <img src="/LOGO6.png" alt="Bitezo" className="w-full h-full object-contain p-1" style={{ transform: 'scale(2.5)' }} />
+                <img src="/LOGO6.png?v=bitevo" alt="Bitevo" className="w-full h-full object-contain p-1" style={{ transform: 'scale(2.5)' }} />
               </div>
             </div>
             <h2 className="text-3xl font-bold text-[#49293e] uppercase tracking-tight leading-none mb-2">

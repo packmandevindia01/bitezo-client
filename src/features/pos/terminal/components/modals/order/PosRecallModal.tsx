@@ -10,18 +10,19 @@ import { PosRecallSearchModal } from "./PosRecallSearchModal";
 import { PosRecallDetailsModal } from "./PosRecallDetailsModal";
 import { PosDriverSelectionModal } from "./PosDriverSelectionModal";
 import { orderApi } from "../../../../services/orderApi";
-import { menuApi, getModifierTypeNameById } from "../../../../services/menuApi";
+import { menuApi } from "../../../../services/menuApi";
 import { deliveryApi } from "../../../../customer/services/deliveryApi";
-import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
+import { generateGuestPrintHtml, isEnableVatGuestPrint } from "../../../../utils/guestPrintTemplate";
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../../../utils/printHeadingUtils";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getVatStatus, getBillingConfig, roundCalc } from "../../../utils/billing";
-import { isBillArabicEnabled, cleanProductName } from "../../../../utils/alternativeHelpers";
+import { getPrintPrice } from "../../../utils/billing";
+import { isBillArabicEnabled } from "../../../../utils/alternativeHelpers";
 import { matchesOrderSearch } from "../../../utils/orderSearch";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { alternativesCache } from "../../../hooks/usePosProducts";
 import { t } from "../../../../utils/posLocalization";
+import { buildUnifiedOrderPricing } from "../../../../utils/orderPricing";
 
 
 interface PosRecallModalProps {
@@ -93,7 +94,8 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
       }
 
       
-      const master = order.masterData || order;
+      const rawMaster = order.masterData || order.master || order;
+      const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
       const details = sortOrderDetailsBySequence(order.detailsData || order.details || []);
       
       const orderTypeMap: Record<number, string> = {
@@ -160,173 +162,75 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         })
       );
 
-      // Deduplicate modifiersData mapped in order
-      const rawModifiers = order?.modifiersData || order?.modifiers || order?.ModifiersData || order?.Modifiers || [];
-      const seen = new Set<string>();
-      const orderModifiersData = rawModifiers.filter((m: any) => {
-        const mMapId = m.mapId ?? m.MapId ?? m.mapID ?? 0;
-        const mModId = m.modifierId ?? m.ModifierId ?? m.id ?? m.Id ?? 0;
-        const key = `${mMapId}-${mModId}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
+      // Enrich detail rows with cached alternative / variant names
+      details.forEach((d: any) => {
+        const pId = d.productId || d.ProductId || d.itemId || d.ItemId;
+        const uId = d.unitId ?? d.UnitId;
+        const altsKey = `${pId}-${safeOrderTypeId}`;
+        const alts = alternativesCache[altsKey] || [];
+        const matchedAlt = alts.find((a: any) => Number(a.unitId ?? a.UnitId ?? a.id ?? a.Id) === Number(uId));
+
+        if (matchedAlt) {
+          d.altName = matchedAlt.altName;
+          d.variantName = matchedAlt.altName;
+          d.variantArabic = matchedAlt.altArabic;
+          d.unitName = matchedAlt.altName;
+        } else if (d.altName || d.variantName) {
+          d.variantName = d.altName || d.variantName;
+          d.unitName = d.variantName;
+        }
       });
 
-      const netAmount = Number(master.netAmount ?? order.netAmount ?? 0);
-      const enableVat = getVatStatus();
+      const enableVat = isEnableVatGuestPrint();
+      const printPriceSetting = getPrintPrice();
+      const isTaxInclusive = printPriceSetting === "Inclusive";
 
-      let detailsVatSum = 0;
-      let totalVatBase = 0;
-      const preMapped = details.map((d: any) => {
-        const dMapId = d.mapId ?? d.MapId ?? d.mapID;
-        const itemMods = orderModifiersData.filter((m: any) => Number(m.mapId ?? m.MapId ?? m.mapID) === Number(dMapId));
-        const extras = itemMods.filter((m: any) => {
-          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
-          const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
-          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
-          return statusStr === "extras" || statusStr === "extra" || typeId === 2 || (statusStr === "" && price > 0);
-        }).map((m: any) => ({
-          id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
-          name: m.modifierName || m.ModifierName || m.name || m.Name || "Extra",
-          price: Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0),
-          qty: Number(m.qty ?? m.Qty ?? 1)
-        }));
-        const modifiers = itemMods.filter((m: any) => {
-          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
-          const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
-          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
-          return statusStr === "modifier" || statusStr === "modifiers" || typeId === 1 || (statusStr === "" && price <= 0);
-        }).map((m: any) => {
-          const typeId = Number(m.typeId ?? m.TypeId ?? 0);
-          return {
-            id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
-            name: m.modifierName || m.ModifierName || m.name || m.Name || "",
-            qty: Number(m.qty ?? m.Qty ?? 1),
-            typeId,
-            typeName: m.typeName || m.TypeName || m.modifierTypeName || m.ModifierTypeName || getModifierTypeNameById(typeId) || "",
-            arabicName: m.arabicName || m.ArabicName || m.arabic || m.Arabic || ""
-          };
-        });
-        const messages = itemMods.filter((m: any) => {
-          const statusStr = (m.status || m.Status || "").toLowerCase().trim();
-          return statusStr === "message" || statusStr === "messages";
-        }).map((m: any) => ({
-          id: m.modifierId ?? m.ModifierId ?? m.id ?? m.Id,
-          name: m.modifierName || m.ModifierName || m.name || m.Name || ""
-        }));
-        
-        const qty = d.qty ?? d.Qty ?? 1;
-        const amount = d.netAmount ?? d.NetAmount ?? (d.amount !== undefined && Number(d.amount) > 0 ? (Number(d.amount) + Number(d.vatAmount || 0)) : d.amount) ?? 0;
-        const itemDisc = Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0);
-        const rawPrice = d.price ?? d.Price;
-        const price = (rawPrice !== undefined && Number(rawPrice) > 0)
-          ? (itemDisc > 0 && Math.abs((Number(rawPrice) * qty) - amount) < 0.001 && qty > 0 ? (amount + itemDisc) / qty : Number(rawPrice))
-          : (qty > 0 ? (amount + itemDisc) / qty : 0);
-
-        let lineBase = price * qty;
-        extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
-
-        const itemLineNetAmount = amount || lineBase;
-        let itemVat = Number(d.vatAmount ?? d.VatAmount ?? d.vatAmt ?? d.VatAmt ?? d.taxAmount ?? d.TaxAmount ?? 0);
-        if (itemVat <= 0 && enableVat && amount > lineBase) {
-          itemVat = Number((amount - lineBase).toFixed(4));
-        }
-        detailsVatSum += itemVat;
-
-        const itemVatBase = itemVat > 0 ? (itemLineNetAmount - itemVat) : lineBase;
-        totalVatBase += itemVatBase;
-        
-        return {
-          ...d,
-          qty,
-          price,
-          extras,
-          modifiers,
-          messages,
-          lineBase,
-          itemLineNetAmount,
-          itemVat,
-          itemVatBase
-        };
+      const unified = buildUnifiedOrderPricing(order, {
+        orderType: orderTypeName,
+        printPrice: printPriceSetting,
+        isVatActive: enableVat,
       });
 
-      let resolvedVatAmount = Number(master.vatAmount ?? master.VatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
-      if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
-        resolvedVatAmount = detailsVatSum;
-      }
+      const mappedItems = unified.lines.map((l) => ({
+        ...l,
+        isUnifiedPricingLine: true,
+        productId: l.productId,
+        quantity: l.quantity,
+        price: l.getRate(isTaxInclusive),
+        baseAmount: l.exclusiveGross,
+        variantName: l.variantName,
+        variantArabic: l.variantArabic,
+        product: {
+          name: l.productName,
+          price: l.getRate(isTaxInclusive),
+          arabicName: l.productArabicName,
+        },
+        extras: l.extras,
+        modifiers: l.modifiers,
+        messages: l.messages,
+        itemDiscount: unified.summary.isBillDiscount ? 0 : (typeof l.getDiscount === "function" ? l.getDiscount(isTaxInclusive) : l.lineDiscount),
+        lineTotal: l.getAmount(isTaxInclusive, unified.summary.isBillDiscount),
+        lineNetAmount: l.inclusiveAmount,
+        basePrice: l.exclusiveRate,
+        vatAmount: l.vatAmount,
+      }));
 
-      // If VAT is active in system settings and prices are inclusive but vatAmount was 0
-      if (enableVat && resolvedVatAmount <= 0 && netAmount > 0) {
-        const billingConfig = getBillingConfig(orderTypeName);
-        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
-        resolvedVatAmount = roundCalc(netAmount - (netAmount / (1 + vatRate)));
-      }
-
-      let resolvedDiscount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0);
-      if (resolvedDiscount <= 0) {
-        const lineDiscounts = details.reduce((acc: number, d: any) => acc + Number(d.discAmount ?? d.DiscAmount ?? 0), 0);
-        if (lineDiscounts > 0) resolvedDiscount = roundCalc(lineDiscounts);
-      }
-
-      const serviceCharge = Number(master.serviceCharge || 0);
-      const levy = Number(master.levyAmt || master.levy || 0);
-      const deliveryCharge = Number(master.deliveryCharge || 0);
-
-      const netTaxableBase = roundCalc(netAmount - resolvedVatAmount - serviceCharge - levy - deliveryCharge);
-      let resolvedSubTotal = Number(master.vatExclAmount ?? master.VatExclAmount ?? master.subTotal ?? master.SubTotal ?? 0);
-      if (resolvedSubTotal <= 0 || (enableVat && Math.abs(resolvedSubTotal - netAmount) < 0.001 && resolvedVatAmount > 0)) {
-        resolvedSubTotal = roundCalc(netTaxableBase + resolvedDiscount);
-      }
-
-      const mappedItems = preMapped.map((d: any) => {
-        const pId = Number(d.productId || d.itemId || 0);
-        const uId = Number(d.unitId ?? d.UnitId ?? 0);
-        let itemVat = d.itemVat;
-        if (enableVat && itemVat <= 0 && resolvedVatAmount > 0 && netAmount > 0) {
-          const ratio = (d.itemLineNetAmount || 0) / netAmount;
-          itemVat = Number((resolvedVatAmount * ratio).toFixed(3));
-        }
-        const itemLineNet = d.itemLineNetAmount || d.lineBase || ((d.price || 0) * (d.qty || 1));
-        const itemBase = d.baseAmount !== undefined ? d.baseAmount : (itemVat > 0 ? Math.max(0, itemLineNet - itemVat) : ((d.price || 0) * (d.qty || 1)));
-
-        let resolvedVariantName = d.altName || d.variantName || d.AltName || d.VariantName;
-        let resolvedVariantArabic = d.variantArabic || d.altArabic || d.VariantArabic || d.AltArabic;
-
-        if (!resolvedVariantName && pId > 0 && uId > 0) {
-          const allCachedAlts = Object.entries(alternativesCache)
-            .filter(([k]) => k.startsWith(`${pId}-`))
-            .flatMap(([, alts]) => alts);
-          const matchedAlt = allCachedAlts.find(
-            (a: any) => Number(a.unitId ?? a.UnitId ?? a.id ?? a.Id) === uId
-          );
-          if (matchedAlt) {
-            resolvedVariantName = matchedAlt.altName;
-            resolvedVariantArabic = matchedAlt.altArabic;
-          }
-        }
-
-        return {
-          productId: pId,
-          quantity: d.qty || 1,
-          price: d.price || 0,
-          baseAmount: itemBase,
-          variantName: resolvedVariantName,
-          variantArabic: resolvedVariantArabic,
-          product: { 
-            name: cleanProductName(d.productName || d.ProductName, resolvedVariantName) || `Product #${pId}`, 
-            price: d.price || 0,
-            arabicName: d.arabicName || d.ArabicName
-          },
-          extras: d.extras,
-          modifiers: d.modifiers,
-          messages: d.messages || [],
-          itemDiscount: Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || 0),
-          lineTotal: itemLineNet,
-          lineNetAmount: itemLineNet,
-          basePrice: d.basePrice,
-          vatAmount: itemVat
-        };
-      });
+      const resolvedDiscount = Number(
+        master.discAmount ??
+        master.DiscAmount ??
+        master.discount ??
+        unified.summary.totalDiscountExcl ??
+        0
+      );
+      const resolvedSubTotal = (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0)
+        ? (Number(master.vatExclAmount) + resolvedDiscount)
+        : (unified.summary.subTotalExclusive || (master.subTotal ? Number(master.subTotal) : 0));
+      const resolvedVatAmount = Number(
+        (unified?.summary.vatAmount && unified.summary.vatAmount > 0)
+          ? unified.summary.vatAmount
+          : (master.vatAmount ?? master.VatAmount ?? 0)
+      );
+      const isGuestPrintBillDiscount = unified.summary.isBillDiscount;
 
       let resolvedFlatNo = master.flatNo || master.flat || master.flatNumber || "";
       let resolvedBuildingNo = master.buildingNo || master.building || master.buildingNumber || "";
@@ -567,17 +471,18 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
         serviceCharge: master.serviceCharge || 0,
         levy: master.levyAmt || master.levy || 0,
         vatAmount: resolvedVatAmount,
-        netAmount: netAmount,
+        netAmount: unified.summary.grandTotal,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat,
         printPrice: (localStorage.getItem("printPrice") as any) || undefined,
         priceView: (localStorage.getItem("priceView") as any) || undefined,
+        isBillDiscount: isGuestPrintBillDiscount,
         billArabic: isBillArabicEnabled() || mappedItems.some((it: any) => 
           Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
         )
       };
 
-      const htmlContent = await generateGuestPrintHtml(mappedItems as any, printData);
+      const htmlContent = await generateGuestPrintHtml(unified as any, printData);
       
       let billPrinter: string | undefined;
       try {

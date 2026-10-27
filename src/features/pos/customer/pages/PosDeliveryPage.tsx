@@ -173,6 +173,51 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
     return () => window.removeEventListener("resize", updateViewportMode);
   }, []);
 
+  const handleSearchMobile = async () => {
+    const trimmed = form.mobileNo.trim();
+    if (!trimmed) {
+      showToast("Please enter a mobile number", "warning");
+      return;
+    }
+    lastLookedUpMobileRef.current = trimmed;
+    const response = await fetchAddressByMobile(trimmed);
+    if (response && response.length > 0) {
+      const existingAddress = response[0];
+      const addrData = {
+        customerName: existingAddress.customerName || "",
+        flatNo: existingAddress.flatNo || "",
+        buildingNo: existingAddress.buildingNo || "",
+        roadNo: existingAddress.roadNo || "",
+        blockNo: existingAddress.blockNo || "",
+        area: existingAddress.area || "",
+        note: existingAddress.note || ""
+      };
+      setForm(prev => ({
+        ...prev,
+        ...addrData
+      }));
+      if (existingAddress.addressId) {
+        setCurrentAddressId(existingAddress.addressId);
+        lastLoadedAddressRef.current = { ...addrData, addressId: existingAddress.addressId };
+      }
+      showToast("Customer address loaded", "success");
+    } else {
+      setForm(prev => ({
+        ...prev,
+        customerName: "",
+        flatNo: "",
+        buildingNo: "",
+        roadNo: "",
+        blockNo: "",
+        area: "",
+        note: ""
+      }));
+      setCurrentAddressId(null);
+      lastLoadedAddressRef.current = null;
+      showToast("No address found for this mobile number", "info");
+    }
+  };
+
   // Mobile address lookup
   useEffect(() => {
     const lookupMobile = async () => {
@@ -199,8 +244,34 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
             setCurrentAddressId(existingAddress.addressId);
             lastLoadedAddressRef.current = { ...addrData, addressId: existingAddress.addressId };
           }
+        } else {
+          // If no address found for this new mobile number, clear the previous address fields!
+          setForm(prev => ({
+            ...prev,
+            customerName: "",
+            flatNo: "",
+            buildingNo: "",
+            roadNo: "",
+            blockNo: "",
+            area: "",
+            note: ""
+          }));
+          setCurrentAddressId(null);
+          lastLoadedAddressRef.current = null;
         }
       } else if (trimmed.length < 8) {
+        if (lastLookedUpMobileRef.current) {
+          setForm(prev => ({
+            ...prev,
+            customerName: "",
+            flatNo: "",
+            buildingNo: "",
+            roadNo: "",
+            blockNo: "",
+            area: "",
+            note: ""
+          }));
+        }
         lastLookedUpMobileRef.current = "";
         setCurrentAddressId(null);
         lastLoadedAddressRef.current = null;
@@ -487,7 +558,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
                   rightIcon={
                     <button
                       type="button"
-                      onClick={() => fetchAddressByMobile(form.mobileNo)}
+                      onClick={handleSearchMobile}
                       title="Search Customer Address"
                       className="px-2.5 py-1 bg-[#49293e] hover:bg-[#381f30] text-white text-[10px] font-bold uppercase rounded-lg flex items-center gap-1 active:scale-95 transition-all shadow-sm"
                     >

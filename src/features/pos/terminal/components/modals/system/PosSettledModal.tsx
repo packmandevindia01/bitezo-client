@@ -89,6 +89,18 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
               masterData: {
                 ...master,
                 ...saleMaster,
+                discAmount: Number(master.discAmount || 0) > 0 && (!saleMaster.discAmount || Number(saleMaster.discAmount) === 0)
+                  ? master.discAmount
+                  : (saleMaster.discAmount ?? master.discAmount),
+                discPer: Number(master.discPer || 0) > 0 && (!saleMaster.discPer || Number(saleMaster.discPer) === 0)
+                  ? master.discPer
+                  : (saleMaster.discPer ?? master.discPer),
+                vatExclAmount: Number(master.vatExclAmount || 0) > 0 && (!saleMaster.vatExclAmount || Number(saleMaster.vatExclAmount) === 0)
+                  ? master.vatExclAmount
+                  : (saleMaster.vatExclAmount ?? master.vatExclAmount),
+                vatAmount: Number(master.vatAmount || 0) > 0 && (!saleMaster.vatAmount || Number(saleMaster.vatAmount) === 0)
+                  ? master.vatAmount
+                  : (saleMaster.vatAmount ?? master.vatAmount),
                 saleId,
               },
               detailsData:

@@ -1,4 +1,5 @@
 import { useAppDispatch, useAppSelector } from "../../../../../app/hooks";
+import { store } from "../../../../../app/store";
 import {
   addToCart,
   incrementItem,
@@ -88,9 +89,12 @@ export const useCartMutations = () => {
 
     const isSeparation = isItemSeperationEnabled();
 
-    // When disabled: merge only if unplaced (!isExisting && !mapId), matches product/variant/price/unit, and has no modifiers/extras/messages
+    // Use synchronous Redux store cart to prevent race conditions during rapid fast clicks
+    const currentCart = store.getState().pos.cartItems;
+
+    // When disabled: merge only if unplaced (!isExisting && !mapId), matches product/variant/price/unit, discount, and has no modifiers/extras/messages
     const existing = !isSeparation
-      ? cartDetails.find(
+      ? currentCart.find(
           (item) =>
             !item.isExisting &&
             !item.mapId &&
@@ -99,6 +103,8 @@ export const useCartMutations = () => {
             isMatchingPrice(item, targetPrice) &&
             (item.isIncl === undefined || isIncl === undefined || Boolean(item.isIncl) === Boolean(isIncl)) &&
             (item.unitId === undefined || unitId === undefined || item.unitId === unitId) &&
+            (item.discountValue || 0) === (discountValue || 0) &&
+            item.discountType === discountType &&
             !hasCustomizations(item)
         )
       : undefined;
@@ -115,7 +121,6 @@ export const useCartMutations = () => {
           discountValue,
           discountType,
           unitId,
-          createNewRow: false,
         })
       );
       return existing.uniqueId;
@@ -134,7 +139,6 @@ export const useCartMutations = () => {
           discountValue,
           discountType,
           unitId,
-          createNewRow: true,
         })
       );
       return uniqueId;
@@ -190,9 +194,10 @@ export const useCartMutations = () => {
       }
 
       const isSeparation = isItemSeperationEnabled();
+      const currentCart = store.getState().pos.cartItems;
 
       const existing = !isSeparation
-        ? cartDetails.find(
+        ? currentCart.find(
             (item) =>
               !item.isExisting &&
               !item.mapId &&
@@ -201,6 +206,8 @@ export const useCartMutations = () => {
               isMatchingPrice(item, targetPrice) &&
               (item.isIncl === undefined || isIncl === undefined || Boolean(item.isIncl) === Boolean(isIncl)) &&
               (item.unitId === undefined || product.unitId === undefined || item.unitId === product.unitId) &&
+              (item.discountValue || 0) === (discountValue || 0) &&
+              item.discountType === discountType &&
               !hasCustomizations(item)
           )
         : undefined;
@@ -215,7 +222,6 @@ export const useCartMutations = () => {
             discountValue,
             discountType,
             unitId: product.unitId,
-            createNewRow: false,
           })
         );
         return existing.uniqueId;
@@ -230,7 +236,6 @@ export const useCartMutations = () => {
             discountValue,
             discountType,
             unitId: product.unitId,
-            createNewRow: true,
           })
         );
         return uniqueId;

@@ -6,6 +6,7 @@ import { PosProductCard } from "./PosProductCard";
 import { useCurrency } from "../../../../../hooks/useCurrency";
 import { sortAlternatives } from "../../../utils/alternativeHelpers";
 import { getLocalizedName } from "../../../utils/posLocalization";
+import { getDisplayPriceForProduct } from "../../utils/billing";
 
 
 interface PosProductGridProps {
@@ -340,15 +341,15 @@ const PosProductGrid = ({
                               {alt.promoPrice !== undefined && alt.promoPrice > 0 ? (
                                 <>
                                   <div className="bg-red-500/90 px-1 py-0.5 rounded text-[8px] font-bold text-white shadow-sm border border-red-600 line-through">
-                                    {formatAmount(alt.price)}
+                                    {formatAmount(getDisplayPriceForProduct(alt.price, alt.isIncl, alt.vatValue))}
                                   </div>
                                   <div className="bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50">
-                                    {formatAmount(alt.promoPrice)}
+                                    {formatAmount(getDisplayPriceForProduct(alt.promoPrice, alt.isIncl, alt.vatValue))}
                                   </div>
                                 </>
                               ) : (
                                 <div className="bg-[#49293e] px-1.5 py-0.5 rounded-md text-[9px] font-black text-white shadow-md border border-[#49293e]/50">
-                                  {formatAmount(alt.price)}
+                                  {formatAmount(getDisplayPriceForProduct(alt.price, alt.isIncl, alt.vatValue))}
                                 </div>
                               )}
                             </div>
@@ -376,7 +377,7 @@ const PosProductGrid = ({
                           product={product} 
                           onAdd={stableOnAdd} 
                           onLongPress={stableOnLongPress}
-                          price={product.hasAlternatives ? undefined : product.price}
+                          price={product.hasAlternatives ? undefined : getDisplayPriceForProduct(product.price, product.isIncl, product.vatValue)}
                           hasAlts={product.hasAlternatives}
                         />
                       );

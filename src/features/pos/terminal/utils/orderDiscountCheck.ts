@@ -9,7 +9,9 @@ export interface MasterAndDetails {
 
 export const extractMasterAndDetails = (orderRes: any): MasterAndDetails => {
   if (!orderRes) return { master: {}, details: [] };
-  const rawData = orderRes?.data !== undefined && orderRes?.isSuccess !== undefined ? orderRes.data : orderRes;
+  const rawData = (orderRes?.data && (orderRes.data.masterData || orderRes.data.detailsData || orderRes.data.master || orderRes.data.details))
+    ? orderRes.data
+    : (orderRes?.data !== undefined && orderRes?.isSuccess !== undefined ? orderRes.data : orderRes);
   const rawMaster = rawData?.masterData || rawData?.master || rawData;
   const master = Array.isArray(rawMaster) ? rawMaster[0] : (rawMaster || {});
 
@@ -26,13 +28,16 @@ export const extractMasterAndDetails = (orderRes: any): MasterAndDetails => {
  */
 export const checkOrderHasBillDiscount = (orderRes: any): boolean => {
   if (!orderRes) return false;
+  if (Boolean(orderRes?.isBillDiscount || orderRes?.summary?.isBillDiscount)) return true;
+
   const { master, details } = extractMasterAndDetails(orderRes);
   if (!master || typeof master !== 'object') return false;
 
   // 1. Explicit bill complimentary status
   if (Boolean(master.complimentaryStatus || master.ComplimentaryStatus)) return true;
 
-  // 2. Explicit bill discount value/percentage
+  // 2. Explicit bill discount value/percentage or flag
+  if (Boolean(master.isBillDiscount)) return true;
   if (Number(master.billDiscountValue || master.billDiscount || master.BillDiscount || 0) > 0) return true;
 
   const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? master.billDiscountPer ?? 0);
@@ -45,30 +50,58 @@ export const checkOrderHasBillDiscount = (orderRes: any): boolean => {
     return true;
   }
 
-  // 4. Discount amount comparison against sum of line item discounts
-  const masterDiscAmount = Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? master.Discount ?? 0);
-  if (masterDiscAmount > 0) {
-    const lineDiscountsSum = details.reduce((sum: number, d: any) => {
-      const itemDisc = Number(d.discAmount ?? d.DiscAmount ?? 0);
-      return sum + itemDisc;
-    }, 0);
-
-    // If there are no line item discounts, the master discount is entirely a bill discount
-    if (lineDiscountsSum <= 0.001) return true;
-
-    // If master discount exceeds line item discounts, there is an order-level bill discount
-    if (masterDiscAmount > lineDiscountsSum + 0.001) return true;
-  }
-
-  // 5. Check if all line items share the exact same discPer > 0
-  // (orderPayloadMapper copies billDiscountValue into detail.discPer for all lines)
-  if (details.length > 0) {
+  // 4. Check if all line items share the exact same discPer > 0 with an active masterDiscPer
+  if (details.length > 1 && masterDiscPer > 0) {
     const firstDiscPer = Number(details[0]?.discPer ?? details[0]?.DiscPer ?? 0);
     if (firstDiscPer > 0 && details.every((d: any) => Number(d.discPer ?? d.DiscPer ?? 0) === firstDiscPer)) {
       return true;
     }
   }
 
+  // 5. Discount amount comparison against sum of line item discounts
+  const masterDiscAmount = Number(
+    master.discAmount ??
+    master.DiscAmount ??
+    master.discAmt ??
+    master.DiscAmt ??
+    master.discount ??
+    master.Discount ??
+    master.discountAmount ??
+    master.DiscountAmount ??
+    master.billDiscount ??
+    master.BillDiscount ??
+    master.billDiscountValue ??
+    0
+  );
+
+  const activeLines = details.filter((d: any) => Number(d.qty ?? d.quantity ?? 1) > 0);
+  if (activeLines.length === 0) {
+    return masterDiscAmount > 0;
+  }
+
+  const lineDiscountsSum = activeLines.reduce((sum: number, d: any) => {
+    const itemDisc = Number(d.discAmount ?? d.DiscAmount ?? d.itemDiscount ?? d.discountValue ?? d.discount ?? 0);
+    return sum + itemDisc;
+  }, 0);
+
+  // If there are no line item discounts, the master discount is entirely a bill discount
+  if (lineDiscountsSum <= 0.001) {
+    return masterDiscAmount > 0;
+  }
+
+  // If master has no discount but lines have discounts, it is purely item-level discounts
+  if (masterDiscAmount <= 0.001 && masterDiscPer <= 0.001) {
+    return false;
+  }
+
+  // If master discount exceeds line item discounts by more than rounding tolerance,
+  // there is an additional bill-level discount applied on top of line items!
+  if (masterDiscAmount > lineDiscountsSum + 0.05) {
+    return true;
+  }
+
+  // Otherwise, if line item discounts are present and account for the discount,
+  // this is an ITEM-LEVEL discount!
   return false;
 };
 

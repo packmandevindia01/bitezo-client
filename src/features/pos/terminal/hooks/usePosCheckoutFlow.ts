@@ -461,6 +461,15 @@ export const usePosCheckoutFlow = ({
             if (!masterData.contactNo && (origOrderMaster.contactNo || origOrderMaster.mobileNo)) {
               masterData.contactNo = origOrderMaster.contactNo || origOrderMaster.mobileNo;
             }
+            if (Number(origOrderMaster.discAmount || 0) > 0 && (!masterData.discAmount || Number(masterData.discAmount) === 0)) {
+              masterData.discAmount = origOrderMaster.discAmount;
+            }
+            if (Number(origOrderMaster.vatAmount || 0) > 0 && (!masterData.vatAmount || Number(masterData.vatAmount) === 0)) {
+              masterData.vatAmount = origOrderMaster.vatAmount;
+            }
+            if (Number(origOrderMaster.vatExclAmount || 0) > 0 && (!masterData.vatExclAmount || Number(masterData.vatExclAmount) === 0)) {
+              masterData.vatExclAmount = origOrderMaster.vatExclAmount;
+            }
           }
 
           const masterEmp = masterData?.employeeName || (await resolveEmployeeNameById(masterData?.employeeId ?? masterData?.empId ?? masterData?.waiterId));
@@ -641,8 +650,11 @@ export const usePosCheckoutFlow = ({
 
               const qty = d.qty ?? d.Qty ?? cartMatch?.quantity ?? 1;
               const amount = d.netAmount ?? d.amount ?? cartMatch?.lineTotal ?? 0;
-              const itemDisc = isBillDisc ? 0 : Number(d.discAmount || d.DiscAmount || d.discount || d.itemDiscount || cartMatch?.itemDiscount || 0);
-              const rawPrice = d.price ?? d.Price ?? cartMatch?.price;
+              const itemDisc = isBillDisc ? 0 : Number(cartMatch?.itemDiscount ?? d.discAmount ?? d.DiscAmount ?? d.discount ?? 0);
+              const cartPrice = cartMatch?.catalogPrice ?? cartMatch?.price;
+              const rawPrice = (cartMatch && cartPrice !== undefined && Number(cartPrice) > 0)
+                ? Number(cartPrice)
+                : (d.price ?? d.Price);
               const price = (rawPrice !== undefined && Number(rawPrice) > 0)
                 ? (itemDisc > 0 && Math.abs((Number(rawPrice) * qty) - amount) < 0.001 && qty > 0 ? (amount + itemDisc) / qty : Number(rawPrice))
                 : (cartMatch?.price ?? (qty > 0 ? (amount + itemDisc) / qty : 0));
@@ -696,6 +708,9 @@ export const usePosCheckoutFlow = ({
                 modifiers,
                 messages,
                 itemDiscount: itemDisc,
+                discountValue: itemDisc,
+                discountType: 'amount' as const,
+                discAmount: itemDisc,
                 lineTotal: lineTotal
               };
             });
@@ -821,14 +836,17 @@ export const usePosCheckoutFlow = ({
                 amount: (p as any).tenderedAmount ?? p.amount
               };
             }),
-            subTotal: isCombinedOrder ? subtotal : (masterData?.vatExclAmount ?? masterData?.subTotal ?? subtotal),
-            discount: isCombinedOrder ? (totalDiscountAmount || 0) : (masterData?.discAmount ?? masterData?.discount ?? (totalDiscountAmount || 0)),
+            subTotal: isBillDisc
+              ? ((subtotal && subtotal > 0) ? subtotal : (masterData?.subTotal ?? masterData?.vatExclAmount ?? subtotal))
+              : (masterData?.vatExclAmount ?? ((subtotal && subtotal > 0) ? (subtotal - (totalDiscountAmount || 0)) : subtotal)),
+            discount: isBillDisc
+              ? ((totalDiscountAmount && totalDiscountAmount > 0) ? totalDiscountAmount : Number(masterData?.discAmount ?? masterData?.discount ?? 0))
+              : 0,
             serviceCharge: isCombinedOrder ? totalServiceCharge : (masterData?.serviceCharge ?? totalServiceCharge),
             levy: isCombinedOrder ? totalLevy : (masterData?.levyAmt ?? masterData?.levy ?? totalLevy),
-            vatAmount: isCombinedOrder ? totalVat : (masterData?.vatAmount ?? totalVat),
+            vatAmount: isCombinedOrder ? totalVat : ((totalVat && totalVat > 0) ? totalVat : (masterData?.vatAmount ?? totalVat)),
             deliveryCharge: isCombinedOrder ? deliveryCharge : (masterData?.deliveryCharge ?? deliveryCharge),
-            // Prefer the server-stored net amount to avoid frontend rounding accumulation errors
-            netAmount: isCombinedOrder ? total : (masterData?.netAmount ?? total),
+            netAmount: isCombinedOrder ? total : ((total && total > 0) ? total : (masterData?.netAmount ?? total)),
             changeAmount: settlementCashChangeRef.current > 0 ? settlementCashChangeRef.current : undefined,
             isSettlement: true,
             printPrice: (localStorage.getItem("printPrice") as any) || undefined,

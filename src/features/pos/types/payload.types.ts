@@ -45,6 +45,10 @@ export interface SalesInvoicePayload {
   deliveryCharge?: number;
   callBack?: string;
   complimentaryStatus?: boolean;
+  billDiscount?: number;
+  billDiscountValue?: number;
+  billDiscountType?: 'percentage' | 'amount';
+  isBillDiscount?: boolean;
   orderMaster: {
     isOrderEdited?: boolean;
     sectionId?: number;
