@@ -29,6 +29,7 @@ export const extractMasterAndDetails = (orderRes: any): MasterAndDetails => {
 export const checkOrderHasBillDiscount = (orderRes: any): boolean => {
   if (!orderRes) return false;
   if (Boolean(orderRes?.isBillDiscount || orderRes?.summary?.isBillDiscount)) return true;
+  if (Number(orderRes?.billDiscountValue || orderRes?.billDiscount || 0) > 0) return true;
 
   const { master, details } = extractMasterAndDetails(orderRes);
   if (!master || typeof master !== 'object') return false;
@@ -80,7 +81,22 @@ export const checkOrderHasBillDiscount = (orderRes: any): boolean => {
   }
 
   const lineDiscountsSum = activeLines.reduce((sum: number, d: any) => {
-    const itemDisc = Number(d.discAmount ?? d.DiscAmount ?? d.itemDiscount ?? d.discountValue ?? d.discount ?? 0);
+    const itemDisc = Number(
+      d.discAmount ??
+      d.DiscAmount ??
+      d.itemDiscount ??
+      d.discountValue ??
+      d.discount ??
+      d.lineDiscount ??
+      d.lineDiscountExcl ??
+      d.lineDiscountIncl ??
+      d.rawItem?.discAmount ??
+      d.rawItem?.DiscAmount ??
+      d.rawItem?.itemDiscount ??
+      d.rawItem?.discountValue ??
+      d.rawItem?.discount ??
+      0
+    );
     return sum + itemDisc;
   }, 0);
 
@@ -124,4 +140,50 @@ export const checkOrderHasAnyDiscount = (orderRes: any): boolean => {
   });
 
   return hasLineDiscount;
+};
+
+/**
+ * Checks if an order has complimentary status (bill-level or all items complimentary).
+ */
+export const checkOrderIsComplimentary = (orderRes: any): boolean => {
+  if (!orderRes) return false;
+  const { master, details } = extractMasterAndDetails(orderRes);
+  if (!master || typeof master !== 'object') return false;
+
+  if (Boolean(master.complimentaryStatus || master.ComplimentaryStatus)) return true;
+  const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? master.billDiscountPer ?? 0);
+  if (masterDiscPer === 100) return true;
+
+  if (details.length > 0 && details.some((d: any) =>
+    Boolean(d.complimentaryStatus || d.ComplimentaryStatus || Number(d.discPer ?? d.DiscPer ?? 0) === 100)
+  )) {
+    return true;
+  }
+
+  return false;
+};
+
+/**
+ * Validates whether an order can be split or combined.
+ * Business Rule: Only item discounts are allowed in combine and split.
+ * Bill discounts and complimentary orders are strictly NOT allowed.
+ */
+export const checkOrderAllowsSplitOrCombine = (orderRes: any): { allowed: boolean; reason?: string } => {
+  if (!orderRes) return { allowed: true };
+
+  if (checkOrderIsComplimentary(orderRes)) {
+    return {
+      allowed: false,
+      reason: "Split and Combine are not allowed for complimentary orders. Only item discounts are allowed."
+    };
+  }
+
+  if (checkOrderHasBillDiscount(orderRes)) {
+    return {
+      allowed: false,
+      reason: "Split and Combine are not allowed for orders with bill discount. Only item discounts are allowed."
+    };
+  }
+
+  return { allowed: true };
 };

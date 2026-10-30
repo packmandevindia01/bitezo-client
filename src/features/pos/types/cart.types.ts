@@ -75,6 +75,7 @@ export interface PosCartItem {
     unitId?: number;
     vatValue?: number;
     sVatId?: number;
+    isIncl?: boolean;
   };
 
   // Pre-calculated line fields (7-decimal precision from billing.ts)

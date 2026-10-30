@@ -33,6 +33,7 @@ export interface OrderFormContext {
   discount: number;
   tax: number;
   charges: number;
+  netValue?: number;
   totalServiceCharge: number;
   totalLevy: number;
   total: number;
@@ -177,7 +178,7 @@ export const buildDirectSettleOrderPayload = (
     normalizedTypeName.includes("delivery");
   const isDineIn = !isTakeOut && (selectedOrderTypeId === 1 || normalizedTypeName.includes("dinein"));
 
-  const rawTransDate = session.transDate || localStorage.getItem("transDate") || new Date().toISOString();
+  const rawTransDate = session?.transDate || (context as any)?.session?.transDate || localStorage.getItem("transDate") || new Date().toISOString();
   const activeTransDate = rawTransDate.split("T")[0];
 
   const highestExistingMapId = Math.max(
@@ -209,21 +210,6 @@ export const buildDirectSettleOrderPayload = (
     const qty = Number(item.quantity ?? (item as any).qty ?? 1);
     const lineExclGross = roundCalc(taxExclusivePrice * qty, CALC_PRECISION);
 
-    // Rule: When ONLY bill discount is applied, item-level discAmount and discPer must be 0 in details!
-    // If it's an item-level discount, populate that line's discAmount and discPer.
-    const hasItemDiscount = !isOrderBillDiscount && Boolean(item.discountValue && Number(item.discountValue) > 0);
-    const itemDiscAmount = hasItemDiscount
-      ? roundCalc(
-          item.itemDiscountAmount ??
-          (item as any).itemDiscountExcl ??
-          (item.discountType === "amount" ? item.discountValue || 0 : 0),
-          CALC_PRECISION
-        )
-      : 0;
-    const itemDiscPer = hasItemDiscount && item.discountType === "percentage"
-      ? roundCalc(item.discountValue || 0)
-      : 0;
-
     const rawVatRate = (item.product?.vatValue !== undefined && item.product?.vatValue !== null)
       ? Number(item.product.vatValue)
       : (item.vatRate !== undefined && item.vatRate !== null)
@@ -231,8 +217,48 @@ export const buildDirectSettleOrderPayload = (
       : (billingConfig.vatRate > 1 ? billingConfig.vatRate : billingConfig.vatRate * 100);
     const activeRate = isVatEnabled ? (rawVatRate > 1 ? rawVatRate / 100 : rawVatRate) : 0;
 
-    const lineSc = roundCalc(item.mainSc ?? item.sc ?? 0);
-    const lineLevy = roundCalc(item.mainLevy ?? item.levy ?? 0);
+    // Rule: When ONLY bill discount is applied, item-level discAmount and discPer must be 0 in details!
+    // If it's an item-level discount, populate that line's discAmount and discPer.
+    const isDiscInclusive = billingConfig.discountType === "Inclusive";
+    const hasItemDiscount = !isOrderBillDiscount && Boolean(item.discountValue && Number(item.discountValue) > 0);
+    let calculatedItemDisc = 0;
+    if (hasItemDiscount) {
+      if (item.discountType === "percentage") {
+        calculatedItemDisc = roundCalc(lineExclGross * (Number(item.discountValue || 0) / 100), CALC_PRECISION);
+      } else {
+        const rawDisc = Number(item.discountValue || 0);
+        const scFactor = 1 + (isDineIn ? (billingConfig.serviceChargeRate || 0) : 0);
+        const levyFactor = 1 + (billingConfig.levyRate || 0);
+        const vatFactor = 1 + (isVatEnabled && activeRate > 0 ? activeRate : 0);
+        const combinedDivisor = scFactor * levyFactor * vatFactor;
+        calculatedItemDisc = (isDiscInclusive && isVatEnabled && combinedDivisor > 1)
+          ? roundCalc(rawDisc / combinedDivisor, CALC_PRECISION)
+          : roundCalc(rawDisc, CALC_PRECISION);
+      }
+    }
+    const itemDiscAmount = hasItemDiscount
+      ? roundCalc(
+          (item as any).itemDiscountExcl ??
+          (item as any).baseDiscount ??
+          item.itemDiscountAmount ??
+          calculatedItemDisc,
+          CALC_PRECISION
+        )
+      : 0;
+    const itemDiscPer = hasItemDiscount && item.discountType === "percentage"
+      ? roundCalc(item.discountValue || 0)
+      : 0;
+
+    const lineSc = roundCalc(
+      item.mainSc ??
+      item.sc ??
+      (isDineIn ? (lineExclGross - itemDiscAmount) * (billingConfig.serviceChargeRate || 0.10) : 0)
+    );
+    const lineLevy = roundCalc(
+      item.mainLevy ??
+      item.levy ??
+      ((lineExclGross - itemDiscAmount + lineSc) * (billingConfig.levyRate || 0))
+    );
     const lineTaxableBase = Math.max(0, lineExclGross - itemDiscAmount + lineSc + lineLevy);
     const lineVat = activeRate > 0 ? roundCalc(lineTaxableBase * activeRate, CALC_PRECISION) : 0;
     const lineNetAmount = roundCalc(lineTaxableBase + lineVat, CALC_PRECISION);
@@ -354,7 +380,6 @@ export const buildDirectSettleOrderPayload = (
   const totalDetailGrossExcl = details.reduce((sum, d) => sum + (Number(d.price || 0) * Number(d.qty || 1)), 0);
   const totalGrossExcl = roundCalc(totalDetailGrossExcl + totalModifierGross);
 
-  const isDiscInclusive = billingConfig.discountType === "Inclusive";
   const activeVatRate = billingConfig.vatRate > 0 ? (billingConfig.vatRate > 1 ? billingConfig.vatRate / 100 : billingConfig.vatRate) : 0.10;
 
   let masterDiscAmount = 0;
@@ -363,18 +388,35 @@ export const buildDirectSettleOrderPayload = (
 
   const lineDiscounts = details.reduce((sum, d) => sum + Number(d.discAmount || 0), 0);
 
+  const isDiscInclusive = billingConfig.discountType === "Inclusive";
+
   if (isOrderBillDiscount) {
     if (billDiscountType === "percentage") {
       masterDiscPer = billDiscountValue;
       masterDiscAmount = roundCalc(totalGrossExcl * (billDiscountValue / 100), CALC_PRECISION);
     } else {
-      // Amount discount: convert to tax-exclusive if discount calculation is Inclusive
-      masterDiscAmount = (isDiscInclusive && isVatEnabled && activeVatRate > 0)
-        ? roundCalc(billDiscountValue / (1 + activeVatRate), CALC_PRECISION)
-        : roundCalc(billDiscountValue, CALC_PRECISION);
+      // Amount discount:
+      // If Inclusive: discount sent to backend has VAT and charges reduced: enteredValue / combinedDivisor
+      // If Exclusive: discount sent to backend is exact enteredValue (e.g. 10 -> 10.000)
+      const scFactor = 1 + (isDineIn ? (billingConfig.serviceChargeRate || 0) : 0);
+      const levyFactor = 1 + (billingConfig.levyRate || 0);
+      const vatFactor = 1 + (isVatEnabled && activeVatRate > 0 ? activeVatRate : 0);
+      const combinedDivisor = scFactor * levyFactor * vatFactor;
+
+      if (isDiscInclusive && isVatEnabled && combinedDivisor > 1) {
+        masterDiscAmount = roundCalc(
+          (context as any).totalDiscountExcl ??
+          (context as any).billDiscountTotal ??
+          (billDiscountValue / combinedDivisor),
+          CALC_PRECISION
+        );
+      } else {
+        masterDiscAmount = roundCalc(billDiscountValue, CALC_PRECISION);
+      }
       masterDiscPer = 0;
     }
-    calcVatExcl = roundCalc(Math.max(0, totalGrossExcl - masterDiscAmount));
+    const effectiveBaseDiscount = masterDiscAmount;
+    calcVatExcl = roundCalc(Math.max(0, totalGrossExcl - effectiveBaseDiscount));
   } else {
     // Only item-level discounts exist:
     // Rule: only add value into masterData discAmount/discPer if it is a bill discount!
@@ -389,7 +431,16 @@ export const buildDirectSettleOrderPayload = (
     (cartDetails.length > 0 && cartDetails.every((i) => (i.discountType === "percentage" && Number(i.discountValue) === 100) || (i as any).complimentaryStatus))
   );
 
-  const taxableBase = Math.max(0, calcVatExcl + Number(totalServiceCharge || 0) + Number(totalLevy || 0));
+  const detailsLevySum = roundCalc(details.reduce((sum, d) => sum + Number(d.levy || 0), 0));
+  const detailsScSum = roundCalc(details.reduce((sum, d) => sum + Number(d.serviceCharge || 0), 0));
+  const resolvedMasterLevy = (detailsLevySum > 0 || details.length > 0)
+    ? detailsLevySum
+    : roundCalc(totalLevy || 0);
+  const resolvedMasterSc = (detailsScSum > 0 || details.length > 0)
+    ? detailsScSum
+    : roundCalc(totalServiceCharge || 0);
+
+  const taxableBase = Math.max(0, calcVatExcl + resolvedMasterSc + resolvedMasterLevy);
   let calcVatAmt = 0;
   if (isVatEnabled && !isOrderComplimentary && activeVatRate > 0) {
     if (isOrderBillDiscount) {
@@ -415,9 +466,9 @@ export const buildDirectSettleOrderPayload = (
     billDiscountType: billDiscountType,
     isBillDiscount: isOrderBillDiscount,
     complimentaryStatus: isOrderComplimentary,
-    serviceCharge: roundCalc(totalServiceCharge),
-    levy: roundCalc(totalLevy),
-    vatExclAmount: calcVatExcl,
+    serviceCharge: resolvedMasterSc,
+    levy: resolvedMasterLevy,
+    vatExclAmount: taxableBase,
     vatAmount: calcVatAmt,
     netAmount: netPayable,
     deliveryCharge: roundCalc(Math.max(0, deliveryCharge)),
@@ -527,7 +578,7 @@ export const buildUpdateOrderPayload = (
     sessionStorage.getItem(`order_prevUpdatedAt_${orderId}`) ||
     undefined;
 
-  const billingConfig = getBillingConfig(session.providerId ? "Provider" : "DineIn");
+  const billingConfig = getBillingConfig(session.providerId ? "Provider" : (context.selectedOrderTypeName || "DineIn"));
   const cleanedDetails: MenuOrderDetail[] = base.details.map((d) => {
     const sanitized = sanitizeTaxExclusiveDetail(d, billingConfig);
     return {
@@ -572,15 +623,24 @@ export const buildUpdateOrderPayload = (
     typeId: Number(vm.typeId || 1),
   }));
 
-    return {
+  const cleanedDetailsLevySum = roundCalc(cleanedDetails.reduce((sum, d) => sum + Number(d.levy || 0), 0));
+  const cleanedDetailsScSum = roundCalc(cleanedDetails.reduce((sum, d) => sum + Number(d.serviceCharge || 0), 0));
+  const resolvedUpdateLevy = (cleanedDetailsLevySum > 0 || cleanedDetails.length > 0)
+    ? cleanedDetailsLevySum
+    : roundCalc(base.levy || 0);
+  const resolvedUpdateSc = (cleanedDetailsScSum > 0 || cleanedDetails.length > 0)
+    ? cleanedDetailsScSum
+    : roundCalc(base.serviceCharge || 0);
+
+  return {
     orderId: Number(orderId),
     customerId: Number(base.customerId || 1),
     employeeId: Number(base.employeeId || 1),
     discAmount: roundCalc(base.discAmount || 0),
     discPer: roundCalc(base.discPer || 0),
     complimentaryStatus: Boolean(base.complimentaryStatus || Number(base.discPer) === 100),
-    serviceCharge: roundCalc(base.serviceCharge || 0),
-    levy: roundCalc(base.levy || 0),
+    serviceCharge: resolvedUpdateSc,
+    levy: resolvedUpdateLevy,
     vatExclAmount: base.vatExclAmount,
     vatAmount: base.vatAmount,
     netAmount: roundCalc(base.netAmount || 0),

@@ -62,8 +62,6 @@ export interface RuntimePosConfig {
   productView?: string;
   ProductView?: string;
   otherKitchenItem?: boolean;
-  enableVat?: string | boolean;
-  EnableVat?: string | boolean;
 }
 
 export interface PosConfigResponseData {

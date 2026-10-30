@@ -22,7 +22,7 @@ import type { EndReportData } from "../cashier/services/cashierLogService";
 import { getDayEndReportConfig } from "../services/posConfigApi";
 import { isKotArabicEnabled, isBillArabicEnabled, isCompanyNameKotEnabled, getAlternativeArabicName } from "./alternativeHelpers";
 import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
-import { checkOrderHasBillDiscount } from "../terminal/utils/orderDiscountCheck";
+import { getBillingConfig, roundCalc, CALC_PRECISION } from "../terminal/utils/billing";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LINE_WIDTH = 48; // standard 48 chars per line on 80mm thermal paper
@@ -253,7 +253,8 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
   const fmt = (val: any) => {
     const n = typeof val === 'string' ? parseFloat(val) : Number(val || 0);
-    return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
+    if (!Number.isFinite(n)) return (0).toFixed(decimalPart);
+    return roundCalc(n, decimalPart).toFixed(decimalPart);
   };
   const { date: dateStr, time: timeStr } = now();
 
@@ -263,26 +264,33 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   const isDelivery = data.orderType?.toLowerCase().includes("delivery");
   const driverVal = (data.driverName || data.driver || "").trim();
 
-  const cartVatSum = cartDetails.reduce((s: number, it: any) => s + (it.vatAmount || 0), 0);
+  const rawLines = Array.isArray(cartDetails)
+    ? cartDetails
+    : Array.isArray((cartDetails as any)?.lines)
+    ? (cartDetails as any).lines
+    : [];
+
+  const cartVatSum = rawLines.reduce((s: number, it: any) => s + (it.vatAmount || 0), 0);
   const rawVat = (data.vatAmount && data.vatAmount > 0) ? data.vatAmount : (cartVatSum > 0 ? cartVatSum : 0);
   
   // Calculate displaySubTotal for logic usage
   let displaySubTotal = 0;
-  cartDetails.forEach((item) => {
+  rawLines.forEach((item: any) => {
     let extrasSum = 0;
-    if (item.extras && item.extras.length > 0) item.extras.forEach(ex => { extrasSum += ex.price * (ex.qty || 1); });
+    if (item.extras && item.extras.length > 0) item.extras.forEach((ex: any) => { extrasSum += ex.price * (ex.qty || 1); });
     let baseAmt = (item as any).lineTotal;
     if (baseAmt !== undefined) baseAmt = Math.max(0, baseAmt - extrasSum);
-    else baseAmt = (item.price || item.product?.price || 0) * item.quantity;
+    else baseAmt = (item.price || item.product?.price || 0) * (item.quantity ?? item.qty ?? 1);
     displaySubTotal += parseFloat(fmt(baseAmt));
   });
 
   const isGuestPrint = !data.isSettlement && !data.invoiceNo && !data.isPackager;
+  const billingConfig = getBillingConfig(data.orderType || "Takeaway");
 
   const isVatActive = isGuestPrint
     ? isEnableVatGuestPrint(data)
     : Boolean(
-        data.enableVat === true ||
+        data.enableVat !== false ||
         rawVat > 0 ||
         cartVatSum > 0 ||
         (data.vatAmount && data.vatAmount > 0) ||
@@ -369,25 +377,6 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     ? (cartDetails as any)
     : buildUnifiedOrderPricing(cartDetails, data);
 
-  const rawDetailsList = (cartDetails as any)?.lines || (Array.isArray(cartDetails) ? cartDetails : []);
-  const hasLineDiscounts = unified.lines.some(l => {
-    const raw = l.rawItem;
-    return (
-      (raw?.discountValue !== undefined && Number(raw.discountValue) > 0) ||
-      (raw?.itemDiscount !== undefined && Number(raw.itemDiscount) > 0) ||
-      (raw?.discAmount !== undefined && Number(raw.discAmount) > 0) ||
-      (l.lineDiscount !== undefined && Number(l.lineDiscount) > 0) ||
-      (l.lineDiscountExcl !== undefined && Number(l.lineDiscountExcl) > 0)
-    );
-  });
-
-  const isOrderBillDiscount = Boolean(
-    unified.summary.isBillDiscount ||
-    data.isBillDiscount ||
-    checkOrderHasBillDiscount({ master: data, details: rawDetailsList }) ||
-    (!hasLineDiscounts && data.discount && data.discount > 0)
-  );
-
   // ── Column headers ───────────────────────────────────────────────────────────
   markup += `[L]<b>${padRight("Description", LINE_WIDTH - 16)} ${padLeft("Qty", 4)} ${padLeft("Amount", 10)}</b>\n`;
   if (isBillArabic) {
@@ -399,12 +388,17 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   unified.lines.forEach((line) => {
     const name = line.productName.toUpperCase();
     const qty = line.quantity;
-    const itemDisc = isOrderBillDiscount
-      ? 0
-      : Number(line.lineDiscountExcl ?? line.lineDiscount ?? (typeof line.getDiscount === "function" ? line.getDiscount(false) : 0));
+    const lineDiscVal = Number(
+      isTaxInclusive
+        ? (line.lineDiscountIncl ?? (typeof line.getDiscount === "function" ? line.getDiscount(true) : line.lineDiscount))
+        : (line.lineDiscountExcl ?? (typeof line.getDiscount === "function" ? line.getDiscount(false) : line.lineDiscount))
+    );
+    const itemDisc = lineDiscVal > 0 ? lineDiscVal : 0;
 
     const origGrossAmt = isTaxInclusive ? line.inclusiveGross : line.exclusiveGross;
-    const netAmt = isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount;
+    const netAmt = itemDisc > 0
+      ? Math.max(0, origGrossAmt - itemDisc)
+      : (isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount);
     const amt = fmt(origGrossAmt);
 
     markup += itemLine(name, qty, amt) + "\n";
@@ -465,41 +459,95 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   // ── Totals ───────────────────────────────────────────────────────────────────
   markup += `[L]${DASH_SEP}\n`;
 
-  const totalDiscount = Number(
-    data.discount ??
-    (data as any).discAmount ??
-    (unified.summary.totalDiscountExcl ?? unified.summary.totalDiscount ?? 0)
+  const rawThermalCharges = Number(data.serviceCharge || (unified as any)?.summary?.serviceCharge || 0) + Number(data.levy || (data as any)?.levyAmt || (unified as any)?.summary?.levy || 0);
+
+  const resolvedDiscount = Number(
+    (isTaxInclusive && rawThermalCharges <= 0)
+      ? (unified.summary.totalDiscountIncl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(true) : (data.discount ?? (data as any).discAmount ?? 0)))
+      : (unified.summary.totalDiscountExcl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : (data.discount ?? (data as any).discAmount ?? 0)))
   );
 
-  const effectiveBillDiscount = isOrderBillDiscount
-    ? totalDiscount
-    : Number(data.billDiscount || data.billDiscountValue || 0);
+  const totalPrintDiscount = resolvedDiscount;
 
-  const subTotalBeforeDiscount = (data.subTotal !== undefined && data.subTotal !== null && Number(data.subTotal) > 0)
+  const grossSubTotal = (isTaxInclusive && rawThermalCharges <= 0)
+    ? (unified.summary.subTotalInclusive > 0
+        ? unified.summary.subTotalInclusive
+        : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(true) : 0))
+    : (unified.summary.subTotalExclusive > 0
+        ? unified.summary.subTotalExclusive
+        : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : 0));
+  const footerSubTotal = (data.subTotal !== undefined && Number(data.subTotal) > 0)
     ? Number(data.subTotal)
-    : ((data as any).vatExclAmount !== undefined && (data as any).vatExclAmount !== null && Number((data as any).vatExclAmount) > 0)
-    ? (Number((data as any).vatExclAmount) + (isOrderBillDiscount ? totalDiscount : 0))
-    : (isOrderBillDiscount
-        ? (unified.summary.subTotalExclusive ? unified.summary.subTotalExclusive + totalDiscount : 0)
-        : (unified.summary.subTotalExclusive ?? 0));
-
-  const footerSubTotal = isOrderBillDiscount
-    ? subTotalBeforeDiscount
-    : ((data as any).vatExclAmount !== undefined && Number((data as any).vatExclAmount) > 0
-        ? Number((data as any).vatExclAmount)
-        : (unified.summary.subTotalExclusive ?? subTotalBeforeDiscount));
+    : (grossSubTotal > 0 ? grossSubTotal : Number((data as any).vatExclAmount || 0));
 
   markup += totalsLine(isBillArabic ? "Sub Total (المجموع الفرعي)" : "Sub Total", fmt(footerSubTotal)) + "\n";
-  if (effectiveBillDiscount > 0) {
-    markup += totalsLine(isBillArabic ? "Discount (الخصم)" : "Discount", `-${fmt(effectiveBillDiscount)}`) + "\n";
+  if (totalPrintDiscount > 0) {
+    markup += totalsLine(isBillArabic ? "Discount (الخصم)" : "Discount", `-${fmt(totalPrintDiscount)}`) + "\n";
   }
-  if ((data.serviceCharge || 0) > 0) markup += totalsLine(isBillArabic ? "Service Charge (رسوم الخدمة)" : "Service Charge", fmt(data.serviceCharge)) + "\n";
-  if ((data.levy || 0) > 0) markup += totalsLine(isBillArabic ? "Levy (5%) (الضريبة الانتقائية)" : "Levy (5%)", fmt(data.levy)) + "\n";
+  const effectiveSc = isDineIn
+    ? (Number(data.serviceCharge || 0) > 0 ? Number(data.serviceCharge) : Number(unified.summary?.serviceCharge || 0))
+    : 0;
+  const effectiveLevy = Number(data.levy || 0) > 0
+    ? Number(data.levy)
+    : Number((data as any)?.levyAmt || 0) > 0
+    ? Number((data as any).levyAmt)
+    : Number(unified.summary?.levy || 0);
+  let effectiveCharges = (data.charges !== undefined && data.charges !== null && Number(data.charges) > 0)
+    ? Number(data.charges)
+    : roundCalc(effectiveSc + effectiveLevy);
+
+  const exclDiscount = Number(
+    unified.summary.totalDiscountExcl ??
+    (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : (isTaxInclusive ? roundCalc(totalPrintDiscount / 1.155, 3) : totalPrintDiscount))
+  );
+  const exclSubTotal = Number(
+    unified.summary.subTotalExclusive > 0
+      ? unified.summary.subTotalExclusive
+      : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : footerSubTotal)
+  );
+  const grandTotal = Number(unified.summary.grandTotal > 0 ? unified.summary.grandTotal : (data.netAmount || 0));
+  const netBase = Math.max(0, exclSubTotal - exclDiscount);
+  const vat = unified.summary.vatAmount > 0 ? unified.summary.vatAmount : Number(data.vatAmount || 0);
+  const del = Number(data.deliveryCharge || unified.summary?.deliveryCharge || 0);
+  const expectedChargesFromResidual = roundCalc(grandTotal - netBase - del - vat);
+
+  if (expectedChargesFromResidual > 0.001) {
+    if (effectiveCharges <= 0 || Math.abs(effectiveCharges - expectedChargesFromResidual) > 0.005) {
+      effectiveCharges = expectedChargesFromResidual;
+    }
+  }
+
+  if (effectiveCharges > 0) {
+    markup += totalsLine(isBillArabic ? "Charges (الرسوم)" : "Charges", fmt(effectiveCharges)) + "\n";
+  }
+  const recalculatedNetValue = roundCalc(netBase + effectiveCharges);
+  const effectiveNetValue = (data.netValue !== undefined && data.netValue !== null && Number(data.netValue) > 0 && Math.abs(Number(data.netValue) - recalculatedNetValue) <= 0.005)
+    ? Number(data.netValue)
+    : recalculatedNetValue;
+  if (effectiveNetValue > 0) {
+    markup += totalsLine(isBillArabic ? "Net Value (القيمة الصافية)" : "Net Value", fmt(effectiveNetValue)) + "\n";
+  }
   if ((isDelivery || (data.deliveryCharge && data.deliveryCharge > 0))) {
     markup += totalsLine(isBillArabic ? "Delivery Charge (رسوم التوصيل)" : "Delivery Charge", fmt(data.deliveryCharge || 0)) + "\n";
   }
-  if (isVatActive && (unified.summary.vatAmount > 0 || (data.vatAmount || 0) > 0)) {
-    markup += totalsLine(isBillArabic ? "VAT Amount (مبلغ الضريبة)" : "VAT Amount", fmt(unified.summary.vatAmount || data.vatAmount || 0)) + "\n";
+  let effectiveVatAmount = unified.summary.vatAmount > 0 ? unified.summary.vatAmount : Number(data.vatAmount || 0);
+  if (isVatActive && effectiveVatAmount <= 0) {
+    const activeLineVatRate = unified.lines.find((l) => (l.vatRate || 0) > 0)?.vatRate;
+    const rateFraction = activeLineVatRate && activeLineVatRate > 0
+      ? activeLineVatRate / 100
+      : (billingConfig.vatRate > 0 ? (billingConfig.vatRate > 1 ? billingConfig.vatRate / 100 : billingConfig.vatRate) : 0.10);
+
+    const delivery = Number(data.deliveryCharge || unified.summary?.deliveryCharge || 0);
+    const grandTotal = Number(unified.summary.grandTotal || data.netAmount || 0);
+    const taxableGross = Math.max(0, grandTotal - delivery);
+
+    if (rateFraction > 0 && taxableGross > 0) {
+      effectiveVatAmount = roundCalc(taxableGross - (taxableGross / (1 + rateFraction)), CALC_PRECISION);
+    }
+  }
+
+  if (isVatActive && effectiveVatAmount > 0) {
+    markup += totalsLine(isBillArabic ? "VAT Amount (مبلغ الضريبة)" : "VAT Amount", fmt(effectiveVatAmount)) + "\n";
   }
 
   markup += `[L]${DASH_SEP}\n`;
@@ -519,7 +567,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   }
 
   // ── VAT table (if enabled) ────────────────────────────────────────────────
-  const vatAmount = unified.summary.vatAmount;
+  const vatAmount = effectiveVatAmount;
   if (isVatActive && vatAmount > 0) {
     const effectiveDeliveryCharge = Number(
       data.deliveryCharge ?? 
@@ -595,7 +643,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   const isKotArabic = data.kotArabic ?? isKotArabicEnabled();
   const { date: dateStr, time: timeStr } = now();
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
-  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const fmt = (val: any) => roundCalc(val, decimalPart).toFixed(decimalPart);
 
   const orderTypeIdMap: Record<number, string> = {
     1: "DINE IN", 2: "TAKE OUT", 3: "DRIVE THRU",
@@ -858,7 +906,7 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
   const config = getDayEndReportConfig();
   console.log(`[ESC/POS ${reportType} Report Data Received from Backend]:`, data);
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
-  const fmt = (val: number | undefined | null) => Number(val || 0).toFixed(decimalPart);
+  const fmt = (val: number | undefined | null) => roundCalc(val, decimalPart).toFixed(decimalPart);
 
   const formatDate = (isoStr?: string) => {
     if (!isoStr || isoStr.includes('1900-01-01')) return '';
@@ -1337,7 +1385,7 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
 // ── Void Order Summary 80mm ESC/POS Markup ─────────────────────────────
 export const generateVoidOrderReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
-  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const fmt = (val: any) => roundCalc(val, decimalPart).toFixed(decimalPart);
   const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
 
   let markup = "";
@@ -1374,7 +1422,7 @@ export const generateVoidOrderReportMarkup = (logs: any[], fromDate: string, toD
 // ── Void Product Summary 80mm ESC/POS Markup ────────────────────────────
 export const generateVoidProductReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
-  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const fmt = (val: any) => roundCalc(val, decimalPart).toFixed(decimalPart);
   const totalQty = logs.reduce((sum, item) => sum + (parseFloat(String(item.quantity)) || 0), 0);
   const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
 
@@ -1414,7 +1462,7 @@ export const generateVoidProductReportMarkup = (logs: any[], fromDate: string, t
 // ── Cancelled Invoice Summary 80mm ESC/POS Markup ──────────────────────
 export const generateVoidInvoiceReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
-  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const fmt = (val: any) => roundCalc(val, decimalPart).toFixed(decimalPart);
   const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
 
   let markup = "";
@@ -1452,7 +1500,7 @@ export const generateVoidInvoiceReportMarkup = (logs: any[], fromDate: string, t
 // ── Bill Complementary Summary 80mm ESC/POS Markup ─────────────────────
 export const generateBillComplementaryReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
-  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const fmt = (val: any) => roundCalc(val, decimalPart).toFixed(decimalPart);
   const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
 
   let markup = "";
@@ -1489,7 +1537,7 @@ export const generateBillComplementaryReportMarkup = (logs: any[], fromDate: str
 // ── Driver Summary 80mm ESC/POS Markup ─────────────────────────────────
 export const generateDriverSummaryReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
-  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const fmt = (val: any) => roundCalc(val, decimalPart).toFixed(decimalPart);
   const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
 
   let markup = "";
@@ -1522,7 +1570,7 @@ export const generateDriverSummaryReportMarkup = (logs: any[], fromDate: string,
 // ── All Transaction Summary 80mm ESC/POS Markup ────────────────────────
 export const generateAllTransactionSummaryReportMarkup = (logs: any[], fromDate: string, toDate: string): string => {
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
-  const fmt = (val: any) => Number(val || 0).toFixed(decimalPart);
+  const fmt = (val: any) => roundCalc(val, decimalPart).toFixed(decimalPart);
   const totalAmount = logs.reduce((sum, item) => sum + (parseFloat(String(item.amount)) || 0), 0);
 
   let markup = "";
@@ -1560,7 +1608,8 @@ export const generateDeliverySettleMarkup = (
   const decimalPart = parseInt(localStorage.getItem("decimalPart") || "3", 10);
   const fmt = (val: any) => {
     const n = typeof val === "string" ? parseFloat(val) : Number(val || 0);
-    return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
+    if (!Number.isFinite(n)) return (0).toFixed(decimalPart);
+    return roundCalc(n, decimalPart).toFixed(decimalPart);
   };
   const nowObj = new Date();
   const dateStr = data.date || nowObj.toLocaleDateString("en-GB");

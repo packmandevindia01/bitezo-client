@@ -1,6 +1,6 @@
 import { useCurrency } from "../../../../../hooks/useCurrency";
 import { t } from "../../../utils/posLocalization";
-import { getPriceView } from "../../utils/billing";
+
 
 interface PosOrderSummaryProps {
   subtotal: number;
@@ -10,6 +10,7 @@ interface PosOrderSummaryProps {
   total: number;
   totalExtras: number;
   baseSubtotal: number;
+  netValue?: number;
   deliveryCharge?: number;
   isDelivery?: boolean;
   onDeliveryChargeDoubleClick?: () => void;
@@ -26,9 +27,9 @@ interface PosOrderSummaryProps {
   onCom?: () => void;
 }
 
-export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender, tenderOptions, selectedCustomerId, onDiscount, onCom }: PosOrderSummaryProps) => {
+export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, netValue, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender, tenderOptions, selectedCustomerId, onDiscount, onCom }: PosOrderSummaryProps) => {
   const { formatAmount } = useCurrency();
-  const isTaxInclusive = getPriceView() === "Inclusive";
+
   return (
     <div className="shrink-0 p-2 lg:p-2.5 [@media(max-height:800px)]:p-1 bg-slate-50/80 border-t border-slate-200 space-y-1.5 lg:space-y-2 [@media(max-height:800px)]:space-y-0.5">
       {/* Financial Breakdown */}
@@ -54,7 +55,13 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
         <div className="flex-1 space-y-0.5 [@media(max-height:800px)]:space-y-0 border-l border-slate-200/50 pl-2 lg:pl-3">
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>{t("Net Value")}</span>
-            <span>{formatAmount(Math.max(0, subtotal - discount) + charges)}</span>
+            <span>
+              {formatAmount(
+                netValue !== undefined
+                  ? netValue
+                  : Math.max(0, (total || 0) - (tax || 0) - (deliveryCharge || 0))
+              )}
+            </span>
           </div>
           {(isDelivery || deliveryCharge > 0) && (
             <div
@@ -80,7 +87,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
             </div>
           )}
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
-            <span>{isTaxInclusive ? t("VAT (Included)") : t("VAT")}</span>
+            <span>{t("VAT")}</span>
             <span>{formatAmount(Math.max(0, tax))}</span>
           </div>
         </div>

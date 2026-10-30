@@ -1,5 +1,6 @@
 import axiosInstance from "../../../api/axiosInstance";
 import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
+import { getBillingConfig } from "../terminal/utils/billing";
 export interface ApiResponse<T> {
   isSuccess: boolean;
   message: string;
@@ -82,9 +83,39 @@ export const settledOrdersApi = {
     return unwrap<any>(axiosInstance.get("/settled-orders", { params }));
   },
 
-  getSettledOrderDetails: async (orderId: number, priceViewOverride?: string): Promise<ApiResponse<any>> => {
+  getSettledOrderDetails: async (
+    orderId: number,
+    options?: string | { priceView?: string; orderType?: string; serviceCharge?: number; levy?: number }
+  ): Promise<ApiResponse<any>> => {
+    let priceViewOverride: string | undefined;
+    let orderTypeOverride: string | undefined;
+    let explicitSc: number | undefined;
+    let explicitLevy: number | undefined;
+
+    if (typeof options === "string") {
+      priceViewOverride = options;
+    } else if (typeof options === "object" && options !== null) {
+      priceViewOverride = options.priceView;
+      orderTypeOverride = options.orderType;
+      explicitSc = options.serviceCharge;
+      explicitLevy = options.levy;
+    }
+
     const priceView = priceViewOverride || getPriceView();
-    const res = await axiosInstance.get(`/settled-orders/settled-data/${orderId}`, { params: { priceView } });
+    const effectiveOrderType = orderTypeOverride || "TakeOut";
+    const isDineIn = effectiveOrderType.toLowerCase().includes("dine");
+
+    const billingConfig = getBillingConfig(isDineIn ? "DineIn" : "TakeOut");
+    const serviceCharge = explicitSc !== undefined
+      ? explicitSc
+      : (isDineIn ? (billingConfig.serviceChargeRate ? Math.round(billingConfig.serviceChargeRate * 100) : 10) : 0);
+    const levy = explicitLevy !== undefined
+      ? explicitLevy
+      : (billingConfig.levyRate ? Math.round(billingConfig.levyRate * 100) : 5);
+
+    const res = await axiosInstance.get(`/settled-orders/settled-data/${orderId}`, {
+      params: { serviceCharge, levy, priceView },
+    });
     const body = res?.data;
     if (body && typeof body === 'object') {
       if (body.isSuccess === false) {

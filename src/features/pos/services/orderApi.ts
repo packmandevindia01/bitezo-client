@@ -1,6 +1,6 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { MenuOrderRequest, MenuOrderResponse, RecallParams, RecallResponse } from "../types";
-import { getPriceView, sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
+import { getPriceView, getBillingConfig, sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
 
 /**
  * Standard unwrap helper to extract data and handle success/error based on the API response.
@@ -48,17 +48,22 @@ export const orderApi = {
             (Number(payload.discAmount || 0) > 0 && lineDiscounts === 0)
           );
 
+          const totalCharges = roundCalc(Number(payload.serviceCharge || 0) + Number(payload.levy || 0));
           if (isBillDisc) {
             payload.details.forEach((d: any) => {
               d.discAmount = 0;
               d.discPer = 0;
             });
             payload.discAmount = roundCalc(Number(payload.discAmount || 0));
-            payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - payload.discAmount));
+            if (payload.vatExclAmount === undefined || payload.vatExclAmount === null || Number(payload.vatExclAmount) <= 0) {
+              payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - payload.discAmount + totalCharges));
+            }
           } else {
             payload.discAmount = 0;
             payload.discPer = 0;
-            payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - lineDiscounts));
+            if (payload.vatExclAmount === undefined || payload.vatExclAmount === null || Number(payload.vatExclAmount) <= 0) {
+              payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - lineDiscounts + totalCharges));
+            }
           }
 
           const isVatEnabled = getVatStatus();
@@ -141,27 +146,55 @@ export const orderApi = {
    * Primary: GET /api/v1/menu/order/order_data/{orderId}?priceView={priceView}
    * Fallback: GET /api/v1/order/recall/order_data/{orderId}
    */
-  getOrderDetails: async (orderId: number, priceViewOverride?: string): Promise<any> => {
+  getOrderDetails: async (
+    orderId: number,
+    options?: string | { priceView?: string; orderType?: string; serviceCharge?: number; levy?: number }
+  ): Promise<any> => {
+    let priceViewOverride: string | undefined;
+    let orderTypeOverride: string | undefined;
+    let explicitSc: number | undefined;
+    let explicitLevy: number | undefined;
+
+    if (typeof options === "string") {
+      priceViewOverride = options;
+    } else if (typeof options === "object" && options !== null) {
+      priceViewOverride = options.priceView;
+      orderTypeOverride = options.orderType;
+      explicitSc = options.serviceCharge;
+      explicitLevy = options.levy;
+    }
+
     const priceView = priceViewOverride || getPriceView();
+    const effectiveOrderType = orderTypeOverride || "TakeOut";
+    const isDineIn = effectiveOrderType.toLowerCase().includes("dine");
+
+    const billingConfig = getBillingConfig(isDineIn ? "DineIn" : "TakeOut");
+    const serviceCharge = explicitSc !== undefined
+      ? explicitSc
+      : (isDineIn ? (billingConfig.serviceChargeRate ? Math.round(billingConfig.serviceChargeRate * 100) : 10) : 0);
+    const levy = explicitLevy !== undefined
+      ? explicitLevy
+      : (billingConfig.levyRate ? Math.round(billingConfig.levyRate * 100) : 5);
+    const queryParams = { serviceCharge, levy, priceView };
     try {
       return await unwrap<any>(
-        axiosInstance.get(`/menu/order/order_data/${orderId}`, { params: { priceView } })
+        axiosInstance.get(`/order/recall/order_data/${orderId}`, { params: queryParams })
       );
     } catch (e) {
-      console.warn(`[orderApi] getOrderDetails from /menu/order/order_data/${orderId} failed, trying /order/recall/order_data fallback:`, e);
+      console.warn(`[orderApi] getOrderDetails from /order/recall/order_data/${orderId} failed, trying /menu/order/order_data fallback:`, e);
       try {
         return await unwrap<any>(
-          axiosInstance.get(`/order/recall/order_data/${orderId}`, { params: { priceView } })
+          axiosInstance.get(`/menu/order/order_data/${orderId}`, { params: queryParams })
         );
       } catch (err2) {
         console.warn(`[orderApi] fallback getOrderDetails with priceView failed, retrying without params:`, err2);
         try {
           return await unwrap<any>(
-            axiosInstance.get(`/menu/order/order_data/${orderId}`)
+            axiosInstance.get(`/order/recall/order_data/${orderId}`)
           );
         } catch (err3) {
           return await unwrap<any>(
-            axiosInstance.get(`/order/recall/order_data/${orderId}`)
+            axiosInstance.get(`/menu/order/order_data/${orderId}`)
           );
         }
       }
@@ -173,8 +206,50 @@ export const orderApi = {
    * Primary: GET /api/v1/menu/order/order_data/{orderId}?priceView={priceView}
    * Fallback: GET /api/v1/order/recall/order_data/{orderId}
    */
-  getRecallOrderDetails: async (orderId: number, priceViewOverride?: string): Promise<any> => {
-    return orderApi.getOrderDetails(orderId, priceViewOverride);
+  getRecallOrderDetails: async (
+    orderId: number,
+    options?: string | { priceView?: string; orderType?: string; serviceCharge?: number; levy?: number }
+  ): Promise<any> => {
+    return orderApi.getOrderDetails(orderId, options);
+  },
+
+  /**
+   * Fetches order print data specifically formatted by backend for guest printing.
+   * GET /api/v1/order/recall/order-print-data/{orderId}
+   */
+  getOrderPrintData: async (
+    orderId: number,
+    options?: string | { priceView?: string; orderType?: string; serviceCharge?: number; levy?: number }
+  ): Promise<any> => {
+    let priceViewOverride: string | undefined;
+    let orderTypeOverride: string | undefined;
+    let explicitSc: number | undefined;
+    let explicitLevy: number | undefined;
+
+    if (typeof options === "string") {
+      priceViewOverride = options;
+    } else if (typeof options === "object" && options !== null) {
+      priceViewOverride = options.priceView;
+      orderTypeOverride = options.orderType;
+      explicitSc = options.serviceCharge;
+      explicitLevy = options.levy;
+    }
+
+    const priceView = priceViewOverride || getPriceView();
+    const effectiveOrderType = orderTypeOverride || "TakeOut";
+    const isDineIn = effectiveOrderType.toLowerCase().includes("dine");
+
+    const billingConfig = getBillingConfig(isDineIn ? "DineIn" : "TakeOut");
+    const serviceCharge = explicitSc !== undefined
+      ? explicitSc
+      : (isDineIn ? (billingConfig.serviceChargeRate ? Math.round(billingConfig.serviceChargeRate * 100) : 10) : 0);
+    const levy = explicitLevy !== undefined
+      ? explicitLevy
+      : (billingConfig.levyRate ? Math.round(billingConfig.levyRate * 100) : 5);
+    const queryParams = { serviceCharge, levy, priceView };
+    return await unwrap<any>(
+      axiosInstance.get(`/order/recall/order-print-data/${orderId}`, { params: queryParams })
+    );
   },
 
   /**
@@ -229,17 +304,22 @@ export const orderApi = {
         (Number(payload.discAmount || 0) > 0 && lineDiscounts === 0)
       );
 
+      const totalCharges = roundCalc(Number(payload.serviceCharge || 0) + Number(payload.levy || 0));
       if (isBillDisc) {
         payload.details.forEach((d: any) => {
           d.discAmount = 0;
           d.discPer = 0;
         });
         payload.discAmount = roundCalc(Number(payload.discAmount || 0));
-        payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - payload.discAmount));
+        if (payload.vatExclAmount === undefined || payload.vatExclAmount === null || Number(payload.vatExclAmount) <= 0) {
+          payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - payload.discAmount + totalCharges));
+        }
       } else {
         payload.discAmount = 0;
         payload.discPer = 0;
-        payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - lineDiscounts));
+        if (payload.vatExclAmount === undefined || payload.vatExclAmount === null || Number(payload.vatExclAmount) <= 0) {
+          payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - lineDiscounts + totalCharges));
+        }
       }
 
       const isVatEnabled = getVatStatus();
@@ -270,6 +350,35 @@ export const orderApi = {
     } else {
       postPayload.voucherDate = new Date().toISOString().split("T")[0];
     }
+    const sanitizeSplitBucket = (bucket: any) => {
+      if (!bucket) return bucket;
+      if (bucket.details && Array.isArray(bucket.details)) {
+        bucket.details = bucket.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
+        const totalDetailGross = bucket.details.reduce((sum: number, d: any) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
+        const totalModifierGross = Array.isArray(bucket.modifiers)
+          ? bucket.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
+          : 0;
+        const totalGrossExcl = roundCalc(totalDetailGross + totalModifierGross);
+        const lineDiscounts = bucket.details.reduce((sum: number, d: any) => sum + Number(d.discAmount || 0), 0);
+
+        if (bucket.order) {
+          bucket.order.discAmount = 0;
+          bucket.order.discPer = 0;
+          if (bucket.order.vatExclAmount === undefined || bucket.order.vatExclAmount === null || Number(bucket.order.vatExclAmount) <= 0) {
+            bucket.order.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - lineDiscounts));
+          }
+        }
+      }
+      return bucket;
+    };
+
+    if (postPayload.baseOrder) {
+      postPayload.baseOrder = sanitizeSplitBucket(postPayload.baseOrder);
+    }
+    if (postPayload.newOrders && Array.isArray(postPayload.newOrders)) {
+      postPayload.newOrders = postPayload.newOrders.map(sanitizeSplitBucket);
+    }
+
     if (postPayload.orders && Array.isArray(postPayload.orders)) {
       postPayload.orders = postPayload.orders.map((ord: any) => {
         if (ord.details && Array.isArray(ord.details)) {
@@ -287,17 +396,22 @@ export const orderApi = {
             (Number(ord.discAmount || 0) > 0 && lineDiscounts === 0)
           );
 
+          const totalCharges = roundCalc(Number(ord.serviceCharge || 0) + Number(ord.levy || 0));
           if (isBillDisc) {
             ord.details.forEach((d: any) => {
               d.discAmount = 0;
               d.discPer = 0;
             });
             ord.discAmount = roundCalc(Number(ord.discAmount || 0));
-            ord.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - ord.discAmount));
+            if (ord.vatExclAmount === undefined || ord.vatExclAmount === null || Number(ord.vatExclAmount) <= 0) {
+              ord.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - ord.discAmount + totalCharges));
+            }
           } else {
             ord.discAmount = 0;
             ord.discPer = 0;
-            ord.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - lineDiscounts));
+            if (ord.vatExclAmount === undefined || ord.vatExclAmount === null || Number(ord.vatExclAmount) <= 0) {
+              ord.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - lineDiscounts + totalCharges));
+            }
           }
 
           const isVatEnabled = getVatStatus();

@@ -2,12 +2,13 @@ import type { EndReportData } from '../cashier/services/cashierLogService';
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 import { getDayEndReportConfig } from '../services/posConfigApi';
+import { roundCalc } from '../terminal/utils/billing';
 
 export const generateEndReportHtml = async (data: EndReportData, reportType: 'DAYEND' | 'SHIFTEND', isPdf: boolean = false): Promise<string> => {
   const config = getDayEndReportConfig();
   console.log(`[${reportType} Report Data Received from Backend]:`, data);
   const decimalPart = parseInt(localStorage.getItem('decimalPart') || '3', 10);
-  const fmt = (val: number | undefined | null) => Number(val || 0).toFixed(decimalPart);
+  const fmt = (val: number | undefined | null) => roundCalc(val, decimalPart).toFixed(decimalPart);
 
   // Normalize unicode superscript/special characters to plain ASCII (e.g. ᵀᴱᴸ → TEL)
   const sanitizeHeaderText = (text: string): string => {

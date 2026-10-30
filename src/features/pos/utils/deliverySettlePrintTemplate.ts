@@ -2,6 +2,7 @@ import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 import { getDecimalPart } from "../../../utils/currency";
 import { isBillArabicEnabled } from "./alternativeHelpers";
+import { roundCalc } from "../terminal/utils/billing";
 
 export interface DeliverySettleOrderItem {
   sNo: number;
@@ -125,7 +126,8 @@ export const generateDeliverySettlePrintHtml = async (
   const decimalPart = getDecimalPart();
   const fmt = (val: number | string | undefined | null) => {
     const n = typeof val === "string" ? parseFloat(val) : Number(val || 0);
-    return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
+    if (!Number.isFinite(n)) return (0).toFixed(decimalPart);
+    return roundCalc(n, decimalPart).toFixed(decimalPart);
   };
 
   // Group items by paymodeName (if items have different paymodes, or single paymode)

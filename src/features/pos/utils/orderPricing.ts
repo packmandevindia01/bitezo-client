@@ -112,6 +112,10 @@ export interface UnifiedOrderSummary {
   isBillDiscount: boolean;
   isVatActive: boolean;
 
+  charges?: number;
+  netValue?: number;
+  vatExclAmount?: number;
+
   // Helper to get subtotal and discount matching tax setting
   getSubTotal: (isInclusive: boolean) => number;
   getTotalDiscount: (isInclusive: boolean) => number;
@@ -133,8 +137,8 @@ export interface BuildUnifiedPricingOptions {
   deliveryCharge?: number;
   isBillDiscount?: boolean;
   isVatActive?: boolean;
-  printPrice?: "Inclusive" | "Exclusive";
-  priceView?: "Inclusive" | "Exclusive";
+  printPrice?: "Inclusive" | "Exclusive" | string;
+  priceView?: "Inclusive" | "Exclusive" | string;
   modifierTypes?: any[];
   products?: any[];
   productCache?: Record<string | number, any>;
@@ -268,13 +272,14 @@ export const buildUnifiedOrderPricing = (
 
   const rawMasterNet = masterNet;
   const rawMasterVatExcl = masterExcl;
+  const rawMasterSubTotal = Number(master.subTotal ?? master.SubTotal ?? 0);
   const rawMasterDisc = Number(
     master.billDiscountValue ?? master.billDiscount ?? master.discAmount ?? master.DiscAmt ?? 0
   );
 
   const detailsRawGrossSum = rawDetails.reduce((sum: number, it: any) => {
     const p = Number(it.price ?? it.Price ?? it.catalogPrice ?? 0);
-    const q = Math.max(1, Number(it.qty ?? it.quantity ?? it.Qty ?? 1));
+    const q = Math.max(1, Number(it.qty ?? it.quantity ?? it.Qty ?? it.orderQty ?? it.OrderQty ?? 1));
     return sum + (p * q);
   }, 0);
 
@@ -293,14 +298,29 @@ export const buildUnifiedOrderPricing = (
   // If sum(price * qty) * (1 + vatRate) - rawMasterDisc == rawMasterNet,
   // or sum(price * qty) matches vatExclAmount, the backend detail prices are strictly tax-exclusive!
   const isDetailsTaxExclusiveOrder = Boolean(
-    defaultVatRate > 0 && detailsRawGrossSum > 0 && (
+    defaultVatRate > 0 && detailsRawGrossSum > 0 &&
+    !(rawMasterNet > 0 && Math.abs(detailsRawGrossSum - rawMasterNet) < 0.05 && rawMasterVatAmt > 0) && (
       (rawMasterNet > 0 && Math.abs(roundCalc(detailsRawGrossSum * (1 + defaultVatRate), 2) - rawMasterDisc - rawMasterNet) < 0.15) ||
       (rawMasterNet > 0 && Math.abs(roundCalc(detailsRawGrossSum * (1 + defaultVatRate), 2) - rawMasterNet) < 0.15) ||
+      (rawMasterVatExcl > 0 && Math.abs(detailsRawGrossSum - rawMasterVatExcl - rawMasterDisc) < 0.15) ||
       (rawMasterVatExcl > 0 && Math.abs(detailsRawGrossSum - rawMasterVatExcl - roundCalc(rawMasterDisc / (1 + defaultVatRate), 2)) < 0.15) ||
       (rawMasterVatExcl > 0 && Math.abs(detailsRawGrossSum - rawMasterVatExcl) < 0.15) ||
+      (rawMasterSubTotal > 0 && Math.abs(detailsRawGrossSum - rawMasterSubTotal) < 0.05 && rawMasterNet > detailsRawGrossSum) ||
       (isBackendSavedOrder && rawMasterVatAmt > 0 && rawMasterNet > detailsRawGrossSum)
     )
   );
+
+  const isDineInOrder = (orderType || "").toLowerCase().includes("dine");
+  const masterSc = Number(master.serviceCharge ?? master.ServiceCharge ?? 0);
+  const masterLevy = Number(master.levyAmt ?? master.levy ?? master.Levy ?? 0);
+  const detailsHaveSc = rawDetails.some((d: any) => Number(d.serviceCharge ?? d.ServiceCharge ?? 0) > 0);
+  const detailsHaveLevy = rawDetails.some((d: any) => Number(d.levy ?? d.Levy ?? 0) > 0);
+  const hasOrderCharges = masterSc > 0 || masterLevy > 0 || detailsHaveSc || detailsHaveLevy || (isDineInOrder && (billingConfig.serviceChargeRate > 0 || billingConfig.levyRate > 0));
+  const effectiveScRate = isDineInOrder ? (billingConfig.serviceChargeRate || 0.10) : 0;
+  const effectiveLevyRate = billingConfig.levyRate || 0.05;
+  const orderCombinedFactor = (hasOrderCharges && defaultVatRate > 0)
+    ? roundCalc((1 + defaultVatRate) * (1 + effectiveLevyRate) * (1 + effectiveScRate), 4)
+    : (defaultVatRate > 0 ? (1 + defaultVatRate) : 1);
 
   const lines: UnifiedOrderLine[] = rawDetails.map((d: any) => {
     // If d is already a completed UnifiedOrderLine, preserve it directly with zero re-calculation
@@ -416,7 +436,7 @@ export const buildUnifiedOrderPricing = (
       });
     }
 
-    const qty = Math.max(1, Number(d.qty ?? d.quantity ?? d.Qty ?? 1));
+    const qty = Math.max(1, Number(d.qty ?? d.quantity ?? d.Qty ?? d.orderQty ?? d.OrderQty ?? 1));
     const pId = Number(d.productId || d.itemId || d.id || 0);
 
     let rawVatRate = Number(
@@ -446,12 +466,22 @@ export const buildUnifiedOrderPricing = (
     );
 
     // Raw fields from backend detail or cart item
-    const rawPrice = Number(d.price ?? d.Price ?? d.catalogPrice ?? 0);
-    const rawNetAmount = Number(d.netAmount ?? d.NetAmount ?? d.lineNetAmount ?? 0);
+    let rawPrice = Number(d.price ?? d.Price ?? d.catalogPrice ?? 0);
+    const rawNetAmount = Number(d.netAmount ?? d.NetAmount ?? d.lineNetAmount ?? d.amount ?? d.Amount ?? 0);
     const rawVatAmt = Number(d.vatAmount ?? d.VatAmount ?? 0);
-    const rawDiscAmount = isOrderBillDiscount
+    let rawDiscAmount = isOrderBillDiscount
       ? 0
       : Number(d.discAmount ?? d.DiscAmount ?? d.discount ?? d.itemDiscount ?? 0);
+
+    // Self-healing: if order is not DineIn (SC is 0), but backend detail was queried with phantom serviceCharge=10
+    const isPhantomScInflated = !isDineInOrder && masterSc === 0 && !detailsHaveSc && rawMasterNet > 0 &&
+      Math.abs(roundCalc(((rawPrice * qty) - rawDiscAmount) / 1.10, 2) - rawMasterNet) < 0.05 &&
+      Math.abs(((rawPrice * qty) - rawDiscAmount) - rawMasterNet) > 0.10;
+
+    if (isPhantomScInflated) {
+      rawPrice = roundCalc(rawPrice / 1.10, 4);
+      rawDiscAmount = roundCalc(rawDiscAmount / 1.10, 4);
+    }
 
     // ── Deduce Exclusive and Inclusive Unit Rates ──
     let exclusiveBaseUnit: number;
@@ -468,19 +498,33 @@ export const buildUnifiedOrderPricing = (
       ? Number(matchedProduct.price)
       : (d.catalogPrice !== undefined && Number(d.catalogPrice) > 0 ? Number(d.catalogPrice) : undefined);
 
+    const isExplicitlyExclusiveView = (options?.priceView || getPriceView()) === "Exclusive";
+    const lineEffectiveDiscount = isOrderBillDiscount ? (rawDiscAmount + rawMasterDisc) : rawDiscAmount;
+    const isLineBaseRequiringCombinedFactor = hasOrderCharges &&
+      orderCombinedFactor > 1.01 &&
+      rawMasterNet > 0 &&
+      Math.abs((rawPrice * qty - lineEffectiveDiscount) * orderCombinedFactor - rawMasterNet) < 0.05;
+
+    const isPriceProvenInclusiveByExcl = !isLineBaseRequiringCombinedFactor &&
+      rawMasterVatExcl > 0 &&
+      ((rawPrice * qty) > (rawMasterVatExcl + 0.05));
+
     const rawAlreadyExclusive = Boolean(
       d.isPriceTaxExclusive === true ||
       d.isIncl === false ||
       (d as any).taxType === "Exclusive" ||
-      matchedProduct?.isIncl === false
+      isLineBaseRequiringCombinedFactor ||
+      (matchedProduct?.isIncl === false && !isExplicitlyExclusiveView) ||
+      (isExplicitlyExclusiveView && d.isPriceTaxInclusive !== true && d.isIncl !== true && (d as any).taxType !== "Inclusive" && matchedProduct?.isIncl !== true && !isPriceProvenInclusiveByExcl)
     );
 
-    const rawAlreadyInclusive = Boolean(
-      d.isPriceTaxInclusive === true ||
-      d.isIncl === true ||
-      (d as any).taxType === "Inclusive" ||
-      matchedProduct?.isIncl === true ||
-      (!rawAlreadyExclusive && (options?.priceView || getPriceView()) === "Inclusive")
+    const isPriceDefinitelyExclusive = Boolean(
+      d.isPriceTaxExclusive === true ||
+      d.isIncl === false ||
+      isLineBaseRequiringCombinedFactor ||
+      (matchedProduct?.isIncl === false && (options?.priceView || getPriceView()) !== "Inclusive") ||
+      (d.basePrice !== undefined && Number(d.basePrice) > 0 && Math.abs(rawPrice - Number(d.basePrice)) < 0.001) ||
+      (rawNetAmount > 0 && rawNetAmount > (rawPrice * qty + 0.05))
     );
 
     const isBackendDetail = Boolean(
@@ -492,25 +536,60 @@ export const buildUnifiedOrderPricing = (
       (d.price !== undefined && (rawMasterNet > 0 || rawMasterVatAmt > 0 || isBackendSavedOrder))
     );
 
+    const rawAlreadyInclusive = Boolean(
+      d.isPriceTaxInclusive === true ||
+      d.isIncl === true ||
+      (d as any).taxType === "Inclusive" ||
+      matchedProduct?.isIncl === true ||
+      (!rawAlreadyExclusive && !isDetailsTaxExclusiveOrder && !isPriceDefinitelyExclusive && (options?.priceView || getPriceView()) === "Inclusive")
+    );
+
+    const lineNetRaw = (rawPrice * qty) - rawDiscAmount;
+    const isLineMatchesGrossNet = !isOrderBillDiscount && rawDiscAmount > 0 && rawMasterNet > 0 && Math.abs(lineNetRaw - rawMasterNet) < 0.15;
+
     if (isBackendDetail) {
-      // Backend data is strictly tax-exclusive base price
-      exclusiveBaseUnit = rawPrice;
-      inclusiveBaseUnit = activeVatRate > 0
-        ? roundCalc(rawPrice * (1 + activeVatRate), CALC_PRECISION)
-        : rawPrice;
+      const rawLineExcl = Number(d.vatExclAmount ?? d.VatExclAmount ?? d.basePrice ?? 0);
+      const isPriceMatchesNet = !isLineBaseRequiringCombinedFactor && rawDiscAmount === 0 && rawNetAmount > 0 && Math.abs(rawPrice * qty - rawNetAmount) < 0.05;
+      const isPriceMatchesExcl = (rawLineExcl > 0 && Math.abs(rawPrice * qty - rawLineExcl) < 0.05) ||
+        (rawMasterSubTotal > 0 && Math.abs(rawPrice * qty - rawMasterSubTotal) < 0.05 && rawMasterNet > rawPrice * qty);
+      const isPriceMatchesGrossMaster = !isLineBaseRequiringCombinedFactor && (rawMasterNet > 0 || rawMasterDisc > 0) &&
+        (rawMasterVatAmt > 0 || isVatActive) &&
+        rawDiscAmount === 0 &&
+        Math.abs(rawPrice * qty - (rawMasterNet + rawMasterDisc)) < 0.05;
+
+      if ((isPriceDefinitelyExclusive || d.isPriceTaxExclusive === true || isPriceMatchesExcl || rawAlreadyExclusive) && !isLineMatchesGrossNet && !isPriceMatchesGrossMaster) {
+        exclusiveBaseUnit = rawPrice;
+        if (rawNetAmount > 0 && Math.abs(rawPrice * qty * (1 + activeVatRate) - rawNetAmount) < 0.05) {
+          inclusiveBaseUnit = roundCalc(rawPrice * (1 + activeVatRate), CALC_PRECISION);
+        } else {
+          inclusiveBaseUnit = activeVatRate > 0
+            ? roundCalc(rawPrice * orderCombinedFactor, CALC_PRECISION)
+            : rawPrice;
+        }
+      } else if (d.isPriceTaxInclusive === true || isLineMatchesGrossNet || (isPriceMatchesNet && rawVatAmt > 0) || isPriceMatchesGrossMaster || rawAlreadyInclusive) {
+        inclusiveBaseUnit = rawPrice;
+        exclusiveBaseUnit = activeVatRate > 0
+          ? roundCalc(rawPrice / orderCombinedFactor, CALC_PRECISION)
+          : rawPrice;
+      } else {
+        exclusiveBaseUnit = rawPrice;
+        inclusiveBaseUnit = activeVatRate > 0
+          ? roundCalc(rawPrice * orderCombinedFactor, CALC_PRECISION)
+          : rawPrice;
+      }
     } else if (d.basePrice !== undefined && Number(d.basePrice) > 0 && Number(d.basePrice) < rawPrice) {
       exclusiveBaseUnit = Number(d.basePrice);
       inclusiveBaseUnit = activeVatRate > 0
-        ? roundCalc(exclusiveBaseUnit * (1 + activeVatRate), CALC_PRECISION)
+        ? roundCalc(exclusiveBaseUnit * orderCombinedFactor, CALC_PRECISION)
         : exclusiveBaseUnit;
     } else if (d.exclusivePrice !== undefined && Number(d.exclusivePrice) > 0 && Number(d.exclusivePrice) < rawPrice) {
       exclusiveBaseUnit = Number(d.exclusivePrice);
       inclusiveBaseUnit = activeVatRate > 0
-        ? roundCalc(exclusiveBaseUnit * (1 + activeVatRate), CALC_PRECISION)
+        ? roundCalc(exclusiveBaseUnit * orderCombinedFactor, CALC_PRECISION)
         : exclusiveBaseUnit;
     } else if (catalogPrice !== undefined && catalogPrice > 0) {
-      if (Math.abs(roundCalc(rawPrice * (1 + activeVatRate), CALC_PRECISION) - catalogPrice) < 0.05 ||
-          Math.abs(roundCalc(catalogPrice / (1 + activeVatRate), CALC_PRECISION) - rawPrice) < 0.05) {
+      if (Math.abs(roundCalc(rawPrice * orderCombinedFactor, CALC_PRECISION) - catalogPrice) < 0.05 ||
+          Math.abs(roundCalc(catalogPrice / orderCombinedFactor, CALC_PRECISION) - rawPrice) < 0.05) {
         // rawPrice is the base tax-exclusive rate, catalogPrice is the gross inclusive rate
         exclusiveBaseUnit = rawPrice;
         inclusiveBaseUnit = catalogPrice;
@@ -525,17 +604,17 @@ export const buildUnifiedOrderPricing = (
         );
         if (rawAlreadyExclusive || (isBackendDetail && !rawAlreadyInclusive)) {
           exclusiveBaseUnit = catalogPrice;
-          inclusiveBaseUnit = activeVatRate > 0 ? roundCalc(catalogPrice * (1 + activeVatRate), CALC_PRECISION) : catalogPrice;
+          inclusiveBaseUnit = activeVatRate > 0 ? roundCalc(catalogPrice * orderCombinedFactor, CALC_PRECISION) : catalogPrice;
         } else {
           inclusiveBaseUnit = catalogPrice;
-          exclusiveBaseUnit = activeVatRate > 0 ? roundCalc(catalogPrice / (1 + activeVatRate), CALC_PRECISION) : catalogPrice;
+          exclusiveBaseUnit = activeVatRate > 0 ? roundCalc(catalogPrice / orderCombinedFactor, CALC_PRECISION) : catalogPrice;
         }
       } else if (rawPrice > catalogPrice) {
         inclusiveBaseUnit = rawPrice;
-        exclusiveBaseUnit = activeVatRate > 0 ? roundCalc(rawPrice / (1 + activeVatRate), CALC_PRECISION) : rawPrice;
+        exclusiveBaseUnit = activeVatRate > 0 ? roundCalc(rawPrice / orderCombinedFactor, CALC_PRECISION) : rawPrice;
       } else {
         exclusiveBaseUnit = rawPrice;
-        inclusiveBaseUnit = activeVatRate > 0 ? roundCalc(rawPrice * (1 + activeVatRate), CALC_PRECISION) : rawPrice;
+        inclusiveBaseUnit = activeVatRate > 0 ? roundCalc(rawPrice * orderCombinedFactor, CALC_PRECISION) : rawPrice;
       }
     } else if (
       rawAlreadyExclusive ||
@@ -545,35 +624,36 @@ export const buildUnifiedOrderPricing = (
     ) {
       exclusiveBaseUnit = rawPrice;
       inclusiveBaseUnit = activeVatRate > 0
-        ? roundCalc(rawPrice * (1 + activeVatRate), CALC_PRECISION)
+        ? roundCalc(rawPrice * orderCombinedFactor, CALC_PRECISION)
         : rawPrice;
     } else if (rawAlreadyInclusive) {
       inclusiveBaseUnit = rawPrice;
       exclusiveBaseUnit = activeVatRate > 0
-        ? roundCalc(rawPrice / (1 + activeVatRate), CALC_PRECISION)
+        ? roundCalc(rawPrice / orderCombinedFactor, CALC_PRECISION)
         : rawPrice;
     } else {
       // In POS menu/catalog, prices are gross/inclusive by default unless mathematically proven exclusive
       const expectedNetIfInclusive = Math.max(0, rawPrice * qty - rawDiscAmount);
       const expectedNetIfExclusive = activeVatRate > 0
-        ? Math.max(0, (rawPrice * qty - rawDiscAmount) * (1 + activeVatRate))
+        ? Math.max(0, (rawPrice * qty - rawDiscAmount) * orderCombinedFactor)
         : expectedNetIfInclusive;
 
-      if (rawNetAmount > 0 && Math.abs(expectedNetIfExclusive - rawNetAmount) < 0.05 && Math.abs(expectedNetIfInclusive - rawNetAmount) > 0.05) {
+      const netToCompare = rawNetAmount > 0 ? rawNetAmount : (rawDetails.length === 1 ? rawMasterNet : 0);
+      if (netToCompare > 0 && Math.abs(expectedNetIfExclusive - netToCompare) < 0.05 && Math.abs(expectedNetIfInclusive - netToCompare) > 0.05) {
         // rawPrice is EXCLUSIVE
         exclusiveBaseUnit = rawPrice;
         inclusiveBaseUnit = activeVatRate > 0
-          ? roundCalc(rawPrice * (1 + activeVatRate), CALC_PRECISION)
+          ? roundCalc(rawPrice * orderCombinedFactor, CALC_PRECISION)
           : rawPrice;
       } else if (rawVatAmt > 0 && activeVatRate > 0 && Math.abs(rawPrice * qty - rawNetAmount) < 0.05) {
         // In backend order details tables, rawPrice is stored as tax-exclusive base
         exclusiveBaseUnit = rawPrice;
-        inclusiveBaseUnit = roundCalc(rawPrice * (1 + activeVatRate), CALC_PRECISION);
+        inclusiveBaseUnit = roundCalc(rawPrice * orderCombinedFactor, CALC_PRECISION);
       } else {
         // rawPrice is INCLUSIVE
         inclusiveBaseUnit = rawPrice;
         exclusiveBaseUnit = activeVatRate > 0
-          ? roundCalc(rawPrice / (1 + activeVatRate), CALC_PRECISION)
+          ? roundCalc(rawPrice / orderCombinedFactor, CALC_PRECISION)
           : rawPrice;
       }
     }
@@ -629,14 +709,64 @@ export const buildUnifiedOrderPricing = (
     let lineDiscountIncl = 0;
 
     if (rawDiscAmount > 0) {
-      lineDiscountExcl = Math.min(exclusiveGross, rawDiscAmount);
-      lineDiscountIncl = lineDiscountExcl;
+      const masterBaseExcl = rawMasterVatExcl > 0 ? (rawMasterVatExcl - masterSc - masterLevy) : 0;
+      const factorForDiscount = orderCombinedFactor > 1 ? orderCombinedFactor : (1 + activeVatRate);
+      const netToCompare = rawNetAmount > 0 ? rawNetAmount : (rawDetails.length === 1 ? rawMasterNet : 0);
+      const isInclusiveDiscountDeduction =
+        (netToCompare > 0 && (Math.abs(inclusiveGross - rawDiscAmount - netToCompare) < 0.05 || Math.abs(inclusiveGross - rawDiscAmount - rawMasterNet) < 0.05)) ||
+        (rawDetails.length === 1 && masterBaseExcl > 0 && Math.abs(roundCalc(exclusiveGross - (rawDiscAmount / factorForDiscount), 2) - roundCalc(masterBaseExcl, 2)) < 0.05);
+
+      if (d.discIsIncl === true || d.discountIsIncl === true) {
+        lineDiscountIncl = Math.min(inclusiveGross, rawDiscAmount);
+        lineDiscountExcl = activeVatRate > 0
+          ? roundCalc(lineDiscountIncl / factorForDiscount, CALC_PRECISION)
+          : lineDiscountIncl;
+      } else if (d.discIsIncl === false || d.discountIsIncl === false) {
+        lineDiscountExcl = Math.min(exclusiveGross, rawDiscAmount);
+        lineDiscountIncl = activeVatRate > 0
+          ? roundCalc(lineDiscountExcl * factorForDiscount, CALC_PRECISION)
+          : lineDiscountExcl;
+      } else if (isInclusiveDiscountDeduction) {
+        // Mathematically proves rawDiscAmount is inclusive
+        lineDiscountIncl = Math.min(inclusiveGross, rawDiscAmount);
+        lineDiscountExcl = factorForDiscount > 0
+          ? roundCalc(lineDiscountIncl / factorForDiscount, CALC_PRECISION)
+          : lineDiscountIncl;
+      } else if (netToCompare > 0 && Math.abs(roundCalc(inclusiveGross - rawDiscAmount * (1 + activeVatRate), CALC_PRECISION) - netToCompare) < 0.05) {
+        // Mathematically proves rawDiscAmount is exclusive
+        lineDiscountExcl = Math.min(exclusiveGross, rawDiscAmount);
+        lineDiscountIncl = activeVatRate > 0
+          ? roundCalc(lineDiscountExcl * factorForDiscount, CALC_PRECISION)
+          : lineDiscountExcl;
+      } else if (
+        isPriceDefinitelyExclusive ||
+        isDetailsTaxExclusiveOrder ||
+        rawAlreadyExclusive
+      ) {
+        lineDiscountExcl = Math.min(exclusiveGross, rawDiscAmount);
+        lineDiscountIncl = activeVatRate > 0
+          ? roundCalc(lineDiscountExcl * (1 + activeVatRate), CALC_PRECISION)
+          : lineDiscountExcl;
+      } else {
+        const isDiscInclusive = Boolean(
+          (options?.priceView || getPriceView()) === "Inclusive" && !rawAlreadyExclusive
+        );
+        if (isDiscInclusive) {
+          lineDiscountIncl = Math.min(inclusiveGross, rawDiscAmount);
+          lineDiscountExcl = activeVatRate > 0
+            ? roundCalc(lineDiscountIncl / factorForDiscount, CALC_PRECISION)
+            : lineDiscountIncl;
+        } else {
+          lineDiscountExcl = Math.min(exclusiveGross, rawDiscAmount);
+          lineDiscountIncl = activeVatRate > 0
+            ? roundCalc(lineDiscountExcl * factorForDiscount, CALC_PRECISION)
+            : lineDiscountExcl;
+        }
+      }
     }
 
     const exclusiveAmount = Math.max(0, roundCalc(exclusiveGross - lineDiscountExcl, CALC_PRECISION));
-    const inclusiveAmount = activeVatRate > 0
-      ? roundCalc(exclusiveAmount * (1 + activeVatRate), CALC_PRECISION)
-      : exclusiveAmount;
+    const inclusiveAmount = Math.max(0, roundCalc(inclusiveGross - lineDiscountIncl, CALC_PRECISION));
 
     // Self-healing VAT amount for line
     let lineVatAmount = 0;
@@ -776,28 +906,39 @@ export const buildUnifiedOrderPricing = (
       billDiscountExcl = masterVatRate > 0
         ? roundCalc(billDiscountIncl / (1 + masterVatRate), CALC_PRECISION)
         : billDiscountIncl;
+    } else if (effectiveMasterDiscAmount > 0) {
+      const isDiscMatchingExcl = (rawMasterVatExcl > 0 && Math.abs((rawMasterVatExcl + effectiveMasterDiscAmount) - subTotalExclusive) < 0.05) ||
+        (rawMasterVatExcl > 0 && Math.abs((rawMasterVatExcl - (serviceCharge + levy) + effectiveMasterDiscAmount) - subTotalExclusive) < 0.05);
+      const isDiscMatchingIncl = rawMasterNet > 0 && Math.abs((rawMasterNet + effectiveMasterDiscAmount) - (subTotalInclusive + serviceCharge + levy + deliveryCharge)) < 0.05;
+
+      const factorToUse = (isDineInOrder && (masterSc > 0 || detailsHaveSc || effectiveScRate > 0) && orderCombinedFactor > 1)
+        ? orderCombinedFactor
+        : (1 + masterVatRate);
+      if (isDiscMatchingExcl || (!isDiscMatchingIncl && (options?.priceView || getPriceView()) === 'Exclusive')) {
+        billDiscountExcl = roundCalc(effectiveMasterDiscAmount, CALC_PRECISION);
+        billDiscountIncl = masterVatRate > 0
+          ? roundCalc(billDiscountExcl * factorToUse, CALC_PRECISION)
+          : billDiscountExcl;
+      } else {
+        billDiscountIncl = roundCalc(effectiveMasterDiscAmount, CALC_PRECISION);
+        billDiscountExcl = masterVatRate > 0
+          ? roundCalc(billDiscountIncl / factorToUse, CALC_PRECISION)
+          : billDiscountIncl;
+      }
     } else if (rawMasterNet > 0) {
-      // Order was saved in backend with authoritative rawMasterNet
+      // Order was saved in backend with authoritative rawMasterNet and no explicit discAmount
       const grossPreDiscount = subTotalInclusive + serviceCharge + levy + deliveryCharge;
       if (grossPreDiscount > rawMasterNet) {
         billDiscountIncl = roundCalc(grossPreDiscount - rawMasterNet, CALC_PRECISION);
         billDiscountExcl = masterVatRate > 0
           ? roundCalc(billDiscountIncl / (1 + masterVatRate), CALC_PRECISION)
           : billDiscountIncl;
-      } else if (effectiveMasterDiscAmount > 0) {
-        billDiscountIncl = roundCalc(effectiveMasterDiscAmount, CALC_PRECISION);
-        billDiscountExcl = masterVatRate > 0
-          ? roundCalc(billDiscountIncl / (1 + masterVatRate), CALC_PRECISION)
-          : billDiscountIncl;
       }
-    } else if (effectiveMasterDiscAmount > 0) {
-      billDiscountExcl = roundCalc(effectiveMasterDiscAmount, CALC_PRECISION);
-      billDiscountIncl = billDiscountExcl;
     }
   }
 
   const totalDiscountExcl = isOrderBillDiscount ? billDiscountExcl : roundCalc(lineDiscountsSum, CALC_PRECISION);
-  const totalDiscountIncl = isOrderBillDiscount ? billDiscountIncl : roundCalc(lineDiscountsSum, CALC_PRECISION);
+  const totalDiscountIncl = isOrderBillDiscount ? billDiscountIncl : roundCalc(lineDiscountsInclSum, CALC_PRECISION);
   const totalDiscount = totalDiscountExcl;
 
   const taxableBase = Math.max(0, subTotalExclusive - totalDiscountExcl + serviceCharge + levy);
@@ -844,9 +985,11 @@ export const buildUnifiedOrderPricing = (
     CALC_PRECISION
   );
 
-  const grandTotal = (rawMasterNet > 0 && Math.abs(rawMasterNet - calculatedGrandTotal) < 0.05)
+  const grandTotal = (isBackendSavedOrder && rawMasterNet > 0)
     ? roundCalc(rawMasterNet, CALC_PRECISION)
-    : calculatedGrandTotal;
+    : ((rawMasterNet > 0 && Math.abs(rawMasterNet - calculatedGrandTotal) < 0.05)
+        ? roundCalc(rawMasterNet, CALC_PRECISION)
+        : calculatedGrandTotal);
 
   return {
     lines,
@@ -863,6 +1006,9 @@ export const buildUnifiedOrderPricing = (
       taxableBase: roundCalc(taxableBase, CALC_PRECISION),
       serviceCharge,
       levy,
+      charges: roundCalc(serviceCharge + levy),
+      netValue: roundCalc(Math.max(0, subTotalExclusive - totalDiscountExcl) + serviceCharge + levy),
+      vatExclAmount: roundCalc(Math.max(0, subTotalExclusive - totalDiscountExcl) + serviceCharge + levy),
       deliveryCharge,
       vatAmount,
       grandTotal,

@@ -4,6 +4,7 @@ import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 import { isKotArabicEnabled, isOtherKitchenItemEnabled, isCompanyNameKotEnabled, getAlternativeArabicName, containsArabic, formatItemDisplayName } from "./alternativeHelpers";
 import { getModifierTypeNameById } from "../services/menuApi";
 import { getDecimalPart } from "../../../utils/currency";
+import { roundCalc } from "../terminal/utils/billing";
 import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
 
 export interface KotPrintData {
@@ -275,7 +276,8 @@ export const generateKotHtml = async (
   const decimalPart = getDecimalPart();
   const fmt = (val: number | string | undefined | null) => {
     const n = typeof val === 'string' ? parseFloat(val) : Number(val || 0);
-    return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
+    if (!Number.isFinite(n)) return (0).toFixed(decimalPart);
+    return roundCalc(n, decimalPart).toFixed(decimalPart);
   };
 
   const cartVatSum = cartDetails.reduce((sum, item: any) => sum + (item.vatAmount || 0), 0);

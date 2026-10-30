@@ -195,7 +195,7 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     isBillDiscount: isOrderBillDiscount,
     serviceCharge: orderPayload.serviceCharge,
     levy: orderPayload.levy,
-    vatExclAmount: calcVatExcl,
+    vatExclAmount: taxableBase,
     vatAmount: calcVatAmt,
     netAmount: netPayable,
     deliveryCharge: Math.max(0, orderPayload.deliveryCharge),

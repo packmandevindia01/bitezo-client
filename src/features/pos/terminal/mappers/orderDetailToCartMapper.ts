@@ -13,6 +13,7 @@ export interface MapOrderDetailOptions {
   priceView?: "Inclusive" | "Exclusive";
   masterDiscPer?: number;
   isOrderBillDiscount?: boolean;
+  orderType?: string;
 }
 
 /**
@@ -29,6 +30,7 @@ export const mapOrderDetailToCartItem = ({
   priceView,
   masterDiscPer,
   isOrderBillDiscount,
+  orderType,
 }: MapOrderDetailOptions): PosCartItem => {
   // 1. Resolve product ID and catalog match
   let pId =
@@ -113,11 +115,38 @@ export const mapOrderDetailToCartItem = ({
   });
 
   // 4. Resolve VAT Rate
+  const fallbackBillingConfig = getBillingConfig(orderType || "DineIn");
+  const isVatEnabled = getVatStatus();
   const rawVatAmt = Number(detail.vatAmount ?? detail.VatAmount ?? 0);
-  const rawNetAmt = Number(detail.netAmount ?? detail.NetAmount ?? 0);
-  const rawDiscAmount = Number(detail.discAmount ?? detail.DiscAmount ?? 0);
-  const qty = Number(detail.qty ?? detail.Qty ?? detail.quantity ?? 1);
-  const rawPrice = Number(detail.price ?? detail.Price ?? realProduct.price ?? 0);
+  let rawDiscAmount = Number(detail.discAmount ?? detail.DiscAmount ?? 0);
+  const qty = Number(detail.qty ?? detail.Qty ?? detail.quantity ?? detail.orderQty ?? detail.OrderQty ?? 1);
+  let rawPrice = Number(detail.price ?? detail.Price ?? realProduct.price ?? 0);
+
+  // Self-healing: if order is not DineIn (SC is 0), but backend detail was queried with phantom serviceCharge=10
+  const isDineIn = (orderType || "").toLowerCase().includes("dine");
+  const rawLineNet = (rawPrice * qty) - rawDiscAmount;
+
+  const activeFraction = fallbackBillingConfig.vatRate > 0 ? fallbackBillingConfig.vatRate : 0.10;
+  const expectedNetFromVat = rawVatAmt > 0 ? (rawVatAmt * (1 + 1 / activeFraction)) : 0;
+
+  const isPhantomScInflated = !isDineIn && (
+    (expectedNetFromVat > 0 && Math.abs(roundCalc(rawLineNet / 1.10, 2) - roundCalc(expectedNetFromVat, 2)) < 0.15) ||
+    (rawPrice > 0 && matchedAlt?.price !== undefined && Math.abs(rawPrice - Number(matchedAlt.price) * 1.2705) < 0.05) ||
+    (rawPrice > 0 && realProduct.price !== undefined && Math.abs(rawPrice - Number(realProduct.price) * 1.2705) < 0.05)
+  );
+
+  if (isPhantomScInflated) {
+    rawPrice = roundCalc(rawPrice / 1.10, 4);
+    rawDiscAmount = roundCalc(rawDiscAmount / 1.10, 4);
+  }
+
+  const rawNetAmt = Number(
+    detail.netAmount ??
+    detail.NetAmount ??
+    (detail.amount !== undefined
+      ? (detail.discAmount !== undefined ? (Number(detail.amount) - Number(detail.discAmount)) / (isPhantomScInflated ? 1.10 : 1) : Number(detail.amount) / (isPhantomScInflated ? 1.10 : 1))
+      : ((rawPrice * qty) - rawDiscAmount))
+  );
 
   let calculatedVatRatePercent: number | undefined = undefined;
   if (rawVatAmt > 0 && rawNetAmt > 0) {
@@ -135,9 +164,6 @@ export const mapOrderDetailToCartItem = ({
     detail.taxPer ??
     detail.TaxPer;
 
-  const fallbackBillingConfig = getBillingConfig("DineIn");
-  const isVatEnabled = getVatStatus();
-
   let resolvedVatValue =
     detailVatValue !== undefined && detailVatValue !== null
       ? Number(detailVatValue)
@@ -153,6 +179,12 @@ export const mapOrderDetailToCartItem = ({
 
   const activeVatFraction =
     resolvedVatValue !== undefined && resolvedVatValue > 0 ? resolvedVatValue / 100 : 0;
+
+  const levyRate = fallbackBillingConfig.levyRate || 0.05;
+  const scRate = isDineIn ? (fallbackBillingConfig.serviceChargeRate || 0.10) : 0;
+  const orderCombinedFactor = (activeVatFraction > 0 || levyRate > 0 || scRate > 0)
+    ? roundCalc((1 + activeVatFraction) * (1 + levyRate) * (1 + scRate), 4)
+    : 1;
 
   // Determine early if detail is complimentary
   const isDetailComplimentary = Boolean(
@@ -181,39 +213,98 @@ export const mapOrderDetailToCartItem = ({
     detail.transDate !== undefined
   );
 
-  const isStoredTaxExclusive =
-    Boolean(detail.isPriceTaxExclusive) ||
-    Boolean(detail.exclusivePrice) ||
-    Boolean(detail.isExclusive) ||
-    Boolean(detail.basePrice && Number(detail.basePrice) > 0 && Math.abs(Number(detail.basePrice) - rawPrice) < 0.01) ||
-    (rawVatAmt > 0.001 && Math.abs(rawNetAmt - (remainingBase + rawVatAmt)) < 0.02) ||
-    (isBackendSavedDetail && (
-      Boolean(rawVatAmt > 0) ||
-      (catalogPrice !== undefined && activeVatFraction > 0 && Math.abs(roundCalc(rawPrice * (1 + activeVatFraction), 4) - catalogPrice) < 0.05) ||
-      (activeVatFraction > 0 && rawNetAmt > 0)
-    ));
-  const isStoredTaxInclusive =
-    !isStoredTaxExclusive &&
-    ((rawVatAmt > 0.001 && Math.abs(rawNetAmt - remainingBase) < 0.02) ||
-     Boolean(detail.isPriceTaxInclusive));
+  const rawLineExcl = Number(detail.vatExclAmount ?? detail.VatExclAmount ?? detail.basePrice ?? 0);
+  const isPriceMatchesNet = rawNetAmt > 0 && Math.abs(rawPrice * qty - rawNetAmt) < 0.05;
+  const isPriceMatchesExcl = rawLineExcl > 0 && Math.abs(rawPrice * qty - rawLineExcl) < 0.05;
+
+  let isStoredTaxInclusive = false;
+  let isStoredTaxExclusive = false;
+
+  if (isPriceMatchesNet && rawVatAmt > 0) {
+    // Net Amount matches rawPrice * qty: Price was returned as TAX-INCLUSIVE!
+    isStoredTaxInclusive = true;
+  } else if (isPriceMatchesExcl) {
+    // vatExclAmount matches rawPrice * qty: Price was returned as TAX-EXCLUSIVE!
+    isStoredTaxExclusive = true;
+  } else if (rawVatAmt > 0.001) {
+    if (Math.abs(rawNetAmt - remainingBase) < 0.05) {
+      // Net Amount matches rawPrice * qty: Price was stored as TAX-INCLUSIVE!
+      isStoredTaxInclusive = true;
+    } else if (Math.abs(rawNetAmt - (remainingBase + rawVatAmt)) < 0.05) {
+      // Net Amount matches (rawPrice * qty) + VAT: Price was stored as TAX-EXCLUSIVE!
+      isStoredTaxExclusive = true;
+    }
+  }
+
+  if (!isStoredTaxInclusive && !isStoredTaxExclusive) {
+    if (
+      detail.isPriceTaxInclusive === true ||
+      detail.isIncl === true ||
+      (detail as any).taxType === "Inclusive" ||
+      realProduct.isIncl === true
+    ) {
+      isStoredTaxInclusive = true;
+    } else if (
+      detail.isPriceTaxExclusive === true ||
+      detail.isIncl === false ||
+      (detail as any).taxType === "Exclusive" ||
+      realProduct.isIncl === false ||
+      Boolean(detail.exclusivePrice) ||
+      Boolean(detail.isExclusive) ||
+      Boolean(detail.basePrice && Number(detail.basePrice) > 0 && Math.abs(Number(detail.basePrice) - rawPrice) < 0.01)
+    ) {
+      isStoredTaxExclusive = true;
+    } else if (isBackendSavedDetail) {
+      if (resolvedPriceView === "Inclusive" && rawNetAmt > 0 && rawPrice > 0 && Math.abs(rawPrice * qty - rawNetAmt) < 0.15) {
+        isStoredTaxInclusive = true;
+      } else {
+        isStoredTaxExclusive = true;
+      }
+    }
+  }
 
   // Determine true base (tax-exclusive) and true gross (tax-inclusive) unit prices
   let trueBasePrice: number;
   let trueGrossPrice: number;
 
-  if (isStoredTaxExclusive) {
-    trueBasePrice = rawPrice;
-    trueGrossPrice = activeVatFraction > 0 ? roundCalc(rawPrice * (1 + activeVatFraction), 4) : rawPrice;
-  } else if (isStoredTaxInclusive) {
+  if (isStoredTaxInclusive) {
     trueGrossPrice = rawPrice;
-    trueBasePrice = activeVatFraction > 0 ? roundCalc(rawPrice / (1 + activeVatFraction), 4) : rawPrice;
+    trueBasePrice = (rawLineExcl > 0 && qty > 0)
+      ? roundCalc(rawLineExcl / qty, 4)
+      : (catalogPrice !== undefined && realProduct.isIncl === false && (
+          Math.abs(roundCalc(catalogPrice * (1 + activeVatFraction), 4) - rawPrice) < 0.05 ||
+          Math.abs(roundCalc(catalogPrice * orderCombinedFactor, 4) - rawPrice) < 0.05
+        ))
+      ? catalogPrice
+      : (orderCombinedFactor > 1 && Math.abs(roundCalc(rawPrice / orderCombinedFactor, 4) - (catalogPrice || 0)) < 0.05)
+      ? catalogPrice!
+      : (orderCombinedFactor > 1 ? roundCalc(rawPrice / orderCombinedFactor, 4) : (activeVatFraction > 0 ? roundCalc(rawPrice / (1 + activeVatFraction), 4) : rawPrice));
+  } else if (isStoredTaxExclusive) {
+    trueBasePrice = rawPrice;
+    trueGrossPrice = (rawPrice > 0)
+      ? (activeVatFraction > 0 ? roundCalc(rawPrice * (1 + activeVatFraction), 4) : rawPrice)
+      : (rawVatAmt > 0 && qty > 0 && Math.abs(rawNetAmt - (remainingBase + rawVatAmt)) < 0.05 ? roundCalc(rawNetAmt / qty, 4) : rawPrice);
   } else if (rawNetAmt > 0 && qty > 0) {
-    if (rawVatAmt > 0 && Math.abs(rawNetAmt - remainingBase) < 0.02) {
+    if (rawVatAmt > 0 && Math.abs(rawNetAmt - remainingBase) < 0.05) {
       trueGrossPrice = rawPrice;
-      trueBasePrice = activeVatFraction > 0 ? roundCalc(rawPrice / (1 + activeVatFraction), 4) : rawPrice;
-    } else if (rawVatAmt > 0 && Math.abs(rawNetAmt - (remainingBase + rawVatAmt)) < 0.02) {
+      trueBasePrice = (rawLineExcl > 0 && qty > 0)
+        ? roundCalc(rawLineExcl / qty, 4)
+        : (activeVatFraction > 0 ? roundCalc(rawPrice / (1 + activeVatFraction), 4) : rawPrice);
+    } else if (rawVatAmt > 0 && Math.abs(rawNetAmt - (remainingBase + rawVatAmt)) < 0.05) {
       trueBasePrice = rawPrice;
-      trueGrossPrice = activeVatFraction > 0 ? roundCalc(rawPrice * (1 + activeVatFraction), 4) : rawPrice;
+      trueGrossPrice = (rawPrice > 0)
+        ? (activeVatFraction > 0 ? roundCalc(rawPrice * (1 + activeVatFraction), 4) : rawPrice)
+        : roundCalc(rawNetAmt / qty, 4);
+    } else if (rawPrice > 0) {
+      if (resolvedPriceView === "Inclusive") {
+        trueGrossPrice = rawPrice;
+        trueBasePrice = (rawLineExcl > 0 && qty > 0)
+          ? roundCalc(rawLineExcl / qty, 4)
+          : (activeVatFraction > 0 ? roundCalc(rawPrice / (1 + activeVatFraction), 4) : rawPrice);
+      } else {
+        trueBasePrice = rawPrice;
+        trueGrossPrice = activeVatFraction > 0 ? roundCalc(rawPrice * (1 + activeVatFraction), 4) : rawPrice;
+      }
     } else {
       const grossTotal = rawNetAmt + rawDiscAmount;
       trueGrossPrice = roundCalc(grossTotal / qty, 4);
@@ -264,16 +355,25 @@ export const mapOrderDetailToCartItem = ({
     if (Math.abs(roundCalc(catalogPrice * (1 + activeVatFraction), 4) - trueGrossPrice) < 0.05) {
       trueGrossPrice = roundCalc(catalogPrice * (1 + activeVatFraction), 4);
       trueBasePrice = catalogPrice;
+    } else if (Math.abs(roundCalc(catalogPrice * orderCombinedFactor, 4) - trueGrossPrice) < 0.05) {
+      trueGrossPrice = roundCalc(catalogPrice * orderCombinedFactor, 4);
+      trueBasePrice = catalogPrice;
     } else if (Math.abs(catalogPrice - trueBasePrice) < 0.05) {
       trueBasePrice = catalogPrice;
-      trueGrossPrice = roundCalc(catalogPrice * (1 + activeVatFraction), 4);
+      trueGrossPrice = roundCalc(catalogPrice * orderCombinedFactor, 4);
     }
   }
 
   let restoredPrice: number;
   let itemIsIncl: boolean;
 
-  if (resolvedPriceView === "Exclusive") {
+  if (realProduct.isIncl === true) {
+    restoredPrice = (catalogPrice && Math.abs(catalogPrice - trueGrossPrice) < 0.05) ? catalogPrice : trueGrossPrice;
+    itemIsIncl = true;
+  } else if (realProduct.isIncl === false) {
+    restoredPrice = (catalogPrice && Math.abs(catalogPrice - trueBasePrice) < 0.05) ? catalogPrice : trueBasePrice;
+    itemIsIncl = false;
+  } else if (resolvedPriceView === "Exclusive") {
     // In Exclusive View: item is always tax-exclusive base
     restoredPrice = trueBasePrice;
     itemIsIncl = false;
@@ -450,14 +550,6 @@ export const mapOrderDetailToCartItem = ({
     }
   }
 
-  // When prices and discount calculation are inclusive, detail.discAmount stored via orderPayloadMapper is tax-exclusive base.
-  // Restore discountValue to gross inclusive so calculateLineItem does not divide by (1 + vatRate) a second time.
-  const isDiscCalcInclusive = getBillingConfig("DineIn").discountType === "Inclusive";
-  if (discountType === "amount" && isDiscCalcInclusive && itemIsIncl && activeVatFraction > 0 && (isStoredTaxExclusive || restoredPrice > rawPrice) && discountValue > 0) {
-    discountValue = roundCalc(discountValue * (1 + activeVatFraction), 4);
-  }
-
-
   return {
     uniqueId: `${pId}-variant-${Date.now()}-${idx}`,
     productId: pId,
@@ -486,6 +578,7 @@ export const mapOrderDetailToCartItem = ({
         ? cleanProductName(realProduct.arabicName || detail.arabicName || detail.ArabicName, rawAltArabic || rawAlt)
         : (detail.arabicName || detail.ArabicName || realProduct.arabicName),
       price: restoredPrice,
+      isIncl: itemIsIncl,
       categoryId: realProduct.categoryId || 1,
       unitId: effectiveUnitId,
       vatValue: resolvedVatValue,
@@ -506,6 +599,7 @@ export const mapOrderDetailsToCartItems = (
     priceView?: "Inclusive" | "Exclusive";
     masterDiscPer?: number;
     isOrderBillDiscount?: boolean;
+    orderType?: string;
   } = {}
 ): PosCartItem[] => {
   return details.map((detail, idx) =>
@@ -518,6 +612,7 @@ export const mapOrderDetailsToCartItems = (
       priceView: options.priceView,
       masterDiscPer: options.masterDiscPer,
       isOrderBillDiscount: options.isOrderBillDiscount,
+      orderType: options.orderType,
     })
   );
 };

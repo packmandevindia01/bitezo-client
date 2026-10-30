@@ -59,7 +59,6 @@ export const loadSettledOrderIntoCart = ({
     });
 
     const priceView = getPriceView();
-    const isIncl = priceView === "Inclusive";
 
     const orderTypeNameMap: Record<string, number> = {
       DineIn: 1,
@@ -205,6 +204,7 @@ export const loadSettledOrderIntoCart = ({
       priceView: priceView,
       masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
       isOrderBillDiscount: isBillLevelDiscount,
+      orderType: orderTypeName,
     });
 
     const unifiedPricing = buildUnifiedOrderPricing(orderData, {
@@ -214,21 +214,27 @@ export const loadSettledOrderIntoCart = ({
       products,
       productCache,
     });
-    const authSubtotal = isIncl
-      ? unifiedPricing.summary.subTotalInclusive
+    const authSubtotal = (master.subTotal && Math.abs(Number(master.subTotal) - unifiedPricing.summary.subTotalExclusive) < 0.15)
+      ? Number(master.subTotal)
       : unifiedPricing.summary.subTotalExclusive;
     const authDiscount = isBillComplimentary
       ? authSubtotal
-      : (isIncl ? unifiedPricing.summary.totalDiscountIncl : unifiedPricing.summary.totalDiscountExcl);
+      : (resolvedDiscount > 0 ? resolvedDiscount : (unifiedPricing.summary.totalDiscountExcl || 0));
     const authTax = isBillComplimentary ? 0 : unifiedPricing.summary.vatAmount;
     const authNet = isBillComplimentary ? 0 : unifiedPricing.summary.grandTotal;
+    const authCharges = (unifiedPricing.summary.charges !== undefined && unifiedPricing.summary.charges > 0)
+      ? unifiedPricing.summary.charges
+      : roundCalc(Number(master.serviceCharge || 0) + Number(master.levy || master.levyAmt || 0));
+    const authNetValue = (unifiedPricing.summary.netValue !== undefined && unifiedPricing.summary.netValue > 0)
+      ? unifiedPricing.summary.netValue
+      : roundCalc(Math.max(0, authSubtotal - authDiscount) + authCharges);
 
     let resolvedBillDiscVal = isBillComplimentary
       ? 100
       : masterDiscPer > 0
       ? masterDiscPer
       : isBillLevelDiscount
-      ? (getDiscountCalculation() === "Inclusive" ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0))
+      ? (resolvedDiscount > 0 ? resolvedDiscount : (getDiscountCalculation() === "Inclusive" ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0)))
       : 0;
 
     dispatch(
@@ -270,6 +276,8 @@ export const loadSettledOrderIntoCart = ({
         authoritativeDiscount: authDiscount,
         authoritativeTax: authTax,
         authoritativeNetAmount: authNet,
+        authoritativeCharges: authCharges,
+        authoritativeNetValue: authNetValue,
         prevUpdatedAt,
       })
     );

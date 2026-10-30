@@ -69,11 +69,6 @@ export const getRuntimePosConfig = async (): Promise<RuntimePosConfig | null> =>
         if (companyKotVal !== undefined && companyKotVal !== null) {
           localStorage.setItem("companyNameKot", String(companyKotVal));
         }
-        const enableVatVal = response.data.configs?.enableVat ?? (response.data.configs as any)?.EnableVat ?? (response.data as any)?.enableVat;
-        if (enableVatVal !== undefined && enableVatVal !== null) {
-          const norm = String(enableVatVal).trim().toLowerCase();
-          localStorage.setItem("enableVat", norm === "true" || norm === "enable" || norm === "1" ? "true" : "false");
-        }
         const pv = response.data.configs?.priceView ?? (response.data.configs as any)?.PriceView;
         if (pv) {
           localStorage.setItem("priceView", String(pv));

@@ -9,11 +9,11 @@ import { deliveryApi } from "../../../../customer/services/deliveryApi";
 import { getEmployeeNames, getEmployeeById } from "../../../../../general/employee/services/employeeService";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { formatAmount } from "../../../../../../utils/currency";
-import { generateGuestPrintHtml } from "../../../../utils/guestPrintTemplate";
+import { generateGuestPrintHtml, isEnableVatGuestPrint } from "../../../../utils/guestPrintTemplate";
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../../../utils/printHeadingUtils";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getPriceView, getPrintPrice } from "../../../utils/billing";
+import { getPriceView, getPrintPrice, getVatStatus, getBillingConfig, roundCalc, CALC_PRECISION } from "../../../utils/billing";
 import { isBillArabicEnabled, formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
 import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
@@ -183,8 +183,14 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
     setLoading(true);
     try {
       let orderData: any = null;
+      const effectivePriceView = getPriceView();
+      const detectedOrderType = orderSummary?.orderTypeName ||
+        (typeof orderDetailsStr === "string" && orderDetailsStr.toLowerCase().includes("dine") ? "DineIn" : undefined);
       try {
-        const response = await settledOrdersApi.getSettledOrderDetails(orderId);
+        const response = await settledOrdersApi.getSettledOrderDetails(orderId, {
+          priceView: effectivePriceView,
+          orderType: detectedOrderType,
+        });
         if (response && response.isSuccess && response.data) {
           orderData = response.data;
         }
@@ -194,7 +200,10 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
       if (!orderData) {
         try {
-          const ordRes = await orderApi.getOrderDetails(orderId);
+          const ordRes = await orderApi.getOrderDetails(orderId, {
+            priceView: effectivePriceView,
+            orderType: detectedOrderType,
+          });
           if (ordRes && (ordRes.data || ordRes.masterData)) {
             orderData = ordRes.data || ordRes;
           }
@@ -252,13 +261,24 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                   vatAmount: Number(master.vatAmount || 0) > 0 && (!saleMaster.vatAmount || Number(saleMaster.vatAmount) === 0)
                     ? master.vatAmount
                     : (saleMaster.vatAmount ?? master.vatAmount),
+                  serviceCharge: Number(master.serviceCharge || 0) > 0 && (!saleMaster.serviceCharge || Number(saleMaster.serviceCharge) === 0)
+                    ? master.serviceCharge
+                    : (saleMaster.serviceCharge ?? master.serviceCharge),
+                  levyAmt: Number(master.levyAmt || master.levy || 0) > 0 && (!saleMaster.levyAmt && !saleMaster.levy || (Number(saleMaster.levyAmt || 0) === 0 && Number(saleMaster.levy || 0) === 0))
+                    ? (master.levyAmt ?? master.levy)
+                    : (saleMaster.levyAmt ?? saleMaster.levy ?? master.levyAmt ?? master.levy),
+                  levy: Number(master.levyAmt || master.levy || 0) > 0 && (!saleMaster.levyAmt && !saleMaster.levy || (Number(saleMaster.levyAmt || 0) === 0 && Number(saleMaster.levy || 0) === 0))
+                    ? (master.levyAmt ?? master.levy)
+                    : (saleMaster.levy ?? saleMaster.levyAmt ?? master.levy ?? master.levyAmt),
                   employeeName: saleMaster?.employeeName || master.employeeName || orderData.employeeName,
                   employeeId: saleMaster?.employeeId ?? master.employeeId ?? orderData.employeeId,
                 },
                 detailsData:
-                  Array.isArray(saleDetails) && saleDetails.length > 0
-                    ? saleDetails
-                    : orderData.detailsData || orderData.details,
+                  (Array.isArray(orderData.detailsData) && orderData.detailsData.length > 0)
+                    ? orderData.detailsData
+                    : (Array.isArray(orderData.details) && orderData.details.length > 0)
+                    ? orderData.details
+                    : saleDetails,
                 paymentData:
                   Array.isArray(salePayments) && salePayments.length > 0
                     ? salePayments
@@ -284,6 +304,15 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                   employeeName: pMaster.waiter || orderData.masterData?.employeeName,
                   customerName: pMaster.customerName || orderData.masterData?.customerName,
                   voucherDate: pMaster.voucherDate || orderData.masterData?.voucherDate,
+                  serviceCharge: Number(orderData.masterData?.serviceCharge || 0) > 0
+                    ? orderData.masterData?.serviceCharge
+                    : (pMaster?.serviceCharge || 0),
+                  levyAmt: Number(orderData.masterData?.levyAmt || orderData.masterData?.levy || 0) > 0
+                    ? (orderData.masterData?.levyAmt || orderData.masterData?.levy)
+                    : (pMaster?.levyAmt || pMaster?.levy || 0),
+                  levy: Number(orderData.masterData?.levyAmt || orderData.masterData?.levy || 0) > 0
+                    ? (orderData.masterData?.levyAmt || orderData.masterData?.levy)
+                    : (pMaster?.levy || pMaster?.levyAmt || 0),
                 },
                 paymentData: (Array.isArray(pPayments) && pPayments.length > 0) ? pPayments : orderData.paymentData,
               };
@@ -322,6 +351,15 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
               ...orderData,
               masterData: {
                 ...master,
+                serviceCharge: Number(master?.serviceCharge || 0) > 0
+                  ? master?.serviceCharge
+                  : (oMaster?.serviceCharge || 0),
+                levyAmt: Number(master?.levyAmt || master?.levy || 0) > 0
+                  ? (master?.levyAmt || master?.levy)
+                  : (oMaster?.levyAmt || oMaster?.levy || 0),
+                levy: Number(master?.levyAmt || master?.levy || 0) > 0
+                  ? (master?.levyAmt || master?.levy)
+                  : (oMaster?.levy || oMaster?.levyAmt || 0),
                 employeeName: shouldReplaceName && oEmpName ? oEmpName : master?.employeeName,
                 employeeId: master?.employeeId ?? oMaster?.employeeId ?? oMaster?.empId,
                 waiterId: master?.waiterId ?? oMaster?.waiterId,
@@ -530,6 +568,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       const unified = buildUnifiedOrderPricing(order, {
         orderType: orderTypeName,
         printPrice: printPriceSetting,
+        priceView: printPriceSetting,
         isBillDiscount: isBillLevelDiscount,
       });
 
@@ -550,23 +589,36 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         extras: l.extras,
         modifiers: l.modifiers,
         messages: l.messages,
-        itemDiscount: unified.summary.isBillDiscount ? 0 : l.getDiscount(isTaxInclusive),
-        lineTotal: l.getAmount(isTaxInclusive, unified.summary.isBillDiscount),
+        itemDiscount: (l.lineDiscount > 0 || l.lineDiscountIncl > 0 || l.lineDiscountExcl > 0)
+          ? l.getDiscount(isTaxInclusive)
+          : (unified.summary.isBillDiscount ? 0 : l.getDiscount(isTaxInclusive)),
+        lineTotal: (l.lineDiscount > 0 || l.lineDiscountIncl > 0 || l.lineDiscountExcl > 0)
+          ? Math.max(0, (isTaxInclusive ? l.inclusiveGross : l.exclusiveGross) - l.getDiscount(isTaxInclusive))
+          : l.getAmount(isTaxInclusive, unified.summary.isBillDiscount),
         lineNetAmount: l.inclusiveAmount,
         basePrice: l.exclusiveRate,
         vatAmount: l.vatAmount,
       }));
 
-      const resolvedDiscount = Number(
-        master.discAmount ??
-        master.DiscAmount ??
-        master.discount ??
-        unified.summary.totalDiscountExcl ??
-        0
-      );
-      const resolvedSubTotal = (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0)
-        ? (Number(master.vatExclAmount) + resolvedDiscount)
-        : (unified.summary.subTotalExclusive || (master.subTotal ? Number(master.subTotal) : 0));
+      const rawCharges = Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0) + Number(master.levyAmt ?? master.levy ?? master.Levy ?? unified.summary.levy ?? 0);
+      const resolvedDiscount = displayDiscount > 0
+        ? displayDiscount
+        : Number(
+            (isTaxInclusive && rawCharges <= 0)
+              ? (unified.summary.totalDiscountIncl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(true) : (master.discAmount ?? master.discount ?? 0)))
+              : (unified.summary.totalDiscountExcl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : (master.discAmount ?? master.discount ?? 0)))
+          );
+      const resolvedSubTotal = displaySubTotal > 0
+        ? displaySubTotal
+        : Number(
+            (isTaxInclusive && rawCharges <= 0)
+              ? (unified.summary.subTotalInclusive > 0
+                  ? unified.summary.subTotalInclusive
+                  : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(true) : 0))
+              : (unified.summary.subTotalExclusive > 0
+                  ? unified.summary.subTotalExclusive
+                  : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : 0))
+          );
       const resolvedVatAmount = Number(
         (unified?.summary.vatAmount && unified.summary.vatAmount > 0)
           ? unified.summary.vatAmount
@@ -755,6 +807,22 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         }
       }
 
+      const printSc = Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0);
+      let printLevy = Number(master.levyAmt ?? master.levy ?? master.Levy ?? unified.summary.levy ?? 0);
+      let printCharges = displayCharges > 0 ? displayCharges : roundCalc(printSc + printLevy);
+      const printGrandTotal = Number(master.netAmount ?? unified.summary.grandTotal ?? 0);
+      if (printCharges <= 0) {
+        if (printGrandTotal > 0) {
+          const netBase = Math.max(0, resolvedSubTotal - resolvedDiscount);
+          const residual = roundCalc(printGrandTotal - netBase - Number(master.deliveryCharge || 0) - resolvedVatAmount);
+          if (residual > 0.001) {
+            printCharges = residual;
+            if (printLevy <= 0) printLevy = residual;
+          }
+        }
+      }
+      const printNetValue = displayNetValue > 0 ? displayNetValue : roundCalc(Math.max(0, resolvedSubTotal - resolvedDiscount) + printCharges);
+
       const printData = {
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: master.ticketNo ?? "1",
@@ -781,16 +849,14 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         area: isDeliveryOrder ? (resolvedArea || undefined) : undefined,
         address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
         providerNo: master.providerNo || master.providerOrderNo,
-        subTotal: isBillLevelDiscount
-          ? resolvedSubTotal
-          : (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0
-              ? Number(master.vatExclAmount)
-              : (unified.summary.subTotalExclusive || resolvedSubTotal)),
-        discount: isBillLevelDiscount ? resolvedDiscount : 0,
-        serviceCharge: master.serviceCharge || 0,
-        levy: master.levyAmt || master.levy || 0,
+        subTotal: resolvedSubTotal,
+        discount: resolvedDiscount,
+        serviceCharge: printSc,
+        levy: printLevy,
+        charges: printCharges,
+        netValue: printNetValue,
         vatAmount: resolvedVatAmount,
-        netAmount: unified.summary.grandTotal,
+        netAmount: printGrandTotal > 0 ? printGrandTotal : unified.summary.grandTotal,
         deliveryCharge: master.deliveryCharge || 0,
         payments,
         enableVat: unified.summary.isVatActive,
@@ -912,38 +978,96 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
   const isBillLevelDiscount = order ? checkOrderHasBillDiscount(order) : false;
   const unified = order ? buildUnifiedOrderPricing(order, { orderType: orderTypeName, priceView: effectivePriceView, isBillDiscount: isBillLevelDiscount }) : null;
+  const billingConfig = getBillingConfig(orderTypeName || "DineIn");
+  const isVatActive = Boolean(isEnableVatGuestPrint(master as any) || getVatStatus() || unified?.summary?.isVatActive);
 
-  const displayDiscount = Number(
+  const backendDiscount = Number(
     master.discAmount ??
     master.DiscAmount ??
+    master.discAmt ??
+    master.DiscAmt ??
     master.discount ??
-    (unified ? unified.summary.totalDiscountExcl : 0)
+    master.Discount ??
+    master.billDiscount ??
+    master.BillDiscount ??
+    master.billDiscountValue ??
+    0
   );
   const displayServiceCharge = Number(
     master.serviceCharge ??
+    master.ServiceCharge ??
     (unified ? unified.summary.serviceCharge : 0)
   );
   const displayLevy = Number(
     master.levyAmt ??
     master.levy ??
+    master.Levy ??
     (unified ? unified.summary.levy : 0)
   );
   const displayDeliveryCharge = Number(
     master.deliveryCharge ??
+    master.DeliveryCharge ??
     (unified ? unified.summary.deliveryCharge : 0)
   );
-  const displaySubTotal = (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0)
-    ? (Number(master.vatExclAmount) + displayDiscount)
-    : (unified?.summary.subTotalExclusive || (master.subTotal ? Number(master.subTotal) : 0));
-  const displayVatAmount = Number(
-    (unified && unified.summary.vatAmount > 0)
-      ? unified.summary.vatAmount
-      : (master.vatAmount ?? master.VatAmount ?? 0)
+  const rawModalCharges = Number(displayServiceCharge || 0) + Number(displayLevy || 0);
+  const displayDiscount = Number(
+    unified
+      ? ((isTaxInclusive && rawModalCharges <= 0)
+          ? (unified.summary.totalDiscountIncl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(true) : (master.discAmount ?? master.discount ?? 0)))
+          : (unified.summary.totalDiscountExcl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : (master.discAmount ?? master.discount ?? 0))))
+      : (backendDiscount > 0 ? backendDiscount : 0)
   );
+  const grossSubTotalFromLines = unified
+    ? ((isTaxInclusive && rawModalCharges <= 0) ? unified.summary.subTotalInclusive : unified.summary.subTotalExclusive)
+    : 0;
+
+  const displaySubTotal = Number(
+    grossSubTotalFromLines > 0
+      ? grossSubTotalFromLines
+      : (master.subTotal !== undefined && master.subTotal !== null && Number(master.subTotal) > 0
+          ? Number(master.subTotal)
+          : (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0
+              ? Number(master.vatExclAmount) + displayDiscount
+              : 0))
+  );
+  let displayVatAmount = Number(
+    master.vatAmount ??
+    master.VatAmount ??
+    master.vatAmt ??
+    (unified && unified.summary.vatAmount > 0 ? unified.summary.vatAmount : 0)
+  );
+  if (displayVatAmount <= 0 && isVatActive) {
+    const rateFraction = billingConfig.vatRate > 0 ? (billingConfig.vatRate > 1 ? billingConfig.vatRate / 100 : billingConfig.vatRate) : 0.10;
+    const delivery = Number(master.deliveryCharge ?? (unified ? unified.summary?.deliveryCharge : 0) ?? 0);
+    const grandTotal = Number(master.netAmount ?? master.NetAmount ?? (unified ? unified.summary.grandTotal : 0) ?? 0);
+    const taxableGross = Math.max(0, grandTotal - delivery);
+    if (rateFraction > 0 && taxableGross > 0) {
+      displayVatAmount = roundCalc(taxableGross - (taxableGross / (1 + rateFraction)), CALC_PRECISION);
+    }
+  }
   const displayGrandTotal = Number(
-    (unified && unified.summary.grandTotal > 0)
-      ? unified.summary.grandTotal
-      : (master.netAmount ?? master.NetAmount ?? netAmount)
+    master.netAmount ??
+    master.NetAmount ??
+    order?.netAmount ??
+    order?.NetAmount ??
+    (unified && unified.summary.grandTotal > 0 ? unified.summary.grandTotal : netAmount)
+  );
+  let displayCharges = (unified?.summary?.charges && unified.summary.charges > 0)
+    ? unified.summary.charges
+    : roundCalc(Number(displayServiceCharge || 0) + Number(displayLevy || 0));
+  if (displayGrandTotal > 0) {
+    const netBase = Math.max(0, displaySubTotal - displayDiscount);
+    const residual = roundCalc(displayGrandTotal - netBase - displayDeliveryCharge - displayVatAmount);
+    if (residual > 0.001) {
+      if (displayCharges <= 0 || Math.abs(displayCharges - residual) > 0.05) {
+        displayCharges = residual;
+      }
+    }
+  }
+  const displayNetValue = roundCalc(
+    (unified?.summary?.vatExclAmount && unified.summary.vatExclAmount > 0)
+      ? unified.summary.vatExclAmount
+      : Math.max(0, displayGrandTotal - displayDeliveryCharge - displayVatAmount)
   );
 
   return (
@@ -1051,13 +1175,12 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                 const localized = getLocalizedName(primaryName, arabicName);
                 const qty = line.quantity;
                 const price = line.getRate(isTaxInclusive);
-                const itemDisc = (unified.summary.isBillDiscount || isBillLevelDiscount)
-                  ? 0
-                  : (typeof line.getDiscount === "function" ? line.getDiscount(isTaxInclusive) : line.lineDiscount);
+                const lineDisc = typeof line.getDiscount === "function" ? line.getDiscount(isTaxInclusive) : (line.lineDiscount || 0);
+                const itemDisc = lineDisc > 0 ? lineDisc : 0;
                 const origGrossAmt = isTaxInclusive ? line.inclusiveGross : line.exclusiveGross;
-                const netAmt = (unified.summary.isBillDiscount || isBillLevelDiscount)
-                  ? origGrossAmt
-                  : (isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount);
+                const netAmt = itemDisc > 0
+                  ? Math.max(0, origGrossAmt - itemDisc)
+                  : ((unified.summary.isBillDiscount || isBillLevelDiscount) ? origGrossAmt : (isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount));
 
                 const displayItemName = formatItemDisplayName(localized.primary, line.variantName);
                 const displaySecondaryName = localized.secondary
@@ -1134,25 +1257,23 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                   <span>-{formatAmount(displayDiscount)}</span>
                 </div>
               )}
-              {displayServiceCharge > 0 && (
+              {displayCharges > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
-                  <span>{t("Service Charge")}</span>
-                  <span>{formatAmount(displayServiceCharge)}</span>
+                  <span>{t("Charges")}</span>
+                  <span>{formatAmount(displayCharges)}</span>
                 </div>
               )}
-              {displayLevy > 0 && (
-                <div className="flex justify-between items-center text-stone-600">
-                  <span>Levy(5%)</span>
-                  <span>{formatAmount(displayLevy)}</span>
-                </div>
-              )}
+              <div className="flex justify-between items-center text-stone-600">
+                <span>{t("Net Value")}</span>
+                <span>{formatAmount(displayNetValue)}</span>
+              </div>
               {displayDeliveryCharge > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>{t("Delivery Charge")}</span>
                   <span>{formatAmount(displayDeliveryCharge)}</span>
                 </div>
               )}
-              {displayVatAmount > 0 && (
+              {(isVatActive || displayVatAmount > 0) && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>{t("VAT")}</span>
                   <span>{formatAmount(displayVatAmount)}</span>

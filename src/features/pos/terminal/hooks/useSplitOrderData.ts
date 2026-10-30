@@ -9,6 +9,7 @@ import { calculateOrder, roundCalc, CALC_PRECISION, getTaxExclusivePrice } from 
 import { formatItemDisplayName } from "../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../utils/orderSort";
 import { mapOrderDetailToCartItem } from "../mappers/orderDetailToCartMapper";
+import { checkOrderHasBillDiscount } from "../utils/orderDiscountCheck";
 
 interface UseSplitOrderDataProps {
   orderId: number | null;
@@ -75,6 +76,23 @@ export const useSplitOrderData = ({
 
         setOriginalOrder(masterData);
 
+        const isOrderBillDisc = checkOrderHasBillDiscount(orderDetailsData) || checkOrderHasBillDiscount({ masterData, detailsData });
+        const masterDiscPer = Number(masterData.discPer ?? masterData.DiscPer ?? masterData.billDiscountPer ?? 0);
+        const masterDiscAmount = Number(
+          masterData.discAmount ??
+          masterData.DiscAmount ??
+          masterData.discAmt ??
+          masterData.billDiscount ??
+          masterData.billDiscountValue ??
+          0
+        );
+        const isMasterComplimentary = Boolean(
+          masterData.complimentaryStatus || masterData.ComplimentaryStatus || masterDiscPer === 100
+        );
+
+        // Total gross across details to allocate order-level amount discounts proportionally
+        const totalGross = detailsData.reduce((sum: number, d: any) => sum + (Number(d.price || 0) * Number(d.qty || 1)), 0);
+
         const initialItems: SplitCartItem[] = detailsData.map((d: any, idx: number) => {
           const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
           const cartItem = mapOrderDetailToCartItem({
@@ -82,11 +100,36 @@ export const useSplitOrderData = ({
             idx,
             modifiersData,
             products,
+            masterDiscPer: 0,
+            isOrderBillDiscount: false,
           });
 
           const rawAlt = d.altName || d.AltName || d.variantName || d.VariantName || cartItem.variantName || "";
           const baseName = d.productName || d.ProductName || cartItem.product?.name || "Item";
           const displayName = formatItemDisplayName(baseName, rawAlt);
+
+          // In Split, bill discount or complimentary is distributed into products as item discounts
+          let resolvedItemDiscountValue = 0;
+          let resolvedItemDiscountType: "percentage" | "amount" = "percentage";
+          let resolvedItemComplimentary = false;
+
+          if (isMasterComplimentary) {
+            resolvedItemDiscountValue = 100;
+            resolvedItemDiscountType = "percentage";
+            resolvedItemComplimentary = true;
+          } else if (masterDiscPer > 0) {
+            resolvedItemDiscountValue = masterDiscPer;
+            resolvedItemDiscountType = "percentage";
+          } else if (masterDiscAmount > 0 && isOrderBillDisc) {
+            const lineGross = Number(d.price || 0) * Number(d.qty || 1);
+            const allocatedDisc = totalGross > 0 ? (masterDiscAmount * (lineGross / totalGross)) : (masterDiscAmount / detailsData.length);
+            resolvedItemDiscountValue = roundCalc(allocatedDisc, CALC_PRECISION);
+            resolvedItemDiscountType = "amount";
+          } else {
+            resolvedItemDiscountValue = cartItem.discountValue || 0;
+            resolvedItemDiscountType = cartItem.discountType || "percentage";
+            resolvedItemComplimentary = Boolean(cartItem.complimentaryStatus);
+          }
 
           return {
             mapId: d.mapId,
@@ -94,6 +137,9 @@ export const useSplitOrderData = ({
             variantName: rawAlt || undefined,
             price: cartItem.price || 0,
             currentQty: d.qty || 1,
+            discountValue: resolvedItemDiscountValue,
+            discountType: resolvedItemDiscountType,
+            complimentaryStatus: resolvedItemComplimentary,
             detail: {
               ...d,
               vatValue: cartItem.product?.vatValue ?? (cartItem as any).vatValue,
@@ -136,8 +182,9 @@ export const useSplitOrderData = ({
         quantity: item.currentQty,
         price: item.price,
         isIncl: item.isIncl,
-        discountValue: 0,
-        discountType: undefined,
+        discountValue: item.discountValue || 0,
+        discountType: item.discountType,
+        complimentaryStatus: item.complimentaryStatus,
         extras,
         product: {
           id: item.detail?.productId ?? 1,
@@ -162,6 +209,9 @@ export const useSplitOrderData = ({
       const exclPrice = roundCalc(lineCalc?.basePrice ?? lineCalc?.exclusivePrice ?? getTaxExclusivePrice(item), CALC_PRECISION);
       const lineNet = roundCalc(lineCalc?.lineNetAmount ?? (exclPrice * item.currentQty + (lineCalc?.vatAmount || 0)));
 
+      const itemDiscPer = item.discountType === 'percentage' ? (item.discountValue || 0) : 0;
+      const itemDiscAmount = roundCalc(lineCalc?.itemDiscountAmount ?? lineCalc?.effectiveDiscountAmount ?? 0);
+
       return {
         ...item.detail,
         mapId: newMapId,
@@ -172,8 +222,10 @@ export const useSplitOrderData = ({
         vatAmount: roundCalc(lineCalc?.mainVatAmount ?? lineCalc?.vatAmount ?? 0),
         serviceCharge: roundCalc(lineCalc?.mainSc ?? lineCalc?.sc ?? 0),
         levy: roundCalc(lineCalc?.mainLevy ?? lineCalc?.levy ?? 0),
-        discPer: 0,
-        discAmount: 0,
+        discPer: itemDiscPer,
+        discAmount: itemDiscAmount,
+        complimentaryStatus: Boolean(item.complimentaryStatus || item.discountValue === 100),
+        ComplimentaryStatus: Boolean(item.complimentaryStatus || item.discountValue === 100),
       };
     });
 

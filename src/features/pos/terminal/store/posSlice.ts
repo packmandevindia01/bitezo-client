@@ -11,6 +11,7 @@ import type {
 import { isItemSeperationEnabled } from '../../services/posConfigApi';
 import { sortOrderDetailsBySequence } from '../utils/orderSort';
 import { getDefaultEmployeeConfig } from '../../utils/defaultEmployee';
+import { getPriceView } from '../utils/billing';
 
 interface PosState {
   cartItems: PosCartItem[];
@@ -96,6 +97,8 @@ interface PosState {
   authoritativeSubtotal?: number | null;
   authoritativeDiscount?: number | null;
   authoritativeTax?: number | null;
+  authoritativeCharges?: number | null;
+  authoritativeNetValue?: number | null;
   combinedOrderIds: number[];
   deliveryDetails?: {
     customerName?: string;
@@ -220,13 +223,15 @@ const initialState: PosState = {
   authoritativeSubtotal: null,
   authoritativeDiscount: null,
   authoritativeTax: null,
+  authoritativeCharges: null,
+  authoritativeNetValue: null,
   combinedOrderIds: [],
   deliveryDetails: null,
 };
 
 const normalizeOrderTypeName = (value?: string) => (value || "").toLowerCase().replace(/[\s_-]/g, "");
 
-const fallbackOrderTypeByName = (name: string): PosOrderType => {
+export const fallbackOrderTypeByName = (name: string): PosOrderType => {
   const normalized = normalizeOrderTypeName(name);
   if (normalized.includes("provider")) return { orderTypeId: 5, orderType: "Providers" };
   if (normalized.includes("coming")) return { orderTypeId: 6, orderType: "Coming" };
@@ -383,6 +388,8 @@ const posSlice = createSlice({
       state.authoritativeSubtotal = null;
       state.authoritativeDiscount = null;
       state.authoritativeTax = null;
+      state.authoritativeCharges = null;
+      state.authoritativeNetValue = null;
       state.isSettling = false;
       state.combinedOrderIds = [];
       state.billDiscountValue = 0;
@@ -541,12 +548,17 @@ const posSlice = createSlice({
         item.discountType = type;
       });
     },
-    updateItemPrice: (state, action: PayloadAction<{ uniqueId: string; price: number }>) => {
+    updateItemPrice: (state, action: PayloadAction<{ uniqueId: string; price: number; isIncl?: boolean }>) => {
       state.isCartModified = true;
-      const { uniqueId, price } = action.payload;
+      const { uniqueId, price, isIncl } = action.payload;
       const item = state.cartItems.find(i => i.uniqueId === uniqueId);
       if (item) {
         item.price = price;
+        if (isIncl !== undefined) {
+          item.isIncl = isIncl;
+        } else {
+          item.isIncl = getPriceView() === "Inclusive";
+        }
       }
     },
     updateItemQty: (state, action: PayloadAction<{ uniqueId: string; quantity: number }>) => {
@@ -760,6 +772,8 @@ const posSlice = createSlice({
       authoritativeSubtotal?: number | null;
       authoritativeDiscount?: number | null;
       authoritativeTax?: number | null;
+      authoritativeCharges?: number | null;
+      authoritativeNetValue?: number | null;
       prevUpdatedAt?: string | null;
     }>) => {
       const { 
@@ -819,6 +833,14 @@ const posSlice = createSlice({
       state.authoritativeTax =
         action.payload.authoritativeTax !== undefined
           ? (action.payload.authoritativeTax !== null ? Number(action.payload.authoritativeTax) : null)
+          : null;
+      state.authoritativeCharges =
+        action.payload.authoritativeCharges !== undefined
+          ? (action.payload.authoritativeCharges !== null ? Number(action.payload.authoritativeCharges) : null)
+          : null;
+      state.authoritativeNetValue =
+        action.payload.authoritativeNetValue !== undefined
+          ? (action.payload.authoritativeNetValue !== null ? Number(action.payload.authoritativeNetValue) : null)
           : null;
       state.voidProducts = [];
       state.voidModifiers = [];

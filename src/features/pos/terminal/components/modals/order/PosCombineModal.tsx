@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Modal, Button, ConfirmDialog } from "../../../../../../components/common";
+import { Modal, Button } from "../../../../../../components/common";
 import { orderApi } from "../../../../services/orderApi";
 import { usePosProducts } from "../../../hooks/usePosProducts";
 import { useAppSelector, useAppDispatch } from "../../../../../../app/hooks";
@@ -10,7 +10,7 @@ import { loadRecalledOrder, setCombinedOrderIds } from "../../../store/posSlice"
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { useCashierLog } from "../../../../cashier";
 import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
-import { checkOrderHasBillDiscount, extractMasterAndDetails } from "../../../utils/orderDiscountCheck";
+import { checkOrderHasBillDiscount, extractMasterAndDetails, checkOrderAllowsSplitOrCombine } from "../../../utils/orderDiscountCheck";
 
 interface CombineOrder {
   orderId: number;
@@ -33,8 +33,6 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
 
   const [selectedAvailableId, setSelectedAvailableId] = useState<number | null>(null);
   const [selectedSelectedId, setSelectedSelectedId] = useState<number | null>(null);
-  const [showBillDiscountConfirm, setShowBillDiscountConfirm] = useState(false);
-  const [confirmMessage, setConfirmMessage] = useState<string>("Bill discount will be erased while performing this action. Do you want to continue?");
   const hasDiscountRef = useRef(false);
 
 
@@ -58,11 +56,15 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
 
   useEffect(() => {
     if (isOpen && editingOrderId) {
+      if (Number(billDiscountValue || 0) > 0) {
+        showToast("Combine is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
+        onClose();
+        return;
+      }
       fetchAvailableOrders();
       setSelectedOrders([]);
       setSelectedAvailableId(null);
       setSelectedSelectedId(null);
-      setShowBillDiscountConfirm(false);
       hasDiscountRef.current = false;
     }
   }, [isOpen, editingOrderId]);
@@ -70,6 +72,20 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
   const fetchAvailableOrders = async () => {
     setIsLoading(true);
     try {
+      if (editingOrderId) {
+        try {
+          const curRes = await orderApi.getOrderDetails(editingOrderId as number);
+          const checkCur = checkOrderAllowsSplitOrCombine(curRes);
+          if (!checkCur.allowed) {
+            showToast("Combine is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
+            onClose();
+            return;
+          }
+        } catch (e) {
+          console.warn("Could not check current order discount status:", e);
+        }
+      }
+
       const params = {
         DayId: dayId,
         OrderTypeId: selectedOrderTypeId, 
@@ -120,62 +136,30 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       return;
     }
 
-    // Check if any order to be combined contains a bill discount (ONLY bill discount!)
-    let currentOrderHasBillDisc = Number(billDiscountValue || 0) > 0;
-    let curRes: any = null;
-    if (editingOrderId) {
-      try {
-        curRes = await orderApi.getOrderDetails(editingOrderId as number);
-        if (!currentOrderHasBillDisc) {
-          currentOrderHasBillDisc = checkOrderHasBillDiscount(curRes);
-        }
-      } catch (err) {
-        console.warn("Could not check current order for bill discount:", err);
-      }
-    }
-
-    let anyOrderHasBillDisc = currentOrderHasBillDisc;
-
-    if (selectedOrders.length > 0) {
-      try {
-        const detailsResponses = await Promise.all(
-          selectedOrders.map((o) => orderApi.getOrderDetails(o.orderId).catch(() => null))
-        );
-        for (let i = 0; i < detailsResponses.length; i++) {
-          const res = detailsResponses[i];
-          const o = selectedOrders[i];
-          const isBillDisc = checkOrderHasBillDiscount(res);
-
-          if (isBillDisc) {
-            anyOrderHasBillDisc = true;
-          }
-
-          if (typeof o?.details === "string") {
-            const discMatch = o.details.match(/disc(?:ount)?\s*[:=]\s*([0-9.]+)/i);
-            if (discMatch && parseFloat(discMatch[1]) > 0) {
-              anyOrderHasBillDisc = true;
-            }
-          }
-        }
-      } catch (e) {
-        console.warn("Could not check selected orders for bill discount:", e);
-        for (const o of selectedOrders) {
-          if (typeof o?.details === "string") {
-            const discMatch = o.details.match(/disc(?:ount)?\s*[:=]\s*([0-9.]+)/i);
-            if (discMatch && parseFloat(discMatch[1]) > 0) {
-              anyOrderHasBillDisc = true;
-            }
-          }
-        }
-      }
-    }
-
-    hasDiscountRef.current = anyOrderHasBillDisc;
-
-    if (anyOrderHasBillDisc) {
-      setConfirmMessage("Bill discount will be erased while performing this action. Do you want to continue?");
-      setShowBillDiscountConfirm(true);
+    // STRICT CHECK: Neither current order NOR any selected order can have a bill discount or complimentary status!
+    if (Number(billDiscountValue || 0) > 0) {
+      showToast("Combine is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
       return;
+    }
+
+    setIsCombining(true);
+    try {
+      const orderIdsToCombine = [editingOrderId as number, ...selectedOrders.map(o => o.orderId)];
+      const individualResponses = await Promise.all(
+        orderIdsToCombine.map((id) => orderApi.getOrderDetails(id).catch(() => null))
+      );
+
+      for (const res of individualResponses) {
+        if (!res) continue;
+        const checkResult = checkOrderAllowsSplitOrCombine(res);
+        if (!checkResult.allowed) {
+          showToast("Combine is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
+          setIsCombining(false);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn("Could not verify orders for discounts:", err);
     }
 
     await executeCombine();
@@ -506,21 +490,6 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
 
       </div>
     </Modal>
-
-    <ConfirmDialog
-      isOpen={showBillDiscountConfirm}
-      title="Warning"
-      message={confirmMessage}
-      confirmLabel="Continue"
-      cancelLabel="Cancel"
-      confirmVariant="danger"
-      loading={isCombining}
-      onConfirm={async () => {
-        setShowBillDiscountConfirm(false);
-        await executeCombine();
-      }}
-      onCancel={() => setShowBillDiscountConfirm(false)}
-    />
   </>
   );
 };

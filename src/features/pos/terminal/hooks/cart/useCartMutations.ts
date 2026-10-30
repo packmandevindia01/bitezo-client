@@ -252,8 +252,8 @@ export const useCartMutations = () => {
     decrementItem: (uniqueId: string) => dispatch(decrementItem({ uniqueId })),
     removeItem: (uniqueId: string) => dispatch(removeFromCart({ uniqueId })),
     clearCart: () => dispatch(clearCart()),
-    updateItemPrice: (uniqueId: string, price: number) =>
-      dispatch(updateItemPrice({ uniqueId, price })),
+    updateItemPrice: (uniqueId: string, price: number, isIncl?: boolean) =>
+      dispatch(updateItemPrice({ uniqueId, price, isIncl })),
     updateItemQty: (uniqueId: string, quantity: number) =>
       dispatch(updateItemQty({ uniqueId, quantity })),
     setItemCustomizations: (

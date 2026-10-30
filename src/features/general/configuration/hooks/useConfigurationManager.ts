@@ -256,9 +256,6 @@ export const useConfigurationManager = () => {
             if (mapped.companyNameKOT !== undefined) {
               localStorage.setItem("companyNameKot", mapped.companyNameKOT ? "Enable" : "Disable");
             }
-            if (mapped.enableVat !== undefined) {
-              localStorage.setItem("enableVat", mapped.enableVat ? "true" : "false");
-            }
           }
         } catch (e) {
           console.warn("Failed to load POS configuration in Backoffice:", e);
@@ -307,9 +304,6 @@ export const useConfigurationManager = () => {
       }
       if (payload.companyNameKot !== undefined) {
         localStorage.setItem("companyNameKot", payload.companyNameKot);
-      }
-      if (form.enableVat !== undefined) {
-        localStorage.setItem("enableVat", form.enableVat ? "true" : "false");
       }
 
       if (form.defaultEmployee && form.employeeId) {

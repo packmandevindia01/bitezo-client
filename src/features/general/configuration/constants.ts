@@ -10,7 +10,6 @@ export const INITIAL_CONFIG: ConfigurationState = {
   defaultOrderTypeId: "1",
   groupInMenu: false,
   packagerHeader: false,
-  enableVat: false,
   posLanguage: "English",
   productView: "English",
   

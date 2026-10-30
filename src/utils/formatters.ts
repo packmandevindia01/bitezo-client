@@ -21,6 +21,20 @@ export const getCurrencySymbol = (): string => {
   return localStorage.getItem("currencySymbol") || "BHD";
 };
 
+export const roundToDecimals = (
+  value: number | string | undefined | null,
+  decimals = getDecimalPart()
+): number => {
+  const num = typeof value === "string" ? parseFloat(value) : Number(value || 0);
+  if (!Number.isFinite(num)) return 0;
+  if (num === 0) return 0;
+  const d = normalizeDecimalPart(decimals);
+  const factor = Math.pow(10, d);
+  const sign = num < 0 ? -1 : 1;
+  const abs = Math.abs(num);
+  return sign * (Math.round((abs + 1e-11) * factor) / factor);
+};
+
 /**
  * Formats a number or string into a string with the correct decimal part.
  * Example: formatAmount(15.5, 3) -> "15.500"
@@ -29,8 +43,8 @@ export const formatAmount = (value: number | string | undefined | null, decimalP
   if (value === undefined || value === null || value === "") return "";
   const num = typeof value === "string" ? parseFloat(value) : value;
   if (isNaN(num)) return String(value);
-  
-  return num.toFixed(normalizeDecimalPart(decimalPart));
+  const d = normalizeDecimalPart(decimalPart);
+  return roundToDecimals(num, d).toFixed(d);
 };
 
 /**

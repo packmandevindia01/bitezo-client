@@ -263,7 +263,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
 
   /* ── FULL ORDER MAPPER ── */
   const fetchAndMapFullOrder = async (orderId: number) => {
-    const res = await orderApi.getOrderDetails(orderId);
+    const res = await orderApi.getOrderDetails(orderId, { orderType: "DineIn" });
     if (!res?.isSuccess || !res.data) throw new Error("Failed to fetch full order details");
     
     const fullOrder = res.data;
@@ -338,7 +338,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
   const handleEdit = async () => {
     if (!selectedMaster || !data || loading) return;
     try {
-      const { master, mappedItems, fullOrder, isBillComplimentary, isBillLevelDiscount, masterDiscPer } = await fetchAndMapFullOrder(selectedMaster.orderId);
+      const { master, mappedItems, fullOrder, isBillComplimentary, isBillLevelDiscount, masterDiscPer, resolvedDiscount } = await fetchAndMapFullOrder(selectedMaster.orderId);
       const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
       const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
       if (prevUpdatedAt) {
@@ -359,21 +359,27 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         productCache,
         products: (posMasterData as any)?.products,
       });
-      const authSubtotal = isIncl
-        ? unifiedPricing.summary.subTotalInclusive
+      const authSubtotal = (master.subTotal && Math.abs(Number(master.subTotal) - unifiedPricing.summary.subTotalExclusive) < 0.15)
+        ? Number(master.subTotal)
         : unifiedPricing.summary.subTotalExclusive;
       const authDiscount = isBillComplimentary
         ? authSubtotal
-        : (isIncl ? unifiedPricing.summary.totalDiscountIncl : unifiedPricing.summary.totalDiscountExcl);
+        : (resolvedDiscount > 0 ? resolvedDiscount : (unifiedPricing.summary.totalDiscountExcl || 0));
       const authTax = isBillComplimentary ? 0 : unifiedPricing.summary.vatAmount;
       const authNet = isBillComplimentary ? 0 : unifiedPricing.summary.grandTotal;
+      const authCharges = (unifiedPricing.summary.charges !== undefined && unifiedPricing.summary.charges > 0)
+        ? unifiedPricing.summary.charges
+        : roundCalc(Number(master.serviceCharge || 0) + Number(master.levy || master.levyAmt || 0));
+      const authNetValue = (unifiedPricing.summary.netValue !== undefined && unifiedPricing.summary.netValue > 0)
+        ? unifiedPricing.summary.netValue
+        : roundCalc(Math.max(0, authSubtotal - authDiscount) + authCharges);
 
       let resolvedBillDiscVal = isBillComplimentary
         ? 100
         : masterDiscPer > 0
         ? masterDiscPer
         : isBillLevelDiscount
-        ? (isIncl ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0))
+        ? (resolvedDiscount > 0 ? resolvedDiscount : (isIncl ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0)))
         : 0;
 
       dispatch(loadRecalledOrder({
@@ -393,6 +399,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         authoritativeDiscount: authDiscount,
         authoritativeTax: authTax,
         authoritativeNetAmount: authNet,
+        authoritativeCharges: authCharges,
+        authoritativeNetValue: authNetValue,
         prevUpdatedAt,
       }));
       showToast(`Order #${selectedMaster.orderNo} loaded for editing`, 'success');
@@ -613,8 +621,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         billDiscountType: master.billDiscountType || (Number(master.discPer) > 0 ? "percentage" : "amount"),
         isBillDiscount: Boolean(master.isBillDiscount || isBillLevelDiscount),
         complimentaryStatus: isComplimentary,
-        serviceCharge: master.serviceCharge || 0,
-        levy: master.levyAmt || master.levy || 0,
+        serviceCharge: Number(master.serviceCharge ?? (master as any).ServiceCharge ?? 0),
+        levy: Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? 0),
         vatExclAmount: calculatedVatExcl,
         vatAmount: calculatedVatAmt,
         netAmount: master.netAmount || selectedMaster.netAmount,
@@ -720,20 +728,20 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         const isDineInBillDisc = unified.summary.isBillDiscount;
         const settleDiscount = isDineInBillDisc
           ? Number(
-              master.discAmount ??
-              master.DiscAmount ??
-              master.discount ??
-              unified.summary.totalDiscountExcl ??
-              0
+              isTaxInclusive
+                ? (unified.summary.totalDiscountIncl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(true) : (master.discAmount ?? master.discount ?? 0)))
+                : (unified.summary.totalDiscountExcl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : (master.discAmount ?? master.discount ?? 0)))
             )
           : 0;
-        const settleSubTotal = isDineInBillDisc
-          ? ((master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0)
-              ? (Number(master.vatExclAmount) + settleDiscount)
-              : (unified.summary.subTotalExclusive || 0))
-          : (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0
-              ? Number(master.vatExclAmount)
-              : (unified.summary.subTotalExclusive || 0));
+        const settleSubTotal = Number(
+          isTaxInclusive
+            ? (unified.summary.subTotalInclusive > 0
+                ? unified.summary.subTotalInclusive
+                : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(true) : (master.subTotal ?? 0)))
+            : (unified.summary.subTotalExclusive > 0
+                ? unified.summary.subTotalExclusive
+                : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : (master.vatExclAmount !== undefined ? Number(master.vatExclAmount) + settleDiscount : (master.subTotal ?? 0))))
+        );
         const settleResolvedVat = Number(
           (unified?.summary.vatAmount && unified.summary.vatAmount > 0)
             ? unified.summary.vatAmount
@@ -754,8 +762,10 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           time: new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' }),
           subTotal: settleSubTotal,
           discount: settleDiscount,
-          serviceCharge: master.serviceCharge || 0,
-          levy: master.levyAmt || master.levy || 0,
+          serviceCharge: Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0),
+          levy: Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0),
+          charges: roundCalc(Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0) + Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0)),
+          netValue: (localStorage.getItem("printPrice") !== "Inclusive") ? roundCalc(Math.max(0, settleSubTotal - settleDiscount) + roundCalc(Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0) + Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0))) : undefined,
           vatAmount: settleResolvedVat,
           netAmount: unified.summary.grandTotal,
           deliveryCharge: master.deliveryCharge || 0,
@@ -1128,15 +1138,19 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       }));
 
       const resolvedDiscount = Number(
-        master.discAmount ??
-        master.DiscAmount ??
-        master.discount ??
-        unified.summary.totalDiscountExcl ??
-        0
+        isTaxInclusive
+          ? (unified.summary.totalDiscountIncl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(true) : (master.discAmount ?? master.discount ?? 0)))
+          : (unified.summary.totalDiscountExcl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : (master.discAmount ?? master.discount ?? 0)))
       );
-      const resolvedSubTotal = (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0)
-        ? (Number(master.vatExclAmount) + resolvedDiscount)
-        : (unified.summary.subTotalExclusive || 0);
+      const resolvedSubTotal = Number(
+        isTaxInclusive
+          ? (unified.summary.subTotalInclusive > 0
+              ? unified.summary.subTotalInclusive
+              : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(true) : (master.subTotal ?? 0)))
+          : (unified.summary.subTotalExclusive > 0
+              ? unified.summary.subTotalExclusive
+              : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : (master.vatExclAmount !== undefined ? Number(master.vatExclAmount) + resolvedDiscount : (master.subTotal ?? 0))))
+      );
       const resolvedVatAmount = Number(
         (unified?.summary.vatAmount && unified.summary.vatAmount > 0)
           ? unified.summary.vatAmount
@@ -1162,8 +1176,10 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         time: printTime,
         subTotal: resolvedSubTotal,
         discount: resolvedDiscount,
-        serviceCharge: master.serviceCharge || 0,
-        levy: master.levyAmt || master.levy || 0,
+        serviceCharge: Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0),
+        levy: Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0),
+        charges: roundCalc(Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0) + Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0)),
+        netValue: (localStorage.getItem("printPrice") !== "Inclusive") ? roundCalc(Math.max(0, resolvedSubTotal - resolvedDiscount) + roundCalc(Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0) + Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0))) : undefined,
         vatAmount: resolvedVatAmount,
         netAmount: unified.summary.grandTotal,
         deliveryCharge: master.deliveryCharge || 0,

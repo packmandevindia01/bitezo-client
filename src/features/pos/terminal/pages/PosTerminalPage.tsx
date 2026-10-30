@@ -19,7 +19,7 @@ import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import { clearAllItemDiscounts, setCustomerId, setCustomDeliveryCharge, setWaiter } from "../store/posSlice";
 import { selectDeliveryCharge } from "../store/posSelectors";
-import { roundCalc } from "../utils/billing";
+import { roundCalc, getPriceView } from "../utils/billing";
 import { disableDefaultEmployeeConfig, isDefaultEmployeeValidInCache } from "../../utils/defaultEmployee";
 import { getModifierTypeNameById } from "../../services/menuApi";
 import { PosProductSearchDropdown } from "../components/menu/PosProductSearchDropdown";
@@ -246,7 +246,9 @@ export const PosTerminalPage = () => {
         showToast("Price cannot be zero. Use Item Complimentary.", "error");
         return;
       }
-      terminal.updateItemPrice(selectedKey, num);
+      // In Inclusive Price View, any manually entered price is inclusive
+      const isPriceInclusive = getPriceView() === "Inclusive";
+      terminal.updateItemPrice(selectedKey, num, isPriceInclusive);
       modals.setIsPriceModalOpen(false);
     }
   };
@@ -916,8 +918,28 @@ export const PosTerminalPage = () => {
                 }}
                 onWaiter={() => modals.setIsWaiterModalOpen(true)}
                 selectedWaiterName={terminal.waiterName}
-                onSplit={() => modals.setIsSplitOpen(true)}
-                onCombine={() => modals.setIsCombineOpen(true)}
+                onSplit={() => {
+                  const hasBillDisc = Number(billDiscountValue || terminal.billDiscountValue || 0) > 0;
+                  const hasComp = terminal.cartDetails.some((i) =>
+                    Boolean((i as any).complimentaryStatus || (i.discountType === 'percentage' && Number(i.discountValue) === 100))
+                  );
+                  if (hasBillDisc || hasComp) {
+                    showToast("Split is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
+                    return;
+                  }
+                  modals.setIsSplitOpen(true);
+                }}
+                onCombine={() => {
+                  const hasBillDisc = Number(billDiscountValue || terminal.billDiscountValue || 0) > 0;
+                  const hasComp = terminal.cartDetails.some((i) =>
+                    Boolean((i as any).complimentaryStatus || (i.discountType === 'percentage' && Number(i.discountValue) === 100))
+                  );
+                  if (hasBillDisc || hasComp) {
+                    showToast("Combine is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
+                    return;
+                  }
+                  modals.setIsCombineOpen(true);
+                }}
                 onRecall={() => {
                   requestAuthorization({
                     actionLabel: "Recall",
@@ -945,6 +967,7 @@ export const PosTerminalPage = () => {
           cartDetails={terminal.cartDetails}
           subtotal={terminal.subtotal}
           discount={terminal.discount}
+          netValue={terminal.netValue}
           tax={terminal.tax}
           charges={terminal.charges}
           total={terminal.total}

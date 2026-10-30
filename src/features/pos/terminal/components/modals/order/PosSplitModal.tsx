@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
-import { Modal, ConfirmDialog } from "../../../../../../components/common";
+import { Modal } from "../../../../../../components/common";
 import { formatCurrency } from "../../../../../../utils/currency";
 import { usePosProducts } from "../../../hooks/usePosProducts";
 import { orderApi } from "../../../../services/orderApi";
 import { useAppSelector } from "../../../../../../app/hooks";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { PosSplitTableModal } from "./PosSplitTableModal";
-import { getBillingConfig, calculateLineItem, calculateOrder, roundCalc, getTaxExclusivePrice } from "../../../utils/billing";
+import { getBillingConfig, calculateLineItem, calculateOrder, roundCalc, CALC_PRECISION, getTaxExclusivePrice } from "../../../utils/billing";
 import { useCashierLog } from "../../../../cashier";
 import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { mapOrderDetailToCartItem } from "../../../mappers/orderDetailToCartMapper";
-import { checkOrderHasBillDiscount } from "../../../utils/orderDiscountCheck";
+import { checkOrderAllowsSplitOrCombine } from "../../../utils/orderDiscountCheck";
 
 interface PosSplitModalProps {
   isOpen: boolean;
@@ -60,8 +60,6 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   const [selectedBucketId, setSelectedBucketId] = useState<string | null>(null);
   
   const [showTableModal, setShowTableModal] = useState(false);
-  const [showBillDiscountConfirm, setShowBillDiscountConfirm] = useState(false);
-  const [confirmMessage, setConfirmMessage] = useState<string>("Bill discount will be erased while performing this action. Do you want to continue?");
 
   const lastClickRef = useRef<{ id: string, time: number }>({ id: "", time: 0 });
   const rawOrderResRef = useRef<any>(null);
@@ -85,7 +83,22 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       const masterData = Array.isArray(rawMaster) ? rawMaster[0] : (rawMaster || {});
       const detailsData = res.data?.detailsData || res.detailsData || [];
       const rawModifiersData = res.data?.modifiersData || res.modifiersData || [];
-      
+
+      // Business Rule: Only item discounts allowed in split. No bill discount or complimentary.
+      const checkResult = checkOrderAllowsSplitOrCombine(res);
+      const masterCheck = checkOrderAllowsSplitOrCombine({ masterData, detailsData });
+      const masterHasBillDisc =
+        Number(masterData.billDiscountValue || masterData.billDiscount || 0) > 0 ||
+        Boolean(masterData.isBillDiscount) ||
+        Boolean(masterData.complimentaryStatus) ||
+        Number(masterData.discPer || 0) > 0;
+
+      if (!checkResult.allowed || !masterCheck.allowed || masterHasBillDisc) {
+        showToast("Split is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
+        onClose();
+        return;
+      }
+
       // Deduplicate modifiersData (backend SQL JOIN Cartesian product fix)
       const seenMods = new Set<string>();
       const modifiersData = rawModifiersData.filter((m: any) => {
@@ -97,19 +110,17 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
 
       setOriginalOrder(masterData);
 
-      const isOrderBillDisc = checkOrderHasBillDiscount(res) || checkOrderHasBillDiscount({ masterData, detailsData });
-      const masterDiscPer = Number(masterData.discPer ?? masterData.DiscPer ?? masterData.billDiscountPer ?? 0);
-
       const initialItems: SplitCartItem[] = detailsData.map((d: any, idx: number) => {
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
         
+        // Map detail to cart item for genuine item discounts
         const cartItem = mapOrderDetailToCartItem({
           detail: d,
           idx,
           modifiersData,
           products,
-          masterDiscPer,
-          isOrderBillDiscount: isOrderBillDisc,
+          masterDiscPer: 0,
+          isOrderBillDiscount: false,
         });
 
         const rawAlt = d.altName || d.AltName || d.variantName || d.VariantName || cartItem.variantName || "";
@@ -123,7 +134,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
           price: cartItem.price || 0,
           currentQty: d.qty || 1,
           discountValue: cartItem.discountValue || 0,
-          discountType: cartItem.discountType,
+          discountType: cartItem.discountType || 'percentage',
           complimentaryStatus: Boolean(cartItem.complimentaryStatus),
           detail: {
             ...d,
@@ -184,8 +195,9 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         quantity: item.currentQty,
         price: item.price,
         isIncl: item.isIncl,
-        discountValue: 0,
-        discountType: undefined,
+        discountValue: item.discountValue || 0,
+        discountType: item.discountType,
+        complimentaryStatus: item.complimentaryStatus,
         extras,
         product: {
           id: item.detail?.productId ?? 1,
@@ -237,21 +249,54 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       const newSourceBucket = { ...sourceBucket, items: [...sourceBucket.items] };
       const newTargetBucket = { ...targetBucket, items: [...targetBucket.items] };
       
-      // Remove from source
-      newSourceBucket.items[sourceItemIndex] = { ...sourceItem, currentQty: sourceItem.currentQty - actualMoveQty };
-      if (newSourceBucket.items[sourceItemIndex].currentQty <= 0) {
+      // Calculate split discount proportionally so item discount is divided across split products
+      let movedDiscount = 0;
+      let remainingDiscount = 0;
+      if (sourceItem.discountType === 'amount') {
+        const totalDiscount = Number(sourceItem.discountValue || 0);
+        const unitDiscount = sourceItem.currentQty > 0 ? (totalDiscount / sourceItem.currentQty) : 0;
+        movedDiscount = roundCalc(unitDiscount * actualMoveQty, CALC_PRECISION);
+        remainingDiscount = roundCalc(Math.max(0, totalDiscount - movedDiscount), CALC_PRECISION);
+      } else {
+        movedDiscount = Number(sourceItem.discountValue || 0);
+        remainingDiscount = Number(sourceItem.discountValue || 0);
+      }
+
+      // Remove / update in source
+      const newSourceQty = sourceItem.currentQty - actualMoveQty;
+      if (newSourceQty <= 0) {
         newSourceBucket.items.splice(sourceItemIndex, 1);
+      } else {
+        newSourceBucket.items[sourceItemIndex] = {
+          ...sourceItem,
+          currentQty: newSourceQty,
+          discountValue: remainingDiscount,
+        };
       }
       
-      // Add to target
+      // Add / update in target
       const targetItemIndex = newTargetBucket.items.findIndex(i => i.mapId === mapId);
       if (targetItemIndex >= 0) {
+        const existingTargetItem = newTargetBucket.items[targetItemIndex];
+        const newTargetQty = existingTargetItem.currentQty + actualMoveQty;
+        const newTargetDiscount =
+          sourceItem.discountType === 'amount'
+            ? roundCalc((existingTargetItem.discountValue || 0) + movedDiscount, CALC_PRECISION)
+            : existingTargetItem.discountValue;
+
         newTargetBucket.items[targetItemIndex] = { 
-          ...newTargetBucket.items[targetItemIndex], 
-          currentQty: newTargetBucket.items[targetItemIndex].currentQty + actualMoveQty 
+          ...existingTargetItem, 
+          currentQty: newTargetQty,
+          discountValue: newTargetDiscount,
+          discountType: sourceItem.discountType,
         };
       } else {
-        newTargetBucket.items.push({ ...sourceItem, currentQty: actualMoveQty });
+        newTargetBucket.items.push({
+          ...sourceItem,
+          currentQty: actualMoveQty,
+          discountValue: movedDiscount,
+          discountType: sourceItem.discountType,
+        });
       }
 
       const sourceIdx = newBuckets.findIndex(b => b.id === sourceBucketId);
@@ -274,9 +319,17 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       targetBucket.items.forEach(item => {
         const baseItemIndex = newBaseBucket.items.findIndex(i => i.mapId === item.mapId);
         if (baseItemIndex >= 0) {
+          const baseItem = newBaseBucket.items[baseItemIndex];
+          const mergedDiscount =
+            item.discountType === 'amount'
+              ? roundCalc((baseItem.discountValue || 0) + (item.discountValue || 0), CALC_PRECISION)
+              : baseItem.discountValue;
+
           newBaseBucket.items[baseItemIndex] = {
-            ...newBaseBucket.items[baseItemIndex],
-            currentQty: newBaseBucket.items[baseItemIndex].currentQty + item.currentQty
+            ...baseItem,
+            currentQty: baseItem.currentQty + item.currentQty,
+            discountValue: mergedDiscount,
+            discountType: baseItem.discountType || item.discountType,
           };
         } else {
           newBaseBucket.items.push({ ...item });
@@ -361,16 +414,19 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     }
 
     const allBucketDetails = buckets.flatMap(b => b.items.map(i => i.detail));
-    const hasBillDiscount =
-      checkOrderHasBillDiscount(rawOrderResRef.current) ||
-      checkOrderHasBillDiscount({
-        masterData: originalOrder,
-        detailsData: allBucketDetails
-      });
+    const checkResult = checkOrderAllowsSplitOrCombine(rawOrderResRef.current);
+    const bucketCheck = checkOrderAllowsSplitOrCombine({
+      masterData: originalOrder,
+      detailsData: allBucketDetails
+    });
+    const masterHasBillDisc =
+      Number(originalOrder?.billDiscountValue || originalOrder?.billDiscount || 0) > 0 ||
+      Boolean(originalOrder?.isBillDiscount) ||
+      Boolean(originalOrder?.complimentaryStatus) ||
+      Number(originalOrder?.discPer || 0) > 0;
 
-    if (hasBillDiscount) {
-      setConfirmMessage("Bill discount will be erased while performing this action. Do you want to continue?");
-      setShowBillDiscountConfirm(true);
+    if (!checkResult.allowed || !bucketCheck.allowed || masterHasBillDisc) {
+      showToast("Split is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
       return;
     }
 
@@ -711,21 +767,6 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
           onConfirm={(assignments) => submitSplitOrder(assignments)}
         />
       )}
-
-      <ConfirmDialog
-        isOpen={showBillDiscountConfirm}
-        title="Warning"
-        message={confirmMessage}
-        confirmLabel="Continue"
-        cancelLabel="Cancel"
-        confirmVariant="danger"
-        loading={saving}
-        onConfirm={() => {
-          setShowBillDiscountConfirm(false);
-          proceedWithSplit();
-        }}
-        onCancel={() => setShowBillDiscountConfirm(false)}
-      />
     </>
   );
 };

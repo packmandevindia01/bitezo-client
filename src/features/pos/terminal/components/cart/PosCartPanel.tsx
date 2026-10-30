@@ -10,6 +10,7 @@ interface PosCartPanelProps {
   cartDetails: any;
   subtotal: number;
   discount: number;
+  netValue?: number;
   tax: number;
   charges: number;
   total: number;
@@ -52,6 +53,7 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
   cartDetails,
   subtotal,
   discount,
+  netValue,
   tax,
   charges,
   total,
@@ -110,6 +112,7 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
             cartDetails={cartDetails}
             subtotal={subtotal}
             discount={discount}
+            netValue={netValue}
             tax={tax}
             charges={charges}
             total={total}

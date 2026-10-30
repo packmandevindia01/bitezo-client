@@ -26,6 +26,7 @@ import {
   selectSubtotal,
   selectDiscount,
   selectTax,
+  selectNetValue,
   selectTotal,
   selectCharges,
   selectTotalServiceCharge,
@@ -56,6 +57,7 @@ export const usePosCartActions = () => {
   const cartDetails = useAppSelector(selectCartDetails);
   const subtotal = useAppSelector(selectSubtotal);
   const discount = useAppSelector(selectDiscount);
+  const netValue = useAppSelector(selectNetValue);
   const tax = useAppSelector(selectTax);
   const charges = useAppSelector(selectCharges);
   const totalServiceCharge = useAppSelector(selectTotalServiceCharge);
@@ -164,6 +166,7 @@ export const usePosCartActions = () => {
     subtotal,
     discount,
     tax,
+    netValue,
     charges,
     totalServiceCharge,
     totalLevy,
@@ -735,6 +738,8 @@ export const usePosCartActions = () => {
             discount: discount || 0,
             serviceCharge: totalServiceCharge,
             levy: totalLevy,
+            charges: roundCalc(totalServiceCharge + totalLevy),
+            netValue: roundCalc(Math.max(0, subtotal - (discount || 0)) + (totalServiceCharge + totalLevy)),
             vatAmount: tax,
             netAmount: total,
             deliveryCharge,
@@ -766,6 +771,7 @@ export const usePosCartActions = () => {
     subtotal,
     discount,
     tax,
+    netValue,
     charges,
     total,
     deliveryCharge,

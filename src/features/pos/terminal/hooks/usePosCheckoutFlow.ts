@@ -5,7 +5,7 @@ import { setIsSettling, setWaiter } from '../store/posSlice';
 import { salesInvoiceApi } from '../../services/salesInvoiceApi';
 import { orderApi } from '../../services/orderApi';
 import { settledOrdersApi } from '../../services/settledOrdersApi';
-import { getVatStatus } from '../utils/billing';
+import { getVatStatus, roundCalc, getPriceView } from '../utils/billing';
 import { isBillArabicEnabled, cleanProductName } from '../../utils/alternativeHelpers';
 import { buildSalesInvoicePayload } from '../mappers/invoicePayloadMapper';
 import { sortOrderDetailsBySequence } from '../utils/orderSort';
@@ -399,7 +399,11 @@ export const usePosCheckoutFlow = ({
 
           if ((!saleRes || (!saleRes.detailsData && !saleRes.details)) && targetOrderId > 0) {
             try {
-              const settledRes = await settledOrdersApi.getSettledOrderDetails(targetOrderId);
+              const activeOrderTypeName = orderPayload.orderTypeId === 1 ? "DineIn" : "TakeOut";
+              const settledRes = await settledOrdersApi.getSettledOrderDetails(targetOrderId, {
+                priceView: getPriceView(),
+                orderType: activeOrderTypeName,
+              });
               if (settledRes && settledRes.data) {
                 saleRes = settledRes.data;
               }
@@ -410,7 +414,11 @@ export const usePosCheckoutFlow = ({
 
           if (targetOrderId > 0) {
             try {
-              const orderRes = await orderApi.getOrderDetails(targetOrderId);
+              const activeOrderTypeName = orderPayload.orderTypeId === 1 ? "DineIn" : "TakeOut";
+              const orderRes = await orderApi.getOrderDetails(targetOrderId, {
+                priceView: getPriceView(),
+                orderType: activeOrderTypeName,
+              });
               if (orderRes) {
                 origOrderMaster = orderRes?.data?.masterData || orderRes?.masterData || orderRes?.data || orderRes;
                 if (!saleRes || (!saleRes.detailsData && !saleRes.details)) {
@@ -469,6 +477,13 @@ export const usePosCheckoutFlow = ({
             }
             if (Number(origOrderMaster.vatExclAmount || 0) > 0 && (!masterData.vatExclAmount || Number(masterData.vatExclAmount) === 0)) {
               masterData.vatExclAmount = origOrderMaster.vatExclAmount;
+            }
+            if (Number(origOrderMaster.serviceCharge || 0) > 0 && (!masterData.serviceCharge || Number(masterData.serviceCharge) === 0)) {
+              masterData.serviceCharge = origOrderMaster.serviceCharge;
+            }
+            if (Number(origOrderMaster.levyAmt || origOrderMaster.levy || 0) > 0 && (!masterData.levyAmt && !masterData.levy || (Number(masterData.levyAmt || 0) === 0 && Number(masterData.levy || 0) === 0))) {
+              masterData.levyAmt = origOrderMaster.levyAmt || origOrderMaster.levy;
+              masterData.levy = origOrderMaster.levyAmt || origOrderMaster.levy;
             }
           }
 
@@ -651,13 +666,14 @@ export const usePosCheckoutFlow = ({
               const qty = d.qty ?? d.Qty ?? cartMatch?.quantity ?? 1;
               const amount = d.netAmount ?? d.amount ?? cartMatch?.lineTotal ?? 0;
               const itemDisc = isBillDisc ? 0 : Number(cartMatch?.itemDiscount ?? d.discAmount ?? d.DiscAmount ?? d.discount ?? 0);
-              const cartPrice = cartMatch?.catalogPrice ?? cartMatch?.price;
-              const rawPrice = (cartMatch && cartPrice !== undefined && Number(cartPrice) > 0)
-                ? Number(cartPrice)
-                : (d.price ?? d.Price);
-              const price = (rawPrice !== undefined && Number(rawPrice) > 0)
-                ? (itemDisc > 0 && Math.abs((Number(rawPrice) * qty) - amount) < 0.001 && qty > 0 ? (amount + itemDisc) / qty : Number(rawPrice))
-                : (cartMatch?.price ?? (qty > 0 ? (amount + itemDisc) / qty : 0));
+              const rawPrice = (d.price !== undefined && Number(d.price) > 0)
+                ? Number(d.price)
+                : (cartMatch?.basePrice !== undefined && Number(cartMatch.basePrice) > 0
+                    ? Number(cartMatch.basePrice)
+                    : Number(cartMatch?.catalogPrice ?? cartMatch?.price ?? 0));
+              const price = (rawPrice > 0)
+                ? (itemDisc > 0 && Math.abs((rawPrice * qty) - amount) < 0.001 && qty > 0 ? (amount + itemDisc) / qty : rawPrice)
+                : (qty > 0 ? (amount + itemDisc) / qty : 0);
               let lineBase = price * qty;
               extras.forEach((ex: any) => lineBase += ex.price * ex.qty);
 
@@ -683,16 +699,24 @@ export const usePosCheckoutFlow = ({
                 itemVat = Number((amount - lineBase).toFixed(4));
               }
               const lineTotal = d.netAmount ?? d.amount ?? cartMatch?.lineTotal ?? lineBase;
-              const baseAmount = cartMatch?.baseAmount !== undefined && cartMatch.baseAmount <= lineTotal
+              const activeVatRate = itemVat > 0 && lineTotal > itemVat
+                ? (itemVat / (lineTotal - itemVat))
+                : 0.10;
+              const resolvedUnitBasePrice = cartMatch?.basePrice !== undefined && Number(cartMatch.basePrice) > 0
+                ? Number(cartMatch.basePrice)
+                : (price > 0
+                    ? (cartMatch?.isIncl === false ? price : roundCalc(price / (1 + activeVatRate), 4))
+                    : (qty > 0 ? Math.max(0, lineTotal - itemVat) / qty : 0));
+              const baseAmount = cartMatch?.baseAmount !== undefined && cartMatch.baseAmount > 0
                 ? cartMatch.baseAmount
-                : (itemVat > 0 ? Math.max(0, lineTotal - itemVat) : (price * qty));
+                : roundCalc(resolvedUnitBasePrice * qty, 4);
 
               return {
                 productId: dPid,
                 unitId: dUnitId,
                 quantity: qty,
                 price: price,
-                basePrice: cartMatch?.basePrice ?? (qty > 0 ? baseAmount / qty : undefined),
+                basePrice: resolvedUnitBasePrice,
                 baseAmount,
                 vatAmount: itemVat,
                 lineNetAmount: cartMatch?.lineNetAmount ?? (d.netAmount !== undefined ? Number(d.netAmount) : undefined),
@@ -836,14 +860,34 @@ export const usePosCheckoutFlow = ({
                 amount: (p as any).tenderedAmount ?? p.amount
               };
             }),
-            subTotal: isBillDisc
-              ? ((subtotal && subtotal > 0) ? subtotal : (masterData?.subTotal ?? masterData?.vatExclAmount ?? subtotal))
-              : (masterData?.vatExclAmount ?? ((subtotal && subtotal > 0) ? (subtotal - (totalDiscountAmount || 0)) : subtotal)),
-            discount: isBillDisc
-              ? ((totalDiscountAmount && totalDiscountAmount > 0) ? totalDiscountAmount : Number(masterData?.discAmount ?? masterData?.discount ?? 0))
-              : 0,
-            serviceCharge: isCombinedOrder ? totalServiceCharge : (masterData?.serviceCharge ?? totalServiceCharge),
-            levy: isCombinedOrder ? totalLevy : (masterData?.levyAmt ?? masterData?.levy ?? totalLevy),
+            subTotal: (subtotal && subtotal > 0)
+              ? subtotal
+              : (masterData?.subTotal ?? (localStorage.getItem("printPrice") === "Exclusive" ? masterData?.vatExclAmount : undefined) ?? subtotal),
+            discount: (totalDiscountAmount && totalDiscountAmount > 0)
+              ? totalDiscountAmount
+              : Number(masterData?.discAmount ?? masterData?.discount ?? 0),
+            vatExclAmount: masterData?.vatExclAmount ?? (subtotal && totalDiscountAmount ? Math.max(0, subtotal - totalDiscountAmount) : undefined),
+            billDiscountValue: orderPayload.billDiscountValue ?? orderPayload.billDiscount ?? undefined,
+            discAmount: Number(masterData?.discAmount ?? totalDiscountAmount ?? 0),
+            serviceCharge: isCombinedOrder ? totalServiceCharge : (Number(masterData?.serviceCharge || 0) > 0 ? Number(masterData.serviceCharge) : totalServiceCharge),
+            levy: isCombinedOrder ? totalLevy : (Number(masterData?.levyAmt || masterData?.levy || 0) > 0 ? Number(masterData.levyAmt || masterData.levy) : totalLevy),
+            charges: roundCalc(
+              (isCombinedOrder ? totalServiceCharge : (Number(masterData?.serviceCharge || 0) > 0 ? Number(masterData.serviceCharge) : totalServiceCharge)) +
+              (isCombinedOrder ? totalLevy : (Number(masterData?.levyAmt || masterData?.levy || 0) > 0 ? Number(masterData.levyAmt || masterData.levy) : totalLevy))
+            ),
+            netValue: (localStorage.getItem("printPrice") !== "Inclusive")
+              ? roundCalc(
+                  Math.max(
+                    0,
+                    ((subtotal && subtotal > 0) ? subtotal : (masterData?.subTotal ?? (localStorage.getItem("printPrice") === "Exclusive" ? masterData?.vatExclAmount : undefined) ?? subtotal)) -
+                    ((totalDiscountAmount && totalDiscountAmount > 0) ? totalDiscountAmount : Number(masterData?.discAmount ?? masterData?.discount ?? 0))
+                  ) +
+                  roundCalc(
+                    (isCombinedOrder ? totalServiceCharge : (Number(masterData?.serviceCharge || 0) > 0 ? Number(masterData.serviceCharge) : totalServiceCharge)) +
+                    (isCombinedOrder ? totalLevy : (Number(masterData?.levyAmt || masterData?.levy || 0) > 0 ? Number(masterData.levyAmt || masterData.levy) : totalLevy))
+                  )
+                )
+              : undefined,
             vatAmount: isCombinedOrder ? totalVat : ((totalVat && totalVat > 0) ? totalVat : (masterData?.vatAmount ?? totalVat)),
             deliveryCharge: isCombinedOrder ? deliveryCharge : (masterData?.deliveryCharge ?? deliveryCharge),
             netAmount: isCombinedOrder ? total : ((total && total > 0) ? total : (masterData?.netAmount ?? total)),

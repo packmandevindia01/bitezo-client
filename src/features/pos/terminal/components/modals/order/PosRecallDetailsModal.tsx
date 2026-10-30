@@ -6,20 +6,20 @@ import { menuApi } from "../../../../services/menuApi";
 import { deliveryApi } from "../../../../customer/services/deliveryApi";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
-import { loadRecalledOrder, setDeliveryDetails } from "../../../store/posSlice";
+import { loadRecalledOrder, setDeliveryDetails, fallbackOrderTypeByName } from "../../../store/posSlice";
 import { formatAmount } from "../../../../../../utils/currency";
-import { generateGuestPrintHtml, isEnableVatGuestPrint } from "../../../../utils/guestPrintTemplate";
-import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../../../utils/printHeadingUtils";
+import { isEnableVatGuestPrint } from "../../../../utils/guestPrintTemplate";
 import { generateKotHtml } from "../../../../utils/kotTemplate";
 import { executeKotRouting } from "../../../../utils/printerRouting";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getVatStatus, getBillingConfig, roundCalc, getPriceView, getPrintPrice, getDiscountCalculation } from "../../../utils/billing";
-import { isKotArabicEnabled, isBillArabicEnabled, formatItemDisplayName } from "../../../../utils/alternativeHelpers";
+import { getVatStatus, getBillingConfig, roundCalc, CALC_PRECISION, getPriceView, getPrintPrice, getDiscountCalculation } from "../../../utils/billing";
+import { isKotArabicEnabled, formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
 import { buildUnifiedOrderPricing } from "../../../../utils/orderPricing";
 import { checkOrderHasBillDiscount } from "../../../utils/orderDiscountCheck";
+import { printRecallOrderGuestReceipt } from "../../../utils/printRecallOrder";
 
 import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
 import { t, getLocalizedName } from "../../../../utils/posLocalization";
@@ -168,7 +168,11 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     if (!targetId) return;
     setLoading(true);
     try {
-      const response = await orderApi.getOrderDetails(targetId);
+      const parsedType = fallbackDetails?.orderTypeName || (orderDetailsStr?.match(/\((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming)\)/i)?.[1]);
+      const response = await orderApi.getOrderDetails(targetId, {
+        priceView: effectivePriceView,
+        orderType: parsedType,
+      });
       const orderData = response?.data || response;
       const rawMaster = orderData?.masterData || orderData?.master || orderData;
       const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
@@ -263,7 +267,15 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         1: "DineIn", 2: "TakeOut", 3: "DriveThru",
         4: "Delivery", 5: "Providers", 6: "Coming"
       };
-      const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
+      const orderTypeCandidate =
+    master.orderType ||
+    orderTypeMap[master.orderTypeId] ||
+    master.orderTypeName ||
+    order?.orderTypeName ||
+    fallbackDetails?.orderTypeName ||
+    (orderDetailsStr?.match(/\((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming)\)/i)?.[1]) ||
+    "TakeOut";
+  const orderTypeName = fallbackOrderTypeByName(orderTypeCandidate).orderType;
       
       const printPriceSetting = getPrintPrice();
       const isTaxInclusive = printPriceSetting === "Inclusive";
@@ -504,352 +516,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   };
 
   const handlePrintGuest = async () => {
-    if (!orderId || !order) return;
-    
-    if (!hasPrinterHeadings()) {
-      notifyPrinterHeadingWarning(showToast);
-    }
-
-    try {
-      showToast(`Preparing Guest Receipt for Order #${orderId}...`, "success");
-      
-      const rawMaster = order.masterData || order.master || order;
-      const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
-      
-      const orderTypeMap: Record<number, string> = {
-        1: "DineIn", 2: "TakeOut", 3: "DriveThru",
-        4: "Delivery", 5: "Providers", 6: "Coming"
-      };
-      const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
-
-      const timeFromDetails = (() => {
-        if (!orderDetailsStr) return "";
-        const m = orderDetailsStr.match(/(\d{1,2}:\d{2}:\d{2}\s*(?:AM|PM))/i);
-        return m ? m[1] : "";
-      })();
-      
-      const isValidDateStr = (s: any) => {
-        if (!s || typeof s !== 'string') return false;
-        if (s.startsWith('0001')) return false;
-        return true;
-      };
-
-      const candidateDates = [
-        master.voucherDate,
-        master.orderDate,
-        master.createdAt,
-        timeFromDetails
-      ];
-
-      let resolvedDateStr = candidateDates.find(isValidDateStr);
-      let date: string | undefined;
-      let time: string | undefined;
-      
-      if (resolvedDateStr) {
-        try {
-          const d = new Date(resolvedDateStr);
-          if (!isNaN(d.getTime()) && d.getFullYear() >= 2000) {
-            date = d.toLocaleDateString('en-GB');
-            time = d.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
-          } else if (/am|pm/i.test(resolvedDateStr)) {
-            const today = new Date();
-            date = today.toLocaleDateString('en-GB');
-            time = resolvedDateStr;
-          }
-        } catch { /* ignore */ }
-      }
-
-      if (!date) {
-        const now = new Date();
-        date = now.toLocaleDateString('en-GB');
-        time = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit' });
-      }
-
-      const netAmount = Number(master.netAmount ?? order.netAmount ?? 0);
-      const enableVat = isEnableVatGuestPrint();
-      const printPriceSetting = getPrintPrice();
-      const isTaxInclusive = printPriceSetting === "Inclusive";
-
-      const isBillLevelDiscount = checkOrderHasBillDiscount(order);
-      const unified = buildUnifiedOrderPricing(order, {
-        orderType: orderTypeName,
-        printPrice: printPriceSetting,
-        modifierTypes,
-        isVatActive: enableVat,
-        isBillDiscount: isBillLevelDiscount,
-        products,
-        productCache,
-      });
-
-      const mappedItems = unified.lines.map((l) => ({
-        ...l,
-        isUnifiedPricingLine: true,
-        productId: l.productId,
-        quantity: l.quantity,
-        price: l.getRate(isTaxInclusive),
-        baseAmount: l.exclusiveGross,
-        variantName: l.variantName,
-        variantArabic: l.variantArabic,
-        product: {
-          name: l.productName,
-          price: l.getRate(isTaxInclusive),
-          arabicName: l.productArabicName,
-        },
-        extras: l.extras,
-        modifiers: l.modifiers,
-        messages: l.messages,
-        itemDiscount: unified.summary.isBillDiscount ? 0 : l.getDiscount(isTaxInclusive),
-        lineTotal: l.getAmount(isTaxInclusive, unified.summary.isBillDiscount),
-        lineNetAmount: l.inclusiveAmount,
-        basePrice: l.exclusiveRate,
-        vatAmount: l.vatAmount,
-      }));
-
-      const resolvedDiscount = Number(
-        master.discAmount ??
-        master.DiscAmount ??
-        master.discount ??
-        unified.summary.totalDiscountExcl ??
-        0
-      );
-      const resolvedSubTotal = (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0)
-        ? (Number(master.vatExclAmount) + resolvedDiscount)
-        : (unified.summary.subTotalExclusive || (master.subTotal ? Number(master.subTotal) : 0));
-      const resolvedVatAmount = Number(
-        (unified?.summary.vatAmount && unified.summary.vatAmount > 0)
-          ? unified.summary.vatAmount
-          : (master.vatAmount ?? master.VatAmount ?? 0)
-      );
-      const isGuestPrintBillDiscount = unified.summary.isBillDiscount;
-
-      let resolvedFlatNo = master.flatNo || master.flat || master.flatNumber || "";
-      let resolvedBuildingNo = master.buildingNo || master.building || master.buildingNumber || "";
-      let resolvedBlockNo = master.blockNo || master.block || master.blockNumber || "";
-      let resolvedRoadNo = master.roadNo || master.road || master.roadNumber || master.street || "";
-      let resolvedArea = master.area || master.areaName || "";
-      let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
-      let resolvedContactNo =
-        master.contactNo ||
-        master.mobileNo ||
-        master.phone ||
-        master.mobile ||
-        order?.contactNo ||
-        order?.mobileNo ||
-        (order as any)?.orderMaster?.contactNo ||
-        (order as any)?.orderMaster?.mobileNo ||
-        fallbackDetails?.deliveryDetails?.mobile ||
-        "";
-      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
-      let resolvedCallBack = isDeliveryOrder
-        ? (master.callBack ||
-          master.callback ||
-          master.callBackNo ||
-          master.callbackNo ||
-          master.callBackNumber ||
-          master.callbackNumber ||
-          (order as any)?.callBack ||
-          (order as any)?.callback ||
-          (order as any)?.orderMaster?.callBack ||
-          (order as any)?.orderMaster?.callback ||
-          (order as any)?.master?.callBack ||
-          "")
-        : "";
-
-      let resolvedCustomerName = master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || master.customer || "";
-
-      let rawChange =
-        master.change ??
-        master.keepChanges ??
-        (order as any)?.change ??
-        (order as any)?.keepChanges ??
-        (order as any)?.orderMaster?.change ??
-        (order as any)?.orderMaster?.keepChanges ??
-        (order as any)?.master?.change ??
-        "";
-
-      const validKeepChange = (isDeliveryOrder && rawChange !== undefined && rawChange !== null &&
-        String(rawChange).trim() !== "" &&
-        String(rawChange).trim() !== "0" &&
-        String(rawChange).trim() !== "0.00" &&
-        String(rawChange).trim() !== "0.000")
-        ? String(rawChange).trim()
-        : undefined;
-
-      if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {
-        try {
-          const addrRes = await deliveryApi.getDeliveryAddress(resolvedContactNo);
-          const addrData = Array.isArray(addrRes?.data) ? addrRes.data[0] : (addrRes?.data || addrRes);
-          if (addrData) {
-            resolvedFlatNo = addrData.flatNo || resolvedFlatNo;
-            resolvedBuildingNo = addrData.buildingNo || resolvedBuildingNo;
-            resolvedBlockNo = addrData.blockNo || resolvedBlockNo;
-            resolvedRoadNo = addrData.roadNo || resolvedRoadNo;
-            resolvedArea = addrData.area || resolvedArea;
-            if (!resolvedCustomerName || resolvedCustomerName === "CASH CUSTOMER") {
-              resolvedCustomerName = addrData.customerName || resolvedCustomerName;
-            }
-          }
-        } catch (fetchAddrErr) {
-          console.warn("[PosRecallDetailsModal] Could not fetch delivery address fallback for Guest:", fetchAddrErr);
-        }
-      }
-
-      let resolvedDriver =
-        master.driverName ||
-        master.allocatedDriverName ||
-        master.driver ||
-        master.driverEmployeeName ||
-        order?.driverName ||
-        order?.allocatedDriverName ||
-        order?.driver ||
-        order?.driverEmployeeName ||
-        "";
-
-      if (!resolvedDriver && orderDetailsStr) {
-        const match = orderDetailsStr.match(/\(Driver:\s*([^)]+)\)/i) || orderDetailsStr.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
-        if (match && match[1]) {
-          resolvedDriver = match[1].trim();
-        }
-      }
-
-      if (!resolvedDriver && typeof master.details === "string") {
-        const match = master.details.match(/\(Driver:\s*([^)]+)\)/i) || master.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
-        if (match && match[1]) {
-          resolvedDriver = match[1].trim();
-        }
-      }
-
-      const activeDriverId = master.driverId || order?.driverId;
-      if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
-        try {
-          const branchId =
-            Number(localStorage.getItem("systemBranchId")) ||
-            Number(localStorage.getItem("activeBranchId")) ||
-            Number(localStorage.getItem("branchId")) ||
-            1;
-          const { employeeService } = await import("../../../../../general/employee/services/employeeService");
-          const dList = await employeeService.getDrivers(branchId);
-          const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));
-          if (dFound) {
-            resolvedDriver = dFound.driverName;
-          }
-        } catch (err) {
-          console.warn("[PosRecallDetailsModal] Failed to resolve driver name by id for Guest:", err);
-        }
-      }
-
-      const printData = {
-        orderNo: master.orderNo ?? String(orderId),
-        ticketNo: master.ticketNo ?? "1",
-        waiter: (() => {
-          const rawName = master.employeeName ?? fallbackDetails?.employeeName;
-          if (rawName && !["waiter", "cashier", "null", "undefined"].includes(String(rawName).trim().toLowerCase())) {
-            return String(rawName).trim();
-          }
-          try {
-            const mapRaw = localStorage.getItem("posEmpNameMap");
-            if (mapRaw) {
-              const m = JSON.parse(mapRaw);
-              const n = m[String(master.employeeId ?? master.empId ?? "")];
-              if (n && !["waiter", "cashier"].includes(String(n).trim().toLowerCase())) return String(n).trim();
-            }
-          } catch {}
-          return (
-            localStorage.getItem("defaultEmployeeName") ||
-            localStorage.getItem("authorizedEmployeeName") ||
-            localStorage.getItem("employeeName") ||
-            "Waiter"
-          );
-        })(),
-        counter: "Main",
-        section: master.sectionName || "DINE IN",
-        table: master.tableNo || "",
-        orderType: orderTypeName,
-        date, time,
-        customerName: resolvedCustomerName,
-        driver: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
-        driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
-        vehicleNo: master.vehicleNo,
-        contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
-        callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
-        change: isDeliveryOrder ? validKeepChange : undefined,
-        keepChanges: isDeliveryOrder ? validKeepChange : undefined,
-        flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,
-        buildingNo: isDeliveryOrder ? (resolvedBuildingNo || undefined) : undefined,
-        blockNo: isDeliveryOrder ? (resolvedBlockNo || undefined) : undefined,
-        roadNo: isDeliveryOrder ? (resolvedRoadNo || undefined) : undefined,
-        area: isDeliveryOrder ? (resolvedArea || undefined) : undefined,
-        address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
-        providerNo: master.providerNo || master.providerOrderNo || "",
-        subTotal: isGuestPrintBillDiscount
-          ? resolvedSubTotal
-          : (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0
-              ? Number(master.vatExclAmount)
-              : (unified.summary.subTotalExclusive || resolvedSubTotal)),
-        discount: isGuestPrintBillDiscount ? resolvedDiscount : 0,
-        serviceCharge: master.serviceCharge || 0,
-        levy: master.levyAmt || master.levy || 0,
-        vatAmount: resolvedVatAmount,
-        netAmount: unified.summary.grandTotal > 0 ? unified.summary.grandTotal : netAmount,
-        deliveryCharge: master.deliveryCharge || 0,
-        enableVat,
-        printPrice: (localStorage.getItem("printPrice") as any) || undefined,
-        priceView: (localStorage.getItem("priceView") as any) || undefined,
-        billArabic: isBillArabicEnabled() || mappedItems.some((it: any) => 
-          Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
-        ),
-        isBillDiscount: isGuestPrintBillDiscount
-      };
-
-      let htmlContent = "";
-      try {
-        htmlContent = await generateGuestPrintHtml(unified as any, printData);
-        
-        let billPrinter: string | undefined;
-        try {
-          const settingsRes = await printerSettingsApi.getGeneral();
-          const gen = settingsRes?.data;
-          billPrinter = gen?.androidBillPrinter || gen?.billPrinter || gen?.androidKOTPrinter || gen?.kotPrinter;
-        } catch (err) {
-          console.warn("[PosRecallDetailsModal] Could not fetch general printer settings:", err);
-        }
-
-        if (!billPrinter || billPrinter === "No Printer") {
-          billPrinter = localStorage.getItem('cachedBillPrinter') || 
-                        localStorage.getItem('cachedBillPrinterIp') ||
-                        localStorage.getItem('cachedKotPrinter') || 
-                        localStorage.getItem('cachedKotPrinterIp') || 
-                        localStorage.getItem('printerIpAddress') || 
-                        undefined;
-        }
-        
-        await printHtmlReceipt(htmlContent, billPrinter);
-        showToast("Guest receipt sent to printer!", "success");
-      } catch (err: any) {
-        console.error("Printer error:", err);
-        try {
-          const printWindow = window.open("", "_blank", "width=400,height=600");
-          if (printWindow) {
-            printWindow.document.write(htmlContent);
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => {
-              printWindow.print();
-              printWindow.close();
-            }, 300);
-            showToast("Opened Guest receipt in print preview", "info");
-            return;
-          }
-        } catch (fallbackErr) {
-          console.error("Guest fallback window error:", fallbackErr);
-        }
-        showToast(err?.message ? `Print failed: ${err.message}` : "Failed to connect to printer", "error");
-      }
-      
-    } catch (e: any) {
-      console.error(e);
-      showToast(e?.message ? `Print failed: ${e.message}` : "Failed to print receipt", "error");
-    }
+    const targetOrderId = Number(orderId || effectiveOrderId);
+    if (!targetOrderId) return;
+    await printRecallOrderGuestReceipt({
+      orderId: targetOrderId,
+      order,
+      orderDetailsStr,
+      products,
+      productCache,
+      alternativesCache,
+      showToast,
+    });
   };
 
   const handleEditOrder = () => {
@@ -859,15 +536,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const rawMaster = order.masterData || order.master || order;
       const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
 
-      const orderTypeName =
+      const rawTypeCandidate =
         master.orderType ||
         master.orderTypeName ||
         (master.orderTypeId ? orderTypeIdToNameMap[Number(master.orderTypeId)] : "") ||
-        "DineIn";
-      const orderTypeId =
-        master.orderTypeId ||
-        orderTypeNameMap[orderTypeName] ||
-        1;
+        order?.orderTypeName ||
+        fallbackDetails?.orderTypeName ||
+        (orderDetailsStr?.match(/\((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming)\)/i)?.[1]) ||
+        "TakeOut";
+      const resolvedOrderTypeObj = fallbackOrderTypeByName(rawTypeCandidate);
+      const orderTypeName = resolvedOrderTypeObj.orderType;
+      const orderTypeId = master.orderTypeId ? Number(master.orderTypeId) : resolvedOrderTypeObj.orderTypeId;
 
       const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\D/g, '') : '';
       const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
@@ -950,6 +629,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         priceView: effectivePriceView,
         masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
         isOrderBillDiscount: isBillLevelDiscount,
+        orderType: orderTypeName,
       });
 
       const unifiedPricing = buildUnifiedOrderPricing(order, {
@@ -959,21 +639,27 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         products,
         productCache,
       });
-      const authSubtotal = isTaxInclusive
-        ? unifiedPricing.summary.subTotalInclusive
+      const authSubtotal = (master.subTotal && Math.abs(Number(master.subTotal) - unifiedPricing.summary.subTotalExclusive) < 0.15)
+        ? Number(master.subTotal)
         : unifiedPricing.summary.subTotalExclusive;
       const authDiscount = isBillComplimentary
         ? authSubtotal
-        : (isTaxInclusive ? unifiedPricing.summary.totalDiscountIncl : unifiedPricing.summary.totalDiscountExcl);
-      const authTax = isBillComplimentary ? 0 : unifiedPricing.summary.vatAmount;
-      const authNet = isBillComplimentary ? 0 : unifiedPricing.summary.grandTotal;
+        : (backendDiscount > 0 ? backendDiscount : (unifiedPricing.summary.totalDiscountExcl || 0));
+      const authTax = isBillComplimentary ? 0 : (resolvedVatAmount > 0 && Math.abs(resolvedVatAmount - unifiedPricing.summary.vatAmount) < 0.15 ? resolvedVatAmount : unifiedPricing.summary.vatAmount);
+      const authNet = isBillComplimentary ? 0 : (netAmount > 0 && Math.abs(netAmount - unifiedPricing.summary.grandTotal) < 0.15 ? netAmount : unifiedPricing.summary.grandTotal);
+      const authCharges = (unifiedPricing.summary.charges !== undefined && unifiedPricing.summary.charges > 0)
+        ? unifiedPricing.summary.charges
+        : roundCalc(Number(master.serviceCharge || 0) + Number(master.levy || master.levyAmt || 0));
+      const authNetValue = (unifiedPricing.summary.netValue !== undefined && unifiedPricing.summary.netValue > 0)
+        ? unifiedPricing.summary.netValue
+        : roundCalc(Math.max(0, authSubtotal - authDiscount) + authCharges);
 
       let resolvedBillDiscVal = isBillComplimentary
         ? 100
         : masterDiscPer > 0
         ? masterDiscPer
         : isBillLevelDiscount
-        ? (getDiscountCalculation() === "Inclusive" ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0))
+        ? (resolvedDiscount > 0 ? resolvedDiscount : (getDiscountCalculation() === "Inclusive" ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0)))
         : 0;
 
       dispatch(loadRecalledOrder({
@@ -1005,6 +691,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         authoritativeDiscount: authDiscount,
         authoritativeTax: authTax,
         authoritativeNetAmount: authNet,
+        authoritativeCharges: authCharges,
+        authoritativeNetValue: authNetValue,
         prevUpdatedAt,
       }));
 
@@ -1043,15 +731,17 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const rawMaster = order.masterData || order.master || order;
       const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
 
-      const orderTypeName =
+      const rawTypeCandidate =
         master.orderType ||
         master.orderTypeName ||
         (master.orderTypeId ? orderTypeIdToNameMap[Number(master.orderTypeId)] : "") ||
-        "DineIn";
-      const orderTypeId =
-        master.orderTypeId ||
-        orderTypeNameMap[orderTypeName] ||
-        1;
+        order?.orderTypeName ||
+        fallbackDetails?.orderTypeName ||
+        (orderDetailsStr?.match(/\((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming)\)/i)?.[1]) ||
+        "TakeOut";
+      const resolvedOrderTypeObj = fallbackOrderTypeByName(rawTypeCandidate);
+      const orderTypeName = resolvedOrderTypeObj.orderType;
+      const orderTypeId = master.orderTypeId ? Number(master.orderTypeId) : resolvedOrderTypeObj.orderTypeId;
 
       const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\D/g, '') : '';
       const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
@@ -1143,21 +833,21 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         products,
         productCache,
       });
-      const authSubtotal = isTaxInclusive
-        ? unifiedPricing.summary.subTotalInclusive
+      const authSubtotal = (master.subTotal && Math.abs(Number(master.subTotal) - unifiedPricing.summary.subTotalExclusive) < 0.15)
+        ? Number(master.subTotal)
         : unifiedPricing.summary.subTotalExclusive;
       const authDiscount = isBillComplimentary
         ? authSubtotal
-        : (isTaxInclusive ? unifiedPricing.summary.totalDiscountIncl : unifiedPricing.summary.totalDiscountExcl);
-      const authTax = isBillComplimentary ? 0 : unifiedPricing.summary.vatAmount;
-      const authNet = isBillComplimentary ? 0 : unifiedPricing.summary.grandTotal;
+        : (backendDiscount > 0 ? backendDiscount : (unifiedPricing.summary.totalDiscountExcl || 0));
+      const authTax = isBillComplimentary ? 0 : (resolvedVatAmount > 0 && Math.abs(resolvedVatAmount - unifiedPricing.summary.vatAmount) < 0.15 ? resolvedVatAmount : unifiedPricing.summary.vatAmount);
+      const authNet = isBillComplimentary ? 0 : (netAmount > 0 && Math.abs(netAmount - unifiedPricing.summary.grandTotal) < 0.15 ? netAmount : unifiedPricing.summary.grandTotal);
 
       let resolvedBillDiscVal = isBillComplimentary
         ? 100
         : masterDiscPer > 0
         ? masterDiscPer
         : isBillLevelDiscount
-        ? (getDiscountCalculation() === "Inclusive" ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0))
+        ? (resolvedDiscount > 0 ? resolvedDiscount : (getDiscountCalculation() === "Inclusive" ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0)))
         : 0;
 
       dispatch(loadRecalledOrder({
@@ -1219,7 +909,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         }));
       }
 
-      onSettleSuccess?.(master.netAmount || 0);
+      onSettleSuccess?.(authNet);
       onClose();
     } catch (e) {
       console.error(e);
@@ -1260,7 +950,15 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     5: "Providers",
     6: "Coming"
   };
-  const orderTypeName = master.orderType || orderTypeMap[master.orderTypeId] || master.orderTypeName || order?.orderTypeName || "DineIn";
+  const orderTypeCandidate =
+    master.orderType ||
+    orderTypeMap[master.orderTypeId] ||
+    master.orderTypeName ||
+    order?.orderTypeName ||
+    fallbackDetails?.orderTypeName ||
+    (orderDetailsStr?.match(/\((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming)\)/i)?.[1]) ||
+    "TakeOut";
+  const orderTypeName = fallbackOrderTypeByName(orderTypeCandidate).orderType;
   
   // Extract time from orderDetailsStr as a reliable fallback (e.g. "7:46:02 PM")
   const timeFromDetails = (() => {
@@ -1333,43 +1031,104 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     productCache,
   });
 
-  const displayDiscount = Number(
+  const billingConfig = getBillingConfig(orderTypeName || "DineIn");
+  const isVatActive = Boolean(isEnableVatGuestPrint(master as any) || getVatStatus() || unified?.summary?.isVatActive);
+
+  const backendDiscount = Number(
     master.discAmount ??
     master.DiscAmount ??
+    master.discAmt ??
+    master.DiscAmt ??
     master.discount ??
-    unified.summary.totalDiscountExcl ??
+    master.Discount ??
+    master.billDiscount ??
+    master.BillDiscount ??
+    master.billDiscountValue ??
     0
   );
-  const displayServiceCharge = Number(
-    master.serviceCharge ??
-    unified.summary.serviceCharge ??
-    0
+  const detailsScSum = roundCalc(
+    (details || []).reduce((sum: number, d: any) => sum + Number(d.serviceCharge ?? d.ServiceCharge ?? 0), 0)
   );
-  const displayLevy = Number(
-    master.levyAmt ??
-    master.levy ??
-    unified.summary.levy ??
-    0
+  const displayServiceCharge = detailsScSum > 0
+    ? detailsScSum
+    : Number(
+        master.serviceCharge ??
+        master.ServiceCharge ??
+        (unified ? unified.summary.serviceCharge : 0)
+      );
+
+  const detailsLevySum = roundCalc(
+    (details || []).reduce((sum: number, d: any) => sum + Number(d.levy ?? d.Levy ?? 0), 0)
   );
+  const displayLevy = detailsLevySum > 0
+    ? detailsLevySum
+    : Number(
+        master.levyAmt ??
+        master.levy ??
+        master.Levy ??
+        (unified ? unified.summary.levy : 0)
+      );
   const displayDeliveryCharge = Number(
     master.deliveryCharge ??
-    unified.summary.deliveryCharge ??
-    0
+    master.DeliveryCharge ??
+    (unified ? unified.summary.deliveryCharge : 0)
   );
-  const displayVatAmount = Number(
+  const rawModalCharges = Number(displayServiceCharge || 0) + Number(displayLevy || 0);
+  const displayDiscount = Number(
+    unified
+      ? ((isTaxInclusive && rawModalCharges <= 0)
+          ? (unified.summary.totalDiscountIncl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(true) : backendDiscount))
+          : (unified.summary.totalDiscountExcl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : backendDiscount)))
+      : (backendDiscount > 0 ? backendDiscount : 0)
+  );
+  let displayVatAmount = Number(
     master.vatAmount ??
     master.VatAmount ??
-    unified.summary.vatAmount ??
-    0
+    master.vatAmt ??
+    (unified ? unified.summary.vatAmount : 0)
   );
-  const displaySubTotal = (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0)
-    ? (Number(master.vatExclAmount) + displayDiscount)
-    : (unified.summary.subTotalExclusive || (master.subTotal ? Number(master.subTotal) : 0));
+  if (displayVatAmount <= 0 && isVatActive) {
+    const rateFraction = billingConfig.vatRate > 0 ? (billingConfig.vatRate > 1 ? billingConfig.vatRate / 100 : billingConfig.vatRate) : 0.10;
+    const delivery = Number(master.deliveryCharge || unified.summary?.deliveryCharge || 0);
+    const grandTotal = Number(master.netAmount ?? master.NetAmount ?? unified.summary.grandTotal ?? 0);
+    const taxableGross = Math.max(0, grandTotal - delivery);
+    if (rateFraction > 0 && taxableGross > 0) {
+      displayVatAmount = roundCalc(taxableGross - (taxableGross / (1 + rateFraction)), CALC_PRECISION);
+    }
+  }
+  const grossSubTotalFromLines = unified
+    ? ((isTaxInclusive && rawModalCharges <= 0) ? unified.summary.subTotalInclusive : unified.summary.subTotalExclusive)
+    : 0;
+
+  const displaySubTotal = Number(
+    grossSubTotalFromLines > 0
+      ? grossSubTotalFromLines
+      : (master.subTotal !== undefined && master.subTotal !== null && Number(master.subTotal) > 0
+          ? Number(master.subTotal)
+          : (master.vatExclAmount !== undefined && master.vatExclAmount !== null && Number(master.vatExclAmount) > 0
+              ? Number(master.vatExclAmount) + displayDiscount
+              : 0))
+  );
   const netAmount = Number(
     master.netAmount ??
     master.NetAmount ??
     unified.summary.grandTotal ??
     0
+  );
+  let displayCharges = (unified?.summary?.charges && unified.summary.charges > 0)
+    ? unified.summary.charges
+    : roundCalc(Number(displayServiceCharge || 0) + Number(displayLevy || 0));
+  if (netAmount > 0) {
+    const netBase = Math.max(0, displaySubTotal - displayDiscount);
+    const residual = roundCalc(netAmount - netBase - displayDeliveryCharge - displayVatAmount);
+    if (residual > 0.001) {
+      if (displayCharges <= 0 || Math.abs(displayCharges - residual) > 0.05) {
+        displayCharges = residual;
+      }
+    }
+  }
+  const displayNetValue = roundCalc(
+    unified?.summary?.vatExclAmount ?? Math.max(0, netAmount - displayDeliveryCharge - displayVatAmount)
   );
 
   const hasDelivery = !!master.mobileNo || !!master.contactNo || !!master.deliveryCustomerName;
@@ -1488,13 +1247,12 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                     const price = isTaxInclusive
                       ? (line.inclusiveRate || line.getRate(true))
                       : (line.exclusiveRate || line.getRate(false));
-                    const itemDisc = (unified.summary.isBillDiscount || isBillLevelDiscount)
-                      ? 0
-                      : (typeof line.getDiscount === "function" ? line.getDiscount(isTaxInclusive) : line.lineDiscount);
+                    const lineDisc = typeof line.getDiscount === "function" ? line.getDiscount(isTaxInclusive) : (line.lineDiscount || 0);
+                    const itemDisc = lineDisc > 0 ? lineDisc : 0;
                     const origGrossAmt = (isTaxInclusive ? line.inclusiveGross : line.exclusiveGross) || (price * qty);
-                    const netAmt = (unified.summary.isBillDiscount || isBillLevelDiscount)
-                      ? origGrossAmt
-                      : (isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount);
+                    const netAmt = itemDisc > 0
+                      ? Math.max(0, origGrossAmt - itemDisc)
+                      : ((unified.summary.isBillDiscount || isBillLevelDiscount) ? origGrossAmt : (isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount));
 
                     return (
                       <div key={i} className="flex flex-col">
@@ -1596,25 +1354,23 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
                   <span>-{formatAmount(displayDiscount)}</span>
                 </div>
               )}
-              {displayServiceCharge > 0 && (
+              {displayCharges > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
-                  <span>{t("Service Charge")}</span>
-                  <span>{formatAmount(displayServiceCharge)}</span>
+                  <span>{t("Charges")}</span>
+                  <span>{formatAmount(displayCharges)}</span>
                 </div>
               )}
-              {displayLevy > 0 && (
-                <div className="flex justify-between items-center text-stone-600">
-                  <span>Levy(5%)</span>
-                  <span>{formatAmount(displayLevy)}</span>
-                </div>
-              )}
+              <div className="flex justify-between items-center text-stone-600">
+                <span>{t("Net Value")}</span>
+                <span>{formatAmount(displayNetValue)}</span>
+              </div>
               {displayDeliveryCharge > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>{t("Delivery Charge")}</span>
                   <span>{formatAmount(displayDeliveryCharge)}</span>
                 </div>
               )}
-              {displayVatAmount > 0 && (
+              {(isVatActive || displayVatAmount > 0) && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>{t("VAT")}</span>
                   <span>{formatAmount(displayVatAmount)}</span>

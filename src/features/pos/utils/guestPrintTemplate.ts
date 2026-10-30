@@ -5,9 +5,8 @@ import { isBillArabicEnabled, getAlternativeArabicName, containsArabic } from ".
 export { isBillArabicEnabled };
 import { getDecimalPart } from "../../../utils/currency";
 import { getModifierTypeNameById } from "../services/menuApi";
-import { getBillingConfig, getPriceView, getVatStatus } from "../terminal/utils/billing";
+import { getBillingConfig, getPriceView, getVatStatus, roundCalc, CALC_PRECISION } from "../terminal/utils/billing";
 import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
-import { checkOrderHasBillDiscount } from "../terminal/utils/orderDiscountCheck";
 
 export interface GuestPrintData {
   orderNo: string;
@@ -15,8 +14,8 @@ export interface GuestPrintData {
   invoiceNo?: string;
   waiter: string;
   counter: string;
-  section: string;
-  table: string;
+  section?: string;
+  table?: string;
   orderType: string;
   date?: string;
   time?: string;
@@ -37,8 +36,10 @@ export interface GuestPrintData {
   providerNo?: string;
   subTotal: number;
   discount?: number;
-  serviceCharge: number;
-  levy: number;
+  serviceCharge?: number;
+  levy?: number;
+  charges?: number;
+  netValue?: number;
   vatAmount: number;
   netAmount: number;
   deliveryCharge?: number;
@@ -49,8 +50,8 @@ export interface GuestPrintData {
   isPackager?: boolean;
   showCompanyHeader?: boolean;
   billArabic?: boolean;
-  printPrice?: "Inclusive" | "Exclusive";
-  priceView?: "Inclusive" | "Exclusive";
+  printPrice?: "Inclusive" | "Exclusive" | string;
+  priceView?: "Inclusive" | "Exclusive" | string;
   isBillDiscount?: boolean;
   billDiscount?: number;
   billDiscountValue?: number;
@@ -146,29 +147,7 @@ export const resolvePrintTaxSetting = (data?: GuestPrintData): "Inclusive" | "Ex
   return normalizeTaxSetting(getPriceView()) ?? "Exclusive";
 };
 
-export const isEnableVatGuestPrint = (_data?: GuestPrintData): boolean => {
-  const stored = localStorage.getItem("enableVat");
-  if (stored !== null && stored !== undefined) {
-    const norm = String(stored).trim().toLowerCase();
-    if (norm === "true" || norm === "enable" || norm === "1") return true;
-    if (norm === "false" || norm === "disable" || norm === "0") return false;
-  }
-  try {
-    for (const key of ["posConfigs", "posConfig", "pos_configs", "pos_config"]) {
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const configs = parsed?.configs || parsed;
-        const val = configs?.enableVat ?? configs?.EnableVat ?? parsed?.enableVat ?? parsed?.EnableVat;
-        if (val !== undefined && val !== null) {
-          const norm = String(val).trim().toLowerCase();
-          return norm === "true" || norm === "enable" || norm === "1";
-        }
-      }
-    }
-  } catch {}
-  return false;
-};
+export const isEnableVatGuestPrint = (_data?: GuestPrintData): boolean => true;
 
 export const resolveViewTaxSetting = (data?: GuestPrintData): "Inclusive" | "Exclusive" => {
   const explicitView = normalizeTaxSetting(data?.priceView);
@@ -322,7 +301,7 @@ export const generateGuestPrintHtml = async (
   else if (isDineIn) orderTypeSuffix = isBillArabic ? "(DINE IN / محلي)" : "(DINE IN)";
   else if (isDelivery) orderTypeSuffix = isBillArabic ? "(DELIVERY / توصيل)" : "(DELIVERY)";
 
-  const arabicInvoiceTitle = data.enableVat
+  const arabicInvoiceTitle = data.enableVat !== false
     ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px; line-height:1.3;">فاتورة ضريبية مبسطة</div>'
     : '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px; line-height:1.3;">فاتورة مبسطة</div>';
 
@@ -338,30 +317,31 @@ export const generateGuestPrintHtml = async (
   } else if (data.isPackager) {
     headerTitle = `<div>PACKAGER</div>${orderTypeHtml}`;
   } else {
-    const mainTitle = data.enableVat ? "SIMPLIFIED TAX INVOICE" : "SIMPLIFIED INVOICE";
+    const mainTitle = data.enableVat !== false ? "SIMPLIFIED TAX INVOICE" : "SIMPLIFIED INVOICE";
     headerTitle = `<div>${mainTitle}</div>${isBillArabic ? arabicInvoiceTitle : ''}${orderTypeHtml}`;
   }
 
   const decimalPart = getDecimalPart();
   const fmt = (val: number | string | undefined | null) => {
     const n = typeof val === 'string' ? parseFloat(val) : Number(val || 0);
-    return (Number.isFinite(n) ? n : 0).toFixed(decimalPart);
+    if (!Number.isFinite(n)) return (0).toFixed(decimalPart);
+    return roundCalc(n, decimalPart).toFixed(decimalPart);
   };
 
+  const billingConfig = getBillingConfig(data.orderType || "Takeaway");
   const printTaxSetting = resolvePrintTaxSetting(data);
   const rawLines = Array.isArray(cartDetails)
     ? cartDetails
     : Array.isArray((cartDetails as any)?.lines)
     ? (cartDetails as any).lines
     : [];
-  const isVatActive = isGuestPrint
-    ? isEnableVatGuestPrint(data)
-    : Boolean(
-        data.enableVat === true ||
-        (data.vatAmount && data.vatAmount > 0) ||
-        rawLines.some((it: any) => (it.vatAmount || 0) > 0) ||
-        getVatStatus()
-      );
+  const isVatActive = Boolean(
+    data.enableVat === true ||
+    (data.vatAmount && data.vatAmount > 0) ||
+    rawLines.some((it: any) => (it.vatAmount || 0) > 0) ||
+    isEnableVatGuestPrint(data) ||
+    getVatStatus()
+  );
   const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
 
   // Single Source of Truth: Unified deterministic order pricing
@@ -369,36 +349,23 @@ export const generateGuestPrintHtml = async (
     ? (cartDetails as any)
     : buildUnifiedOrderPricing(cartDetails, data);
 
-  const rawDetailsList = (cartDetails as any)?.lines || (Array.isArray(cartDetails) ? cartDetails : []);
-  const hasLineDiscounts = unified.lines.some(l => {
-    const raw = l.rawItem;
-    return (
-      (raw?.discountValue !== undefined && Number(raw.discountValue) > 0) ||
-      (raw?.itemDiscount !== undefined && Number(raw.itemDiscount) > 0) ||
-      (raw?.discAmount !== undefined && Number(raw.discAmount) > 0) ||
-      (l.lineDiscount !== undefined && Number(l.lineDiscount) > 0) ||
-      (l.lineDiscountExcl !== undefined && Number(l.lineDiscountExcl) > 0)
-    );
-  });
-
-  const isOrderBillDiscount = Boolean(
-    unified.summary.isBillDiscount ||
-    data.isBillDiscount ||
-    checkOrderHasBillDiscount({ master: data, details: rawDetailsList }) ||
-    (!hasLineDiscounts && data.discount && data.discount > 0)
-  );
   let itemsHtml = "";
   unified.lines.forEach((line) => {
     const name = line.productName.toUpperCase();
     const qty = line.quantity;
     const altArabicName = isBillArabic ? getAlternativeArabicName(line.rawItem) : "";
-    const totalItemDisc = isOrderBillDiscount
-      ? 0
-      : Number(line.lineDiscountExcl ?? line.lineDiscount ?? (typeof line.getDiscount === "function" ? line.getDiscount(false) : 0));
+    const lineDiscVal = Number(
+      isTaxInclusive
+        ? (line.lineDiscountIncl ?? (typeof line.getDiscount === "function" ? line.getDiscount(true) : line.lineDiscount))
+        : (line.lineDiscountExcl ?? (typeof line.getDiscount === "function" ? line.getDiscount(false) : line.lineDiscount))
+    );
+    const totalItemDisc = lineDiscVal > 0 ? lineDiscVal : 0;
 
     const origRate = line.getRate(isTaxInclusive);
     const origGrossAmt = isTaxInclusive ? line.inclusiveGross : line.exclusiveGross;
-    const netAmt = isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount;
+    const netAmt = totalItemDisc > 0
+      ? Math.max(0, origGrossAmt - totalItemDisc)
+      : (isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount);
 
     const rate = fmt(origRate);
     const amt = fmt(origGrossAmt);
@@ -501,33 +468,94 @@ export const generateGuestPrintHtml = async (
     }
   });
 
+  const rawPrintCharges = Number(data.serviceCharge || (unified as any)?.summary?.serviceCharge || 0) + Number(data.levy || (data as any)?.levyAmt || (unified as any)?.summary?.levy || 0);
+
   const resolvedDiscount = Number(
-    data.discount ??
-    (data as any).discAmount ??
-    (unified.summary.totalDiscountExcl ?? unified.summary.totalDiscount ?? 0)
+    (isTaxInclusive && rawPrintCharges <= 0)
+      ? (unified.summary.totalDiscountIncl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(true) : (data.discount ?? (data as any).discAmount ?? 0)))
+      : (unified.summary.totalDiscountExcl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : (data.discount ?? (data as any).discAmount ?? 0)))
   );
 
-  const effectiveBillDiscount = isOrderBillDiscount
-    ? resolvedDiscount
-    : Number(data.billDiscount || (data as any).billDiscountValue || 0);
+  const totalPrintDiscount = resolvedDiscount;
 
-  const subTotalBeforeDiscount = (data.subTotal !== undefined && data.subTotal !== null && Number(data.subTotal) > 0)
+  const grossSubTotal = (isTaxInclusive && rawPrintCharges <= 0)
+    ? (unified.summary.subTotalInclusive > 0
+        ? unified.summary.subTotalInclusive
+        : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(true) : 0))
+    : (unified.summary.subTotalExclusive > 0
+        ? unified.summary.subTotalExclusive
+        : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : 0));
+  const displaySubTotal = (data.subTotal !== undefined && Number(data.subTotal) > 0)
     ? Number(data.subTotal)
-    : ((data as any).vatExclAmount !== undefined && (data as any).vatExclAmount !== null && Number((data as any).vatExclAmount) > 0)
-    ? (Number((data as any).vatExclAmount) + (isOrderBillDiscount ? resolvedDiscount : 0))
-    : (isOrderBillDiscount
-        ? (unified.summary.subTotalExclusive ? unified.summary.subTotalExclusive + resolvedDiscount : 0)
-        : (unified.summary.subTotalExclusive ?? 0));
+    : (grossSubTotal > 0 ? grossSubTotal : Number((data as any).vatExclAmount || 0));
 
-  const displaySubTotal = isOrderBillDiscount
-    ? subTotalBeforeDiscount
-    : ((data as any).vatExclAmount !== undefined && Number((data as any).vatExclAmount) > 0
-        ? Number((data as any).vatExclAmount)
-        : (unified.summary.subTotalExclusive ?? subTotalBeforeDiscount));
+  if (!data.serviceCharge && isDineIn && unified.summary?.serviceCharge) {
+    data.serviceCharge = unified.summary.serviceCharge;
+  }
+  if (!data.levy && unified.summary?.levy) {
+    data.levy = unified.summary.levy;
+  }
+
+  const effectiveSc = (isDineIn && Number(data.serviceCharge || 0) > 0)
+    ? Number(data.serviceCharge)
+    : (isDineIn && Number((unified as any)?.summary?.serviceCharge || 0) > 0 ? Number((unified as any).summary.serviceCharge) : 0);
+  const effectiveLevy = Number(data.levy || 0) > 0
+    ? Number(data.levy)
+    : Number((data as any)?.levyAmt || 0) > 0
+    ? Number((data as any).levyAmt)
+    : Number((unified as any)?.summary?.levy || 0);
+  let effectiveCharges = (data.charges !== undefined && data.charges !== null && Number(data.charges) > 0)
+    ? Number(data.charges)
+    : roundCalc(effectiveSc + effectiveLevy);
+
+  const exclDiscount = Number(
+    unified.summary.totalDiscountExcl ??
+    (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : (isTaxInclusive ? roundCalc(totalPrintDiscount / 1.155, 3) : totalPrintDiscount))
+  );
+  const exclSubTotal = Number(
+    unified.summary.subTotalExclusive > 0
+      ? unified.summary.subTotalExclusive
+      : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : displaySubTotal)
+  );
+  const grandTotal = Number(unified.summary.grandTotal > 0 ? unified.summary.grandTotal : (data.netAmount || 0));
+  const netBase = Math.max(0, exclSubTotal - exclDiscount);
+  const vat = unified.summary.vatAmount > 0 ? unified.summary.vatAmount : Number(data.vatAmount || 0);
+  const del = Number(data.deliveryCharge || unified.summary?.deliveryCharge || 0);
+  const expectedChargesFromResidual = roundCalc(grandTotal - netBase - del - vat);
+
+  if (expectedChargesFromResidual > 0.001) {
+    if (effectiveCharges <= 0 || Math.abs(effectiveCharges - expectedChargesFromResidual) > 0.005) {
+      effectiveCharges = expectedChargesFromResidual;
+    }
+  }
+
+  const recalculatedNetValue = roundCalc(netBase + effectiveCharges);
+  const displayNetValue = (data.netValue !== undefined && data.netValue !== null && Number(data.netValue) > 0 && Math.abs(Number(data.netValue) - recalculatedNetValue) <= 0.005)
+    ? Number(data.netValue)
+    : recalculatedNetValue;
 
   if (isVatActive) {
     data.enableVat = true;
-    data.vatAmount = parseFloat(fmt(unified.summary.vatAmount > 0 ? unified.summary.vatAmount : (data.vatAmount ?? 0)));
+    let computedVat = unified.summary.vatAmount > 0 ? unified.summary.vatAmount : Number(data.vatAmount || 0);
+
+    // If both priceView and printPrice are inclusive (or VAT is 0 despite isVatActive being true), reverse calculate the correct VAT:
+    if (computedVat <= 0) {
+      const activeLineVatRate = unified.lines.find((l) => (l.vatRate || 0) > 0)?.vatRate;
+      const rateFraction = activeLineVatRate && activeLineVatRate > 0
+        ? activeLineVatRate / 100
+        : (billingConfig.vatRate > 0 ? (billingConfig.vatRate > 1 ? billingConfig.vatRate / 100 : billingConfig.vatRate) : 0.10);
+
+      const delivery = Number(data.deliveryCharge || unified.summary?.deliveryCharge || 0);
+      const grandTotal = Number(unified.summary.grandTotal || data.netAmount || 0);
+      const taxableGross = Math.max(0, grandTotal - delivery);
+
+      if (rateFraction > 0 && taxableGross > 0) {
+        // Reverse calculation: Taxable Base = Taxable Gross / (1 + vatRate), VAT = Taxable Gross - Taxable Base
+        computedVat = roundCalc(taxableGross - (taxableGross / (1 + rateFraction)), CALC_PRECISION);
+      }
+    }
+
+    data.vatAmount = parseFloat(fmt(computedVat));
     data.subTotal = parseFloat(fmt(displaySubTotal));
   } else {
     data.enableVat = false;
@@ -535,8 +563,8 @@ export const generateGuestPrintHtml = async (
     data.vatAmount = 0;
   }
   data.netAmount = parseFloat(fmt(unified.summary.grandTotal > 0 ? unified.summary.grandTotal : (data.netAmount ?? 0)));
-  if (effectiveBillDiscount > 0) {
-    data.discount = parseFloat(fmt(effectiveBillDiscount));
+  if (totalPrintDiscount > 0) {
+    data.discount = parseFloat(fmt(totalPrintDiscount));
   } else {
     delete (data as any).discount;
   }
@@ -784,22 +812,22 @@ export const generateGuestPrintHtml = async (
             <td class="totals-label">Sub Total${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(المجموع الفرعي)</bdi>' : ''}</td>
             <td class="totals-value">${fmt(displaySubTotal)}</td>
           </tr>
-          ${effectiveBillDiscount > 0 ? `
+          ${totalPrintDiscount > 0 ? `
           <tr>
             <td class="totals-label">Discount${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(الخصم)</bdi>' : ''}</td>
-            <td class="totals-value">-${fmt(effectiveBillDiscount)}</td>
+            <td class="totals-value">-${fmt(totalPrintDiscount)}</td>
           </tr>
           ` : ''}
-          ${data.serviceCharge > 0 ? `
+          ${effectiveCharges > 0 ? `
           <tr>
-            <td class="totals-label">Service Charge${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(رسوم الخدمة)</bdi>' : ''}</td>
-            <td class="totals-value">${fmt(data.serviceCharge)}</td>
+            <td class="totals-label">Charges${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(الرسوم)</bdi>' : ''}</td>
+            <td class="totals-value">${fmt(effectiveCharges)}</td>
           </tr>
           ` : ''}
-          ${data.levy > 0 ? `
+          ${(displayNetValue > 0) ? `
           <tr>
-            <td class="totals-label">Levy(5%)${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(الضريبة الانتقائية 5%)</bdi>' : ''}</td>
-            <td class="totals-value">${fmt(data.levy)}</td>
+            <td class="totals-label">Net Value${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(القيمة الصافية)</bdi>' : ''}</td>
+            <td class="totals-value">${fmt(displayNetValue)}</td>
           </tr>
           ` : ''}
           ${(isDelivery || (data.deliveryCharge && data.deliveryCharge > 0)) ? `

@@ -52,7 +52,11 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
   const handleEditOrder = async (orderId: number) => {
     try {
       setEditingOrderId(orderId);
-      const response = await settledOrdersApi.getSettledOrderDetails(orderId);
+      const matchedRecord = orders.find((r: any) => r.orderId === orderId);
+      const detectedOrderType = matchedRecord?.orderType || "TakeOut";
+      const response = await settledOrdersApi.getSettledOrderDetails(orderId, {
+        orderType: detectedOrderType,
+      });
       if (!response || !response.isSuccess || !response.data) {
         showToast(response?.message || `Failed to fetch settled order #${orderId}`, "error");
         return;
@@ -104,9 +108,11 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
                 saleId,
               },
               detailsData:
-                Array.isArray(saleDetails) && saleDetails.length > 0
-                  ? saleDetails
-                  : orderData.detailsData || orderData.details,
+                (Array.isArray(orderData.detailsData) && orderData.detailsData.length > 0)
+                  ? orderData.detailsData
+                  : (Array.isArray(orderData.details) && orderData.details.length > 0)
+                  ? orderData.details
+                  : saleDetails,
               paymentData:
                 Array.isArray(salePayments) && salePayments.length > 0
                   ? salePayments

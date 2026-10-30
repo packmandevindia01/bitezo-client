@@ -31,6 +31,7 @@ interface PosOrderPanelProps {
   cartDetails: CartRow[];
   subtotal: number;
   discount: number;
+  netValue?: number;
   tax: number;
   charges: number;
   total: number;
@@ -70,6 +71,7 @@ export const PosOrderPanel = ({
   cartDetails,
   subtotal,
   discount,
+  netValue,
   tax,
   charges,
   total,
@@ -361,6 +363,7 @@ export const PosOrderPanel = ({
       <PosOrderSummary
         subtotal={subtotal}
         discount={discount}
+        netValue={netValue}
         tax={tax}
         charges={charges}
         total={total}

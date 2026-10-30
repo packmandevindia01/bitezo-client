@@ -49,13 +49,6 @@ const PosSettingsTab = ({ form, employeeOptions, orderTypeOptions = [], onChange
             label={t("Company Name (KOT)", form.posLanguage)} 
             checked={form.companyNameKOT} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("companyNameKOT", e.target.checked)} 
-            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "conf-pos-vat")}
-          />
-          <Checkbox 
-            id="conf-pos-vat"
-            label={t("Enable VAT (Guest Print)", form.posLanguage)} 
-            checked={!!form.enableVat} 
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("enableVat", e.target.checked)} 
             onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "conf-pos-location")}
           />
           <Checkbox 

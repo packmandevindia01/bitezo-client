@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { calculateOrder } from "../utils/billing";
+import { calculateOrder, roundCalc, CALC_PRECISION } from "../utils/billing";
 
 export interface SplitCartItem {
   mapId: number;
@@ -10,6 +10,9 @@ export interface SplitCartItem {
   modifiers: any[];
   isIncl: boolean;
   variantName?: string;
+  discountValue?: number;
+  discountType?: "percentage" | "amount";
+  complimentaryStatus?: boolean;
 }
 
 export interface SplitBucket {
@@ -60,8 +63,9 @@ export const useSplitBuckets = (originalOrder: any | null, showToast: any) => {
         quantity: item.currentQty,
         price: item.price,
         isIncl: item.isIncl,
-        discountValue: item.detail?.discPer || 0,
-        discountType: item.detail?.discPer ? ('percentage' as const) : undefined,
+        discountValue: item.discountValue || 0,
+        discountType: item.discountType,
+        complimentaryStatus: item.complimentaryStatus,
         extras,
         product: {
           id: item.detail?.productId ?? 1,
@@ -113,21 +117,54 @@ export const useSplitBuckets = (originalOrder: any | null, showToast: any) => {
       const newSourceBucket = { ...sourceBucket, items: [...sourceBucket.items] };
       const newTargetBucket = { ...targetBucket, items: [...targetBucket.items] };
       
-      // Remove from source
-      newSourceBucket.items[sourceItemIndex] = { ...sourceItem, currentQty: sourceItem.currentQty - actualMoveQty };
-      if (newSourceBucket.items[sourceItemIndex].currentQty <= 0) {
+      // Calculate split discount proportionally so item discount is divided across split products
+      let movedDiscount = 0;
+      let remainingDiscount = 0;
+      if (sourceItem.discountType === 'amount') {
+        const totalDiscount = Number(sourceItem.discountValue || 0);
+        const unitDiscount = sourceItem.currentQty > 0 ? (totalDiscount / sourceItem.currentQty) : 0;
+        movedDiscount = roundCalc(unitDiscount * actualMoveQty, CALC_PRECISION);
+        remainingDiscount = roundCalc(Math.max(0, totalDiscount - movedDiscount), CALC_PRECISION);
+      } else {
+        movedDiscount = Number(sourceItem.discountValue || 0);
+        remainingDiscount = Number(sourceItem.discountValue || 0);
+      }
+
+      // Remove / update in source
+      const newSourceQty = sourceItem.currentQty - actualMoveQty;
+      if (newSourceQty <= 0) {
         newSourceBucket.items.splice(sourceItemIndex, 1);
+      } else {
+        newSourceBucket.items[sourceItemIndex] = {
+          ...sourceItem,
+          currentQty: newSourceQty,
+          discountValue: remainingDiscount,
+        };
       }
       
-      // Add to target
+      // Add / update in target
       const targetItemIndex = newTargetBucket.items.findIndex(i => i.mapId === mapId);
       if (targetItemIndex >= 0) {
+        const existingTargetItem = newTargetBucket.items[targetItemIndex];
+        const newTargetQty = existingTargetItem.currentQty + actualMoveQty;
+        const newTargetDiscount =
+          sourceItem.discountType === 'amount'
+            ? roundCalc((existingTargetItem.discountValue || 0) + movedDiscount, CALC_PRECISION)
+            : existingTargetItem.discountValue;
+
         newTargetBucket.items[targetItemIndex] = { 
-          ...newTargetBucket.items[targetItemIndex], 
-          currentQty: newTargetBucket.items[targetItemIndex].currentQty + actualMoveQty 
+          ...existingTargetItem, 
+          currentQty: newTargetQty,
+          discountValue: newTargetDiscount,
+          discountType: sourceItem.discountType,
         };
       } else {
-        newTargetBucket.items.push({ ...sourceItem, currentQty: actualMoveQty });
+        newTargetBucket.items.push({
+          ...sourceItem,
+          currentQty: actualMoveQty,
+          discountValue: movedDiscount,
+          discountType: sourceItem.discountType,
+        });
       }
 
       const sourceIdx = newBuckets.findIndex(b => b.id === sourceBucketId);
@@ -150,9 +187,17 @@ export const useSplitBuckets = (originalOrder: any | null, showToast: any) => {
       targetBucket.items.forEach(item => {
         const baseItemIndex = newBaseBucket.items.findIndex(i => i.mapId === item.mapId);
         if (baseItemIndex >= 0) {
+          const baseItem = newBaseBucket.items[baseItemIndex];
+          const mergedDiscount =
+            item.discountType === 'amount'
+              ? roundCalc((baseItem.discountValue || 0) + (item.discountValue || 0), CALC_PRECISION)
+              : baseItem.discountValue;
+
           newBaseBucket.items[baseItemIndex] = {
-            ...newBaseBucket.items[baseItemIndex],
-            currentQty: newBaseBucket.items[baseItemIndex].currentQty + item.currentQty
+            ...baseItem,
+            currentQty: baseItem.currentQty + item.currentQty,
+            discountValue: mergedDiscount,
+            discountType: baseItem.discountType || item.discountType,
           };
         } else {
           newBaseBucket.items.push({ ...item });

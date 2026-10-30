@@ -73,8 +73,17 @@ export const selectTotalExtras = createSelector(
 );
 
 export const selectCharges = createSelector(
-  [selectCartCalculation],
-  (calc) => calc.summary.charges
+  [selectPosState, selectCartCalculation],
+  (pos, calc) => {
+    if (
+      pos.authoritativeCharges !== null &&
+      pos.authoritativeCharges !== undefined &&
+      !pos.isCartModified
+    ) {
+      return roundCalc(pos.authoritativeCharges);
+    }
+    return calc.summary.charges;
+  }
 );
 
 export const selectTotalServiceCharge = createSelector(
@@ -85,6 +94,20 @@ export const selectTotalServiceCharge = createSelector(
 export const selectTotalLevy = createSelector(
   [selectCartCalculation],
   (calc) => calc.summary.levy
+);
+
+export const selectNetValue = createSelector(
+  [selectPosState, selectCartCalculation],
+  (pos, calc) => {
+    if (
+      pos.authoritativeNetValue !== null &&
+      pos.authoritativeNetValue !== undefined &&
+      !pos.isCartModified
+    ) {
+      return roundCalc(pos.authoritativeNetValue);
+    }
+    return calc.summary.vatExclAmount;
+  }
 );
 
 export const selectTax = createSelector(
