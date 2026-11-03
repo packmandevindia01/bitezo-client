@@ -1361,5 +1361,74 @@ describe('Recall & Settle Display Matching Backend Data', () => {
       expect(inclTotals.vatStr).toBe('9.091');
       expect(inclTotals.grandTotalStr).toBe('100.000');
     });
+
+    it('Invoice #112 (Settled Order Edit): ABCD x2 price 100 with disc 100 loads into cart with price 100 (NOT 110)', async () => {
+      const { loadSettledOrderIntoCart } = await import('../features/pos/terminal/utils/loadSettledOrderIntoCart');
+      localStorage.setItem('priceView', 'Inclusive');
+      localStorage.setItem('printPrice', 'Inclusive');
+
+      let dispatchedAction: any = null;
+      const mockDispatch = (action: any) => {
+        dispatchedAction = action;
+        return action;
+      };
+
+      const settledOrder112 = {
+        masterData: {
+          orderNo: 281,
+          ticketNo: 281,
+          invoiceNo: 112,
+          saleId: 112,
+          orderType: 'TakeOut',
+          orderTypeId: 2,
+          subTotal: 181.818,
+          discAmount: 90.909,
+          vatAmount: 9.091,
+          netAmount: 100.000,
+        },
+        detailsData: [
+          {
+            productId: 10,
+            productName: 'ABCD',
+            qty: 2,
+            price: 100.000,
+            amount: 200.000,
+            discAmount: 100.000,
+            vatAmount: 9.091,
+            netAmount: 100.000,
+            isIncl: true,
+            priceIsIncl: true,
+          }
+        ]
+      };
+
+      const products = [
+        { id: 10, name: 'ABCD', price: 100.000, isIncl: true, priceIsIncl: true }
+      ];
+
+      loadSettledOrderIntoCart({
+        orderId: 281,
+        orderData: settledOrder112,
+        dispatch: mockDispatch as any,
+        products,
+        productCache: { 10: products[0] },
+        showToast: () => {},
+      });
+
+      expect(dispatchedAction).toBeDefined();
+      const payload = dispatchedAction.payload;
+      expect(payload.cartItems).toHaveLength(1);
+      const cartItem = payload.cartItems[0];
+
+      // CRITICAL CHECK: price MUST be exact 100.000, NEVER 110.000!
+      expect(cartItem.price).toBe(100.000);
+      expect(cartItem.authoritativePrice).toBe(100.000);
+      expect(cartItem.quantity).toBe(2);
+      expect(cartItem.authoritativeOriginalLineTotal).toBe(200.000);
+      expect(cartItem.authoritativeDiscount).toBe(100.000);
+      expect(cartItem.authoritativeLineTotal).toBe(100.000);
+      expect(cartItem.isIncl).toBe(true);
+      expect(cartItem.priceIsIncl).toBe(true);
+    });
   });
 });

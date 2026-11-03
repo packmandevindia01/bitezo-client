@@ -1,6 +1,5 @@
 import { getDecimalPart } from "../../../../utils/formatters";
 import { formatItemDisplayName } from "../../utils/alternativeHelpers";
-import { allocate } from "./pos-calc";
 
 export interface BillingConfig {
   serviceChargeRate: number;
@@ -693,7 +692,8 @@ export const calculateOrder = (
 
   // Allocate saved exclusive bill discount across lines proportionally
   const lineWeights = preCalculated.map(p => p.itemBase);
-  const allocatedBillDiscounts = allocate(savedBillDiscount, lineWeights);
+  const totalBaseWeight = lineWeights.reduce((a, b) => a + b, 0);
+  const allocatedBillDiscounts = lineWeights.map(w => totalBaseWeight > 0 ? (savedBillDiscount * w) / totalBaseWeight : 0);
 
   // ── PASS 2: Calculate line items and allocate discounts ─────────────────────
   const calculatedLines: CalculatedLineItem[] = preCalculated.map(
@@ -765,15 +765,15 @@ export const calculateOrder = (
       const mainLevy = calcs.levy;
 
         const resolvedUnitId = item.unitId || product.unitId || 1;
-        const effectiveUnitRate = isTaxInclusive
+        const effectiveUnitRate = isPriceViewInclusive
           ? (quantity > 0 ? roundCalc((noDiscountCalcs.lineNetAmount - totalExtrasForLine) / quantity, CALC_PRECISION) : price)
           : calcs.basePrice;
 
-        const effectiveLineTotal = isTaxInclusive
+        const effectiveLineTotal = isPriceViewInclusive
           ? (isBillDisc ? noDiscountCalcs.lineNetAmount : calcs.lineNetAmount)
           : (isBillDisc ? noDiscountCalcs.amount : calcs.netValue);
 
-        const effectiveOriginalLineTotal = isTaxInclusive
+        const effectiveOriginalLineTotal = isPriceViewInclusive
           ? noDiscountCalcs.lineNetAmount
           : noDiscountCalcs.amount;
 

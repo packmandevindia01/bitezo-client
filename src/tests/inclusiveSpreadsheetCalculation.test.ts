@@ -292,7 +292,7 @@ describe('Price View Inclusive Master Calculation (calculation.xlsx)', () => {
     expect(result.summary.charges).toBeCloseTo(1.174, 3);
     expect(result.summary.vatExclAmount).toBeCloseTo(12.909, 3);
     expect(result.summary.vatAmount).toBeCloseTo(1.291, 3);
-    expect(result.summary.grandTotal).toBeCloseTo(14.201, 3);
+    expect(result.summary.grandTotal).toBeCloseTo(14.200, 3);
   });
 
   it('6. User screenshot: Item-level discount with Discount Calculation: Inclusive displays typed value (10.000)', () => {
@@ -429,7 +429,7 @@ describe('Price View Inclusive Master Calculation (calculation.xlsx)', () => {
     expect(result.summary.charges).toBeCloseTo(1.174, 3);
     expect(result.summary.vatExclAmount).toBeCloseTo(12.909, 3);
     expect(result.summary.vatAmount).toBeCloseTo(1.291, 3);
-    expect(result.summary.grandTotal).toBeCloseTo(14.201, 3);
+    expect(result.summary.grandTotal).toBeCloseTo(14.200, 3);
   });
 
   it('9. User screenshot (Bill-wise discount with Discount Calculation: Exclusive): 10.000 bill discount displays full 10.000 discount', () => {

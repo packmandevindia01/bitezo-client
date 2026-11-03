@@ -236,6 +236,17 @@ export const loadSettledOrderIntoCart = ({
       orderType: orderTypeName,
     });
 
+    const orderTypeBillingConfig = getBillingConfig(orderTypeName);
+    const isVatActive = getVatStatus();
+    const rawVatRate = orderTypeBillingConfig.vatRate > 0 ? (orderTypeBillingConfig.vatRate > 1 ? orderTypeBillingConfig.vatRate / 100 : orderTypeBillingConfig.vatRate) : 0.10;
+    const activeVat = isVatActive ? rawVatRate : 0;
+    const isDine = (orderTypeName || "").toLowerCase().includes("dine");
+    const scR = isDine ? (orderTypeBillingConfig.serviceChargeRate ?? 0) : 0;
+    const levyR = orderTypeBillingConfig.levyRate ?? 0;
+    const factor = (activeVat > 0 || levyR > 0 || scR > 0)
+      ? roundCalc((1 + activeVat) * (1 + levyR) * (1 + scR), 4)
+      : 1;
+
     const mappedCartItems = rawMappedCartItems.map((cartItem, idx) => {
       const uLine = unifiedPricing.lines[idx] || unifiedPricing.lines.find(
         (l) => (l.mapId !== undefined && cartItem.mapId !== undefined && Number(l.mapId) === Number(cartItem.mapId)) ||
@@ -258,30 +269,35 @@ export const loadSettledOrderIntoCart = ({
         (matchedProd as any)?.IsIncl === true ||
         cartItem.isIncl === true ||
         (cartItem as any).priceIsIncl === true ||
-        uLine?.isProductMasterInclusive === true
+        uLine?.isProductMasterInclusive === true ||
+        (uLine && uLine.inclusiveRate > 0 && Math.abs(uLine.inclusiveRate - Number(cartItem.price || 0)) < 0.05)
       );
 
-      if (isPriceViewInclusive && isProductInclusiveTag) {
-        const recallPrice = uLine ? uLine.getRate(true) : Number((cartItem as any).catalogPrice ?? cartItem.price ?? 0);
-        const orderTypeBillingConfig = getBillingConfig(orderTypeName);
-        const isVatActive = getVatStatus();
-        const rawVatRate = orderTypeBillingConfig.vatRate > 0 ? (orderTypeBillingConfig.vatRate > 1 ? orderTypeBillingConfig.vatRate / 100 : orderTypeBillingConfig.vatRate) : 0.10;
-        const activeVat = isVatActive ? rawVatRate : 0;
-        const isDine = (orderTypeName || "").toLowerCase().includes("dine");
-        const scR = isDine ? (orderTypeBillingConfig.serviceChargeRate ?? 0) : 0;
-        const levyR = orderTypeBillingConfig.levyRate ?? 0;
-        const factor = (activeVat > 0 || levyR > 0 || scR > 0)
-          ? roundCalc((1 + activeVat) * (1 + levyR) * (1 + scR), 4)
-          : 1;
-        const exclBasePrice = roundCalc(recallPrice / factor, 4);
+      const detailItem = details[idx] || details.find((d: any) =>
+        (d.mapId !== undefined && cartItem.mapId !== undefined && Number(d.mapId) === Number(cartItem.mapId)) ||
+        (d.productId !== undefined && cartItem.productId !== undefined && Number(d.productId || d.ProductId) === Number(cartItem.productId))
+      );
+      const rawDetailPrice = Number(detailItem?.price ?? detailItem?.Price ?? 0);
+      const rawDetailAmount = Number(detailItem?.amount ?? detailItem?.Amount ?? 0);
+      const rawDetailDisc = Number(detailItem?.discAmount ?? detailItem?.DiscAmount ?? cartItem.discountValue ?? 0);
 
-        const authLineTotal = uLine ? uLine.getAmount(true, unifiedPricing.summary.isBillDiscount) : (recallPrice * (cartItem.quantity || 1));
-        const authOrigTotal = uLine ? uLine.inclusiveGross : (recallPrice * (cartItem.quantity || 1));
-        const authDiscount = uLine ? uLine.getDiscount(true) : (cartItem.discountValue || 0);
+      // If both conditions are correct: whatever the value in the product field in settled data that must go to the cart,
+      // and behind the scenes exclusive.
+      if (isPriceViewInclusive && isProductInclusiveTag) {
+        const recallPrice = rawDetailPrice > 0 
+          ? roundCalc(rawDetailPrice, 3) 
+          : (uLine ? uLine.getRate(true) : Number((cartItem as any).catalogPrice ?? cartItem.price ?? 0));
+        const combinedFactor = factor > 0 ? factor : 1;
+        const exclBasePrice = roundCalc(recallPrice / combinedFactor, 4);
+
+        const authOrigTotal = rawDetailAmount > 0 ? roundCalc(rawDetailAmount, 3) : (recallPrice * (cartItem.quantity || 1));
+        const authDiscount = roundCalc(rawDetailDisc, 3);
+        const authLineTotal = roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
 
         return {
           ...cartItem,
           isIncl: true,
+          priceIsIncl: true,
           price: recallPrice,
           basePrice: exclBasePrice,
           exclusivePrice: exclBasePrice,
@@ -292,18 +308,35 @@ export const loadSettledOrderIntoCart = ({
           authoritativeVatAmount: uLine?.vatAmount,
           lineTotal: authLineTotal,
           originalLineTotal: authOrigTotal,
+          product: {
+            ...(cartItem.product || {}),
+            id: cartItem.productId,
+            name: cartItem.product?.name || (cartItem as any).name || (cartItem as any).productName || `Product #${cartItem.productId}`,
+            categoryId: cartItem.product?.categoryId || 1,
+            price: recallPrice,
+            isIncl: true,
+            priceIsIncl: true,
+          },
         };
       }
 
       if (uLine) {
-        const authRate = uLine.getRate(isTaxInclusive);
-        const authLineTotal = uLine.getAmount(isTaxInclusive, unifiedPricing.summary.isBillDiscount);
-        const authOrigTotal = isTaxInclusive ? uLine.inclusiveGross : uLine.exclusiveGross;
-        const authDiscount = uLine.getDiscount(isTaxInclusive);
+        const authRate = (isTaxInclusive && rawDetailPrice > 0)
+          ? roundCalc(rawDetailPrice, 3)
+          : uLine.getRate(isTaxInclusive);
+        const authOrigTotal = (isTaxInclusive && rawDetailAmount > 0)
+          ? roundCalc(rawDetailAmount, 3)
+          : (isTaxInclusive ? uLine.inclusiveGross : uLine.exclusiveGross);
+        const authDiscount = (isTaxInclusive && rawDetailDisc > 0)
+          ? roundCalc(rawDetailDisc, 3)
+          : uLine.getDiscount(isTaxInclusive);
+        const authLineTotal = roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
+        const lineIsIncl = isTaxInclusive ? true : (uLine.isProductMasterInclusive !== undefined ? uLine.isProductMasterInclusive : cartItem.isIncl);
         return {
           ...cartItem,
-          price: isTaxInclusive ? authRate : cartItem.price,
-          isIncl: uLine.isProductMasterInclusive !== undefined ? uLine.isProductMasterInclusive : cartItem.isIncl,
+          price: authRate,
+          isIncl: lineIsIncl,
+          priceIsIncl: lineIsIncl,
           authoritativePrice: authRate,
           authoritativeLineTotal: authLineTotal,
           authoritativeOriginalLineTotal: authOrigTotal,
@@ -311,6 +344,15 @@ export const loadSettledOrderIntoCart = ({
           authoritativeVatAmount: uLine.vatAmount,
           lineTotal: authLineTotal,
           originalLineTotal: authOrigTotal,
+          product: {
+            ...(cartItem.product || {}),
+            id: cartItem.productId,
+            name: cartItem.product?.name || (cartItem as any).name || (cartItem as any).productName || `Product #${cartItem.productId}`,
+            categoryId: cartItem.product?.categoryId || 1,
+            price: authRate,
+            isIncl: lineIsIncl,
+            priceIsIncl: lineIsIncl,
+          },
         };
       }
       return cartItem;

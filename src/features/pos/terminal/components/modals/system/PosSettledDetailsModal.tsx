@@ -693,12 +693,12 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             extras: l.extras,
             modifiers: l.modifiers,
             messages: l.messages,
-            itemDiscount: (l.lineDiscount > 0 || l.lineDiscountIncl > 0 || l.lineDiscountExcl > 0)
-              ? l.getDiscount(isTaxInclusive)
-              : (unified?.summary?.isBillDiscount ? 0 : l.getDiscount(isTaxInclusive)),
-            lineTotal: (l.lineDiscount > 0 || l.lineDiscountIncl > 0 || l.lineDiscountExcl > 0)
-              ? Math.max(0, (isTaxInclusive ? l.inclusiveGross : l.exclusiveGross) - l.getDiscount(isTaxInclusive))
-              : l.getAmount(isTaxInclusive, unified?.summary?.isBillDiscount),
+            itemDiscount: (unified?.summary?.isBillDiscount || isBillLevelDiscount)
+              ? 0
+              : l.getDiscount(isTaxInclusive),
+            lineTotal: (unified?.summary?.isBillDiscount || isBillLevelDiscount)
+              ? (isTaxInclusive ? l.inclusiveGross : l.exclusiveGross)
+              : Math.max(0, (isTaxInclusive ? l.inclusiveGross : l.exclusiveGross) - l.getDiscount(isTaxInclusive)),
             lineNetAmount: l.inclusiveAmount,
             basePrice: l.exclusiveRate,
             vatAmount: l.vatAmount,
@@ -753,8 +753,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           extras,
           modifiers: standardMods,
           messages,
-          itemDiscount: isBillLevelDiscount ? 0 : itemDisc,
-          lineTotal: (!isBillLevelDiscount && itemDisc > 0) ? Math.max(0, lineTotal - itemDisc) : lineTotal,
+          itemDiscount: (isBillLevelDiscount || unified?.summary?.isBillDiscount) ? 0 : itemDisc,
+          lineTotal: ((isBillLevelDiscount || unified?.summary?.isBillDiscount) || itemDisc <= 0) ? lineTotal : Math.max(0, lineTotal - itemDisc),
           lineNetAmount: lineTotal,
           basePrice: price,
           vatAmount: Number(l.vatAmount ?? 0),
@@ -1182,7 +1182,15 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
     0
   );
 
-  const isItemDiscount = backendDiscount <= 0.001 && lineDiscountsTotal > 0.001;
+  const isBillDiscount = Boolean(
+    isBillLevelDiscount ||
+    backendDiscount > 0.001 ||
+    Number(master.discPer ?? master.DiscPer ?? 0) > 0 ||
+    unified?.summary?.isBillDiscount ||
+    checkOrderHasBillDiscount(order) ||
+    checkOrderHasBillDiscount({ master, details })
+  );
+  const isItemDiscount = !isBillDiscount && lineDiscountsTotal > 0.001;
 
   const currentOrderType = master.orderType || (master.orderTypeId && orderTypeMap[master.orderTypeId]) || orderTypeName || "TakeOut";
   const currentBillingConfig = getBillingConfig(currentOrderType);

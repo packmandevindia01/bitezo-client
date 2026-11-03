@@ -7,7 +7,6 @@ import {
   getTaxExclusiveExtraPrice,
   sanitizeTaxExclusiveDetail,
 } from "../utils/billing";
-import { allocate } from "../utils/pos-calc";
 import { formatDateOnly } from "./invoicePayloadMapper";
 import type {
   PosCartItem,
@@ -280,8 +279,7 @@ export const buildDirectSettleOrderPayload = (
       // Allocate total bill discount across items proportionally
       const lineBases = lineDetailsPrecalc.map((p) => p.lineExclGross);
       const totalLineBase = lineBases.reduce((a, b) => a + b, 0);
-      const weights = totalLineBase > 0 ? lineBases : lineBases.map(() => 1);
-      allocatedBillDiscounts = allocate(masterDiscAmount, weights);
+      allocatedBillDiscounts = lineBases.map((b) => totalLineBase > 0 ? (masterDiscAmount * b) / totalLineBase : 0);
     }
   }
 

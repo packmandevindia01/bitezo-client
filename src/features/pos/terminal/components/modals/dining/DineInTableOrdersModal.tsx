@@ -384,16 +384,31 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         ? (resolvedDiscount > 0 ? resolvedDiscount : (isIncl ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0)))
         : 0;
 
+      const rawDetails = (fullOrder as any)?.details || (fullOrder as any)?.detailsData || [];
       const mappedCartItems = mappedItems.map((cartItem, idx) => {
         const uLine = unifiedPricing.lines[idx] || unifiedPricing.lines.find(
           (l) => (l.mapId !== undefined && cartItem.mapId !== undefined && Number(l.mapId) === Number(cartItem.mapId)) ||
                  (l.productId !== undefined && cartItem.productId !== undefined && Number(l.productId) === Number(cartItem.productId))
         );
 
+        const detailItem = rawDetails[idx] || rawDetails.find((d: any) =>
+          (d.mapId !== undefined && cartItem.mapId !== undefined && Number(d.mapId) === Number(cartItem.mapId)) ||
+          (d.productId !== undefined && cartItem.productId !== undefined && Number(d.productId || d.ProductId) === Number(cartItem.productId))
+        );
+        const rawDetailPrice = Number(detailItem?.price ?? detailItem?.Price ?? 0);
+        const rawDetailAmount = Number(detailItem?.amount ?? detailItem?.Amount ?? 0);
+        const rawDetailDisc = Number(detailItem?.discAmount ?? detailItem?.DiscAmount ?? cartItem.discountValue ?? 0);
+
         if (uLine) {
-          const authRate = uLine.getRate(isIncl);
-          const authOrigTotal = isIncl ? uLine.inclusiveGross : uLine.exclusiveGross;
-          const authDiscount = uLine.getDiscount(isIncl);
+          const authRate = (isIncl && rawDetailPrice > 0)
+            ? roundCalc(rawDetailPrice, 3)
+            : uLine.getRate(isIncl);
+          const authOrigTotal = (isIncl && rawDetailAmount > 0)
+            ? roundCalc(rawDetailAmount, 3)
+            : (isIncl ? uLine.inclusiveGross : uLine.exclusiveGross);
+          const authDiscount = (isIncl && rawDetailDisc > 0)
+            ? roundCalc(rawDetailDisc, 3)
+            : uLine.getDiscount(isIncl);
           const authLineTotal = roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
           const lineIsIncl = isIncl ? true : (uLine.isProductMasterInclusive !== undefined ? uLine.isProductMasterInclusive : cartItem.isIncl);
           return {

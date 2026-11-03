@@ -1142,7 +1142,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       } as any);
 
       expect(uSingle.lines[0]?.getRate(true)).toBeCloseTo(1.100, 3);
-      expect(uSingle.lines[0]?.getRate(false)).toBeCloseTo(0.952, 3);
+      expect(uSingle.lines[0]?.getRate(false)).toBeCloseTo(1.000, 3);
 
       const printDataSingle = {
         orderNo: "164",

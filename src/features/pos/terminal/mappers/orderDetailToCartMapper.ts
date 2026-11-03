@@ -717,11 +717,13 @@ export const mapOrderDetailToCartItem = ({
       discountValue = detailDiscPer;
       discountType = "percentage";
     } else if (rawDiscAmount > 0) {
-      if (fallbackBillingConfig.discountType === "Inclusive" && resolvedPriceView === "Exclusive" && orderCombinedFactor > 1) {
-        // rawDiscAmount from backend in Exclusive view is exclusive base discount (e.g. 8.658).
-        // Since POS discountType is 'Inclusive', the cart input value is gross inclusive (e.g. 10.000).
-        // Restoring gross ensures billing.ts divides by combinedFactor back to the exact exclusive 8.658!
-        discountValue = roundCalc(rawDiscAmount * orderCombinedFactor, 4);
+      if (fallbackBillingConfig.discountType === "Inclusive" && orderCombinedFactor > 1 && (itemIsIncl || resolvedPriceView === "Inclusive")) {
+        const grossCandidate = roundCalc(rawDiscAmount * orderCombinedFactor, 4);
+        if (Math.abs(grossCandidate - Math.round(grossCandidate)) < 0.01 && Math.abs(rawDiscAmount - Math.round(rawDiscAmount)) > 0.01) {
+          discountValue = grossCandidate;
+        } else {
+          discountValue = rawDiscAmount;
+        }
       } else {
         discountValue = rawDiscAmount;
       }

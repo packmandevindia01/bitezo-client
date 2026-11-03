@@ -500,6 +500,7 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
         orderNo: 405,
         orderTypeId: 2,
         orderTypeName: 'TakeOut',
+        levy: 0.173,
         netAmount: 4.000,
       },
       detailsData: [
