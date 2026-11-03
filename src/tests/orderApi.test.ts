@@ -89,9 +89,9 @@ describe('Order API Integration & Submission (orderApi.ts submitOrder)', () => {
     // 4. Net payable: 100.000
     expect(postedPayload.netAmount).toBe(100.000);
 
-    // 5. Details: bill discount must zero out detail discAmount
+    // 5. Details: bill discount allocates to details
     expect(postedPayload.details.length).toBe(1);
-    expect(postedPayload.details[0].discAmount).toBe(0);
+    expect(postedPayload.details[0].discAmount).toBeCloseTo(9.091, 3);
     expect(postedPayload.details[0].price).toBe(10.000);
   });
 
@@ -214,27 +214,48 @@ describe('Order API Integration & Submission (orderApi.ts submitOrder)', () => {
     expect(postedPayload.details[0].discAmount).toBeCloseTo(0.9090909, 5);
   });
 
-  it('getOrderDetails: passes serviceCharge=0 for TakeOut and serviceCharge=10 for DineIn', async () => {
+  it('getOrderDetails: passes serviceCharge and levy dynamically from POS configuration without hardcoded fallbacks', async () => {
     (axiosInstance.get as any).mockResolvedValue({
       data: { isSuccess: true, data: { masterData: {}, detailsData: [] } }
     });
 
-    // 1. TakeOut order: serviceCharge MUST be 0
+    // 1. With 10% service charge and 5% levy configured in POS configuration:
+    localStorage.setItem('posConfigs', JSON.stringify({ configs: { serviceCharges: 10, levy: 5 } }));
+
+    // TakeOut order: serviceCharge MUST be 0, levy MUST be configured 5
     await orderApi.getOrderDetails(120, { orderType: 'TakeOut', priceView: 'Inclusive' });
     expect(axiosInstance.get).toHaveBeenCalledWith('/order/recall/order_data/120', {
       params: { serviceCharge: 0, levy: 5, priceView: 'Inclusive' }
     });
 
-    // 2. DineIn order: serviceCharge MUST be 10
+    // DineIn order: serviceCharge MUST be configured 10, levy MUST be configured 5
     await orderApi.getOrderDetails(111, { orderType: 'DineIn', priceView: 'Inclusive' });
     expect(axiosInstance.get).toHaveBeenCalledWith('/order/recall/order_data/111', {
       params: { serviceCharge: 10, levy: 5, priceView: 'Inclusive' }
     });
 
-    // 3. Delivery order: serviceCharge MUST be 0
-    await orderApi.getOrderDetails(121, { orderType: 'Delivery', priceView: 'Inclusive' });
-    expect(axiosInstance.get).toHaveBeenCalledWith('/order/recall/order_data/121', {
-      params: { serviceCharge: 0, levy: 5, priceView: 'Inclusive' }
+    // 2. User screenshot scenario: Service Charge = 0%, Levy = 0% in POS configuration
+    localStorage.setItem('posConfigs', JSON.stringify({ configs: { serviceCharges: 0, levy: 0 } }));
+
+    await orderApi.getOrderDetails(241, { orderType: 'TakeOut', priceView: 'Inclusive' });
+    expect(axiosInstance.get).toHaveBeenCalledWith('/order/recall/order_data/241', {
+      params: { serviceCharge: 0, levy: 0, priceView: 'Inclusive' }
     });
+
+    await orderApi.getOrderDetails(242, { orderType: 'DineIn', priceView: 'Inclusive' });
+    expect(axiosInstance.get).toHaveBeenCalledWith('/order/recall/order_data/242', {
+      params: { serviceCharge: 0, levy: 0, priceView: 'Inclusive' }
+    });
+
+    // 3. Custom configuration scenario: Service Charge = 15%, Levy = 7%
+    localStorage.setItem('posConfigs', JSON.stringify({ configs: { serviceCharges: 15, levy: 7 } }));
+
+    await orderApi.getOrderDetails(300, { orderType: 'DineIn', priceView: 'Inclusive' });
+    expect(axiosInstance.get).toHaveBeenCalledWith('/order/recall/order_data/300', {
+      params: { serviceCharge: 15, levy: 7, priceView: 'Inclusive' }
+    });
+
+    // Clean up
+    localStorage.clear();
   });
 });

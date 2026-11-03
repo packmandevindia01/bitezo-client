@@ -1,6 +1,7 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { MenuOrderRequest, MenuOrderResponse, RecallParams, RecallResponse } from "../types";
 import { getPriceView, getBillingConfig, sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
+import { allocate } from "../terminal/utils/pos-calc";
 
 /**
  * Standard unwrap helper to extract data and handle success/error based on the API response.
@@ -45,15 +46,23 @@ export const orderApi = {
           const isBillDisc = Boolean(
             (payload as any).isBillDiscount ||
             Number((payload as any).billDiscountValue || (payload as any).billDiscount || 0) > 0 ||
-            (Number(payload.discAmount || 0) > 0 && lineDiscounts === 0)
+            (Number(payload.discAmount || 0) > 0)
           );
 
           const totalCharges = roundCalc(Number(payload.serviceCharge || 0) + Number(payload.levy || 0));
           if (isBillDisc) {
-            payload.details.forEach((d: any) => {
-              d.discAmount = 0;
-              d.discPer = 0;
-            });
+            // Distribute bill discount across details lines if not already populated
+            if (lineDiscounts === 0 && Number(payload.discAmount || 0) > 0) {
+              const lineBases = payload.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
+              const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
+              const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
+              const allocated = allocate(Number(payload.discAmount || 0), weights);
+              payload.details.forEach((d: any, idx: number) => {
+                d.discAmount = allocated[idx] ?? 0;
+                const base = Number(d.price || 0) * Number(d.qty || 1);
+                d.discPer = base > 0 ? roundCalc((d.discAmount / base) * 100, 2) : 0;
+              });
+            }
             payload.discAmount = roundCalc(Number(payload.discAmount || 0));
             if (payload.vatExclAmount === undefined || payload.vatExclAmount === null || Number(payload.vatExclAmount) <= 0) {
               payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - payload.discAmount + totalCharges));
@@ -85,6 +94,23 @@ export const orderApi = {
         delete (payload as any).voidProducts;
         delete (payload as any).voidModifiers;
         delete (payload as any).combinedOrderIds;
+
+        console.log("%c[ORDER SUBMISSION PAYLOAD - POST /menu/order]", "background: #002b5c; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;");
+        console.log("MASTER TOTALS:", {
+          voucherDate: payload.voucherDate,
+          orderTypeId: payload.orderTypeId,
+          customerId: payload.customerId,
+          discAmount: payload.discAmount,
+          discPer: payload.discPer,
+          serviceCharge: payload.serviceCharge,
+          levy: payload.levy,
+          vatExclAmount: payload.vatExclAmount,
+          vatAmount: payload.vatAmount,
+          netAmount: payload.netAmount,
+        });
+        console.log("DETAILS (Product lines):", payload.details);
+        console.log("MODIFIERS (Extras & Modifiers):", payload.modifiers);
+        console.log("FULL RAW PAYLOAD OBJECT:", payload);
 
         return await unwrap<MenuOrderResponse>(
           axiosInstance.post("/menu/order", payload)
@@ -171,10 +197,10 @@ export const orderApi = {
     const billingConfig = getBillingConfig(isDineIn ? "DineIn" : "TakeOut");
     const serviceCharge = explicitSc !== undefined
       ? explicitSc
-      : (isDineIn ? (billingConfig.serviceChargeRate ? Math.round(billingConfig.serviceChargeRate * 100) : 10) : 0);
+      : (isDineIn ? (billingConfig.serviceChargeRate !== undefined && !isNaN(billingConfig.serviceChargeRate) ? Math.round(billingConfig.serviceChargeRate * 100) : 0) : 0);
     const levy = explicitLevy !== undefined
       ? explicitLevy
-      : (billingConfig.levyRate ? Math.round(billingConfig.levyRate * 100) : 5);
+      : (billingConfig.levyRate !== undefined && !isNaN(billingConfig.levyRate) ? Math.round(billingConfig.levyRate * 100) : 0);
     const queryParams = { serviceCharge, levy, priceView };
     try {
       return await unwrap<any>(
@@ -242,10 +268,10 @@ export const orderApi = {
     const billingConfig = getBillingConfig(isDineIn ? "DineIn" : "TakeOut");
     const serviceCharge = explicitSc !== undefined
       ? explicitSc
-      : (isDineIn ? (billingConfig.serviceChargeRate ? Math.round(billingConfig.serviceChargeRate * 100) : 10) : 0);
+      : (isDineIn ? (billingConfig.serviceChargeRate !== undefined && !isNaN(billingConfig.serviceChargeRate) ? Math.round(billingConfig.serviceChargeRate * 100) : 0) : 0);
     const levy = explicitLevy !== undefined
       ? explicitLevy
-      : (billingConfig.levyRate ? Math.round(billingConfig.levyRate * 100) : 5);
+      : (billingConfig.levyRate !== undefined && !isNaN(billingConfig.levyRate) ? Math.round(billingConfig.levyRate * 100) : 0);
     const queryParams = { serviceCharge, levy, priceView };
     return await unwrap<any>(
       axiosInstance.get(`/order/recall/order-print-data/${orderId}`, { params: queryParams })
@@ -301,15 +327,23 @@ export const orderApi = {
       const isBillDisc = Boolean(
         (payload as any).isBillDiscount ||
         Number((payload as any).billDiscountValue || (payload as any).billDiscount || 0) > 0 ||
-        (Number(payload.discAmount || 0) > 0 && lineDiscounts === 0)
+        (Number(payload.discAmount || 0) > 0)
       );
 
       const totalCharges = roundCalc(Number(payload.serviceCharge || 0) + Number(payload.levy || 0));
       if (isBillDisc) {
-        payload.details.forEach((d: any) => {
-          d.discAmount = 0;
-          d.discPer = 0;
-        });
+        // Distribute bill discount across details lines if not already populated
+        if (lineDiscounts === 0 && Number(payload.discAmount || 0) > 0) {
+          const lineBases = payload.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
+          const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
+          const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
+          const allocated = allocate(Number(payload.discAmount || 0), weights);
+          payload.details.forEach((d: any, idx: number) => {
+            d.discAmount = allocated[idx] ?? 0;
+            const base = Number(d.price || 0) * Number(d.qty || 1);
+            d.discPer = base > 0 ? roundCalc((d.discAmount / base) * 100, 2) : 0;
+          });
+        }
         payload.discAmount = roundCalc(Number(payload.discAmount || 0));
         if (payload.vatExclAmount === undefined || payload.vatExclAmount === null || Number(payload.vatExclAmount) <= 0) {
           payload.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - payload.discAmount + totalCharges));
@@ -331,6 +365,20 @@ export const orderApi = {
         }
       }
     }
+
+    console.log(`%c[UPDATE ORDER PAYLOAD - PUT /menu/order/${orderId}]`, "background: #f37021; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;");
+    console.log("MASTER TOTALS:", {
+      discAmount: payload.discAmount,
+      discPer: payload.discPer,
+      serviceCharge: payload.serviceCharge,
+      levy: payload.levy,
+      vatExclAmount: payload.vatExclAmount,
+      vatAmount: payload.vatAmount,
+      netAmount: payload.netAmount,
+    });
+    console.log("DETAILS (Product lines):", payload.details);
+    console.log("MODIFIERS (Extras & Modifiers):", payload.modifiers);
+    console.log("FULL RAW PAYLOAD OBJECT:", payload);
 
     return unwrap<MenuOrderResponse>(
       axiosInstance.put(`/menu/order/${orderId}`, payload)
@@ -393,15 +441,23 @@ export const orderApi = {
           const isBillDisc = Boolean(
             (ord as any).isBillDiscount ||
             Number((ord as any).billDiscountValue || (ord as any).billDiscount || 0) > 0 ||
-            (Number(ord.discAmount || 0) > 0 && lineDiscounts === 0)
+            (Number(ord.discAmount || 0) > 0)
           );
 
           const totalCharges = roundCalc(Number(ord.serviceCharge || 0) + Number(ord.levy || 0));
           if (isBillDisc) {
-            ord.details.forEach((d: any) => {
-              d.discAmount = 0;
-              d.discPer = 0;
-            });
+            // Distribute bill discount across details lines if not already populated
+            if (lineDiscounts === 0 && Number(ord.discAmount || 0) > 0) {
+              const lineBases = ord.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
+              const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
+              const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
+              const allocated = allocate(Number(ord.discAmount || 0), weights);
+              ord.details.forEach((d: any, idx: number) => {
+                d.discAmount = allocated[idx] ?? 0;
+                const base = Number(d.price || 0) * Number(d.qty || 1);
+                d.discPer = base > 0 ? roundCalc((d.discAmount / base) * 100, 2) : 0;
+              });
+            }
             ord.discAmount = roundCalc(Number(ord.discAmount || 0));
             if (ord.vatExclAmount === undefined || ord.vatExclAmount === null || Number(ord.vatExclAmount) <= 0) {
               ord.vatExclAmount = roundCalc(Math.max(0, totalGrossExcl - ord.discAmount + totalCharges));

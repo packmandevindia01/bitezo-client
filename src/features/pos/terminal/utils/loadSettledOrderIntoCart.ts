@@ -1,8 +1,9 @@
 import { sortOrderDetailsBySequence } from "./orderSort";
 import { mapOrderDetailsToCartItems } from "../mappers/orderDetailToCartMapper";
-import { getBillingConfig, getVatStatus, roundCalc, getPriceView, getDiscountCalculation } from "./billing";
+import { getBillingConfig, getVatStatus, roundCalc, getPriceView } from "./billing";
 import { buildUnifiedOrderPricing } from "../../utils/orderPricing";
 import { checkOrderHasBillDiscount } from "./orderDiscountCheck";
+import { getCachedExtras } from "../../services/menuApi";
 import {
   loadRecalledOrder,
   setDeliveryDetails,
@@ -184,42 +185,142 @@ export const loadSettledOrderIntoCart = ({
       (netAmount === 0 && resolvedDiscount > 0 && details.length > 0)
     );
 
-    const hasLineItemDiscounts = lineDiscountsSum > 0;
+    const masterDiscAmount = Number(
+      master.discAmount ??
+      master.DiscAmount ??
+      master.discAmt ??
+      master.DiscAmt ??
+      master.discount ??
+      master.Discount ??
+      master.discountAmount ??
+      master.DiscountAmount ??
+      master.billDiscount ??
+      master.BillDiscount ??
+      master.billDiscountValue ??
+      0
+    );
+
+    const hasLineItemDiscounts = lineDiscountsSum > 0.001;
     const isBillLevelDiscount =
       isBillComplimentary ||
       masterDiscPer > 0 ||
+      (!hasLineItemDiscounts && masterDiscAmount > 0.001) ||
+      (hasLineItemDiscounts && masterDiscAmount > lineDiscountsSum + 0.05) ||
       checkOrderHasBillDiscount(orderData) ||
-      checkOrderHasBillDiscount({ master, details }) ||
-      (!hasLineItemDiscounts && resolvedDiscount > 0) ||
-      (hasLineItemDiscounts && resolvedDiscount > lineDiscountsSum + 0.001);
+      checkOrderHasBillDiscount({ master, details });
 
     const resolvedBillDiscType: "percentage" | "amount" =
       isBillComplimentary || masterDiscPer > 0
         ? "percentage"
         : "amount";
 
-    const mappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
+    const allExtras = getCachedExtras();
+    const isTaxInclusive = priceView === "Inclusive";
+
+    const unifiedPricing = buildUnifiedOrderPricing(orderData, {
+      orderType: orderTypeName,
+      priceView,
+      allExtras,
+      isBillDiscount: isBillLevelDiscount,
+      products,
+      productCache,
+    });
+
+    const rawMappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
       products,
       productCache,
       priceView: priceView,
+      allExtras,
       masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
       isOrderBillDiscount: isBillLevelDiscount,
       orderType: orderTypeName,
     });
 
-    const unifiedPricing = buildUnifiedOrderPricing(orderData, {
-      orderType: orderTypeName,
-      priceView,
-      isBillDiscount: isBillLevelDiscount,
-      products,
-      productCache,
+    const mappedCartItems = rawMappedCartItems.map((cartItem, idx) => {
+      const uLine = unifiedPricing.lines[idx] || unifiedPricing.lines.find(
+        (l) => (l.mapId !== undefined && cartItem.mapId !== undefined && Number(l.mapId) === Number(cartItem.mapId)) ||
+               (l.productId !== undefined && cartItem.productId !== undefined && Number(l.productId) === Number(cartItem.productId))
+      );
+
+      // Condition 1: Check price view is inclusive
+      const isPriceViewInclusive = priceView === "Inclusive";
+
+      // Condition 2: Check product is inclusive tag in Product Master
+      const matchedProd = (productCache && productCache[cartItem.productId]) ||
+        (products && products.find((p: any) => p.id === cartItem.productId)) ||
+        cartItem.product;
+
+      const isProductInclusiveTag = Boolean(
+        (matchedProd as any)?.isIncl === true ||
+        (matchedProd as any)?.priceIsIncl === true ||
+        (matchedProd as any)?.isInclusiveTax === true ||
+        (matchedProd as any)?.PriceIsIncl === true ||
+        (matchedProd as any)?.IsIncl === true ||
+        cartItem.isIncl === true ||
+        (cartItem as any).priceIsIncl === true ||
+        uLine?.isProductMasterInclusive === true
+      );
+
+      if (isPriceViewInclusive && isProductInclusiveTag) {
+        const recallPrice = uLine ? uLine.getRate(true) : Number((cartItem as any).catalogPrice ?? cartItem.price ?? 0);
+        const orderTypeBillingConfig = getBillingConfig(orderTypeName);
+        const isVatActive = getVatStatus();
+        const rawVatRate = orderTypeBillingConfig.vatRate > 0 ? (orderTypeBillingConfig.vatRate > 1 ? orderTypeBillingConfig.vatRate / 100 : orderTypeBillingConfig.vatRate) : 0.10;
+        const activeVat = isVatActive ? rawVatRate : 0;
+        const isDine = (orderTypeName || "").toLowerCase().includes("dine");
+        const scR = isDine ? (orderTypeBillingConfig.serviceChargeRate ?? 0) : 0;
+        const levyR = orderTypeBillingConfig.levyRate ?? 0;
+        const factor = (activeVat > 0 || levyR > 0 || scR > 0)
+          ? roundCalc((1 + activeVat) * (1 + levyR) * (1 + scR), 4)
+          : 1;
+        const exclBasePrice = roundCalc(recallPrice / factor, 4);
+
+        const authLineTotal = uLine ? uLine.getAmount(true, unifiedPricing.summary.isBillDiscount) : (recallPrice * (cartItem.quantity || 1));
+        const authOrigTotal = uLine ? uLine.inclusiveGross : (recallPrice * (cartItem.quantity || 1));
+        const authDiscount = uLine ? uLine.getDiscount(true) : (cartItem.discountValue || 0);
+
+        return {
+          ...cartItem,
+          isIncl: true,
+          price: recallPrice,
+          basePrice: exclBasePrice,
+          exclusivePrice: exclBasePrice,
+          authoritativePrice: recallPrice,
+          authoritativeLineTotal: authLineTotal,
+          authoritativeOriginalLineTotal: authOrigTotal,
+          authoritativeDiscount: authDiscount,
+          authoritativeVatAmount: uLine?.vatAmount,
+          lineTotal: authLineTotal,
+          originalLineTotal: authOrigTotal,
+        };
+      }
+
+      if (uLine) {
+        const authRate = uLine.getRate(isTaxInclusive);
+        const authLineTotal = uLine.getAmount(isTaxInclusive, unifiedPricing.summary.isBillDiscount);
+        const authOrigTotal = isTaxInclusive ? uLine.inclusiveGross : uLine.exclusiveGross;
+        const authDiscount = uLine.getDiscount(isTaxInclusive);
+        return {
+          ...cartItem,
+          price: isTaxInclusive ? authRate : cartItem.price,
+          isIncl: uLine.isProductMasterInclusive !== undefined ? uLine.isProductMasterInclusive : cartItem.isIncl,
+          authoritativePrice: authRate,
+          authoritativeLineTotal: authLineTotal,
+          authoritativeOriginalLineTotal: authOrigTotal,
+          authoritativeDiscount: authDiscount,
+          authoritativeVatAmount: uLine.vatAmount,
+          lineTotal: authLineTotal,
+          originalLineTotal: authOrigTotal,
+        };
+      }
+      return cartItem;
     });
     const authSubtotal = (master.subTotal && Math.abs(Number(master.subTotal) - unifiedPricing.summary.subTotalExclusive) < 0.15)
       ? Number(master.subTotal)
       : unifiedPricing.summary.subTotalExclusive;
     const authDiscount = isBillComplimentary
       ? authSubtotal
-      : (resolvedDiscount > 0 ? resolvedDiscount : (unifiedPricing.summary.totalDiscountExcl || 0));
+      : (masterDiscAmount > 0 ? masterDiscAmount : (resolvedDiscount > 0 ? resolvedDiscount : (unifiedPricing.summary.totalDiscountExcl || 0)));
     const authTax = isBillComplimentary ? 0 : unifiedPricing.summary.vatAmount;
     const authNet = isBillComplimentary ? 0 : unifiedPricing.summary.grandTotal;
     const authCharges = (unifiedPricing.summary.charges !== undefined && unifiedPricing.summary.charges > 0)
@@ -233,8 +334,10 @@ export const loadSettledOrderIntoCart = ({
       ? 100
       : masterDiscPer > 0
       ? masterDiscPer
-      : isBillLevelDiscount
-      ? (resolvedDiscount > 0 ? resolvedDiscount : (getDiscountCalculation() === "Inclusive" ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0)))
+      : (!hasLineItemDiscounts && masterDiscAmount > 0.001)
+      ? masterDiscAmount
+      : (hasLineItemDiscounts && masterDiscAmount > lineDiscountsSum + 0.05)
+      ? roundCalc(masterDiscAmount - lineDiscountsSum)
       : 0;
 
     dispatch(

@@ -286,7 +286,7 @@ describe('Order Payload Mapper (orderPayloadMapper.ts)', () => {
     expect(updatePayload.details[0].productId).toBe(6);
     expect(updatePayload.details[0].qty).toBe(2);
     expect(updatePayload.details[0].price).toBe(10.000);
-    expect(updatePayload.details[0].discAmount).toBe(0); // Bill discount, line disc is 0
+    expect(updatePayload.details[0].discAmount).toBe(10.000); // Allocated bill discount
     expect(updatePayload.details[0].levy).toBe(0.500); // Line levy is 0.500
     expect(updatePayload.details[0].vatAmount).toBe(1.050);
 
@@ -535,7 +535,7 @@ describe('Order Payload Mapper (orderPayloadMapper.ts)', () => {
 
     const payload = buildDirectSettleOrderPayload(context, session);
     expect(payload.details[0].price).toBe(100.000);
-    expect(payload.details[0].discAmount).toBe(0); // bill discount, line disc is 0
+    expect(payload.details[0].discAmount).toBeCloseTo(21.291, 3); // allocated bill discount
     expect(payload.discAmount).toBeCloseTo(21.291, 3); // compound reverse calculated discount
     expect(payload.vatExclAmount).toBeCloseTo(90.909, 3);
     expect(payload.vatAmount).toBeCloseTo(9.091, 3);
@@ -543,7 +543,7 @@ describe('Order Payload Mapper (orderPayloadMapper.ts)', () => {
 
     const updatePayload = buildUpdateOrderPayload(105, context, session);
     expect(updatePayload.details[0].price).toBe(100.000);
-    expect(updatePayload.details[0].discAmount).toBe(0);
+    expect(updatePayload.details[0].discAmount).toBeCloseTo(21.291, 3);
     expect(updatePayload.discAmount).toBeCloseTo(21.291, 3);
     expect(updatePayload.vatExclAmount).toBeCloseTo(90.909, 3);
     expect(updatePayload.netAmount).toBeCloseTo(100.000, 3);

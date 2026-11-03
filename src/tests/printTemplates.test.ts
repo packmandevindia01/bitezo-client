@@ -654,6 +654,176 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(markup).toContain('8.800');
     });
 
+    it('Scenario (Image 10): Settle & Print with Item-Level Discount displays Disc : 8.658 under DEMO in Exclusive print', async () => {
+      const data: any = {
+        orderNo: 'New',
+        ticketNo: 'New',
+        orderType: 'TakeOut',
+        subTotal: 30.000,
+        discount: 8.658,
+        discAmount: 0,
+        isBillDiscount: false, // Item-level discount
+        waiter: 'Emp1',
+        counter: 'Main',
+        printPrice: 'Exclusive',
+        priceView: 'Exclusive',
+        charges: 1.067,
+        netValue: 22.409,
+        vatAmount: 2.241,
+        netAmount: 24.650,
+      };
+
+      const cartDetails: any[] = [
+        {
+          productId: 6,
+          productName: 'DEMO',
+          qty: 3,
+          price: 10.000,
+          basePrice: 10.000,
+          baseDiscount: 8.658,
+          itemDiscount: 8.658,
+          itemDiscountAmount: 8.658,
+          itemDiscountExcl: 8.658,
+          discountValue: 8.658,
+          discAmount: 8.658,
+          lineTotal: 21.342,
+        }
+      ];
+
+      // 1. HTML Guest Print
+      const html = await generateGuestPrintHtml(cartDetails, data);
+      expect(html).toContain('DEMO');
+      expect(html).toContain('30.000');
+      expect(html).toContain('Disc : 8.658');
+      expect(html).toContain('21.342');
+      expect(html).toContain('Discount');
+      expect(html).toContain('-8.658');
+      expect(html).toContain('24.650');
+
+      // 2. ESC/POS Thermal Print
+      const markup = generateBillMarkup({ data, cartDetails });
+      expect(markup).toContain('DEMO');
+      expect(markup).toContain('30.000');
+      expect(markup).toContain('Disc : 8.658');
+      expect(markup).toContain('21.342');
+      expect(markup).toContain('Discount');
+      expect(markup).toContain('-8.658');
+      expect(markup).toContain('24.650');
+    });
+
+    it('Scenario: Settle & Print with Item-Level Discount displays Disc : 10.000 (not 9.524) under DEMO in Inclusive print', async () => {
+      const data: any = {
+        orderNo: 'New',
+        ticketNo: 'New',
+        orderType: 'TakeOut',
+        subTotal: 34.650,
+        discount: 10.000,
+        discAmount: 0,
+        isBillDiscount: false, // Item-level discount
+        waiter: 'Emp1',
+        counter: 'Main',
+        printPrice: 'Inclusive',
+        priceView: 'Inclusive',
+        charges: 1.067,
+        vatAmount: 2.241,
+        netAmount: 24.650,
+      };
+
+      const cartDetails: any[] = [
+        {
+          productId: 6,
+          productName: 'DEMO',
+          qty: 3,
+          price: 11.550,
+          basePrice: 10.000,
+          baseDiscount: 8.658,
+          itemDiscount: 10.000,
+          itemDiscountAmount: 8.658,
+          itemDiscountExcl: 8.658,
+          itemDiscountIncl: 10.000,
+          discountValue: 10.000,
+          discAmount: 8.658,
+          lineTotal: 24.650,
+        }
+      ];
+
+      // 1. HTML Guest Print
+      const html = await generateGuestPrintHtml(cartDetails, data);
+      expect(html).toContain('DEMO');
+      expect(html).toContain('34.650');
+      expect(html).toContain('Disc : 10.000');
+      expect(html).not.toContain('9.524');
+      expect(html).toContain('24.650');
+      expect(html).toContain('Discount');
+      expect(html).toContain('-10.000');
+
+      // 2. ESC/POS Thermal Print
+      const markup = generateBillMarkup({ data, cartDetails });
+      expect(markup).toContain('DEMO');
+      expect(markup).toContain('34.650');
+      expect(markup).toContain('Disc : 10.000');
+      expect(markup).not.toContain('9.524');
+      expect(markup).toContain('24.650');
+      expect(markup).toContain('Discount');
+      expect(markup).toContain('-10.000');
+    });
+
+    it('Scenario: Settle & Print when priceView is Exclusive and printPrice is Inclusive displays Disc : 10.000 (not 8.658)', async () => {
+      const data: any = {
+        orderNo: 'New',
+        ticketNo: 'New',
+        orderType: 'TakeOut',
+        subTotal: 34.650,
+        discount: 10.000,
+        discAmount: 0,
+        isBillDiscount: false, // Item-level discount
+        waiter: 'Emp1',
+        counter: 'Main',
+        printPrice: 'Inclusive',
+        priceView: 'Exclusive',
+        charges: 1.067,
+        vatAmount: 2.241,
+        netAmount: 24.650,
+      };
+
+      const cartDetails: any[] = [
+        {
+          productId: 6,
+          productName: 'DEMO',
+          qty: 3,
+          price: 10.000,
+          basePrice: 10.000,
+          baseDiscount: 8.658,
+          itemDiscount: 8.658,
+          itemDiscountAmount: 8.658,
+          itemDiscountExcl: 8.658,
+          discountValue: 10.000,
+          discAmount: 8.658,
+          lineTotal: 21.342,
+        }
+      ];
+
+      // 1. HTML Guest Print
+      const html = await generateGuestPrintHtml(cartDetails, data);
+      expect(html).toContain('DEMO');
+      expect(html).toContain('34.650');
+      expect(html).toContain('Disc : 10.000');
+      expect(html).not.toContain('Disc : 8.658');
+      expect(html).toContain('24.650');
+      expect(html).toContain('Discount');
+      expect(html).toContain('-10.000');
+
+      // 2. ESC/POS Thermal Print
+      const markup = generateBillMarkup({ data, cartDetails });
+      expect(markup).toContain('DEMO');
+      expect(markup).toContain('34.650');
+      expect(markup).toContain('Disc : 10.000');
+      expect(markup).not.toContain('Disc : 8.658');
+      expect(markup).toContain('24.650');
+      expect(markup).toContain('Discount');
+      expect(markup).toContain('-10.000');
+    });
+
     it('Swagger Order #120 recall print data (/api/v1/order/recall/order-print-data/120) prints exact 3.000 in Inclusive and Exclusive views', async () => {
       // Swagger order-print-data for 120 (Inclusive)
       const printData120Inclusive: any = {

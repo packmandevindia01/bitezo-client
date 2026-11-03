@@ -19,7 +19,7 @@ import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import { clearAllItemDiscounts, setCustomerId, setCustomDeliveryCharge, setWaiter } from "../store/posSlice";
 import { selectDeliveryCharge } from "../store/posSelectors";
-import { roundCalc, getPriceView } from "../utils/billing";
+import { roundCalc } from "../utils/billing";
 import { disableDefaultEmployeeConfig, isDefaultEmployeeValidInCache } from "../../utils/defaultEmployee";
 import { getModifierTypeNameById } from "../../services/menuApi";
 import { PosProductSearchDropdown } from "../components/menu/PosProductSearchDropdown";
@@ -246,9 +246,15 @@ export const PosTerminalPage = () => {
         showToast("Price cannot be zero. Use Item Complimentary.", "error");
         return;
       }
-      // In Inclusive Price View, any manually entered price is inclusive
-      const isPriceInclusive = getPriceView() === "Inclusive";
-      terminal.updateItemPrice(selectedKey, num, isPriceInclusive);
+      const currentItem = terminal.cartDetails.find((item) => item.uniqueId === selectedKey);
+      // Rule 4: If the product is configured as Inclusive, any price entered manually
+      // from the menu must be treated as Inclusive. Otherwise, treat the entered price as Exclusive.
+      const isProductConfiguredInclusive = Boolean(
+        currentItem?.isIncl ??
+        currentItem?.product?.isIncl ??
+        (currentItem?.productId ? (terminal as any)?.productCache?.[currentItem.productId]?.isIncl : false)
+      );
+      terminal.updateItemPrice(selectedKey, num, isProductConfiguredInclusive);
       modals.setIsPriceModalOpen(false);
     }
   };

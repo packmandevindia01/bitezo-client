@@ -372,10 +372,22 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   markup += `[L]${DASH_SEP}\n`;
 
   // ── Items Pricing ───────────────────────────────────────────────────────────
+  const isInputPrecomputed = Boolean(cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary);
+  const inputTaxSetting = (cartDetails as any)?.summary?.printPrice || (cartDetails as any)?.summary?.priceView;
+  const isInputMatchingSetting = isInputPrecomputed && (
+    (printTaxSetting === "Inclusive" && (cartDetails as any).summary?.isTaxInclusive === true) ||
+    (printTaxSetting === "Exclusive" && (cartDetails as any).summary?.isTaxInclusive === false) ||
+    inputTaxSetting === printTaxSetting
+  );
+
   // Single Source of Truth: Unified deterministic order pricing
-  const unified: UnifiedOrderPricingResult = ((cartDetails as any)?.lines && (cartDetails as any)?.summary)
+  const unified: UnifiedOrderPricingResult = isInputMatchingSetting
     ? (cartDetails as any)
-    : buildUnifiedOrderPricing(cartDetails, data);
+    : buildUnifiedOrderPricing(cartDetails, {
+        ...data,
+        printPrice: printTaxSetting,
+        priceView: printTaxSetting,
+      });
 
   // ── Column headers ───────────────────────────────────────────────────────────
   markup += `[L]<b>${padRight("Description", LINE_WIDTH - 16)} ${padLeft("Qty", 4)} ${padLeft("Amount", 10)}</b>\n`;
@@ -476,9 +488,11 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     : (unified.summary.subTotalExclusive > 0
         ? unified.summary.subTotalExclusive
         : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : 0));
-  const footerSubTotal = (data.subTotal !== undefined && Number(data.subTotal) > 0)
-    ? Number(data.subTotal)
-    : (grossSubTotal > 0 ? grossSubTotal : Number((data as any).vatExclAmount || 0));
+  const footerSubTotal = grossSubTotal > 0
+    ? grossSubTotal
+    : (data.subTotal !== undefined && Number(data.subTotal) > 0
+        ? Number(data.subTotal)
+        : Number((data as any).vatExclAmount || 0));
 
   markup += totalsLine(isBillArabic ? "Sub Total (المجموع الفرعي)" : "Sub Total", fmt(footerSubTotal)) + "\n";
   if (totalPrintDiscount > 0) {
@@ -784,10 +798,22 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   }
   markup += `[L]${SEPARATOR}\n`;
 
+  const isInputPrecomputed = Boolean(cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary);
+  const inputTaxSetting = (cartDetails as any)?.summary?.printPrice || (cartDetails as any)?.summary?.priceView;
+  const isInputMatchingSetting = isInputPrecomputed && (
+    (printTaxSetting === "Inclusive" && (cartDetails as any).summary?.isTaxInclusive === true) ||
+    (printTaxSetting === "Exclusive" && (cartDetails as any).summary?.isTaxInclusive === false) ||
+    inputTaxSetting === printTaxSetting
+  );
+
   // Single Source of Truth: Unified deterministic order pricing
-  const unified: UnifiedOrderPricingResult = ((cartDetails as any)?.lines && (cartDetails as any)?.summary)
+  const unified: UnifiedOrderPricingResult = isInputMatchingSetting
     ? (cartDetails as any)
-    : buildUnifiedOrderPricing(cartDetails, data);
+    : buildUnifiedOrderPricing(cartDetails, {
+        ...data,
+        printPrice: printTaxSetting,
+        priceView: printTaxSetting,
+      });
   const isOrderBillDiscount = unified.summary.isBillDiscount;
 
   // ── KOT Items ───────────────────────────────────────────────────────────────

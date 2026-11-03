@@ -1,6 +1,7 @@
 import axiosInstance from "../../../api/axiosInstance";
 import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
 import { sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
+import { allocate } from "../terminal/utils/pos-calc";
 
 export interface ApiResponse<T = any> {
   isSuccess: boolean;
@@ -142,14 +143,22 @@ export const salesInvoiceApi = {
           const isBillDisc = Boolean(
             (postPayload as any).isBillDiscount ||
             Number((postPayload as any).billDiscountValue || (postPayload as any).billDiscount || 0) > 0 ||
-            (Number(postPayload.discAmount || 0) > 0 && lineDiscounts === 0)
+            (Number(postPayload.discAmount || 0) > 0)
           );
 
           if (isBillDisc) {
-            postPayload.details.forEach((d: any) => {
-              d.discAmount = 0;
-              d.discPer = 0;
-            });
+            // Distribute bill discount across details lines if not already populated
+            if (lineDiscounts === 0 && Number(postPayload.discAmount || 0) > 0) {
+              const lineBases = postPayload.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
+              const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
+              const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
+              const allocated = allocate(Number(postPayload.discAmount || 0), weights);
+              postPayload.details.forEach((d: any, idx: number) => {
+                d.discAmount = allocated[idx] ?? 0;
+                const base = Number(d.price || 0) * Number(d.qty || 1);
+                d.discPer = base > 0 ? roundCalc((d.discAmount / base) * 100, 2) : 0;
+              });
+            }
             postPayload.discAmount = roundCalc(Number(postPayload.discAmount || 0));
           } else {
             postPayload.discAmount = 0;
@@ -194,6 +203,23 @@ export const salesInvoiceApi = {
             postPayload.transDate = now.toISOString();
           }
         }
+
+        console.log("%c[SALES INVOICE SUBMISSION PAYLOAD - POST /sales-invoices]", "background: #2e7d32; color: #fff; font-weight: bold; padding: 2px 6px; border-radius: 4px;");
+        console.log("MASTER TOTALS:", {
+          voucherDate: postPayload.voucherDate,
+          orderTypeId: postPayload.orderTypeId,
+          customerId: postPayload.customerId,
+          discAmount: postPayload.discAmount,
+          discPer: postPayload.discPer,
+          serviceCharge: postPayload.serviceCharge,
+          levy: postPayload.levy,
+          vatExclAmount: postPayload.vatExclAmount,
+          vatAmount: postPayload.vatAmount,
+          netAmount: postPayload.netAmount,
+        });
+        console.log("DETAILS (Product lines):", postPayload.details);
+        console.log("MODIFIERS (Extras & Modifiers):", postPayload.modifiers);
+        console.log("FULL RAW PAYLOAD OBJECT:", postPayload);
 
         const data = await unwrap<any>(axiosInstance.post<ApiResponse<any>>('/sales-invoices', postPayload));
         notifyTransactionsUpdated("sale");
@@ -257,14 +283,22 @@ export const salesInvoiceApi = {
       const isBillDisc = Boolean(
         (payload as any).isBillDiscount ||
         Number((payload as any).billDiscountValue || (payload as any).billDiscount || 0) > 0 ||
-        (Number(payload.discAmount || 0) > 0 && lineDiscounts === 0)
+        (Number(payload.discAmount || 0) > 0)
       );
 
       if (isBillDisc) {
-        cleanedDetails.forEach((d: any) => {
-          d.discAmount = 0;
-          d.discPer = 0;
-        });
+        // Distribute bill discount across details lines if not already populated
+        if (lineDiscounts === 0 && Number(payload.discAmount || 0) > 0) {
+          const lineBases = cleanedDetails.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
+          const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
+          const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
+          const allocated = allocate(Number(payload.discAmount || 0), weights);
+          cleanedDetails.forEach((d: any, idx: number) => {
+            d.discAmount = allocated[idx] ?? 0;
+            const base = Number(d.price || 0) * Number(d.qty || 1);
+            d.discPer = base > 0 ? roundCalc((d.discAmount / base) * 100, 2) : 0;
+          });
+        }
         payload.discAmount = roundCalc(Number(payload.discAmount || 0));
       } else {
         payload.discAmount = 0;

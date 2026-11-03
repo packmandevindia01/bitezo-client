@@ -77,7 +77,7 @@ const PosProductCardBase = ({ product, onAdd, price, hasAlts, onLongPress }: Pos
       {/* Price Badge Overlay - Moved outside overflow-hidden container */}
       {showPrice && (
         <div className="absolute top-1 right-1 flex flex-col items-end gap-1 z-10">
-          {price !== undefined && price < product.price && (
+          {(product as any).promoPrice !== undefined && (product as any).promoPrice < product.price && (
             <div className="bg-red-500/90 px-1 py-0.5 rounded text-[8px] font-bold text-white shadow-sm border border-red-600 line-through select-none">
               {formatAmount(product.price)}
             </div>

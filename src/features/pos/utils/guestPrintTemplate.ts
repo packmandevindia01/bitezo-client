@@ -344,10 +344,22 @@ export const generateGuestPrintHtml = async (
   );
   const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
 
+  const isInputPrecomputed = Boolean(cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary);
+  const inputTaxSetting = (cartDetails as any)?.summary?.printPrice || (cartDetails as any)?.summary?.priceView;
+  const isInputMatchingSetting = isInputPrecomputed && (
+    (printTaxSetting === "Inclusive" && (cartDetails as any).summary?.isTaxInclusive === true) ||
+    (printTaxSetting === "Exclusive" && (cartDetails as any).summary?.isTaxInclusive === false) ||
+    inputTaxSetting === printTaxSetting
+  );
+
   // Single Source of Truth: Unified deterministic order pricing
-  const unified: UnifiedOrderPricingResult = (cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary)
+  const unified: UnifiedOrderPricingResult = isInputMatchingSetting
     ? (cartDetails as any)
-    : buildUnifiedOrderPricing(cartDetails, data);
+    : buildUnifiedOrderPricing(cartDetails, {
+        ...data,
+        printPrice: printTaxSetting,
+        priceView: printTaxSetting,
+      });
 
   let itemsHtml = "";
   unified.lines.forEach((line) => {
@@ -485,9 +497,11 @@ export const generateGuestPrintHtml = async (
     : (unified.summary.subTotalExclusive > 0
         ? unified.summary.subTotalExclusive
         : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : 0));
-  const displaySubTotal = (data.subTotal !== undefined && Number(data.subTotal) > 0)
-    ? Number(data.subTotal)
-    : (grossSubTotal > 0 ? grossSubTotal : Number((data as any).vatExclAmount || 0));
+  const displaySubTotal = grossSubTotal > 0
+    ? grossSubTotal
+    : (data.subTotal !== undefined && Number(data.subTotal) > 0
+        ? Number(data.subTotal)
+        : Number((data as any).vatExclAmount || 0));
 
   if (!data.serviceCharge && isDineIn && unified.summary?.serviceCharge) {
     data.serviceCharge = unified.summary.serviceCharge;

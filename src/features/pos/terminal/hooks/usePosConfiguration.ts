@@ -304,6 +304,17 @@ export const usePosConfiguration = () => {
           if (stateData.companyNameKOT !== undefined) {
             localStorage.setItem("companyNameKot", stateData.companyNameKOT ? "Enable" : "Disable");
           }
+          if (stateData.serviceCharge !== undefined) {
+            localStorage.setItem("serviceCharges", String(stateData.serviceCharge));
+            localStorage.setItem("serviceCharge", String(stateData.serviceCharge));
+          }
+          if (stateData.levy !== undefined) {
+            localStorage.setItem("levy", String(stateData.levy));
+          }
+          if (stateData.defaultDeliveryCharge !== undefined) {
+            localStorage.setItem("deliveryCharge", String(stateData.defaultDeliveryCharge));
+            localStorage.setItem("defaultDeliveryCharge", String(stateData.defaultDeliveryCharge));
+          }
         }
       } catch (error) {
         console.error("Failed to load POS configuration", error);
@@ -517,6 +528,11 @@ export const usePosConfiguration = () => {
         parsed.alternativeOrder = payload.alternativeOrder;
 
         localStorage.setItem("posConfigs", JSON.stringify(parsed));
+        localStorage.setItem("serviceCharges", String(payload.serviceCharges ?? 0));
+        localStorage.setItem("serviceCharge", String(payload.serviceCharges ?? 0));
+        localStorage.setItem("levy", String(payload.levy ?? 0));
+        localStorage.setItem("deliveryCharge", String(payload.deliveryCharge ?? 0));
+        localStorage.setItem("defaultDeliveryCharge", String(payload.deliveryCharge ?? 0));
         clearAllPosCache();
       } catch (e) {
         console.error("Failed to update cached posConfigs:", e);

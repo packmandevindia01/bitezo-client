@@ -44,7 +44,9 @@ export const PosPriceKeypadModal: React.FC<PosPriceKeypadModalProps> = ({
         <div className="bg-[#1e293b] p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl flex flex-col items-end relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-1 h-full bg-[#ff9500]" />
           <div className="w-full flex justify-between items-center mb-1">
-            <span className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">Override Price</span>
+            <span className="text-[8px] sm:text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
+              Override Price {Boolean(currentSelectedItem?.isIncl ?? currentSelectedItem?.product?.isIncl) ? "(INCL)" : "(EXCL)"}
+            </span>
             <span className="text-[8px] sm:text-[9px] font-black text-[#ff9500] uppercase">Original: {formatCurrency(currentSelectedItem?.product.price || 0)}</span>
           </div>
           <input

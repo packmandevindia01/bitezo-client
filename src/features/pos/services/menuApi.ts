@@ -73,6 +73,33 @@ export const setCachedModifierTypes = (types: any[]) => {
   } catch { /* ignore */ }
 };
 
+const EXTRAS_CACHE_KEY = "bitezo_extras_cache";
+let cachedExtras: { id: number; name: string; price: number; typeId: number }[] = [];
+
+export const getCachedExtras = (): { id: number; name: string; price: number; typeId: number }[] => {
+  if (cachedExtras.length > 0) return cachedExtras;
+  try {
+    const raw = sessionStorage.getItem(EXTRAS_CACHE_KEY);
+    if (raw) {
+      cachedExtras = JSON.parse(raw);
+    }
+  } catch { /* ignore */ }
+  return cachedExtras;
+};
+
+export const setCachedExtras = (extras: any[]) => {
+  if (!Array.isArray(extras)) return;
+  cachedExtras = extras.map((e: any) => ({
+    id: Number(e.extrasId ?? e.extraId ?? e.id ?? e.ID ?? 0),
+    name: String(e.extraName ?? e.name ?? e.Name ?? "").trim(),
+    price: Number(e.price ?? 0),
+    typeId: 2,
+  }));
+  try {
+    sessionStorage.setItem(EXTRAS_CACHE_KEY, JSON.stringify(cachedExtras));
+  } catch { /* ignore */ }
+};
+
 export const getModifierTypeNameById = (typeId?: number): string => {
   if (!typeId) return "";
   const list = getCachedModifierTypes();
@@ -215,8 +242,15 @@ export const menuApi = {
         unitId: p.unitId ?? p.defaultUnitId ?? undefined,
         hasAlternatives: p.hasAlternatives ?? false,
         isLocked: p.isLocked ?? false,
+        priceIsIncl: p.priceIsIncl !== undefined ? Boolean(p.priceIsIncl) :
+                     p.PriceIsIncl !== undefined ? Boolean(p.PriceIsIncl) :
+                     p.isIncl !== undefined ? Boolean(p.isIncl) :
+                     p.IsIncl !== undefined ? Boolean(p.IsIncl) :
+                     undefined,
         isIncl: p.isIncl !== undefined ? Boolean(p.isIncl) :
+                p.IsIncl !== undefined ? Boolean(p.IsIncl) :
                 p.priceIsIncl !== undefined ? Boolean(p.priceIsIncl) :
+                p.PriceIsIncl !== undefined ? Boolean(p.PriceIsIncl) :
                 p.isincl !== undefined ? Boolean(p.isincl) :
                 p.priceView !== undefined ? (p.priceView === 'Inclusive') :
                 undefined,
@@ -261,8 +295,15 @@ export const menuApi = {
         imageUrl: p.imageUrl ? resolveImageUrl(p.imageUrl) : undefined,
         code: p.code || p.productCode || "",
         unitId: p.unitId,
+        priceIsIncl: p.priceIsIncl !== undefined ? Boolean(p.priceIsIncl) :
+                     p.PriceIsIncl !== undefined ? Boolean(p.PriceIsIncl) :
+                     p.isIncl !== undefined ? Boolean(p.isIncl) :
+                     p.IsIncl !== undefined ? Boolean(p.IsIncl) :
+                     undefined,
         isIncl: p.isIncl !== undefined ? Boolean(p.isIncl) :
+                p.IsIncl !== undefined ? Boolean(p.IsIncl) :
                 p.priceIsIncl !== undefined ? Boolean(p.priceIsIncl) :
+                p.PriceIsIncl !== undefined ? Boolean(p.PriceIsIncl) :
                 p.priceView !== undefined ? (p.priceView === 'Inclusive') :
                 undefined,
       })).filter((p: any) => p.productId > 0 && p.productName);
@@ -343,6 +384,26 @@ export const menuApi = {
   /** GET /api/menu/extras */
   getExtras: (typeId?: number, categoryId?: number) =>
     unwrap(axiosInstance.get<ApiResponse<{ extras: any[] | null }>>("/menu/extras", { params: { clientDb: localStorage.getItem("tenantId") || "", typeId, categoryId } })),
+
+  getAllExtras: async (): Promise<{ id: number; name: string; price: number; typeId: number }[]> => {
+    const cached = getCachedExtras();
+    if (cached.length > 0) return cached;
+    try {
+      const res = await unwrap(axiosInstance.get<ApiResponse<{ extras: any[] | null }>>("/menu/extras", { params: { clientDb: localStorage.getItem("tenantId") || "" } }));
+      const list = Array.isArray(res) ? res : ((res as any)?.extras || (res as any)?.data || []);
+      const normalized = list.map((e: any) => ({
+        id: Number(e.extrasId ?? e.extraId ?? e.id ?? e.ID ?? 0),
+        name: String(e.extraName ?? e.name ?? e.Name ?? "").trim(),
+        price: Number(e.price ?? 0),
+        typeId: 2,
+      }));
+      setCachedExtras(normalized);
+      return normalized;
+    } catch (e) {
+      console.warn("[menuApi] getAllExtras error:", e);
+      return cached;
+    }
+  },
 
   /** GET /api/menu/extras-type */
   getExtraTypes: () =>

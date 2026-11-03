@@ -112,7 +112,24 @@ export const printRecallOrderGuestReceipt = async (
         orderType: orderTypeName,
       });
       if (printRes && (printRes.data || printRes.masterData)) {
-        printOrder = printRes.data || printRes;
+        const pData = printRes.data || printRes;
+        printOrder = {
+          ...order,
+          ...pData,
+          masterData: {
+            ...(order.masterData || order.master || {}),
+            ...(pData.masterData || pData.master || {}),
+          },
+          detailsData: (Array.isArray(pData.detailsData) && pData.detailsData.length > 0)
+            ? pData.detailsData
+            : (order.detailsData || order.details || []),
+          modifiersData: (Array.isArray(pData.modifiersData) && pData.modifiersData.length > 0)
+            ? pData.modifiersData
+            : (order.modifiersData || order.modifiers || []),
+          modifiers: (Array.isArray(pData.modifiers) && pData.modifiers.length > 0)
+            ? pData.modifiers
+            : (order.modifiers || order.modifiersData || []),
+        };
       }
     } catch (err) {
       console.warn("[printRecallOrder] getOrderPrintData fallback to loaded order:", err);
@@ -143,6 +160,13 @@ export const printRecallOrderGuestReceipt = async (
     let modifierTypes: any[] = [];
     try {
       modifierTypes = (await menuApi.getModifierTypes()) || [];
+    } catch {
+      // ignore
+    }
+
+    let allExtras: any[] = [];
+    try {
+      allExtras = (await menuApi.getAllExtras()) || [];
     } catch {
       // ignore
     }
@@ -242,7 +266,9 @@ export const printRecallOrderGuestReceipt = async (
     const unified = buildUnifiedOrderPricing(printOrder, {
       orderType: orderTypeName,
       printPrice: printPriceSetting,
+      priceView: printPriceSetting,
       modifierTypes,
+      allExtras,
       isVatActive: enableVat,
       isBillDiscount: isBillLevelDiscount,
       products,
@@ -482,7 +508,7 @@ export const printRecallOrderGuestReceipt = async (
       netAmount: resolvedGrandTotal,
       deliveryCharge: master.deliveryCharge || 0,
       enableVat,
-      printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+      printPrice: printPriceSetting || (localStorage.getItem("printPrice") as any) || undefined,
       priceView: (localStorage.getItem("priceView") as any) || undefined,
       billArabic: isBillArabicEnabled() || mappedItems.some((it: any) =>
         Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)

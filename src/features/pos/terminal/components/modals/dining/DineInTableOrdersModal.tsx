@@ -4,7 +4,7 @@ import { useAppDispatch, useAppSelector } from '../../../../../../app/hooks';
 import { loadRecalledOrder, setSectionId, setTableId, setGuestNo, clearCart, setOrderTypeByName, setTableNo, setWaiter } from '../../../store/posSlice';
 import { dineInApi } from '../../../../services/dineInApi';
 import { orderApi } from '../../../../services/orderApi';
-import { menuApi } from '../../../../services/menuApi';
+import { menuApi, getCachedExtras } from '../../../../services/menuApi';
 import { alternativesCache } from '../../../hooks/usePosProducts';
 import { useToast } from '../../../../../../app/providers/useToast';
 import { formatAmount } from '../../../../../../utils/currency';
@@ -329,6 +329,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       priceView,
       masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
       isOrderBillDiscount: isBillLevelDiscount,
+      orderType: 'DineIn',
+      products: (posMasterData as any)?.products,
     });
 
     return { master, mappedItems, fullOrder, isBillComplimentary, isBillLevelDiscount, masterDiscPer, resolvedDiscount, lineDiscountsSum };
@@ -382,9 +384,47 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         ? (resolvedDiscount > 0 ? resolvedDiscount : (isIncl ? (unifiedPricing.summary.totalDiscountIncl || 0) : (unifiedPricing.summary.totalDiscountExcl || 0)))
         : 0;
 
+      const mappedCartItems = mappedItems.map((cartItem, idx) => {
+        const uLine = unifiedPricing.lines[idx] || unifiedPricing.lines.find(
+          (l) => (l.mapId !== undefined && cartItem.mapId !== undefined && Number(l.mapId) === Number(cartItem.mapId)) ||
+                 (l.productId !== undefined && cartItem.productId !== undefined && Number(l.productId) === Number(cartItem.productId))
+        );
+
+        if (uLine) {
+          const authRate = uLine.getRate(isIncl);
+          const authOrigTotal = isIncl ? uLine.inclusiveGross : uLine.exclusiveGross;
+          const authDiscount = uLine.getDiscount(isIncl);
+          const authLineTotal = roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
+          const lineIsIncl = isIncl ? true : (uLine.isProductMasterInclusive !== undefined ? uLine.isProductMasterInclusive : cartItem.isIncl);
+          return {
+            ...cartItem,
+            price: authRate,
+            isIncl: lineIsIncl,
+            priceIsIncl: lineIsIncl,
+            authoritativePrice: authRate,
+            authoritativeLineTotal: authLineTotal,
+            authoritativeOriginalLineTotal: authOrigTotal,
+            authoritativeDiscount: authDiscount,
+            authoritativeVatAmount: uLine.vatAmount,
+            lineTotal: authLineTotal,
+            originalLineTotal: authOrigTotal,
+            product: {
+              ...(cartItem.product || {}),
+              id: cartItem.productId,
+              name: cartItem.product?.name || (cartItem as any).name || (cartItem as any).productName || `Product #${cartItem.productId}`,
+              categoryId: cartItem.product?.categoryId || 1,
+              price: authRate,
+              isIncl: lineIsIncl,
+              priceIsIncl: lineIsIncl,
+            },
+          };
+        }
+        return cartItem;
+      });
+
       dispatch(loadRecalledOrder({
         editingOrderId: selectedMaster.orderId,
-        cartItems: mappedItems,
+        cartItems: mappedCartItems,
         orderTypeId: master.orderTypeId || 1,
         orderTypeName: 'DineIn',
         customerId: master.customerId || 1,
@@ -699,6 +739,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         const unified = buildUnifiedOrderPricing(settleOrderData.rawData || settleOrderData.mappedItems, {
           orderType: "DineIn",
           printPrice: printPriceSetting,
+          allExtras: getCachedExtras(),
         });
 
         const printMappedItems = unified.lines.map((l) => ({
@@ -1110,6 +1151,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       const unified = buildUnifiedOrderPricing(fullOrder, {
         orderType: "DineIn",
         printPrice: printPriceSetting,
+        allExtras: getCachedExtras(),
         isVatActive: enableVat,
       });
 

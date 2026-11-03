@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { calculateOrder, type BillingConfig } from '../features/pos/terminal/utils/billing';
 import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
-import { buildDirectSettleOrderPayload } from '../features/pos/terminal/mappers/orderPayloadMapper';
+import { buildDirectSettleOrderPayload, buildNewOrderPayload } from '../features/pos/terminal/mappers/orderPayloadMapper';
 import { mapOrderDetailsToCartItems } from '../features/pos/terminal/mappers/orderDetailToCartMapper';
 import { generateGuestPrintHtml } from '../features/pos/utils/guestPrintTemplate';
 import { generateBillMarkup } from '../features/pos/utils/escPosGenerator';
 import { fallbackOrderTypeByName } from '../features/pos/terminal/store/posSlice';
+import { checkOrderHasBillDiscount } from '../features/pos/terminal/utils/orderDiscountCheck';
+import { roundCalc } from '../features/pos/terminal/utils/billing';
 
 describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', () => {
   const P = 3;
@@ -309,9 +311,9 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
 
     const payload = buildDirectSettleOrderPayload(context, session);
 
-    // Detail row carries base price 100.000 (bill discount is stored at master level)
+    // Detail row carries base price 100.000 and allocated exclusive bill discount (21.291)
     expect(payload.details[0].price).toBeCloseTo(100.000, P);
-    expect(payload.details[0].discAmount).toBe(0);
+    expect(payload.details[0].discAmount).toBeCloseTo(21.291, P);
 
     // Master payload carries the exclusive converted bill discount (21.291)
     expect(payload.discAmount).toBeCloseTo(21.291, P);
@@ -1696,5 +1698,516 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     expect(cartCalc.summary.vatAmount).toBeCloseTo(2.100, P);
     // Grand Total must be 23.100:
     expect(cartCalc.summary.grandTotal).toBeCloseTo(23.100, P);
+  });
+
+  it('Scenario 20 (Order #202 Screenshot): Recall Details footer with Item Discount in Inclusive View has Subtotal 30.087 (NOT 31.429) and exclusive discount 8.658', () => {
+    localStorage.setItem('priceView', 'Inclusive');
+    localStorage.setItem('printPrice', 'Inclusive');
+    localStorage.setItem('vatStatus', 'true');
+    localStorage.setItem('levy', '5');
+
+    const order202 = {
+      masterData: {
+        orderNo: 202,
+        ticketNo: 202,
+        orderType: "TakeOut",
+        customer: "CASH CUSTOMER",
+        waiter: "emp1",
+        deliveryCharge: 0,
+        discAmount: 0, // item discount: master discAmount is 0
+        serviceCharge: 0,
+        levy: 1.071,
+        vatExclAmount: 22.500,
+        vatAmount: 2.250,
+        netAmount: 24.750,
+      },
+      detailsData: [
+        {
+          qty: 3,
+          productId: 6,
+          productName: "Demo",
+          price: 11.583,
+          amount: 34.750,
+          discAmount: 10.000, // inclusive item discount
+          serviceCharge: 0,
+          levy: 1.071,
+          vatAmount: 2.250,
+          mapId: 1,
+        }
+      ],
+      modifiersData: [
+        {
+          qty: 1,
+          modifierId: 6,
+          modifierName: "test",
+          price: 0.100,
+          mapId: 1,
+        }
+      ]
+    };
+
+    // 1. Bill discount check: Since master discAmount == 0 and details has discount, MUST be ITEM discount (false)
+    const isBillDisc = checkOrderHasBillDiscount(order202);
+    expect(isBillDisc).toBe(false);
+
+    // 2. Footer calculations in Recall Details:
+    const master = order202.masterData;
+    const details = order202.detailsData;
+    const rawVatExcl = Number(master.vatExclAmount);
+    const displayCharges = Number(master.levy);
+    const backendDiscount = Number(master.discAmount);
+    const lineDiscountsTotal = details.reduce((sum, d) => sum + Number(d.discAmount), 0);
+
+    const isItemDiscount = backendDiscount <= 0.001 && lineDiscountsTotal > 0.001;
+    expect(isItemDiscount).toBe(true);
+
+    const orderCombinedFactor = (1 + 0.10) * (1 + 0.05); // 1.155
+    const exclusiveItemDiscount = roundCalc(lineDiscountsTotal / orderCombinedFactor, 4);
+    expect(exclusiveItemDiscount).toBeCloseTo(8.658, 3);
+
+    const displayDiscount = backendDiscount > 0 ? backendDiscount : roundCalc(exclusiveItemDiscount);
+    expect(displayDiscount).toBeCloseTo(8.658, 3);
+
+    // Subtotal must be 30.087 (NOT 31.429!)
+    const displaySubTotal = roundCalc(Math.max(0, rawVatExcl - displayCharges) + displayDiscount);
+    expect(displaySubTotal).toBeCloseTo(30.087, 3);
+    expect(displaySubTotal).not.toBeCloseTo(31.429, 2);
+
+    // Net value and Grand total checks
+    const displayNetValue = roundCalc(rawVatExcl);
+    expect(displayNetValue).toBeCloseTo(22.500, 3);
+    expect(master.netAmount).toBeCloseTo(24.750, 3);
+  });
+
+  it('Scenario 21 (Order #230 User Screenshot): ABCD [x] INCL. (100.000) with extra TEST (0.100) recalled and edited into cart displays 100.100 (NEVER 115.616)', () => {
+    localStorage.setItem('priceView', 'Inclusive');
+    localStorage.setItem('printPrice', 'Inclusive');
+    localStorage.setItem('vatStatus', 'true');
+    localStorage.setItem('levy', '5');
+
+    const products = [
+      { id: 9, name: 'ABCD', price: 100.000, vatValue: 10, isIncl: true, unitId: 1 }
+    ];
+    const productCache = { 9: products[0] };
+
+    const order230 = {
+      masterData: {
+        orderId: 230,
+        orderNo: "230",
+        ticketNo: "230",
+        orderType: "TakeOut",
+        orderTypeId: 2,
+        subTotal: 86.667,
+        vatExclAmount: 86.667,
+        levy: 4.333,
+        serviceCharge: 0,
+        vatAmount: 9.100,
+        netAmount: 100.100,
+      },
+      detailsData: [
+        {
+          qty: 1,
+          productId: 9,
+          productName: "ABCD",
+          price: 86.5800866,
+          amount: 86.5800866,
+          discAmount: 0,
+          serviceCharge: 0,
+          levy: 4.329,
+          vatAmount: 9.0909,
+          mapId: 1,
+          isIncl: true,
+        }
+      ],
+      modifiersData: [
+        {
+          qty: 1,
+          modifierId: 1,
+          modifierName: "TEST",
+          price: 0.0865801,
+          typeId: 2,
+          mapId: 1,
+        }
+      ]
+    };
+
+    // 1. Recall Details verification:
+    const unified = buildUnifiedOrderPricing(order230, {
+      orderType: "TakeOut",
+      priceView: "Inclusive",
+      products,
+      productCache,
+    });
+    expect(unified.lines[0].inclusiveRate).toBeCloseTo(100.100, 3);
+    expect(unified.lines[0].inclusiveAmount).toBeCloseTo(100.100, 3);
+    expect(unified.summary.subTotalExclusive).toBeCloseTo(86.667, 3);
+    expect(unified.summary.charges).toBeCloseTo(4.333, 3);
+    expect(unified.summary.grandTotal).toBeCloseTo(100.100, 3);
+
+    // 2. Map to cart items on Edit click:
+    const rawCartItems = mapOrderDetailsToCartItems(order230.detailsData, order230.modifiersData, {
+      products,
+      productCache,
+      orderType: "TakeOut",
+      priceView: "Inclusive",
+    });
+
+    // Enriched with unified pricing line values as done in PosRecallDetailsModal:
+    const isTaxInclusive = true;
+    const enrichedCartItems = rawCartItems.map((cartItem, idx) => {
+      const uLine = unified.lines[idx] || unified.lines.find(
+        (l) => (l.mapId !== undefined && cartItem.mapId !== undefined && Number(l.mapId) === Number(cartItem.mapId)) ||
+               (l.productId !== undefined && cartItem.productId !== undefined && Number(l.productId) === Number(cartItem.productId))
+      );
+      if (uLine) {
+        const authRate = uLine.getRate(isTaxInclusive);
+        const authLineTotal = uLine.getAmount(isTaxInclusive, unified.summary.isBillDiscount);
+        const authOrigTotal = isTaxInclusive ? uLine.inclusiveGross : uLine.exclusiveGross;
+        const authDiscount = uLine.getDiscount(isTaxInclusive);
+        return {
+          ...cartItem,
+          isIncl: uLine.isProductMasterInclusive !== undefined ? uLine.isProductMasterInclusive : cartItem.isIncl,
+          authoritativePrice: authRate,
+          authoritativeLineTotal: authLineTotal,
+          authoritativeOriginalLineTotal: authOrigTotal,
+          authoritativeDiscount: authDiscount,
+          authoritativeVatAmount: uLine.vatAmount,
+          lineTotal: authLineTotal,
+          originalLineTotal: authOrigTotal,
+        };
+      }
+      return cartItem;
+    });
+
+    // Initial cart item check:
+    expect(enrichedCartItems[0].isIncl).toBe(true);
+    expect(enrichedCartItems[0].price).toBeCloseTo(100.000, 3);
+    expect((enrichedCartItems[0] as any).authoritativePrice).toBeCloseTo(100.100, 3);
+    expect((enrichedCartItems[0] as any).lineTotal).toBeCloseTo(100.100, 3);
+
+    // 3. Calculation check:
+    const cartCalc = calculateOrder(enrichedCartItems, {
+      orderType: "TakeOut",
+      productCache,
+    });
+
+    const [line] = cartCalc.lines;
+    // Price without extras is 100.000, and line total with extras is 100.100, NEVER 115.616!
+    expect(line.price).toBeCloseTo(100.000, 3);
+    expect(line.lineNetAmount).toBeCloseTo(100.100, 3);
+    expect(line.lineNetAmount).not.toBeCloseTo(115.616, 2);
+    expect(cartCalc.summary.grandTotal).toBeCloseTo(100.100, 3);
+    expect(cartCalc.summary.grandTotal).not.toBeCloseTo(115.616, 2);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SCENARIO 22: Order #248 (User Screenshots): 2 ABCD @ 100.000 (Product Master [x] INCL)
+  // TakeOut, Disc: 10.000 -> Recall shows Price 100.000, Total 200.000, Net 190.000
+  // On Edit, Cart MUST NOT show Price 115.500 or Total 231.000/221.000!
+  // Backend calculation MUST be strictly tax-exclusive (base 86.580, disc 8.658, excl subtotal 173.160).
+  // ══════════════════════════════════════════════════════════════════════════
+  it('Scenario 22: Order #248 (2 ABCD @ 100.000 inclusive in Product Master, 10.000 discount) cart and backend exclusive payload', () => {
+    localStorage.setItem("priceView", "Inclusive");
+    localStorage.setItem("printPrice", "Inclusive");
+    localStorage.setItem("posConfigs", JSON.stringify({
+      configs: {
+        priceView: "Inclusive",
+        vatType: "Inclusive",
+        discCalc: "Inclusive",
+        vat: 10,
+        levy: 5,
+        serviceCharges: 0,
+      }
+    }));
+
+    const products = [
+      {
+        id: 9,
+        productId: 9,
+        name: "ABCD",
+        price: 100.000,
+        isIncl: true, // [x] INCL in Product Master
+        vatValue: 10,
+        unitId: 1,
+      }
+    ];
+    const productCache: Record<number, any> = { 9: products[0] };
+
+    const order248 = {
+      orderId: 248,
+      orderNo: "248",
+      ticketNo: "248",
+      orderType: "TakeOut",
+      orderTypeId: 2,
+      subTotal: 173.160,
+      vatExclAmount: 173.160,
+      discAmount: 0,
+      discount: 0,
+      charges: 8.225,
+      levy: 8.225,
+      serviceCharge: 0,
+      vatAmount: 17.273,
+      netAmount: 190.000,
+      details: [
+        {
+          productId: 9,
+          productName: "ABCD",
+          qty: 2,
+          price: 100.000,
+          amount: 200.000,
+          discAmount: 10.000,
+          discPer: 5,
+          vatExclAmount: 173.160,
+          vatAmount: 17.273,
+          netAmount: 190.000,
+          serviceCharge: 0,
+          levy: 8.225,
+          mapId: 1,
+          isIncl: true,
+        }
+      ],
+      modifiers: []
+    };
+
+    // 1. Unified order pricing check
+    const unified = buildUnifiedOrderPricing(order248, {
+      orderType: "TakeOut",
+      priceView: "Inclusive",
+      products,
+      productCache,
+    });
+
+    expect(unified.summary.grandTotal).toBeCloseTo(190.000, 3);
+    expect(unified.summary.subTotalExclusive).toBeCloseTo(173.160, 3);
+    expect(unified.summary.charges).toBeCloseTo(8.225, 3);
+    expect(unified.summary.vatAmount).toBeCloseTo(17.273, 3);
+
+    const [uLine] = unified.lines;
+    expect(uLine.getRate(true)).toBeCloseTo(100.000, 3);
+    expect(uLine.getRate(false)).toBeCloseTo(86.580, 3);
+    expect(uLine.inclusiveGross).toBeCloseTo(200.000, 3);
+    expect(uLine.inclusiveAmount).toBeCloseTo(190.000, 3);
+    expect(uLine.getAmount(true, false)).toBeCloseTo(190.000, 3);
+    expect(uLine.getAmount(true, true)).toBeCloseTo(200.000, 3);
+
+    // 2. Map to Cart on EDIT
+    const rawMapped = mapOrderDetailsToCartItems(order248.details, order248.modifiers, {
+      products,
+      productCache,
+      priceView: "Inclusive",
+      orderType: "TakeOut",
+    });
+
+    expect(rawMapped[0].isIncl).toBe(true);
+    expect(rawMapped[0].price).toBeCloseTo(100.000, 3);
+    expect(rawMapped[0].price).not.toBeCloseTo(115.500, 2);
+
+    // Enriched mapped items
+    const enrichedCart = rawMapped.map((ci, idx) => {
+      const line = unified.lines[idx];
+      return {
+        ...ci,
+        isIncl: line?.isProductMasterInclusive !== undefined ? line.isProductMasterInclusive : ci.isIncl,
+        authoritativePrice: line.getRate(true),
+        authoritativeLineTotal: line.getAmount(true),
+        authoritativeOriginalLineTotal: line.inclusiveGross,
+        authoritativeDiscount: line.getDiscount(true),
+      };
+    });
+
+    expect(enrichedCart[0].authoritativePrice).toBeCloseTo(100.000, 3);
+    expect(enrichedCart[0].authoritativeOriginalLineTotal).toBeCloseTo(200.000, 3);
+    expect(enrichedCart[0].authoritativeLineTotal).toBeCloseTo(190.000, 3);
+    expect(enrichedCart[0].authoritativeDiscount).toBeCloseTo(10.000, 3);
+
+    // 3. Cart calculation (dynamic re-calculation on edit)
+    const cartCalc = calculateOrder(enrichedCart, {
+      orderType: "TakeOut",
+      productCache,
+    });
+
+    const [cartLine] = cartCalc.lines;
+    // Cart row unit price MUST BE 100.000, NEVER 115.500!
+    expect(cartLine.price).toBeCloseTo(100.000, 3);
+    expect(cartLine.price).not.toBeCloseTo(115.500, 2);
+    // Line original gross total MUST BE 200.000, NEVER 231.000!
+    expect(cartLine.originalLineTotal).toBeCloseTo(200.000, 3);
+    expect(cartLine.originalLineTotal).not.toBeCloseTo(231.000, 2);
+    // Line net total MUST BE 190.000, NEVER 221.000!
+    expect(cartLine.lineNetAmount).toBeCloseTo(190.000, 3);
+    expect(cartLine.lineNetAmount).not.toBeCloseTo(221.000, 2);
+
+    // 4. Ensure backend calculation payload is STRICTLY TAX-EXCLUSIVE:
+    // Base Price = 100 / (1.05 * 1.10) = 86.580
+    expect(cartLine.basePrice).toBeCloseTo(86.580, 3);
+    // Base Amount = 2 * 86.580 = 173.160
+    expect(cartLine.baseAmount).toBeCloseTo(173.160, 3);
+    // Base Discount = 10 / (1.05 * 1.10) = 8.658
+    expect(cartLine.itemDiscountAmount).toBeCloseTo(8.658, 3);
+
+    // Verify backend payload mapper creates exclusive detail row
+    const context: any = {
+      cartDetails: cartCalc.lines,
+      subtotal: cartCalc.summary.subtotal,
+      discount: cartCalc.summary.totalDiscount,
+      tax: cartCalc.summary.vatAmount,
+      charges: cartCalc.summary.charges,
+      totalServiceCharge: 0,
+      totalLevy: cartCalc.summary.levy,
+      total: cartCalc.summary.grandTotal,
+      deliveryCharge: 0,
+      selectedOrderTypeName: "TakeOut",
+      selectedOrderTypeId: 2,
+    };
+    const session: any = { userId: 1, employeeId: 1, customerId: 1, transDate: "2026-11-02T00:00:00.000Z" };
+    const backendPayload = buildNewOrderPayload(context, session);
+
+    // Backend payload: details price MUST BE exclusive base 86.580
+    expect(backendPayload.details[0].price).toBeCloseTo(86.580, 3);
+    expect(backendPayload.details[0].basePrice).toBeCloseTo(86.580, 3);
+    expect(backendPayload.details[0].exclusivePrice).toBeCloseTo(86.580, 3);
+    expect(backendPayload.details[0].isPriceTaxExclusive).toBe(true);
+    // Backend payload: exclusive discount MUST BE 8.658
+    expect(backendPayload.details[0].discAmount).toBeCloseTo(8.658, 3);
+    // Backend payload: exclusive taxable amount MUST BE 173.160 - 8.658 + 8.225 = 172.727
+    expect(backendPayload.vatExclAmount).toBeCloseTo(172.727, 3);
+    // Backend payload: netAmount MUST BE exactly 190.000
+    expect(backendPayload.netAmount).toBeCloseTo(190.000, 3);
+  });
+
+  it('Scenario 23: Order #255 User Screenshot - ABCD (100.000 inclusive in Product Master, priceIsIncl: true) with 10.000 discount, Levy 0%, VAT 10% in TakeOut displays 100.000 in cart (NEVER 110.000) and 90.000 total', () => {
+    localStorage.setItem('decimalPart', '3');
+    localStorage.setItem('priceView', 'Inclusive');
+    localStorage.setItem('printPrice', 'Inclusive');
+    localStorage.setItem('vatStatus', 'true');
+    localStorage.setItem('posConfigs', JSON.stringify({
+      configs: {
+        vat: 10,
+        serviceCharges: 0,
+        levy: 0,
+        priceView: 'Inclusive',
+        printPrice: 'Inclusive',
+        discountCalc: 'Inclusive',
+      }
+    }));
+
+    const products = [
+      {
+        id: 9,
+        name: "ABCD",
+        price: 100.000,
+        catalogPrice: 100.000,
+        priceIsIncl: true, // Product master [x] INCL. tag
+        isIncl: true,
+        vatValue: 10,
+        unitId: 1,
+      }
+    ];
+    const productCache: Record<number, any> = {
+      9: products[0]
+    };
+
+    const order255 = {
+      orderId: 255,
+      orderNo: "255",
+      ticketNo: "255",
+      orderType: "TakeOut",
+      orderTypeId: 2,
+      subTotal: 90.909,
+      vatExclAmount: 90.909,
+      discAmount: 0,
+      discount: 0,
+      charges: 0,
+      levy: 0,
+      serviceCharge: 0,
+      vatAmount: 8.182,
+      netAmount: 90.000,
+      details: [
+        {
+          productId: 9,
+          productName: "ABCD",
+          qty: 1,
+          price: 90.9090909, // Backend exclusive base
+          amount: 90.9090909,
+          discAmount: 9.0909091, // Backend exclusive disc
+          vatExclAmount: 81.8181818,
+          vatAmount: 8.1818182,
+          netAmount: 90.000,
+          serviceCharge: 0,
+          levy: 0,
+          mapId: 1,
+          isIncl: true,
+          priceIsIncl: true,
+        }
+      ],
+      modifiers: []
+    };
+
+    // 1. Map to Cart on EDIT
+    const rawMapped = mapOrderDetailsToCartItems(order255.details, order255.modifiers, {
+      products,
+      productCache,
+      priceView: "Inclusive",
+      orderType: "TakeOut",
+    });
+
+    expect(rawMapped[0].isIncl).toBe(true);
+    // User requirement: Price in cart MUST BE 100.000 (NEVER 110.000)
+    expect(rawMapped[0].price).toBeCloseTo(100.000, 3);
+    expect(rawMapped[0].price).not.toBeCloseTo(110.000, 2);
+
+    // 2. Run calculateOrder on cart items
+    const cartCalc = calculateOrder(rawMapped, {
+      orderType: "TakeOut",
+      orderTypeId: 2,
+      productCache,
+    });
+
+    const [cartLine] = cartCalc.lines;
+    // Cart row unit price must display 100.000, NOT 110.000
+    expect(cartLine.price).toBeCloseTo(100.000, 3);
+    expect(cartLine.price).not.toBeCloseTo(110.000, 2);
+    // Line original total (before discount) must be 100.000, NOT 110.000
+    expect(cartLine.originalLineTotal).toBeCloseTo(100.000, 3);
+    // Line total (after 10.000 discount) must be 90.000, NOT 100.000
+    expect(cartLine.lineTotal).toBeCloseTo(90.000, 3);
+
+    // Behind the scenes: base price is exclusive 90.909
+    expect(cartLine.basePrice).toBeCloseTo(90.909, 3);
+    expect(cartLine.exclusivePrice).toBeCloseTo(90.909, 3);
+    expect(cartLine.itemDiscountAmount).toBeCloseTo(9.091, 3);
+
+    // Summary totals
+    expect(cartCalc.summary.subtotal).toBeCloseTo(90.909, 3);
+    expect(cartCalc.summary.totalDiscount).toBeCloseTo(9.091, 3);
+    expect(cartCalc.summary.netValue).toBeCloseTo(81.818, 3);
+    expect(cartCalc.summary.tax).toBeCloseTo(8.182, 3);
+    expect(cartCalc.summary.grandTotal).toBeCloseTo(90.000, 3);
+
+    // Verify backend payload is strictly exclusive
+    const context: any = {
+      cartDetails: cartCalc.lines,
+      subtotal: cartCalc.summary.subtotal,
+      discount: cartCalc.summary.totalDiscount,
+      tax: cartCalc.summary.tax,
+      charges: cartCalc.summary.charges,
+      totalServiceCharge: 0,
+      totalLevy: 0,
+      total: cartCalc.summary.grandTotal,
+      deliveryCharge: 0,
+      selectedOrderTypeName: "TakeOut",
+      selectedOrderTypeId: 2,
+    };
+    const session: any = { userId: 1, employeeId: 1, customerId: 1, transDate: "2026-11-02T00:00:00.000Z" };
+    const backendPayload = buildNewOrderPayload(context, session);
+
+    expect(backendPayload.details[0].price).toBeCloseTo(90.909, 3);
+    expect(backendPayload.details[0].basePrice).toBeCloseTo(90.909, 3);
+    expect(backendPayload.details[0].exclusivePrice).toBeCloseTo(90.909, 3);
+    expect(backendPayload.details[0].isPriceTaxExclusive).toBe(true);
+    expect(backendPayload.details[0].discAmount).toBeCloseTo(9.091, 3);
+    expect(backendPayload.vatExclAmount).toBeCloseTo(81.818, 3);
+    expect(backendPayload.vatAmount).toBeCloseTo(8.182, 3);
+    expect(backendPayload.netAmount).toBeCloseTo(90.000, 3);
   });
 });

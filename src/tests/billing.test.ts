@@ -269,7 +269,7 @@ describe('POS Calculation Engine (billing.ts)', () => {
   // 4. EXTRAS & MODIFIERS
   // ──────────────────────────────────────────────────────────────────────────
   describe('4. Extras & Modifiers', () => {
-    it('4.1 should include extras in gross amount before calculating taxes', () => {
+    it('4.1 should treat extras price as inclusive of all charges even on exclusive item', () => {
       const config: BillingConfig = {
         serviceChargeRate: 0,
         levyRate: 0,
@@ -279,11 +279,15 @@ describe('POS Calculation Engine (billing.ts)', () => {
         orderType: 'Takeaway',
       };
 
-      // Base price 10.000 + 2 extras @ 0.500 = 11.000 total base
+      // Base price 10.000 exclusive (11.000 gross) + extra 1.000 inclusive of charges
+      // Extra base: 1.000 / 1.10 = 0.9090909
+      // Total amount (base): 10.000 + 0.9090909 = 10.9090909
+      // VAT (10%): 1.0909091
+      // Line Net Amount: 11.000 + 1.000 = 12.000
       const result = calculateLineItem(1, 10.000, 0, 1.000, config, 10, false);
-      expect(result.amount).toBe(11.000);
-      expect(result.vatAmount).toBe(1.100);
-      expect(result.lineNetAmount).toBe(12.100);
+      expect(result.amount).toBeCloseTo(10.9090909, 5);
+      expect(result.vatAmount).toBeCloseTo(1.0909091, 5);
+      expect(result.lineNetAmount).toBeCloseTo(12.000, 3);
     });
 
     it('4.2 should extract base extra proportionally on inclusive item', () => {

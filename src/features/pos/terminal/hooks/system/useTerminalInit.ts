@@ -82,6 +82,20 @@ export const getRuntimePosConfig = async (): Promise<RuntimePosConfig | null> =>
           localStorage.setItem("discCalc", String(dc));
           localStorage.setItem("discountCalc", String(dc));
         }
+        const scVal = response.data.configs?.serviceCharges ?? (response.data.configs as any)?.serviceCharge;
+        if (scVal !== undefined && scVal !== null) {
+          localStorage.setItem("serviceCharges", String(scVal));
+          localStorage.setItem("serviceCharge", String(scVal));
+        }
+        const levyVal = response.data.configs?.levy;
+        if (levyVal !== undefined && levyVal !== null) {
+          localStorage.setItem("levy", String(levyVal));
+        }
+        const delVal = response.data.configs?.deliveryCharge ?? (response.data.configs as any)?.defaultDeliveryCharge;
+        if (delVal !== undefined && delVal !== null) {
+          localStorage.setItem("deliveryCharge", String(delVal));
+          localStorage.setItem("defaultDeliveryCharge", String(delVal));
+        }
         return applyDefaultEmployeeOverride(response.data.configs);
       }
     } catch (e) {

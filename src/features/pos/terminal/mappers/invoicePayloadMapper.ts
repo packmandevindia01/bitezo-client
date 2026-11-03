@@ -133,8 +133,8 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
         basePrice: sanitized.basePrice,
         exclusivePrice: sanitized.exclusivePrice,
         isPriceTaxExclusive: true,
-        discPer: isOrderBillDiscount ? 0 : (sanitized.discPer || 0),
-        discAmount: isOrderBillDiscount ? 0 : (sanitized.discAmount || 0),
+        discPer: sanitized.discPer || 0,
+        discAmount: sanitized.discAmount || 0,
         serviceCharge: sanitized.serviceCharge || 0,
         levy: sanitized.levy || 0,
         vatAmount: sanitized.vatAmount || 0,
@@ -150,12 +150,14 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
       (sum, d) => sum + (Number(d.price || 0) * Number(d.qty || 1) - Number(d.discAmount || 0)),
       0
     );
-    let calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
+    const areDetailsCombined = sanitizedDetails.length > 0 && Math.abs(lineExclSum - (Number(orderPayload.vatExclAmount || 0) - Number(orderPayload.serviceCharge || 0) - Number(orderPayload.levy || 0))) < 0.05;
+    let calcVatExcl = roundCalc(areDetailsCombined ? lineExclSum : (lineExclSum + totalModifierGross));
     const lineVatSum = roundCalc(sanitizedDetails.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
 
     const invoiceDiscAmount = isOrderBillDiscount ? roundCalc(Number(orderPayload.discAmount || 0)) : 0;
     const invoiceDiscPer = isOrderBillDiscount ? Number(orderPayload.discPer || 0) : 0;
-    if (isOrderBillDiscount) {
+    const totalDetailDiscSum = sanitizedDetails.reduce((sum, d) => sum + Number(d.discAmount || 0), 0);
+    if (isOrderBillDiscount && totalDetailDiscSum < 0.001) {
       calcVatExcl = roundCalc(Math.max(0, calcVatExcl - invoiceDiscAmount));
     }
 

@@ -20,8 +20,29 @@ export const selectCartCalculation = createSelector(
 );
 
 export const selectCartDetails = createSelector(
-  [selectCartCalculation],
-  (calc) => calc.lines
+  [selectPosState, selectCartCalculation],
+  (pos, calc) => {
+    if (
+      !pos.isCartModified &&
+      pos.authoritativeNetAmount !== null &&
+      pos.authoritativeNetAmount !== undefined
+    ) {
+      return calc.lines.map((line, idx) => {
+        const rawItem = pos.cartItems[idx] || pos.cartItems.find((ci: any) => ci.uniqueId === line.uniqueId || (ci.productId !== undefined && Number(ci.productId) === Number(line.productId)));
+        if (rawItem && (rawItem as any).authoritativeLineTotal !== undefined) {
+          return {
+            ...line,
+            price: (rawItem as any).authoritativePrice ?? line.price,
+            lineTotal: (rawItem as any).authoritativeLineTotal,
+            originalLineTotal: (rawItem as any).authoritativeOriginalLineTotal ?? (rawItem as any).authoritativeLineTotal,
+            itemDiscount: (rawItem as any).authoritativeDiscount ?? line.itemDiscount,
+          };
+        }
+        return line;
+      });
+    }
+    return calc.lines;
+  }
 );
 
 export const selectBaseSubtotal = createSelector(

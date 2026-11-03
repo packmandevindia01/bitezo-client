@@ -108,10 +108,10 @@ export const settledOrdersApi = {
     const billingConfig = getBillingConfig(isDineIn ? "DineIn" : "TakeOut");
     const serviceCharge = explicitSc !== undefined
       ? explicitSc
-      : (isDineIn ? (billingConfig.serviceChargeRate ? Math.round(billingConfig.serviceChargeRate * 100) : 10) : 0);
+      : (isDineIn ? (billingConfig.serviceChargeRate !== undefined && !isNaN(billingConfig.serviceChargeRate) ? Math.round(billingConfig.serviceChargeRate * 100) : 0) : 0);
     const levy = explicitLevy !== undefined
       ? explicitLevy
-      : (billingConfig.levyRate ? Math.round(billingConfig.levyRate * 100) : 5);
+      : (billingConfig.levyRate !== undefined && !isNaN(billingConfig.levyRate) ? Math.round(billingConfig.levyRate * 100) : 0);
 
     const res = await axiosInstance.get(`/settled-orders/settled-data/${orderId}`, {
       params: { serviceCharge, levy, priceView },

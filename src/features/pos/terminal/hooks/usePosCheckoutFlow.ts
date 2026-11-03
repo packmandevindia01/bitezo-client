@@ -5,13 +5,15 @@ import { setIsSettling, setWaiter } from '../store/posSlice';
 import { salesInvoiceApi } from '../../services/salesInvoiceApi';
 import { orderApi } from '../../services/orderApi';
 import { settledOrdersApi } from '../../services/settledOrdersApi';
-import { getVatStatus, roundCalc, getPriceView } from '../utils/billing';
+import { getVatStatus, roundCalc, getPrintPrice } from '../utils/billing';
 import { isBillArabicEnabled, cleanProductName } from '../../utils/alternativeHelpers';
 import { buildSalesInvoicePayload } from '../mappers/invoicePayloadMapper';
 import { sortOrderDetailsBySequence } from '../utils/orderSort';
 import { getModifierTypeNameById } from '../../services/menuApi';
 import { alternativesCache } from '../hooks/usePosProducts';
 import { checkOrderHasBillDiscount } from '../utils/orderDiscountCheck';
+import { buildUnifiedOrderPricing } from '../../utils/orderPricing';
+import { store } from '../../../../app/store';
 import {
   disableDefaultEmployeeConfig,
   isEmployeeNotFoundError,
@@ -159,7 +161,7 @@ export const usePosCheckoutFlow = ({
         if (!hasPrinterHeadings()) {
           notifyPrinterHeadingWarning(showToast);
         }
-        const html = await generateGuestPrintHtml(payload.mappedItems, payload.printData);
+        const html = await generateGuestPrintHtml(payload.unifiedPricing || payload.mappedItems, payload.printData);
         await printHtmlReceipt(html, targetPrinter);
 
         showToast("Sales saved successfully", "success");
@@ -262,10 +264,10 @@ export const usePosCheckoutFlow = ({
       let success = false;
       let newSaleId: number | null = null;
       let invoiceNoStr: string | undefined = undefined;
+      let createRes: any = null;
       if (editingSaleId) {
         success = await salesInvoiceApi.updateSalesInvoice(editingSaleId, salesPayload);
       } else {
-        let createRes: any = null;
         try {
           createRes = await salesInvoiceApi.createSalesInvoice(salesPayload);
         } catch (initialErr: any) {
@@ -384,12 +386,41 @@ export const usePosCheckoutFlow = ({
         let origOrderMaster: any = null;
         let detailsData: any[] | null = null;
         let modifiersData: any[] = [];
-        const targetOrderId = orderPayload.orderId || editingOrderId || 0;
+        let saleRes: any = null;
+        const printPriceSetting = getPrintPrice();
+        const activeOrderTypeName = orderPayload.orderTypeId === 1 ? "DineIn" : "TakeOut";
+        const returnedOrderId = Number(
+          createRes?.orderId ??
+          createRes?.data?.orderId ??
+          createRes?.orderMaster?.orderId ??
+          createRes?.orderNo ??
+          createRes?.data?.orderNo ??
+          salesPayload.orderId
+        );
+        const targetOrderId = (returnedOrderId && returnedOrderId > 0)
+          ? returnedOrderId
+          : (orderPayload.orderId || editingOrderId || Number(newSaleId) || 0);
 
         try {
-          let saleRes: any = null;
+          saleRes = null;
 
-          if (finalSaleId > 0 && targetOrderId > 0) {
+          // 1. Primary: Fetch authoritative settled order details using the exact print price view
+          if (targetOrderId > 0) {
+            try {
+              const settledRes = await settledOrdersApi.getSettledOrderDetails(targetOrderId, {
+                priceView: printPriceSetting,
+                orderType: activeOrderTypeName,
+              });
+              if (settledRes && settledRes.data) {
+                saleRes = settledRes.data;
+              }
+            } catch (err) {
+              console.warn("getSettledOrderDetails failed, attempting salesInvoiceApi fallback:", err);
+            }
+          }
+
+          // 2. Secondary fallback: Sales Invoice API
+          if ((!saleRes || (!saleRes.detailsData && !saleRes.details)) && finalSaleId > 0 && targetOrderId > 0) {
             try {
               saleRes = await salesInvoiceApi.getSalesInvoiceData(finalSaleId, targetOrderId);
             } catch (err) {
@@ -397,26 +428,23 @@ export const usePosCheckoutFlow = ({
             }
           }
 
-          if ((!saleRes || (!saleRes.detailsData && !saleRes.details)) && targetOrderId > 0) {
+          // 3. Third fallback: Settled Print Data API
+          if ((!saleRes || (!saleRes.detailsData && !saleRes.details)) && finalSaleId > 0) {
             try {
-              const activeOrderTypeName = orderPayload.orderTypeId === 1 ? "DineIn" : "TakeOut";
-              const settledRes = await settledOrdersApi.getSettledOrderDetails(targetOrderId, {
-                priceView: getPriceView(),
-                orderType: activeOrderTypeName,
-              });
-              if (settledRes && settledRes.data) {
-                saleRes = settledRes.data;
+              const printRes = await settledOrdersApi.getSettledPrintData(finalSaleId, targetOrderId || finalSaleId);
+              if (printRes && printRes.data) {
+                saleRes = printRes.data;
               }
             } catch (err) {
-              console.warn("getSettledOrderDetails failed, attempting orderApi:", err);
+              console.warn("getSettledPrintData fallback failed:", err);
             }
           }
 
-          if (targetOrderId > 0) {
+          // 4. Fourth fallback: Order API
+          if ((!saleRes || (!saleRes.detailsData && !saleRes.details)) && targetOrderId > 0) {
             try {
-              const activeOrderTypeName = orderPayload.orderTypeId === 1 ? "DineIn" : "TakeOut";
               const orderRes = await orderApi.getOrderDetails(targetOrderId, {
-                priceView: getPriceView(),
+                priceView: printPriceSetting,
                 orderType: activeOrderTypeName,
               });
               if (orderRes) {
@@ -428,6 +456,64 @@ export const usePosCheckoutFlow = ({
             } catch (err) {
               console.warn("getOrderDetails fallback failed:", err);
             }
+          }
+
+          // 5. Authoritative synthesis fallback: create standard orderData from cartDetails and salesPayload
+          if (!saleRes || (!saleRes.detailsData && !saleRes.details)) {
+            saleRes = {
+              masterData: {
+                orderNo: orderNoStr,
+                ticketNo: ticketNoStr,
+                voucherNo: invoiceNoStr,
+                orderType: mappedOrderType,
+                sectionName: sectionStr,
+                tableNo: tableStr,
+                serviceCharge: totalServiceCharge,
+                levy: totalLevy,
+                vatExclAmount: roundCalc(Math.max(0, subtotal - totalDiscountAmount) + totalServiceCharge + totalLevy),
+                vatAmount: totalVat,
+                netAmount: total,
+                discAmount: totalDiscountAmount,
+                deliveryCharge,
+              },
+              detailsData: cartDetails.map((c: any, idx: number) => ({
+                mapId: c.mapId ?? (idx + 1),
+                productId: c.productId,
+                productName: c.product?.name || c.name || `Product #${c.productId}`,
+                arabicName: c.product?.arabicName || c.arabicName,
+                variantName: c.variantName,
+                variantArabic: c.variantArabic,
+                qty: c.quantity,
+                price: (c.basePrice !== undefined && Number(c.basePrice) > 0) ? Number(c.basePrice) : (c.catalogPrice ?? c.price),
+                amount: (c.basePrice !== undefined && Number(c.basePrice) > 0) ? (Number(c.basePrice) * c.quantity) : (Number(c.catalogPrice ?? c.price) * c.quantity),
+                discAmount: Number(c.baseDiscount || c.itemDiscountExcl || c.itemDiscountAmount || 0),
+                discPer: c.discountType === 'percentage' ? (c.discountValue || 0) : 0,
+                serviceCharge: c.sc || 0,
+                levy: c.levy || 0,
+                vatAmount: c.vatAmount || 0,
+                netAmount: c.lineNetAmount || c.lineTotal,
+                isIncl: c.product?.isIncl ?? c.isIncl,
+                isPriceTaxExclusive: true,
+              })),
+              modifiersData: cartDetails.flatMap((c: any, idx: number) => [
+                ...(c.extras || []).map((ex: any) => ({
+                  mapId: c.mapId ?? (idx + 1),
+                  modifierId: ex.id,
+                  modifierName: ex.name,
+                  price: ex.price,
+                  qty: ex.qty || 1,
+                  status: "extras",
+                })),
+                ...(c.modifiers || []).map((mod: any) => ({
+                  mapId: c.mapId ?? (idx + 1),
+                  modifierId: mod.id,
+                  modifierName: mod.name,
+                  price: 0,
+                  qty: mod.qty || 1,
+                  status: "modifier",
+                })),
+              ]),
+            };
           }
 
           if (saleRes) {
@@ -519,14 +605,60 @@ export const usePosCheckoutFlow = ({
           console.warn("Failed to fetch invoice metadata for print:", e);
         }
 
+        const isTaxInclusive = printPriceSetting === "Inclusive";
         const isBillDisc = Boolean(
           (cartDetails.length > 0 && cartDetails.some((it: any) => (it.billDiscountAmount && it.billDiscountAmount > 0))) ||
           checkOrderHasBillDiscount({ master: masterData, details: detailsData }) ||
           (detailsData && detailsData.length > 0 && Number(detailsData[0]?.discPer ?? 0) > 0 && detailsData.every((d: any) => Number(d.discPer ?? 0) === Number(detailsData[0]?.discPer ?? 0)))
         );
 
+        const currentProductCache = store.getState()?.pos?.productCache || {};
+
+        let unifiedSettledPricing: any = null;
+        if (!isCombinedOrder && (saleRes || (detailsData && detailsData.length > 0))) {
+          try {
+            unifiedSettledPricing = buildUnifiedOrderPricing(saleRes || { masterData, detailsData, modifiersData }, {
+              orderType: mappedOrderType,
+              printPrice: printPriceSetting,
+              priceView: printPriceSetting,
+              productCache: currentProductCache,
+              isBillDiscount: isBillDisc,
+            });
+          } catch (e) {
+            console.warn("[usePosCheckoutFlow] buildUnifiedOrderPricing on settled data failed:", e);
+          }
+        }
+
         let mappedPrintItems = cartDetails;
-        if (!isCombinedOrder && detailsData && Array.isArray(detailsData) && detailsData.length > 0) {
+        if (unifiedSettledPricing && Array.isArray(unifiedSettledPricing.lines) && unifiedSettledPricing.lines.length > 0) {
+          mappedPrintItems = unifiedSettledPricing.lines.map((l: any) => ({
+            ...l,
+            isUnifiedPricingLine: true,
+            productId: l.productId,
+            quantity: l.quantity,
+            price: l.getRate(isTaxInclusive),
+            baseAmount: l.exclusiveGross,
+            variantName: l.variantName,
+            variantArabic: l.variantArabic,
+            product: {
+              name: l.productName,
+              price: l.getRate(isTaxInclusive),
+              arabicName: l.productArabicName,
+            },
+            extras: l.extras,
+            modifiers: l.modifiers,
+            messages: l.messages,
+            itemDiscount: (l.lineDiscount > 0 || l.lineDiscountIncl > 0 || l.lineDiscountExcl > 0)
+              ? l.getDiscount(isTaxInclusive)
+              : (unifiedSettledPricing.summary.isBillDiscount ? 0 : l.getDiscount(isTaxInclusive)),
+            lineTotal: (l.lineDiscount > 0 || l.lineDiscountIncl > 0 || l.lineDiscountExcl > 0)
+              ? Math.max(0, (isTaxInclusive ? l.inclusiveGross : l.exclusiveGross) - l.getDiscount(isTaxInclusive))
+              : l.getAmount(isTaxInclusive, unifiedSettledPricing.summary.isBillDiscount),
+            lineNetAmount: l.inclusiveAmount,
+            basePrice: l.exclusiveRate,
+            vatAmount: l.vatAmount,
+          }));
+        } else if (!isCombinedOrder && detailsData && Array.isArray(detailsData) && detailsData.length > 0) {
           try {
             const sortedDetails = sortOrderDetailsBySequence(detailsData);
             const usedCartIndices = new Set<number>();
@@ -583,18 +715,22 @@ export const usePosCheckoutFlow = ({
               const dUnitId = Number(d.unitId ?? d.UnitId ?? cartMatch?.unitId ?? cartMatch?.product?.unitId ?? 1);
               const itemMods = modifiersData.filter((m: any) => Number(m.mapId ?? m.MapId ?? 0) === Number(d.mapId ?? d.MapId ?? 0));
 
-              // If order was edited or cart was modified, prioritize user's active cart extras
-              const rawExtras = (cartMatch?.extras && (isCartModified || isOrderEdited || Boolean(editingOrderId)))
-                ? cartMatch.extras
-                : itemMods
+              // Prioritize detail modifiers from backend response if present (so prices are consistent with d.price), otherwise fallback to cart extras
+              const hasItemModsExtras = itemMods.some((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0));
+              const rawExtras = hasItemModsExtras
+                ? itemMods
                     .filter((m: any) => (m.status || "").toLowerCase() === "extras" || ((m.status || "") === "" && (m.price || 0) > 0))
                     .map((m: any) => ({
                       id: m.modifierId,
                       name: m.modifierName,
                       price: m.price || 0,
                       qty: m.qty || 1,
-                      typeId: m.typeId
-                    }));
+                      typeId: m.typeId,
+                      isPriceTaxExclusive: true,
+                    }))
+                : (cartMatch?.extras && cartMatch.extras.length > 0)
+                    ? cartMatch.extras
+                    : [];
 
               const dedupedExtrasMap = new Map<string, any>();
               (rawExtras || []).forEach((ex: any) => {
@@ -612,8 +748,8 @@ export const usePosCheckoutFlow = ({
               });
               const extras = Array.from(dedupedExtrasMap.values());
 
-              // If order was edited or cart was modified, prioritize user's active cart modifiers
-              const rawModifiers = (cartMatch?.modifiers && (isCartModified || isOrderEdited || Boolean(editingOrderId)))
+              // Prioritize user's active cart modifiers if present
+              const rawModifiers = (cartMatch?.modifiers && cartMatch.modifiers.length > 0)
                 ? cartMatch.modifiers
                 : itemMods
                     .filter((m: any) => (m.status || "").toLowerCase() === "modifier" || ((m.status || "") === "" && (m.price || 0) <= 0))
@@ -646,7 +782,8 @@ export const usePosCheckoutFlow = ({
               });
               const modifiers = Array.from(dedupedModsMap.values());
 
-              const rawMessages = (cartMatch?.messages && (isCartModified || isOrderEdited || Boolean(editingOrderId)))
+              // Prioritize user's active cart messages if present
+              const rawMessages = (cartMatch?.messages && cartMatch.messages.length > 0)
                 ? cartMatch.messages
                 : itemMods
                     .filter((m: any) => (m.status || "").toLowerCase() === "message")
@@ -665,7 +802,26 @@ export const usePosCheckoutFlow = ({
 
               const qty = d.qty ?? d.Qty ?? cartMatch?.quantity ?? 1;
               const amount = d.netAmount ?? d.amount ?? cartMatch?.lineTotal ?? 0;
-              const itemDisc = isBillDisc ? 0 : Number(cartMatch?.itemDiscount ?? d.discAmount ?? d.DiscAmount ?? d.discount ?? 0);
+              const itemDiscExcl = isBillDisc
+                ? 0
+                : Number(
+                    cartMatch?.baseDiscount ||
+                    cartMatch?.itemDiscountExcl ||
+                    cartMatch?.itemDiscountAmount ||
+                    d.discAmount ||
+                    d.DiscAmount ||
+                    0
+                  );
+              const itemDiscIncl = isBillDisc
+                ? 0
+                : Number(
+                    cartMatch?.itemDiscountIncl ||
+                    cartMatch?.itemDiscountGross ||
+                    (cartMatch?.discountType === 'percentage' ? 0 : cartMatch?.discountValue) ||
+                    (cartMatch?.itemDiscount && cartMatch.itemDiscount > itemDiscExcl ? cartMatch.itemDiscount : 0) ||
+                    0
+                  );
+              const itemDisc = itemDiscExcl > 0 ? itemDiscExcl : itemDiscIncl;
               const rawPrice = (d.price !== undefined && Number(d.price) > 0)
                 ? Number(d.price)
                 : (cartMatch?.basePrice !== undefined && Number(cartMatch.basePrice) > 0
@@ -698,7 +854,8 @@ export const usePosCheckoutFlow = ({
               if (itemVat <= 0 && amount > lineBase) {
                 itemVat = Number((amount - lineBase).toFixed(4));
               }
-              const lineTotal = d.netAmount ?? d.amount ?? cartMatch?.lineTotal ?? lineBase;
+              const extrasSumForLine = extras.reduce((sum: number, ex: any) => sum + Number(ex.price || 0) * Number(ex.qty || 1), 0);
+              const lineTotal = cartMatch?.lineTotal ?? d.netAmount ?? (d.amount !== undefined ? (Number(d.amount) + extrasSumForLine) : lineBase);
               const activeVatRate = itemVat > 0 && lineTotal > itemVat
                 ? (itemVat / (lineTotal - itemVat))
                 : 0.10;
@@ -711,6 +868,18 @@ export const usePosCheckoutFlow = ({
                 ? cartMatch.baseAmount
                 : roundCalc(resolvedUnitBasePrice * qty, 4);
 
+              const isDerivedFromInclusiveGross = Boolean(
+                (cartMatch?.originalLineTotal && Math.abs(price * qty - Number(cartMatch.originalLineTotal)) < 0.05) ||
+                (cartMatch?.basePrice && Number(cartMatch.basePrice) > 0 && price > Number(cartMatch.basePrice) + 0.05) ||
+                (amount > 0 && itemDisc > 0 && Math.abs(price * qty - (amount + itemDisc)) < 0.05 && (amount + itemDisc) > (cartMatch?.baseAmount || 0))
+              );
+
+              const resolvedIsPriceTaxExclusive = isDerivedFromInclusiveGross
+                ? false
+                : (cartMatch?.isPriceTaxExclusive ??
+                    (cartMatch?.isIncl === false ? true : (cartMatch?.isIncl === true ? false : undefined)) ??
+                    (d.isPriceTaxExclusive !== undefined ? d.isPriceTaxExclusive : (d.isIncl === false ? true : (d.isIncl === true ? false : undefined))));
+
               return {
                 productId: dPid,
                 unitId: dUnitId,
@@ -720,7 +889,11 @@ export const usePosCheckoutFlow = ({
                 baseAmount,
                 vatAmount: itemVat,
                 lineNetAmount: cartMatch?.lineNetAmount ?? (d.netAmount !== undefined ? Number(d.netAmount) : undefined),
-                isIncl: cartMatch?.isIncl,
+                amount: cartMatch?.amount ?? (d.amount !== undefined ? Number(d.amount) : undefined),
+                originalLineTotal: cartMatch?.originalLineTotal ?? (d.originalLineTotal !== undefined ? Number(d.originalLineTotal) : undefined),
+                extrasTotal: cartMatch?.extrasTotal ?? (d.extrasTotal !== undefined ? Number(d.extrasTotal) : undefined),
+                isIncl: isDerivedFromInclusiveGross ? true : (cartMatch?.isIncl ?? d.isIncl),
+                isPriceTaxExclusive: resolvedIsPriceTaxExclusive,
                 variantName: resolvedVariantName,
                 variantArabic: resolvedVariantArabic,
                 product: {
@@ -731,10 +904,14 @@ export const usePosCheckoutFlow = ({
                 extras,
                 modifiers,
                 messages,
-                itemDiscount: itemDisc,
-                discountValue: itemDisc,
+                itemDiscount: (localStorage.getItem("printPrice") === "Inclusive") ? (itemDiscIncl > 0 ? itemDiscIncl : itemDisc) : itemDisc,
+                itemDiscountAmount: itemDiscExcl > 0 ? itemDiscExcl : itemDisc,
+                itemDiscountExcl: itemDiscExcl > 0 ? itemDiscExcl : itemDisc,
+                itemDiscountIncl: itemDiscIncl > 0 ? itemDiscIncl : undefined,
+                baseDiscount: itemDiscExcl > 0 ? itemDiscExcl : itemDisc,
+                discountValue: itemDiscIncl > 0 ? itemDiscIncl : itemDisc,
                 discountType: 'amount' as const,
-                discAmount: itemDisc,
+                discAmount: itemDiscExcl > 0 ? itemDiscExcl : itemDisc,
                 lineTotal: lineTotal
               };
             });
@@ -742,6 +919,35 @@ export const usePosCheckoutFlow = ({
             console.warn("Failed to map API details for printing, falling back to cartDetails:", err);
             mappedPrintItems = cartDetails;
           }
+        }
+
+        if (mappedPrintItems === cartDetails && Array.isArray(cartDetails) && cartDetails.length > 0) {
+          const isPrintIncl = localStorage.getItem("printPrice") === "Inclusive";
+          mappedPrintItems = cartDetails.map((c: any) => {
+            const itemDiscIncl = isBillDisc
+              ? 0
+              : Number(
+                  c.itemDiscountIncl ||
+                  c.itemDiscountGross ||
+                  (c.discountType === "percentage" ? 0 : c.discountValue) ||
+                  (c.itemDiscount && c.itemDiscount > (c.baseDiscount || 0) ? c.itemDiscount : 0) ||
+                  0
+                );
+            const itemDiscExcl = isBillDisc
+              ? 0
+              : Number(c.baseDiscount || c.itemDiscountExcl || c.itemDiscountAmount || c.itemDiscount || 0);
+            const itemDisc = isPrintIncl ? (itemDiscIncl > 0 ? itemDiscIncl : itemDiscExcl) : itemDiscExcl;
+
+            return {
+              ...c,
+              itemDiscount: itemDisc,
+              itemDiscountAmount: itemDiscExcl > 0 ? itemDiscExcl : itemDisc,
+              itemDiscountExcl: itemDiscExcl > 0 ? itemDiscExcl : itemDisc,
+              itemDiscountIncl: itemDiscIncl > 0 ? itemDiscIncl : undefined,
+              baseDiscount: itemDiscExcl > 0 ? itemDiscExcl : itemDisc,
+              discountValue: itemDiscIncl > 0 ? itemDiscIncl : itemDisc,
+            };
+          });
         }
 
         const isDeliveryOrder = mappedOrderType.toLowerCase().includes("delivery");
@@ -827,6 +1033,7 @@ export const usePosCheckoutFlow = ({
 
         const printPayloadObj = {
           mappedItems: mappedPrintItems,
+          unifiedPricing: unifiedSettledPricing || undefined,
           printData: {
             orderNo: orderNoStr,
             ticketNo: ticketNoStr,
@@ -860,43 +1067,70 @@ export const usePosCheckoutFlow = ({
                 amount: (p as any).tenderedAmount ?? p.amount
               };
             }),
-            subTotal: (subtotal && subtotal > 0)
-              ? subtotal
-              : (masterData?.subTotal ?? (localStorage.getItem("printPrice") === "Exclusive" ? masterData?.vatExclAmount : undefined) ?? subtotal),
-            discount: (totalDiscountAmount && totalDiscountAmount > 0)
-              ? totalDiscountAmount
-              : Number(masterData?.discAmount ?? masterData?.discount ?? 0),
+            subTotal: unifiedSettledPricing
+              ? ((isTaxInclusive && (unifiedSettledPricing.summary.charges || 0) <= 0)
+                  ? (unifiedSettledPricing.summary.subTotalInclusive > 0 ? unifiedSettledPricing.summary.subTotalInclusive : unifiedSettledPricing.summary.subTotalExclusive)
+                  : unifiedSettledPricing.summary.subTotalExclusive)
+              : ((subtotal && subtotal > 0)
+                  ? subtotal
+                  : (masterData?.subTotal ?? (printPriceSetting === "Exclusive" ? masterData?.vatExclAmount : undefined) ?? subtotal)),
+            discount: unifiedSettledPricing
+              ? ((isTaxInclusive && (unifiedSettledPricing.summary.charges || 0) <= 0)
+                  ? unifiedSettledPricing.summary.totalDiscountIncl
+                  : unifiedSettledPricing.summary.totalDiscountExcl)
+              : ((totalDiscountAmount && totalDiscountAmount > 0)
+                  ? totalDiscountAmount
+                  : Number(masterData?.discAmount ?? masterData?.discount ?? 0)),
             vatExclAmount: masterData?.vatExclAmount ?? (subtotal && totalDiscountAmount ? Math.max(0, subtotal - totalDiscountAmount) : undefined),
             billDiscountValue: orderPayload.billDiscountValue ?? orderPayload.billDiscount ?? undefined,
-            discAmount: Number(masterData?.discAmount ?? totalDiscountAmount ?? 0),
-            serviceCharge: isCombinedOrder ? totalServiceCharge : (Number(masterData?.serviceCharge || 0) > 0 ? Number(masterData.serviceCharge) : totalServiceCharge),
-            levy: isCombinedOrder ? totalLevy : (Number(masterData?.levyAmt || masterData?.levy || 0) > 0 ? Number(masterData.levyAmt || masterData.levy) : totalLevy),
-            charges: roundCalc(
-              (isCombinedOrder ? totalServiceCharge : (Number(masterData?.serviceCharge || 0) > 0 ? Number(masterData.serviceCharge) : totalServiceCharge)) +
-              (isCombinedOrder ? totalLevy : (Number(masterData?.levyAmt || masterData?.levy || 0) > 0 ? Number(masterData.levyAmt || masterData.levy) : totalLevy))
-            ),
-            netValue: (localStorage.getItem("printPrice") !== "Inclusive")
-              ? roundCalc(
-                  Math.max(
-                    0,
-                    ((subtotal && subtotal > 0) ? subtotal : (masterData?.subTotal ?? (localStorage.getItem("printPrice") === "Exclusive" ? masterData?.vatExclAmount : undefined) ?? subtotal)) -
-                    ((totalDiscountAmount && totalDiscountAmount > 0) ? totalDiscountAmount : Number(masterData?.discAmount ?? masterData?.discount ?? 0))
-                  ) +
-                  roundCalc(
-                    (isCombinedOrder ? totalServiceCharge : (Number(masterData?.serviceCharge || 0) > 0 ? Number(masterData.serviceCharge) : totalServiceCharge)) +
-                    (isCombinedOrder ? totalLevy : (Number(masterData?.levyAmt || masterData?.levy || 0) > 0 ? Number(masterData.levyAmt || masterData.levy) : totalLevy))
-                  )
-                )
-              : undefined,
-            vatAmount: isCombinedOrder ? totalVat : ((totalVat && totalVat > 0) ? totalVat : (masterData?.vatAmount ?? totalVat)),
-            deliveryCharge: isCombinedOrder ? deliveryCharge : (masterData?.deliveryCharge ?? deliveryCharge),
-            netAmount: isCombinedOrder ? total : ((total && total > 0) ? total : (masterData?.netAmount ?? total)),
+            isBillDiscount: isBillDisc,
+            discAmount: isBillDisc
+              ? (unifiedSettledPricing
+                  ? ((isTaxInclusive && (unifiedSettledPricing.summary.charges || 0) <= 0) ? unifiedSettledPricing.summary.totalDiscountIncl : unifiedSettledPricing.summary.totalDiscountExcl)
+                  : Number(masterData?.discAmount ?? totalDiscountAmount ?? 0))
+              : 0,
+            serviceCharge: unifiedSettledPricing
+              ? unifiedSettledPricing.summary.serviceCharge
+              : (isCombinedOrder ? totalServiceCharge : (Number(masterData?.serviceCharge || 0) > 0 ? Number(masterData.serviceCharge) : totalServiceCharge)),
+            levy: unifiedSettledPricing
+              ? unifiedSettledPricing.summary.levy
+              : (isCombinedOrder ? totalLevy : (Number(masterData?.levyAmt || masterData?.levy || 0) > 0 ? Number(masterData.levyAmt || masterData.levy) : totalLevy)),
+            charges: unifiedSettledPricing
+              ? unifiedSettledPricing.summary.charges
+              : roundCalc(
+                  (isCombinedOrder ? totalServiceCharge : (Number(masterData?.serviceCharge || 0) > 0 ? Number(masterData.serviceCharge) : totalServiceCharge)) +
+                  (isCombinedOrder ? totalLevy : (Number(masterData?.levyAmt || masterData?.levy || 0) > 0 ? Number(masterData.levyAmt || masterData.levy) : totalLevy))
+                ),
+            netValue: unifiedSettledPricing
+              ? ((!isTaxInclusive || (unifiedSettledPricing.summary.charges || 0) > 0) ? unifiedSettledPricing.summary.netValue : undefined)
+              : ((printPriceSetting !== "Inclusive")
+                  ? roundCalc(
+                      Math.max(
+                        0,
+                        ((subtotal && subtotal > 0) ? subtotal : (masterData?.subTotal ?? (printPriceSetting === "Exclusive" ? masterData?.vatExclAmount : undefined) ?? subtotal)) -
+                        ((totalDiscountAmount && totalDiscountAmount > 0) ? totalDiscountAmount : Number(masterData?.discAmount ?? masterData?.discount ?? 0))
+                      ) +
+                      roundCalc(
+                        (isCombinedOrder ? totalServiceCharge : (Number(masterData?.serviceCharge || 0) > 0 ? Number(masterData.serviceCharge) : totalServiceCharge)) +
+                        (isCombinedOrder ? totalLevy : (Number(masterData?.levyAmt || masterData?.levy || 0) > 0 ? Number(masterData.levyAmt || masterData.levy) : totalLevy))
+                      )
+                    )
+                  : undefined),
+            vatAmount: unifiedSettledPricing
+              ? unifiedSettledPricing.summary.vatAmount
+              : (isCombinedOrder ? totalVat : ((totalVat && totalVat > 0) ? totalVat : (masterData?.vatAmount ?? totalVat))),
+            deliveryCharge: unifiedSettledPricing
+              ? unifiedSettledPricing.summary.deliveryCharge
+              : (isCombinedOrder ? deliveryCharge : (masterData?.deliveryCharge ?? deliveryCharge)),
+            netAmount: unifiedSettledPricing
+              ? unifiedSettledPricing.summary.grandTotal
+              : (isCombinedOrder ? total : ((total && total > 0) ? total : (masterData?.netAmount ?? total))),
             changeAmount: settlementCashChangeRef.current > 0 ? settlementCashChangeRef.current : undefined,
             isSettlement: true,
-            printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+            printPrice: (printPriceSetting as any) || undefined,
             priceView: (localStorage.getItem("priceView") as any) || undefined,
             billArabic: isBillArabicEnabled(),
-            isBillDiscount: isBillDisc
+            productCache: currentProductCache,
           }
         };
 
