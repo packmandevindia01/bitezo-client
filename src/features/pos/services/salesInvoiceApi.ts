@@ -2,6 +2,7 @@ import axiosInstance from "../../../api/axiosInstance";
 import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
 import { sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
 import { allocate } from "../terminal/utils/pos-calc";
+import { withDetailNet7 } from "../../../utils/money";
 
 export interface ApiResponse<T = any> {
   isSuccess: boolean;
@@ -217,7 +218,7 @@ export const salesInvoiceApi = {
         console.log("MODIFIERS (Extras & Modifiers):", postPayload.modifiers);
         console.log("FULL RAW PAYLOAD OBJECT:", postPayload);
 
-        const data = await unwrap<any>(axiosInstance.post<ApiResponse<any>>('/sales-invoices', postPayload));
+        const data = await unwrap<any>(axiosInstance.post<ApiResponse<any>>('/sales-invoices', { ...postPayload, details: withDetailNet7(postPayload.details) }));
         notifyTransactionsUpdated("sale");
         return data ?? null;
       } catch (e: any) {
@@ -387,7 +388,7 @@ export const salesInvoiceApi = {
         })),
       };
 
-      await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/sales-invoices/${numSaleId}`, putPayload));
+      await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/sales-invoices/${numSaleId}`, { ...putPayload, details: withDetailNet7(putPayload.details) }));
       notifyTransactionsUpdated("sale");
       return true;
     } catch (e: any) {

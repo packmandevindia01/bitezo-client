@@ -57,6 +57,23 @@ export const sumDec = (values: unknown[]): MoneyValue => values.reduce<MoneyValu
 /** Σ of values, rounded to storage precision. */
 export const sumMoney = (values: unknown[]): number => toNum(sumDec(values));
 
+/**
+ * Product details (order / sales-invoice `details[]`): the `netAmount` column is sent with 7 decimals
+ * (round half-up). Everything else — and every calculation — stays at CALC_PRECISION (14).
+ * Applied only at the API boundary, right before the request is sent.
+ */
+export const DETAIL_NET_PRECISION = 7;
+export function withDetailNet7<T extends { netAmount?: unknown }>(details: T[]): T[];
+export function withDetailNet7<T extends { netAmount?: unknown }>(details: T[] | undefined | null): T[] | undefined | null;
+export function withDetailNet7<T extends { netAmount?: unknown }>(details: T[] | undefined | null) {
+  if (!Array.isArray(details)) return details;
+  return details.map((d) =>
+    d && d.netAmount !== undefined && d.netAmount !== null
+      ? { ...d, netAmount: round(d.netAmount, DETAIL_NET_PRECISION) }
+      : d
+  );
+}
+
 // ─── Display balancing (fils) ───────────────────────────────────────────────────────────────────
 /**
  * Round `values` to `decimals` so that they add up EXACTLY to `total` rounded to `decimals`

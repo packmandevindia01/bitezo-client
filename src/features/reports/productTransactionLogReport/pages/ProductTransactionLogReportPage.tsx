@@ -143,7 +143,7 @@ export const ProductTransactionLogReportPage = () => {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
           
           {/* Report Caption */}
-          {!report.isLoading && filters.productId !== "" && report.logData.length > 0 && (
+          {!report.isLoading && filters.productId !== "" && (report.logData.length > 0 || report.hasTotals) && (
             <p className="text-center text-[11px] font-semibold text-[#49293e] py-1.5 border-b border-gray-100 shrink-0">
               Product Transaction Log from {formatDate(filters.fromDate)} To {formatDate(filters.toDate)}
             </p>
@@ -179,10 +179,18 @@ export const ProductTransactionLogReportPage = () => {
                         ))}
                       </tr>
                     ))
+                  ) : report.errorMessage ? (
+                    <tr>
+                      <td colSpan={COLS.length} className="text-center py-20 text-red-600 text-sm">
+                        {report.errorMessage}
+                      </td>
+                    </tr>
                   ) : report.logData.length === 0 ? (
                     <tr>
                       <td colSpan={COLS.length} className="text-center py-20 text-gray-400 text-sm">
-                        No transaction records found matching filters.
+                        {report.hasTotals
+                          ? `No transactions in this period. Opening: ${report.totalData.opening} · Closing Balance: ${report.totalData.balance}`
+                          : "No transaction records found matching filters."}
                       </td>
                     </tr>
                   ) : (
@@ -206,7 +214,7 @@ export const ProductTransactionLogReportPage = () => {
                 </tbody>
 
                 {/* Footer Totals */}
-                {!report.isLoading && report.logData.length > 0 && (
+                {!report.isLoading && (report.logData.length > 0 || report.hasTotals) && (
                   <tfoot className="sticky bottom-0 z-10 bg-gray-100 border-t-2 border-t-[#49293e]/20 shadow-[0_-1px_0_rgba(0,0,0,0.05)]">
                     <tr>
                       <td colSpan={6} className="px-4 py-2 text-left font-semibold text-gray-700 border-r border-gray-200">

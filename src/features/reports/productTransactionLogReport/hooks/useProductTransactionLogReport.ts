@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { useBranchScope, toReportBranchId } from "../../../../hooks/useBranchScope";
 import {
   getBranchList,
   getProductList,
@@ -13,17 +13,23 @@ import type {
   ProductTransactionLogRecord,
   ProductTransactionLogTotals,
 } from "../types";
+import { firstOfMonthLocal, localDateString, hasQty } from "../utils/normalizeTransactionLog";
+
+const reportErrorMessage = (err: unknown): string => {
+  const e = err as { response?: { status?: number; data?: { message?: string } }; message?: string };
+  const status = e?.response?.status;
+  const msg = e?.response?.data?.message || e?.message || "Request failed";
+  if (status === 403) return `No permission to view this report (403): ${msg} Log in to the Back Office with a user that has access to Inventory reports.`;
+  if (status === 401) return "Session expired (401). Please log in again.";
+  return status ? `Could not load the report (${status}): ${msg}` : `Could not load the report: ${msg}`;
+};
 
 export const useProductTransactionLogReport = () => {
   const [searchParams] = useSearchParams();
   // ── Filter states ────────────────────────────────────────────────────────────
-  const [fromDate, setFromDate] = useState<string>(() => {
-    const today = new Date();
-    return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
-  });
-  const [toDate, setToDate] = useState<string>(() =>
-    new Date().toISOString().split("T")[0]
-  );
+  // local dates (toISOString() is UTC → early morning in GCC / India it gave yesterday as "To Date")
+  const [fromDate, setFromDate] = useState<string>(() => firstOfMonthLocal());
+  const [toDate, setToDate] = useState<string>(() => localDateString());
   const { initialBranchId, isBranchLocked } = useBranchScope();
   const [branchId, setBranchId] = useState<string>(initialBranchId);
   const [productId, setProductId] = useState<string>(searchParams.get("product") || "");
@@ -47,12 +53,14 @@ export const useProductTransactionLogReport = () => {
     data: apiData,
     isLoading: reportLoading,
     isFetching,
+    error: reportError,
     refetch,
   } = useQuery({
     queryKey: ["productTransactionLogReport", { fromDate, toDate, branchId, productId }],
     queryFn: () =>
       getProductTransactionLogReport({
-        BranchId: Number(branchId),
+        // cleared Branch box ("") used to send BranchId=0 — backend: 1 = All, 2 = Main …
+        BranchId: toReportBranchId(branchId),
         ProductId: Number(productId),
         FromDate: fromDate,
         ToDate: toDate,
@@ -60,6 +68,8 @@ export const useProductTransactionLogReport = () => {
     enabled: productId !== "0" && productId !== "",
     staleTime: 0,
     refetchOnMount: true,
+    // 403 / 401 will not change by retrying — show the reason at once
+    retry: (count, err) => ![401, 403].includes(Number((err as { response?: { status?: number } })?.response?.status)) && count < 2,
   });
 
   // ── Parse API response ────────────────────────────────────────────────────────
@@ -107,9 +117,8 @@ export const useProductTransactionLogReport = () => {
 
   // ── Reset ─────────────────────────────────────────────────────────────────────
   const resetFilters = () => {
-    const today = new Date();
-    setFromDate(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]);
-    setToDate(today.toISOString().split("T")[0]);
+    setFromDate(firstOfMonthLocal());
+    setToDate(localDateString());
     setBranchId(initialBranchId);
     setProductId("");
     setTransactionType("All");
@@ -133,6 +142,10 @@ export const useProductTransactionLogReport = () => {
     report: {
       logData: filteredLogData,
       totalData,
+      // totals (opening stock …) exist even when the period has no movements
+      // a failed request (403 no permission, 500 …) must not look like "no records"
+      errorMessage: reportError ? reportErrorMessage(reportError) : "",
+      hasTotals: Boolean(apiData) && Object.values(totalData).some(hasQty),
       isLoading: reportLoading || isFetching,
       refetch,
     },

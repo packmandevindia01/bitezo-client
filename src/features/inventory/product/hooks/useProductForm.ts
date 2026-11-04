@@ -16,6 +16,7 @@ import { backofficeConfigApi } from "../../../general/configuration/services/bac
 import { resolveImageUrl } from "../../../../utils/imageUtils";
 import { notifyPosMenuUpdated } from "../../../pos/utils/posMenuSync";
 import { notifyProductsUpdated } from "../utils/productSync";
+import { isAllBranch } from "../../../../hooks/useBranchScope";
 import { subscribeToBranchUpdates } from "../../branches/utils/branchSync";
 
 
@@ -53,6 +54,10 @@ export const useProductForm = (productId?: number) => {
     currentBranchId = branches && branches.length > 0 ? branches[0].id : 1;
   }
   currentBranchId = Number(currentBranchId);
+  // opening stock needs a real branch: when the active branch is "All" (1) use the first real branch (Main = 2)
+  const stockFallbackBranchId = isAllBranch({ id: currentBranchId })
+    ? Number((branches || []).find((b: { id: number; name?: string }) => !isAllBranch(b))?.id) || currentBranchId
+    : currentBranchId;
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -434,7 +439,7 @@ export const useProductForm = (productId?: number) => {
             cost: c,
             amount: q * c,
             baseQty: q * (isNaN(uVal) ? 1 : uVal),
-            branchId: Number(o.branchId) || currentBranchId
+            branchId: Number(o.branchId) && !isAllBranch({ id: o.branchId }) ? Number(o.branchId) : stockFallbackBranchId
           };
         })
       };

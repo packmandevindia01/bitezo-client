@@ -6,6 +6,7 @@ import { selectDecimalPart } from "../../../auth/store/authSlice";
 import { SearchableSelect } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
 import type { ProductMasterData, MasterItem } from "../types";
+import { isAllBranch } from "../../../../hooks/useBranchScope";
 import type { OpeningStockDraft } from "../schema/productSchema";
 
 interface OpeningStockGridProps {
@@ -56,7 +57,8 @@ export const OpeningStockGrid = ({
     }
   }, []);
 
-  const validBranches = branches.filter(b => b.name.toLowerCase() !== "all");
+  // opening stock belongs to a real branch — never "All" (id 1)
+  const validBranches = branches.filter(b => !isAllBranch(b));
   const branchOptions = validBranches.map(b => ({ label: b.name, value: String(b.id) }));
 
   const mainUnitSelected = masterData?.unit?.find(u => String(u.id) === String(mainUnitId));

@@ -4,6 +4,7 @@ import { sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal
 import { allocate } from "../terminal/utils/pos-calc";
 import { STORED_ORDER_PARAMS, applyStoredOrderView } from "./storedOrderView";
 import { mergeStoredOrderSources } from "../pricing";
+import { withDetailNet7 } from "../../../utils/money";
 
 /**
  * Standard unwrap helper to extract data and handle success/error based on the API response.
@@ -115,7 +116,7 @@ export const orderApi = {
         console.log("FULL RAW PAYLOAD OBJECT:", payload);
 
         return await unwrap<MenuOrderResponse>(
-          axiosInstance.post("/menu/order", payload)
+          axiosInstance.post("/menu/order", { ...payload, details: withDetailNet7(payload.details) })
         );
       } catch (e: any) {
         lastError = e;
@@ -331,7 +332,7 @@ export const orderApi = {
     console.log("FULL RAW PAYLOAD OBJECT:", payload);
 
     return unwrap<MenuOrderResponse>(
-      axiosInstance.put(`/menu/order/${orderId}`, payload)
+      axiosInstance.put(`/menu/order/${orderId}`, { ...payload, details: withDetailNet7(payload.details) })
     );
   },
 
@@ -434,7 +435,12 @@ export const orderApi = {
     }
 
     return unwrap<MenuOrderResponse>(
-      axiosInstance.post("/order-split", postPayload)
+      axiosInstance.post("/order-split", {
+        ...postPayload,
+        orders: Array.isArray(postPayload.orders)
+          ? postPayload.orders.map((ord: { details?: { netAmount?: number }[] }) => ({ ...ord, details: withDetailNet7(ord.details) }))
+          : postPayload.orders,
+      })
     );
   },
 

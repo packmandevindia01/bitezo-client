@@ -5,6 +5,7 @@ import type {
   BranchOption,
   ProductOption,
 } from "../types";
+import { normalizeTransactionLog, EMPTY_TOTALS } from "../utils/normalizeTransactionLog";
 
 function unwrap<T>(response: any): T {
   if (response.data && response.data.data !== undefined) {
@@ -17,7 +18,7 @@ export const getProductTransactionLogReport = async (
   params: ProductTransactionLogParams
 ): Promise<ProductTransactionLogResponse> => {
   const response = await axiosInstance.get("/reports/product-transaction-log", { params });
-  return unwrap<ProductTransactionLogResponse>(response);
+  return normalizeTransactionLog(response?.data) ?? { logData: [], totalData: EMPTY_TOTALS };
 };
 
 export const getBranchList = async (): Promise<BranchOption[]> => {

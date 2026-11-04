@@ -196,6 +196,13 @@ grandTotal = Σ lineNet + deliveryCharge      (backend netAmount)
 - Totals are exact decimal sums of the 14-dp line values — never `a + b` on JS numbers for money totals, and
   keep partial totals as decimals until the end (see `invoicePayloadMapper`).
 - Payments are compared with the total at the currency decimals (`PosCashTenderModal`, `PosMultiPayModal`).
+- **Exception — product details `netAmount` is sent with 7 decimals** (half-up, `DETAIL_NET_PRECISION = 7`,
+  `withDetailNet7` in `utils/money.ts`). It is applied only at the API boundary, at every request that sends
+  `details[]`: `POST /menu/order`, `PUT /menu/order/{id}`, `POST /order-split` (each order),
+  `POST /sales-invoices`, `PUT /sales-invoices/{id}`. Every other detail column, the master totals and all
+  calculations stay at 14 dp, so Σ detail `netAmount` may differ from the master `netAmount` by ≤ 0.00000005
+  per line. Reading a saved order back is not affected: the readers compare line `netAmount` with tolerances
+  of 0.01 or more. Test: `detailNet7.test.ts`.
 - Known limits: a JS number holds ~15–16 significant digits, so for amounts ≥ 100 the 14th decimal is limited
   by the number type wherever a value leaves the engine (payloads; the backend DTOs are `double`). Σ of lines
   that were each rounded at 14 dp can differ from the exact bill value by 1e-14 (never visible).
@@ -573,3 +580,10 @@ warning is shown if the server stored a different parent than the one sent — t
    and §10.5 and run `npx vitest run`.
 4. Keep back-office money maths in a pure function in the module (like `calculateLine`) so it can be unit-tested;
    add a test with a real saved document when fixing a calculation bug.
+5. **Branch ids (backend):** `1` = **All** (every branch), `2+` = real branches (`2` = Main). Helpers in
+   `hooks/useBranchScope.ts`: `ALL_BRANCH_ID`, `isAllBranch`, `toReportBranchId` (empty / 0 → 1, never send 0).
+   Opening stock (product master) always belongs to a real branch, never All.
+6. **Reports must show request errors.** A 403 (POS login, or a role without the report permission) used to show
+   as "No records found". Product Transaction Log now shows the reason; do the same in other reports. Test:
+   `productTransactionLog.test.ts`. Report default dates use the LOCAL day (`localDateString`), not
+   `toISOString()` (UTC = yesterday early morning in GCC / India).
