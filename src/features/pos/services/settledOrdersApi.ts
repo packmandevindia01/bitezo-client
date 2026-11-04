@@ -1,6 +1,6 @@
 import axiosInstance from "../../../api/axiosInstance";
 import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
-import { getBillingConfig } from "../terminal/utils/billing";
+import { STORED_ORDER_PARAMS, applyStoredOrderView } from "./storedOrderView";
 export interface ApiResponse<T> {
   isSuccess: boolean;
   message: string;
@@ -53,68 +53,23 @@ const unwrap = <T = any>(promise: Promise<{ data: any }>): Promise<ApiResponse<T
     return { isSuccess: true, data: [] as unknown as T, statusCode: 200, message: null };
   });
 
-const getPriceView = (): string => {
-  const directPrintPrice = localStorage.getItem('printPrice');
-  if (directPrintPrice === 'Inclusive' || directPrintPrice === 'Exclusive') {
-    return directPrintPrice;
-  }
-  const directPriceView = localStorage.getItem('priceView');
-  if (directPriceView === 'Inclusive' || directPriceView === 'Exclusive') {
-    return directPriceView;
-  }
-  try {
-    for (const key of ['posConfigs', 'posConfig', 'pos_configs', 'pos_config']) {
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        const full = JSON.parse(saved);
-        const configs = full?.configs || full;
-        const pp = configs?.printPrice || configs?.PrintPrice;
-        if (pp === 'Inclusive' || pp === 'Exclusive') return pp;
-        const pv = configs?.priceView || configs?.PriceView;
-        if (pv === 'Inclusive' || pv === 'Exclusive') return pv;
-      }
-    }
-  } catch {}
-  return 'Exclusive';
-};
-
 export const settledOrdersApi = {
   getSettledOrders: async (params: SettledOrdersParams): Promise<ApiResponse<any>> => {
     return unwrap<any>(axiosInstance.get("/settled-orders", { params }));
   },
 
+  /**
+   * GET /api/v1/settled-orders/settled-data/{orderId}
+   * Always requests stored (Exclusive) values; the Inclusive view is produced in the frontend
+   * from each line's own saved rates (see services/storedOrderView.ts).
+   */
   getSettledOrderDetails: async (
     orderId: number,
     options?: string | { priceView?: string; orderType?: string; serviceCharge?: number; levy?: number }
   ): Promise<ApiResponse<any>> => {
-    let priceViewOverride: string | undefined;
-    let orderTypeOverride: string | undefined;
-    let explicitSc: number | undefined;
-    let explicitLevy: number | undefined;
-
-    if (typeof options === "string") {
-      priceViewOverride = options;
-    } else if (typeof options === "object" && options !== null) {
-      priceViewOverride = options.priceView;
-      orderTypeOverride = options.orderType;
-      explicitSc = options.serviceCharge;
-      explicitLevy = options.levy;
-    }
-
-    const priceView = priceViewOverride || getPriceView();
-    const effectiveOrderType = orderTypeOverride || "TakeOut";
-    const isDineIn = effectiveOrderType.toLowerCase().includes("dine");
-
-    const billingConfig = getBillingConfig(isDineIn ? "DineIn" : "TakeOut");
-    const serviceCharge = explicitSc !== undefined
-      ? explicitSc
-      : (isDineIn ? (billingConfig.serviceChargeRate !== undefined && !isNaN(billingConfig.serviceChargeRate) ? Math.round(billingConfig.serviceChargeRate * 100) : 0) : 0);
-    const levy = explicitLevy !== undefined
-      ? explicitLevy
-      : (billingConfig.levyRate !== undefined && !isNaN(billingConfig.levyRate) ? Math.round(billingConfig.levyRate * 100) : 0);
-
+    const requestedView = typeof options === "string" ? options : options?.priceView;
     const res = await axiosInstance.get(`/settled-orders/settled-data/${orderId}`, {
-      params: { serviceCharge, levy, priceView },
+      params: STORED_ORDER_PARAMS,
     });
     const body = res?.data;
     if (body && typeof body === 'object') {
@@ -124,7 +79,7 @@ export const settledOrdersApi = {
       const dataObj = body.data !== undefined ? body.data : body;
       return {
         isSuccess: true,
-        data: dataObj,
+        data: applyStoredOrderView(dataObj, requestedView),
         statusCode: body.statusCode || res.status || 200,
         message: body.message || "",
       };

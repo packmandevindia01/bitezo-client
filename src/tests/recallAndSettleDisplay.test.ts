@@ -1425,10 +1425,18 @@ describe('Recall & Settle Display Matching Backend Data', () => {
       expect(cartItem.authoritativePrice).toBe(100.000);
       expect(cartItem.quantity).toBe(2);
       expect(cartItem.authoritativeOriginalLineTotal).toBe(200.000);
-      expect(cartItem.authoritativeDiscount).toBe(100.000);
-      expect(cartItem.authoritativeLineTotal).toBe(100.000);
+      // Bill discount (master discAmount 90.909): the settled screen shows this row as 200.000 with the
+      // discount in the footer only — the edit cart must show exactly the same (rule: edit = screen).
+      expect(cartItem.authoritativeDiscount).toBe(0);
+      expect(cartItem.authoritativeLineTotal).toBe(200.000);
+      expect(payload.authoritativeDiscount).toBeCloseTo(90.909, 3);
       expect(cartItem.isIncl).toBe(true);
       expect(cartItem.priceIsIncl).toBe(true);
+
+      // Verify that authoritative footer values match ticket exactly (90.909 Net Value, 9.091 VAT, 100.000 Grand Total)
+      expect(payload.authoritativeNetValue).toBeCloseTo(90.909, 3);
+      expect(payload.authoritativeTax).toBeCloseTo(9.091, 3);
+      expect(payload.authoritativeNetAmount).toBeCloseTo(100.000, 3);
     });
   });
 });

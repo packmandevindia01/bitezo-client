@@ -308,8 +308,9 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(html).toContain('10.000');
       // Subtotal is gross before discount: 100.000
       expect(html).toContain('100.000');
-      // Discount is inclusive: -10.000
-      expect(html).toContain('-10.000');
+      // Footer discount is EXCLUSIVE, same as the screen footer: 10.000 / 1.1 = -9.091
+      expect(html).toContain('-9.091');
+      expect(html).toContain('90.909'); // footer Sub Total (exclusive)
       // VAT Amount is printed: 8.182
       expect(html).toContain('VAT Amount');
       expect(html).toContain('8.182');
@@ -755,7 +756,8 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(html).not.toContain('9.524');
       expect(html).toContain('24.650');
       expect(html).toContain('Discount');
-      expect(html).toContain('-10.000');
+      // Footer discount is EXCLUSIVE (same as the screen): 10.000 / 1.155 = -8.658; the row still shows Disc : 10.000
+      expect(html).toContain('-8.658');
 
       // 2. ESC/POS Thermal Print
       const markup = generateBillMarkup({ data, cartDetails });
@@ -811,7 +813,8 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(html).not.toContain('Disc : 8.658');
       expect(html).toContain('24.650');
       expect(html).toContain('Discount');
-      expect(html).toContain('-10.000');
+      // Footer discount is EXCLUSIVE (same as the screen): 10.000 / 1.155 = -8.658; the row still shows Disc : 10.000
+      expect(html).toContain('-8.658');
 
       // 2. ESC/POS Thermal Print
       const markup = generateBillMarkup({ data, cartDetails });

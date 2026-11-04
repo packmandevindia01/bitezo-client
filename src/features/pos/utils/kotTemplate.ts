@@ -5,6 +5,7 @@ import { isKotArabicEnabled, isOtherKitchenItemEnabled, isCompanyNameKotEnabled,
 import { getModifierTypeNameById } from "../services/menuApi";
 import { getDecimalPart } from "../../../utils/currency";
 import { roundCalc } from "../terminal/utils/billing";
+import { applyCartPricingToUnified } from "./printPricing";
 import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
 
 export interface KotPrintData {
@@ -292,6 +293,10 @@ export const generateKotHtml = async (
     ? (cartDetails as any)
     : buildUnifiedOrderPricing(cartDetails, data);
   const isOrderBillDiscount = unified.summary.isBillDiscount;
+
+  // Live cart (not a saved order): amounts come straight from the cart engine, in the Print Price view.
+  const cartPricing = applyCartPricingToUnified(unified, cartDetails as any[], { printPrice: printTaxSetting, orderType: data.orderType });
+  if (cartPricing) unified.lines = cartPricing.lines;
 
   let itemsHtml = "";
 

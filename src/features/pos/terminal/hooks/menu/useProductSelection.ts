@@ -3,7 +3,6 @@ import { useAppDispatch } from "../../../../../app/hooks";
 import { cacheProducts } from "../../store/posSlice";
 import { menuApi } from "../../../services/menuApi";
 import { alternativesCache, productDataCache } from "../usePosProducts";
-import { roundCalc } from "../../utils/billing";
 import type { PosProduct, PosAlternative, PosProductSearchResult } from "../../../types";
 
 interface UseProductSelectionProps {
@@ -72,16 +71,15 @@ export const useProductSelection = ({
       promoPrice = cachedData.promoPrice;
     }
 
-    let discountValue: number | undefined = undefined;
-    let discountType: "percentage" | "amount" | undefined = undefined;
+    // Happy Hour: the backend's promo price IS the line price, with the backend's own
+    // inclusive / exclusive flag. It is NOT stored as a discount — otherwise a bill discount
+    // (which replaces item discounts) or a manual price change would cancel / keep it wrongly.
+    const discountValue: number | undefined = undefined;
+    const discountType: "percentage" | "amount" | undefined = undefined;
 
-    if (promoPrice !== undefined && promoPrice > 0 && targetPrice > 0) {
-      const diff = targetPrice - promoPrice;
-      if (diff > 0) {
-        discountValue = roundCalc((diff / targetPrice) * 100, 7);
-        discountType = "percentage";
-      }
-      if (cachedData && cachedData.promoIsIncl !== undefined) {
+    if (promoPrice !== undefined && promoPrice > 0) {
+      targetPrice = promoPrice;
+      if (cachedData && cachedData.promoIsIncl !== undefined && cachedData.promoIsIncl !== null) {
         isIncl = cachedData.promoIsIncl;
       }
     }
@@ -157,17 +155,15 @@ export const useProductSelection = ({
     }
 
     if (selectedProduct) {
-      let discountValue: number | undefined = undefined;
-      let discountType: "percentage" | "amount" | undefined = undefined;
+      // Happy Hour on a variant: promo price IS the line price, with the backend's own flag.
+      const discountValue: number | undefined = undefined;
+      const discountType: "percentage" | "amount" | undefined = undefined;
       let isIncl = variant.isIncl;
+      let linePrice = variant.price;
 
-      if (variant.promoPrice !== undefined && variant.promoPrice > 0 && variant.price > 0) {
-        const diff = variant.price - variant.promoPrice;
-        if (diff > 0) {
-          discountValue = roundCalc((diff / variant.price) * 100, 7);
-          discountType = "percentage";
-        }
-        if (variant.promoIsIncl !== undefined) {
+      if (variant.promoPrice !== undefined && variant.promoPrice > 0) {
+        linePrice = variant.promoPrice;
+        if (variant.promoIsIncl !== undefined && variant.promoIsIncl !== null) {
           isIncl = variant.promoIsIncl;
         }
       }
@@ -180,7 +176,8 @@ export const useProductSelection = ({
             ...selectedProduct,
             price: variant.price,
             unitId: altUnitId ?? selectedProduct.unitId,
-            isIncl,
+            // the variant's own configuration (not the Happy Hour flag)
+            isIncl: variant.isIncl,
           },
         ])
       );
@@ -188,7 +185,7 @@ export const useProductSelection = ({
       const newKey = addProduct(
         selectedProduct.id,
         variant.altName,
-        variant.price,
+        linePrice,
         isIncl,
         discountValue,
         discountType,
@@ -300,17 +297,15 @@ export const useProductSelection = ({
       zeroPriceLockRef.current = now;
     }
 
-    let discountValue: number | undefined = undefined;
-    let discountType: "percentage" | "amount" | undefined = undefined;
+    // Happy Hour on a variant (from search): promo price IS the line price, with the backend's own flag.
+    const discountValue: number | undefined = undefined;
+    const discountType: "percentage" | "amount" | undefined = undefined;
     let isIncl = variant.isIncl;
+    let linePrice = variant.price;
 
-    if (variant.promoPrice !== undefined && variant.promoPrice > 0 && variant.price > 0) {
-      const diff = variant.price - variant.promoPrice;
-      if (diff > 0) {
-        discountValue = roundCalc((diff / variant.price) * 100, 7);
-        discountType = "percentage";
-      }
-      if (variant.promoIsIncl !== undefined) {
+    if (variant.promoPrice !== undefined && variant.promoPrice > 0) {
+      linePrice = variant.promoPrice;
+      if (variant.promoIsIncl !== undefined && variant.promoIsIncl !== null) {
         isIncl = variant.promoIsIncl;
       }
     }
@@ -327,7 +322,7 @@ export const useProductSelection = ({
           vatValue: product.vatValue,
           unitId: variant.unitId ?? product.unitId,
           hasAlternatives: product.hasAlternatives,
-          isIncl,
+          isIncl: variant.isIncl, // the variant's own configuration (not the Happy Hour flag)
           isLocked: product.isLocked,
           imageUrl: product.imageUrl,
         },
@@ -337,7 +332,7 @@ export const useProductSelection = ({
     const newKey = addProduct(
       product.productId,
       variant.altName,
-      variant.price,
+      linePrice,
       isIncl,
       discountValue,
       discountType,

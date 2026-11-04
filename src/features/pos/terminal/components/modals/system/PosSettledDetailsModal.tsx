@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { buildPrintPricing } from "../../../../utils/printPricing";
+import { storedOrderFooter, pickOrderMoney } from "../../../../pricing";
 import Modal from "../../../../../../components/common/Modal";
 import { Loader, Button } from "../../../../../../components/common";
 import { Printer, X, Pencil } from "lucide-react";
@@ -13,7 +15,7 @@ import { generateGuestPrintHtml, isEnableVatGuestPrint } from "../../../../utils
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../../../utils/printHeadingUtils";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getPriceView, getPrintPrice, getVatStatus, getBillingConfig, roundCalc, CALC_PRECISION } from "../../../utils/billing";
+import { getPriceView, getPrintPrice, getVatStatus, roundCalc } from "../../../utils/billing";
 import { isBillArabicEnabled, formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
 import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
@@ -153,6 +155,7 @@ const formatVoucherDate = (raw?: string | null): string => {
   }
 };
 
+
 export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
   isOpen,
   onClose,
@@ -291,7 +294,9 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           master.saleNo ||
           orderData.saleId ||
           orderData.voucherNo;
-        const saleId = rawVoucher ? parseInt(String(rawVoucher).replace(/\D/g, ""), 10) : NaN;
+        // The settled-orders list row carries the real saleId; the voucher number is only a fallback.
+        const listSaleId = Number(orderSummary?.saleId ?? orderSummary?.SaleId ?? 0);
+        const saleId = listSaleId > 0 ? listSaleId : (rawVoucher ? parseInt(String(rawVoucher).replace(/\D/g, ""), 10) : NaN);
 
         if (!isNaN(saleId) && saleId > 0) {
           try {
@@ -317,27 +322,10 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                 masterData: {
                   ...master,
                   ...saleMaster,
-                  discAmount: Number(master.discAmount || 0) > 0 && (!saleMaster.discAmount || Number(saleMaster.discAmount) === 0)
-                    ? master.discAmount
-                    : (saleMaster.discAmount ?? master.discAmount),
-                  discPer: Number(master.discPer || 0) > 0 && (!saleMaster.discPer || Number(saleMaster.discPer) === 0)
-                    ? master.discPer
-                    : (saleMaster.discPer ?? master.discPer),
-                  vatExclAmount: Number(master.vatExclAmount || 0) > 0 && (!saleMaster.vatExclAmount || Number(saleMaster.vatExclAmount) === 0)
-                    ? master.vatExclAmount
-                    : (saleMaster.vatExclAmount ?? master.vatExclAmount),
-                  vatAmount: Number(master.vatAmount || 0) > 0 && (!saleMaster.vatAmount || Number(saleMaster.vatAmount) === 0)
-                    ? master.vatAmount
-                    : (saleMaster.vatAmount ?? master.vatAmount),
-                  serviceCharge: Number(master.serviceCharge || 0) > 0 && (!saleMaster.serviceCharge || Number(saleMaster.serviceCharge) === 0)
-                    ? master.serviceCharge
-                    : (saleMaster.serviceCharge ?? master.serviceCharge),
-                  levyAmt: Number(master.levyAmt || master.levy || 0) > 0 && (!saleMaster.levyAmt && !saleMaster.levy || (Number(saleMaster.levyAmt || 0) === 0 && Number(saleMaster.levy || 0) === 0))
-                    ? (master.levyAmt ?? master.levy)
-                    : (saleMaster.levyAmt ?? saleMaster.levy ?? master.levyAmt ?? master.levy),
-                  levy: Number(master.levyAmt || master.levy || 0) > 0 && (!saleMaster.levyAmt && !saleMaster.levy || (Number(saleMaster.levyAmt || 0) === 0 && Number(saleMaster.levy || 0) === 0))
-                    ? (master.levyAmt ?? master.levy)
-                    : (saleMaster.levy ?? saleMaster.levyAmt ?? master.levy ?? master.levyAmt),
+                  // Every MONEY value comes from the ORDER (what the cashier saw and the customer was charged).
+                  // The sales invoice only supplies voucher number, date, employee and customer, so the bill
+                  // always adds up even if the invoice record disagrees (mismatch is shown as a warning).
+                  ...pickOrderMoney(master),
                   employeeName: saleMaster?.employeeName || master.employeeName || orderData.employeeName,
                   employeeId: saleMaster?.employeeId ?? master.employeeId ?? orderData.employeeId,
                 },
@@ -659,10 +647,10 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       const isTaxInclusive = printPriceSetting === "Inclusive";
 
       const isBillLevelDiscount = checkOrderHasBillDiscount(order);
-      const unified = buildUnifiedOrderPricing(order, {
+      const unified = buildPrintPricing(order, {
+        dataView: getPriceView(),
         orderType: orderTypeName,
         printPrice: printPriceSetting,
-        priceView: printPriceSetting,
         allExtras,
         modifierTypes,
         products,
@@ -1134,7 +1122,6 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
   const isBillLevelDiscount = order ? checkOrderHasBillDiscount(order) : false;
   const unified = order ? buildUnifiedOrderPricing(order, { orderType: orderTypeName, priceView: effectivePriceView, allExtras, modifierTypes, products, productCache, isBillDiscount: isBillLevelDiscount }) : null;
-  const billingConfig = getBillingConfig(orderTypeName || "DineIn");
   const isVatActive = Boolean(isEnableVatGuestPrint(master as any) || getVatStatus() || unified?.summary?.isVatActive);
 
   const rawVatExcl = Number(
@@ -1157,25 +1144,14 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
     master.billDiscountValue ??
     0
   );
-  const displayServiceCharge = Number(
-    master.serviceCharge ??
-    master.ServiceCharge ??
-    (unified ? unified.summary.serviceCharge : 0)
-  );
-  const displayLevy = Number(
-    master.levyAmt ??
-    master.levy ??
-    master.Levy ??
-    (unified ? unified.summary.levy : 0)
-  );
   const displayDeliveryCharge = Number(
     master.deliveryCharge ??
     master.DeliveryCharge ??
     (unified ? unified.summary.deliveryCharge : 0)
   );
-  const displayCharges = (unified?.summary?.charges && unified.summary.charges > 0)
-    ? unified.summary.charges
-    : roundCalc(Number(displayServiceCharge || 0) + Number(displayLevy || 0));
+  // THE stored-order footer — identical numbers on the settled screen, settled-edit and recall.
+  const settledFooter = storedOrderFooter(order || {}, effectivePriceView);
+  const displayCharges = settledFooter.charges;
 
   const lineDiscountsTotal = (details || []).reduce(
     (sum: number, d: any) => sum + Number(d.discAmount ?? d.DiscAmount ?? 0),
@@ -1192,48 +1168,22 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
   );
   const isItemDiscount = !isBillDiscount && lineDiscountsTotal > 0.001;
 
-  const currentOrderType = master.orderType || (master.orderTypeId && orderTypeMap[master.orderTypeId]) || orderTypeName || "TakeOut";
-  const currentBillingConfig = getBillingConfig(currentOrderType);
-  const isVatEnabled = getVatStatus();
-  const rawVatRate = currentBillingConfig.vatRate > 0 ? (currentBillingConfig.vatRate > 1 ? currentBillingConfig.vatRate / 100 : currentBillingConfig.vatRate) : 0.10;
-  const activeVatRate = isVatEnabled ? rawVatRate : 0;
-  const isDineIn = (currentOrderType || "").toLowerCase().includes("dine");
-  const scRate = isDineIn ? (currentBillingConfig.serviceChargeRate ?? 0) : 0;
-  const levyRate = currentBillingConfig.levyRate ?? 0;
-  const orderCombinedFactor = (activeVatRate > 0 || levyRate > 0 || scRate > 0)
-    ? roundCalc((1 + activeVatRate) * (1 + levyRate) * (1 + scRate), 4)
-    : 1;
-
-  const exclusiveItemDiscount = (isItemDiscount && effectivePriceView === "Inclusive" && orderCombinedFactor > 1)
-    ? roundCalc(lineDiscountsTotal / orderCombinedFactor, 4)
-    : lineDiscountsTotal;
-
-  const displayDiscount = backendDiscount > 0
-    ? backendDiscount
-    : (unified?.summary?.totalDiscountExcl ?? roundCalc(exclusiveItemDiscount));
+  const displayDiscount = settledFooter.discount;
 
   // Sub Total includes any discount (item or bill discount): (vatExclAmount - charges) + discount
   const displaySubTotal = roundCalc(
     rawVatExcl > 0
-      ? Math.max(0, rawVatExcl - displayCharges) + displayDiscount
+      ? settledFooter.subTotal
       : (unified ? unified.summary.subTotalExclusive : 0)
   );
 
-  let displayVatAmount = Number(
+  // Stored VAT only — never invented (zero-rated orders have VAT 0).
+  const displayVatAmount = Number(
     master.vatAmount ??
     master.VatAmount ??
     master.vatAmt ??
     (unified && unified.summary.vatAmount > 0 ? unified.summary.vatAmount : 0)
   );
-  if (displayVatAmount <= 0 && isVatActive) {
-    const rateFraction = billingConfig.vatRate > 0 ? (billingConfig.vatRate > 1 ? billingConfig.vatRate / 100 : billingConfig.vatRate) : 0.10;
-    const delivery = Number(master.deliveryCharge ?? (unified ? unified.summary?.deliveryCharge : 0) ?? 0);
-    const grandTotal = Number(master.netAmount ?? master.NetAmount ?? (unified ? unified.summary.grandTotal : 0) ?? 0);
-    const taxableGross = Math.max(0, grandTotal - delivery);
-    if (rateFraction > 0 && taxableGross > 0) {
-      displayVatAmount = roundCalc(taxableGross - (taxableGross / (1 + rateFraction)), CALC_PRECISION);
-    }
-  }
 
   const displayGrandTotal = Number(
     master.netAmount ??

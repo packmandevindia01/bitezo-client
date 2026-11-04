@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { applyStoredPricingToCartItems } from "../../../../services/storedOrderView";
+import { deriveOrderChargeRatesFromMaster } from "../../../../pricing";
+import { resolveRecalledBillDiscount } from "../../../../services/storedOrderView";
+import { buildPrintPricing } from "../../../../utils/printPricing";
+import { storedOrderFooter } from "../../../../pricing";
 import Modal from "../../../../../../components/common/Modal";
 import { Loader } from "../../../../../../components/common";
 import { orderApi } from "../../../../services/orderApi";
@@ -292,10 +297,10 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const printPriceSetting = getPrintPrice();
       const isTaxInclusive = printPriceSetting === "Inclusive";
       const isBillLevelDiscount = checkOrderHasBillDiscount(order);
-      const unified = buildUnifiedOrderPricing(order, {
+      const unified = buildPrintPricing(order, {
+        dataView: getPriceView(),
         orderType: orderTypeName,
         printPrice: printPriceSetting,
-        priceView: printPriceSetting,
         modifierTypes,
         allExtras,
         isBillDiscount: isBillLevelDiscount,
@@ -572,8 +577,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         sessionStorage.setItem(`order_prevUpdatedAt_${orderId}`, prevUpdatedAt);
       }
 
-      const billingConfig = getBillingConfig(orderTypeName);
-      const enableVat = getVatStatus();
       const netAmount = Number(master.netAmount ?? master.NetAmount ?? order?.netAmount ?? order?.NetAmount ?? 0);
       const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? 0);
 
@@ -587,10 +590,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       let resolvedVatAmount = Number(master.vatAmount ?? master.VatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
       if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
         resolvedVatAmount = detailsVatSum;
-      }
-      if (enableVat && resolvedVatAmount <= 0 && netAmount > 0) {
-        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
-        resolvedVatAmount = roundCalc(netAmount - (netAmount / (1 + vatRate)));
       }
 
       let resolvedDiscount = Number(
@@ -724,7 +723,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
           const authOrigTotal = rawDetailAmount > 0 ? roundCalc(rawDetailAmount, 3) : (recallPrice * (cartItem.quantity || 1));
           const authDiscount = roundCalc(rawDetailDisc, 3);
-          const authLineTotal = roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
+          // Bill discount is shown in the footer only (same as the recall/settled screen rows).
+          const authLineTotal = isBillLevelDiscount ? authOrigTotal : roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
 
           return {
             ...cartItem,
@@ -736,7 +736,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
             authoritativePrice: recallPrice,
             authoritativeLineTotal: authLineTotal,
             authoritativeOriginalLineTotal: authOrigTotal,
-            authoritativeDiscount: authDiscount,
+            authoritativeDiscount: isBillLevelDiscount ? 0 : authDiscount,
             authoritativeVatAmount: uLine?.vatAmount,
             lineTotal: authLineTotal,
             originalLineTotal: authOrigTotal,
@@ -767,7 +767,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           const authDiscount = (isTaxInclusive && rawDetailDisc > 0)
             ? roundCalc(rawDetailDisc, 3)
             : uLine.getDiscount(isTaxInclusive);
-          const authLineTotal = roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
+          // Bill discount is shown in the footer only (same as the recall/settled screen rows).
+          const authLineTotal = isBillLevelDiscount ? authOrigTotal : roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
           const lineIsIncl = isTaxInclusive ? true : (uLine.isProductMasterInclusive !== undefined ? uLine.isProductMasterInclusive : cartItem.isIncl);
           return {
             ...cartItem,
@@ -777,7 +778,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
             authoritativePrice: authRate,
             authoritativeLineTotal: authLineTotal,
             authoritativeOriginalLineTotal: authOrigTotal,
-            authoritativeDiscount: authDiscount,
+            authoritativeDiscount: isBillLevelDiscount ? 0 : authDiscount,
             authoritativeVatAmount: uLine.vatAmount,
             lineTotal: authLineTotal,
             originalLineTotal: authOrigTotal,
@@ -794,24 +795,14 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         }
         return cartItem;
       });
-      const authCharges = (unifiedPricing.summary.charges !== undefined && unifiedPricing.summary.charges > 0)
-        ? unifiedPricing.summary.charges
-        : roundCalc(Number(master.serviceCharge || 0) + Number(master.levy || master.levyAmt || 0));
-      const rawVatExcl = Number(master.vatExclAmount ?? master.subTotal ?? unifiedPricing.summary.subTotalExclusive ?? 0);
-      const lineDiscountsTotal = (details || []).reduce((sum: number, d: any) => sum + Number(d.discAmount ?? d.DiscAmount ?? 0), 0);
-
-      const isItemDiscount = backendDiscount <= 0.001 && lineDiscountsTotal > 0.001;
-      const exclusiveLineDiscount = (isItemDiscount && effectivePriceView === "Inclusive" && factor > 1)
-        ? roundCalc(lineDiscountsTotal / factor, 4)
-        : lineDiscountsTotal;
-
-      const authDiscount = isBillComplimentary
-        ? roundCalc(Math.max(0, rawVatExcl - authCharges))
-        : (backendDiscount > 0 ? backendDiscount : (lineDiscountsTotal > 0 ? roundCalc(exclusiveLineDiscount) : (unifiedPricing.summary.totalDiscountExcl || 0)));
-      const authSubtotal = roundCalc(Math.max(0, rawVatExcl - authCharges) + authDiscount);
-      const authTax = isBillComplimentary ? 0 : Number(master.vatAmount ?? unifiedPricing.summary.vatAmount ?? 0);
-      const authNet = isBillComplimentary ? 0 : Number(master.netAmount ?? unifiedPricing.summary.grandTotal ?? 0);
-      const authNetValue = roundCalc(rawVatExcl);
+      // Footer = THE stored-order footer — identical to what the recall screen shows.
+      const editFooter = storedOrderFooter(order, effectivePriceView);
+      const authCharges = editFooter.charges;
+      const authDiscount = editFooter.discount;
+      const authSubtotal = editFooter.subTotal;
+      const authTax = editFooter.vatAmount; // stored VAT (0 for complimentary)
+      const authNet = editFooter.netAmount; // stored total — a complimentary delivery order still charges its delivery charge
+      const authNetValue = editFooter.netValue;
 
       let resolvedBillDiscVal = isBillComplimentary
         ? 100
@@ -822,16 +813,16 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         : 0;
 
       dispatch(loadRecalledOrder({
+        editingOrderRates: deriveOrderChargeRatesFromMaster(order, effectivePriceView),
         editingOrderId: orderId,
         editingSaleId: saleId,
         isSettledEdit: saleId !== null,
-        cartItems: mappedCartItems,
+        cartItems: applyStoredPricingToCartItems(order, mappedCartItems, { products, productCache, isBillDiscount: Boolean(isBillLevelDiscount), view: effectivePriceView }),
         orderTypeId: orderTypeId,
         orderTypeName: orderTypeName,
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: Number(resolvedBillDiscVal || 0),
-        billDiscountType: resolvedBillDiscType,
+        ...resolveRecalledBillDiscount(order, Number(resolvedBillDiscVal || 0), resolvedBillDiscType),
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
         tableNo: master.tableNo || master.tableName || (master.tableId ? String(master.tableId) : ""),
@@ -912,8 +903,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         sessionStorage.setItem(`order_prevUpdatedAt_${orderId}`, prevUpdatedAt);
       }
 
-      const billingConfig = getBillingConfig(orderTypeName);
-      const enableVat = getVatStatus();
       const netAmount = Number(master.netAmount ?? master.NetAmount ?? order?.netAmount ?? order?.NetAmount ?? 0);
       const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? 0);
 
@@ -927,10 +916,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       let resolvedVatAmount = Number(master.vatAmount ?? master.VatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
       if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
         resolvedVatAmount = detailsVatSum;
-      }
-      if (enableVat && resolvedVatAmount <= 0 && netAmount > 0) {
-        const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.10;
-        resolvedVatAmount = roundCalc(netAmount - (netAmount / (1 + vatRate)));
       }
 
       let resolvedDiscount = Number(
@@ -1065,7 +1050,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
           const authOrigTotal = rawDetailAmount > 0 ? roundCalc(rawDetailAmount, 3) : (recallPrice * (cartItem.quantity || 1));
           const authDiscount = roundCalc(rawDetailDisc, 3);
-          const authLineTotal = roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
+          // Bill discount is shown in the footer only (same as the recall/settled screen rows).
+          const authLineTotal = isBillLevelDiscount ? authOrigTotal : roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
 
           return {
             ...cartItem,
@@ -1077,7 +1063,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
             authoritativePrice: recallPrice,
             authoritativeLineTotal: authLineTotal,
             authoritativeOriginalLineTotal: authOrigTotal,
-            authoritativeDiscount: authDiscount,
+            authoritativeDiscount: isBillLevelDiscount ? 0 : authDiscount,
             authoritativeVatAmount: uLine?.vatAmount,
             lineTotal: authLineTotal,
             originalLineTotal: authOrigTotal,
@@ -1108,7 +1094,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
           const authDiscount = (isTaxInclusive && rawDetailDisc > 0)
             ? roundCalc(rawDetailDisc, 3)
             : uLine.getDiscount(isTaxInclusive);
-          const authLineTotal = roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
+          // Bill discount is shown in the footer only (same as the recall/settled screen rows).
+          const authLineTotal = isBillLevelDiscount ? authOrigTotal : roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
           const lineIsIncl = isTaxInclusive ? true : (uLine.isProductMasterInclusive !== undefined ? uLine.isProductMasterInclusive : cartItem.isIncl);
           return {
             ...cartItem,
@@ -1118,7 +1105,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
             authoritativePrice: authRate,
             authoritativeLineTotal: authLineTotal,
             authoritativeOriginalLineTotal: authOrigTotal,
-            authoritativeDiscount: authDiscount,
+            authoritativeDiscount: isBillLevelDiscount ? 0 : authDiscount,
             authoritativeVatAmount: uLine.vatAmount,
             lineTotal: authLineTotal,
             originalLineTotal: authOrigTotal,
@@ -1135,15 +1122,13 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         }
         return cartItem;
       });
-      const authCharges = roundCalc(Number(master.serviceCharge || 0) + Number(master.levy || master.levyAmt || 0));
-      const rawVatExcl = Number(master.vatExclAmount ?? master.subTotal ?? unifiedPricing.summary.subTotalExclusive ?? 0);
-      const authDiscount = isBillComplimentary
-        ? roundCalc(Math.max(0, rawVatExcl - authCharges))
-        : (backendDiscount > 0 ? backendDiscount : (lineDiscountsSum > 0 ? roundCalc(lineDiscountsSum) : (unifiedPricing.summary.totalDiscountExcl || 0)));
-      const authSubtotal = roundCalc(Math.max(0, rawVatExcl - authCharges) + authDiscount);
-      const authTax = isBillComplimentary ? 0 : Number(master.vatAmount ?? unifiedPricing.summary.vatAmount ?? 0);
-      const authNet = isBillComplimentary ? 0 : Number(master.netAmount ?? unifiedPricing.summary.grandTotal ?? 0);
-      const authNetValue = roundCalc(rawVatExcl);
+      // Footer = THE stored-order footer — identical to what the recall screen shows.
+      const editFooter = storedOrderFooter(order, effectivePriceView);
+      const authDiscount = editFooter.discount;
+      const authSubtotal = editFooter.subTotal;
+      const authTax = editFooter.vatAmount; // stored VAT (0 for complimentary)
+      const authNet = editFooter.netAmount; // stored total — a complimentary delivery order still charges its delivery charge
+      const authNetValue = editFooter.netValue;
 
       let resolvedBillDiscVal = isBillComplimentary
         ? 100
@@ -1156,16 +1141,16 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         : 0;
 
       dispatch(loadRecalledOrder({
+        editingOrderRates: deriveOrderChargeRatesFromMaster(order, effectivePriceView),
         editingOrderId: orderId,
         editingSaleId: saleId,
         isSettledEdit: saleId !== null,
-        cartItems: mappedCartItems,
+        cartItems: applyStoredPricingToCartItems(order, mappedCartItems, { products, productCache, isBillDiscount: Boolean(isBillLevelDiscount), view: effectivePriceView }),
         orderTypeId: orderTypeId,
         orderTypeName: orderTypeName,
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: Number(resolvedBillDiscVal || 0),
-        billDiscountType: resolvedBillDiscType,
+        ...resolveRecalledBillDiscount(order, Number(resolvedBillDiscVal || 0), resolvedBillDiscType),
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
         tableNo: master.tableNo || master.tableName || (master.tableId ? String(master.tableId) : ""),
@@ -1358,18 +1343,6 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     0
   );
 
-  const fallbackParsedType = (orderDetailsStr?.match(/\((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming)\)/i)?.[1]);
-  const currentOrderType = master.orderType || (master.orderTypeId && orderTypeIdToNameMap[master.orderTypeId]) || fallbackParsedType || "TakeOut";
-  const billingConfig = getBillingConfig(currentOrderType);
-  const isVatEnabled = getVatStatus();
-  const rawVatRate = billingConfig.vatRate > 0 ? (billingConfig.vatRate > 1 ? billingConfig.vatRate / 100 : billingConfig.vatRate) : 0.10;
-  const activeVatRate = isVatEnabled ? rawVatRate : 0;
-  const isDineIn = (currentOrderType || "").toLowerCase().includes("dine");
-  const scRate = isDineIn ? (billingConfig.serviceChargeRate ?? 0) : 0;
-  const levyRate = billingConfig.levyRate ?? 0;
-  const orderCombinedFactor = (activeVatRate > 0 || levyRate > 0 || scRate > 0)
-    ? roundCalc((1 + activeVatRate) * (1 + levyRate) * (1 + scRate), 4)
-    : 1;
 
   // When master data has discount: treated as bill level discount (backendDiscount is already exclusive).
   // When details data only has discount: treated as item discount.
@@ -1381,13 +1354,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   );
   const isItemDiscount = !isBillDiscount && lineDiscountsTotal > 0.001;
 
-  // If price view is inclusive and has item discount, the details discounts are inclusive.
-  // In the footer, take that discount's exclusive amount.
-  const exclusiveItemDiscount = (isItemDiscount && getPriceView() === "Inclusive" && orderCombinedFactor > 1)
-    ? roundCalc(lineDiscountsTotal / orderCombinedFactor, 4)
-    : lineDiscountsTotal;
-
-  const displayDiscount = backendDiscount > 0 ? backendDiscount : roundCalc(exclusiveItemDiscount);
+  // Discount from THE stored-order footer (exclusive, per-line saved rates) — same as recall-edit.
+  const displayDiscount = storedOrderFooter(order, getPriceView()).discount;
 
   // Sub Total includes any discount (item or bill discount): (vatExclAmount - charges) + discount
   const displaySubTotal = roundCalc(Math.max(0, rawVatExcl - displayCharges) + displayDiscount);

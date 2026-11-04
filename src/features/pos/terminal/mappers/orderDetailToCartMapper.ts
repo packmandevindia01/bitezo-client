@@ -131,23 +131,7 @@ export const mapOrderDetailToCartItem = ({
     detail.transDate !== undefined
   );
 
-  // Self-healing: if order is not DineIn (SC is 0), but backend detail was queried with phantom serviceCharge=10
   const isDineIn = (orderType || "").toLowerCase().includes("dine");
-  const rawLineNet = (rawPrice * qty) - rawDiscAmount;
-
-  const activeFraction = fallbackBillingConfig.vatRate > 0 ? fallbackBillingConfig.vatRate : 0.10;
-  const expectedNetFromVat = rawVatAmt > 0 ? (rawVatAmt * (1 + 1 / activeFraction)) : 0;
-
-  const isPhantomScInflated = !isDineIn && (
-    (expectedNetFromVat > 0 && Math.abs(roundCalc(rawLineNet / 1.10, 2) - roundCalc(expectedNetFromVat, 2)) < 0.15) ||
-    (rawPrice > 0 && matchedAlt?.price !== undefined && Math.abs(rawPrice - Number(matchedAlt.price) * 1.2705) < 0.05) ||
-    (rawPrice > 0 && realProduct.price !== undefined && Math.abs(rawPrice - Number(realProduct.price) * 1.2705) < 0.05)
-  );
-
-  if (isPhantomScInflated) {
-    rawPrice = roundCalc(rawPrice / 1.10, 4);
-    rawDiscAmount = roundCalc(rawDiscAmount / 1.10, 4);
-  }
 
   const detailVatValue =
     detail.vatValue ??
@@ -186,16 +170,16 @@ export const mapOrderDetailToCartItem = ({
   if (rawDetailNet !== undefined && rawDetailNet !== null) {
     rawNetAmt = Number(rawDetailNet);
   } else if (rawLineExcl > 0 && detail.amount !== undefined && Number(detail.amount) > rawLineExcl + 0.01) {
-    rawNetAmt = (Number(detail.amount) - rawDiscAmount) / (isPhantomScInflated ? 1.10 : 1);
+    rawNetAmt = (Number(detail.amount) - rawDiscAmount);
   } else if (detail.amount !== undefined) {
     const rawAmt = Number(detail.amount);
     if (rawVatAmt > 0 && (
       Math.abs((rawAmt - rawDiscAmount + detailSc + detailLevy + rawVatAmt) - (rawPrice * qty * orderCombinedFactor)) < 0.15 ||
       Math.abs(rawAmt * orderCombinedFactor - (rawAmt + detailSc + detailLevy + rawVatAmt)) < 0.05
     )) {
-      rawNetAmt = (rawAmt - rawDiscAmount + detailSc + detailLevy + rawVatAmt) / (isPhantomScInflated ? 1.10 : 1);
+      rawNetAmt = (rawAmt - rawDiscAmount + detailSc + detailLevy + rawVatAmt);
     } else {
-      rawNetAmt = (rawAmt - rawDiscAmount) / (isPhantomScInflated ? 1.10 : 1);
+      rawNetAmt = (rawAmt - rawDiscAmount);
     }
   } else {
     rawNetAmt = (rawPrice * qty) - rawDiscAmount;

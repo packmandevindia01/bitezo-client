@@ -7,7 +7,8 @@ import { orderApi } from "../../../../services/orderApi";
 import { useAppSelector } from "../../../../../../app/hooks";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { PosSplitTableModal } from "./PosSplitTableModal";
-import { getBillingConfig, calculateLineItem, calculateOrder, roundCalc, CALC_PRECISION, getTaxExclusivePrice } from "../../../utils/billing";
+import { calculateLineItem, calculateOrder, roundCalc, CALC_PRECISION, getTaxExclusivePrice, getBillingConfigForOrder, getPriceView, getDiscountCalculation } from "../../../utils/billing";
+import { storedLineToCartPricing, deriveOrderChargeRatesFromMaster, ORDER_TYPE_NAMES } from "../../../../pricing";
 import { useCashierLog } from "../../../../cashier";
 import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { mapOrderDetailToCartItem } from "../../../mappers/orderDetailToCartMapper";
@@ -108,7 +109,15 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         return true;
       });
 
-      setOriginalOrder(masterData);
+      // Order type from orderType / orderTypeId (the endpoints never return orderTypeName) and the
+      // service charge / levy the order was SAVED with — split parts are priced exactly like the original.
+      const dataView = getPriceView();
+      const storedOrder = { masterData, detailsData, modifiersData };
+      const orderTypeName =
+        masterData.orderType || masterData.orderTypeName || ORDER_TYPE_NAMES[Number(masterData.orderTypeId)] || "DineIn";
+      const savedRates = deriveOrderChargeRatesFromMaster(storedOrder, dataView);
+      const discountCalc = getDiscountCalculation();
+      setOriginalOrder({ ...masterData, orderTypeName, savedRates });
 
       const initialItems: SplitCartItem[] = detailsData.map((d: any, idx: number) => {
         const itemMods = modifiersData.filter((m: any) => m.mapId === d.mapId);
@@ -127,22 +136,43 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         const baseName = d.productName || d.ProductName || cartItem.product?.name || "Item";
         const displayName = formatItemDisplayName(baseName, rawAlt);
 
+        // Exact pricing from the stored line (same converter as recall-edit).
+        const productMaster: any = (products || []).find((p: any) => Number(p.id) === Number(d.productId ?? d.ProductId));
+        const productIsInclusive =
+          productMaster?.isIncl === true || productMaster?.priceIsIncl === true
+            ? true
+            : productMaster?.isIncl === false || productMaster?.priceIsIncl === false
+            ? false
+            : Boolean(cartItem.isIncl);
+        const pricing = storedLineToCartPricing(storedOrder, d, dataView, {
+          productIsInclusive,
+          discountCalc,
+          isBillDiscount: false,
+        });
+        let pricedIdx = 0;
+        const pricedMods = itemMods.map((m: any) => {
+          if (!(Number(m.price) > 0)) return m;
+          const gross = pricing.extraGrossById.get(Number(m.modifierId ?? m.ModifierId)) ?? pricing.extraGrossList[pricedIdx];
+          pricedIdx++;
+          return gross !== undefined ? { ...m, price: gross } : m;
+        });
+
         return {
           mapId: d.mapId,
           name: displayName,
           variantName: rawAlt || undefined,
-          price: cartItem.price || 0,
+          price: pricing.price,
           currentQty: d.qty || 1,
-          discountValue: cartItem.discountValue || 0,
-          discountType: cartItem.discountType || 'percentage',
+          discountValue: pricing.discount ? pricing.discount.value : 0,
+          discountType: pricing.discount ? pricing.discount.type : 'percentage',
           complimentaryStatus: Boolean(cartItem.complimentaryStatus),
           detail: {
             ...d,
-            vatValue: cartItem.vatValue,
+            vatValue: pricing.savedVatRate ?? cartItem.vatValue,
             vatId: cartItem.product?.sVatId,
           },
-          modifiers: itemMods,
-          isIncl: cartItem.isIncl,
+          modifiers: pricedMods,
+          isIncl: pricing.isIncl,
         };
       });
 
@@ -211,7 +241,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     });
 
     const result = calculateOrder(cartItems, {
-      orderType: originalOrder?.orderTypeName || "DineIn"
+      orderType: originalOrder?.orderTypeName || "DineIn",
+      config: getBillingConfigForOrder(originalOrder?.orderTypeName || "DineIn", originalOrder?.savedRates),
     });
     return result.summary.total;
   };
@@ -475,7 +506,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     });
 
     const result = calculateOrder(cartItems, {
-      orderType: originalOrder?.orderTypeName || "DineIn"
+      orderType: originalOrder?.orderTypeName || "DineIn",
+      config: getBillingConfigForOrder(originalOrder?.orderTypeName || "DineIn", originalOrder?.savedRates),
     });
 
     const details = bucket.items.map((item, index) => {
@@ -483,7 +515,10 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       const lineCalc = result.lines[index];
       const pId = item.detail?.productId ?? item.detail?.ProductId ?? item.detail?.itemId ?? item.detail?.ItemId;
 
-      const exclPrice = roundCalc(lineCalc?.basePrice ?? lineCalc?.exclusivePrice ?? getTaxExclusivePrice(item));
+      // Backend convention: detail price = exclusive unit price INCLUDING extras (amount / qty).
+      const exclPrice = lineCalc
+        ? roundCalc(lineCalc.amount / Math.max(1, item.currentQty), CALC_PRECISION)
+        : roundCalc(getTaxExclusivePrice(item));
       const lineNet = roundCalc(lineCalc?.lineNetAmount ?? (exclPrice * item.currentQty + (lineCalc?.vatAmount || 0)));
 
       const itemDiscPer = item.discountType === 'percentage' ? (item.discountValue || 0) : 0;
@@ -511,14 +546,19 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       const newMapId = index + 1;
       // Only attach modifiers to the bucket that 'owns' them (typically the base bucket, unless fully moved)
       if (ownsModifiers(bucket, item.mapId)) {
+        // Extras were priced by the engine (gross → exclusive); store their exclusive price.
+        const pricedExtras = result.lines[index]?.pricedExtras || [];
+        let extraIdx = 0;
         item.modifiers.forEach(m => {
           const mId = m.modifierId ?? m.ModifierId ?? m.id ?? m.Id;
+          const pe = Number(m.price) > 0 ? pricedExtras[extraIdx++] : undefined;
           modifiers.push({
             ...m,
             mapId: newMapId,
             modifierId: mId,
             qty: m.qty || 1,
-            amount: roundCalc(m.amount || (m.price * (m.qty || 1)))
+            price: pe ? pe.basePrice : (Number(m.price) > 0 ? m.price : 0),
+            amount: pe ? pe.baseAmount : roundCalc(m.amount || (m.price * (m.qty || 1)))
           });
         });
       }
@@ -648,7 +688,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
                 {/* Items */}
                 <div className="flex-1 overflow-y-auto">
                   {bucket.items.map(item => {
-                    const config = getBillingConfig(originalOrder?.orderTypeName || "DineIn");
+                    const config = getBillingConfigForOrder(originalOrder?.orderTypeName || "DineIn", originalOrder?.savedRates);
                     
                     const itemDiscount = item.discountValue && item.discountValue > 0
                       ? { type: item.discountType || 'percentage', value: item.discountValue }
@@ -691,7 +731,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
                           0,
                           config,
                           item.detail.vatValue,
-                          item.isIncl
+                          true // extras prices are gross (inclusive)
                         );
 
                         return (

@@ -77,8 +77,8 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
     expect(html).toContain('33.000');
 
     // Verify totals table
-    expect(html).toContain('>33.000<'); // Sub Total
-    expect(html).toContain('>-13.000<'); // Discount
+    expect(html).toContain('>30.000<'); // Sub Total — exclusive, same as the screen footer (33.000 / 1.1)
+    expect(html).toContain('>-11.818<'); // Discount — exclusive (13.000 / 1.1)
     expect(html).toContain('>1.818<'); // VAT Amount
     expect(html).toContain('>20.000<'); // Grand Total
 
@@ -186,8 +186,9 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
 
     const html = await generateGuestPrintHtml(mappedItems as any, printData as any);
 
-    expect(html).toContain('>33.000<');
-    expect(html).toContain('>-13.000<');
+    expect(html).toContain('>33.000<'); // row amount (inclusive)
+    expect(html).toContain('>30.000<'); // footer Sub Total (exclusive)
+    expect(html).toContain('>-11.818<'); // footer Discount (exclusive)
     expect(html).toContain('>1.818<');
     expect(html).toContain('>20.000<');
     expect(html).toContain('>18.182<');

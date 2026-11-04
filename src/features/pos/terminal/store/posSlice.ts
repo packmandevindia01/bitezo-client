@@ -99,6 +99,8 @@ interface PosState {
   authoritativeTax?: number | null;
   authoritativeCharges?: number | null;
   authoritativeNetValue?: number | null;
+  /** Service charge / levy (percent) the order being edited was SAVED with; null = use current settings. */
+  editingOrderRates?: { serviceCharge: number; levy: number } | null;
   combinedOrderIds: number[];
   deliveryDetails?: {
     customerName?: string;
@@ -225,6 +227,7 @@ const initialState: PosState = {
   authoritativeTax: null,
   authoritativeCharges: null,
   authoritativeNetValue: null,
+  editingOrderRates: null,
   combinedOrderIds: [],
   deliveryDetails: null,
 };
@@ -390,6 +393,7 @@ const posSlice = createSlice({
       state.authoritativeTax = null;
       state.authoritativeCharges = null;
       state.authoritativeNetValue = null;
+      state.editingOrderRates = null;
       state.isSettling = false;
       state.combinedOrderIds = [];
       state.billDiscountValue = 0;
@@ -479,6 +483,9 @@ const posSlice = createSlice({
       }
     },
     setOrderType: (state, action: PayloadAction<PosOrderType>) => {
+      if (normalizeOrderTypeName(state.selectedOrderTypeName || "") !== normalizeOrderTypeName(action.payload.orderType || "")) {
+        state.editingOrderRates = null;
+      }
       state.selectedOrderTypeId = action.payload.orderTypeId;
       state.selectedOrderTypeName = action.payload.orderType;
       const normalized = normalizeOrderTypeName(action.payload.orderType);
@@ -492,6 +499,9 @@ const posSlice = createSlice({
       const normalized = normalizeOrderTypeName(action.payload);
       const match = state.orderTypes.find((type) => normalizeOrderTypeName(type.orderType) === normalized);
       const type = match ?? fallbackOrderTypeByName(action.payload);
+      if (normalizeOrderTypeName(state.selectedOrderTypeName || "") !== normalizeOrderTypeName(type.orderType || "")) {
+        state.editingOrderRates = null;
+      }
       state.selectedOrderTypeId = type.orderTypeId;
       state.selectedOrderTypeName = type.orderType;
       if (!normalized.includes("dine")) {
@@ -774,6 +784,7 @@ const posSlice = createSlice({
       authoritativeTax?: number | null;
       authoritativeCharges?: number | null;
       authoritativeNetValue?: number | null;
+      editingOrderRates?: { serviceCharge: number; levy: number } | null;
       prevUpdatedAt?: string | null;
     }>) => {
       const { 
@@ -818,6 +829,7 @@ const posSlice = createSlice({
       state.isSettledEdit = isSettledEdit ?? false;
       state.waiterName = waiterName ?? null;
       state.isCartModified = isCartModified ?? false;
+      state.editingOrderRates = action.payload.editingOrderRates ?? null;
       state.authoritativeNetAmount =
         action.payload.authoritativeNetAmount !== undefined
           ? (action.payload.authoritativeNetAmount !== null ? Number(action.payload.authoritativeNetAmount) : null)

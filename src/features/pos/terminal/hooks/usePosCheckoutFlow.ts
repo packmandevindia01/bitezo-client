@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { buildPrintPricing } from "../../utils/printPricing";
 import { useEvent } from '../../../../hooks/useEvent';
 import { useAppDispatch } from '../../../../app/hooks';
 import { setIsSettling, setWaiter } from '../store/posSlice';
@@ -12,7 +13,6 @@ import { sortOrderDetailsBySequence } from '../utils/orderSort';
 import { getModifierTypeNameById } from '../../services/menuApi';
 import { alternativesCache } from '../hooks/usePosProducts';
 import { checkOrderHasBillDiscount } from '../utils/orderDiscountCheck';
-import { buildUnifiedOrderPricing } from '../../utils/orderPricing';
 import { store } from '../../../../app/store';
 import {
   disableDefaultEmployeeConfig,
@@ -194,6 +194,9 @@ export const usePosCheckoutFlow = ({
     const isDelivery = orderPayload.orderTypeId === 4;
     if (isDelivery && (!orderPayload.addressId || Number(orderPayload.addressId) === 0)) {
       showToast("Please select a delivery address before settling.", "warning");
+      // Release the settle lock — otherwise every later Settle is silently ignored until reload.
+      isSettlingRef.current = false;
+      dispatch(setIsSettling(false));
       return;
     }
 
@@ -617,10 +620,10 @@ export const usePosCheckoutFlow = ({
         let unifiedSettledPricing: any = null;
         if (!isCombinedOrder && (saleRes || (detailsData && detailsData.length > 0))) {
           try {
-            unifiedSettledPricing = buildUnifiedOrderPricing(saleRes || { masterData, detailsData, modifiersData }, {
+            unifiedSettledPricing = buildPrintPricing(saleRes || { masterData, detailsData, modifiersData }, {
+              dataView: printPriceSetting,
               orderType: mappedOrderType,
               printPrice: printPriceSetting,
-              priceView: printPriceSetting,
               productCache: currentProductCache,
               isBillDiscount: isBillDisc,
             });

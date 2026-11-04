@@ -168,10 +168,12 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     const totalSc = Number(orderPayload.serviceCharge || 0) || detailsSc;
     const totalLevy = Number(orderPayload.levy || 0) || detailsLevy;
     const taxableBase = Math.max(0, calcVatExcl + totalSc + totalLevy);
+    // VAT is the sum of the per-line VAT (each line uses its own product VAT rate).
+    // Previously this was floored at a hard-coded 10% of the whole bill, which over-taxed
+    // zero-rated / lower-rated items on the sales invoice.
     let calcVatAmt = 0;
     if (isVatEnabled && !isComplimentary) {
-      const expectedVat = roundCalc(taxableBase * 0.10);
-      calcVatAmt = lineVatSum >= expectedVat ? lineVatSum : expectedVat;
+      calcVatAmt = lineVatSum > 0 ? lineVatSum : roundCalc(Number(orderPayload.vatAmount || 0));
     }
     const netPayable = roundCalc(taxableBase + calcVatAmt + Number(orderPayload.deliveryCharge || 0));
 

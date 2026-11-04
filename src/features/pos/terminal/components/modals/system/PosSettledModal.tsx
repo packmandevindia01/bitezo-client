@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { pickOrderMoney } from "../../../../pricing";
 import Modal from "../../../../../../components/common/Modal";
 import { Loader, Checkbox } from "../../../../../../components/common";
 import { Search, X, XCircle, Pencil } from "lucide-react";
@@ -72,7 +73,9 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
         master.saleNo ||
         orderData.saleId ||
         orderData.voucherNo;
-      const saleId = rawVoucher ? parseInt(String(rawVoucher).replace(/\D/g, ""), 10) : NaN;
+      // The settled-orders list row carries the real saleId; the voucher number is only a fallback.
+      const listSaleId = Number(matchedRecord?.saleId ?? matchedRecord?.SaleId ?? 0);
+      const saleId = listSaleId > 0 ? listSaleId : (rawVoucher ? parseInt(String(rawVoucher).replace(/\D/g, ""), 10) : NaN);
 
       if (!isNaN(saleId) && saleId > 0) {
         try {
@@ -93,18 +96,9 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
               masterData: {
                 ...master,
                 ...saleMaster,
-                discAmount: Number(master.discAmount || 0) > 0 && (!saleMaster.discAmount || Number(saleMaster.discAmount) === 0)
-                  ? master.discAmount
-                  : (saleMaster.discAmount ?? master.discAmount),
-                discPer: Number(master.discPer || 0) > 0 && (!saleMaster.discPer || Number(saleMaster.discPer) === 0)
-                  ? master.discPer
-                  : (saleMaster.discPer ?? master.discPer),
-                vatExclAmount: Number(master.vatExclAmount || 0) > 0 && (!saleMaster.vatExclAmount || Number(saleMaster.vatExclAmount) === 0)
-                  ? master.vatExclAmount
-                  : (saleMaster.vatExclAmount ?? master.vatExclAmount),
-                vatAmount: Number(master.vatAmount || 0) > 0 && (!saleMaster.vatAmount || Number(saleMaster.vatAmount) === 0)
-                  ? master.vatAmount
-                  : (saleMaster.vatAmount ?? master.vatAmount),
+                // Money always from the ORDER (the sales-data master has 0 for discount / VAT / net value and would
+                // also wipe service charge, levy and delivery). Sale data supplies ids, voucher, paymode and customer.
+                ...pickOrderMoney(master),
                 saleId,
               },
               detailsData:

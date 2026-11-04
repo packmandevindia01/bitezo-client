@@ -1240,7 +1240,9 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     expect(initialCalc.summary.grandTotal).toBeCloseTo(24.650, 3);
 
     // 2. Exact Swagger response for GET /api/v1/settled-orders/settled-data/127?serviceCharge=10&levy=5&priceView=Inclusive
-    // Notice that Swagger applied serviceCharge=10 to details, yielding price 12.705 and disc 11.000
+    // The OLD fetch sent serviceCharge=10 for this TakeOut order, so the backend returned price 12.705 / disc 11.000.
+    // The new fetch always requests stored (Exclusive) values and converts with the order's OWN rates
+    // (services/storedOrderView.ts), so the Inclusive view below is what the POS now receives.
     const swaggerSettledOrder127 = {
       masterData: {
         orderNo: 127,
@@ -1268,9 +1270,9 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
           arabicName: "",
           altName: "",
           altArabicName: "",
-          price: 12.705,
-          amount: 38.115,
-          discAmount: 11.00000005335,
+          price: 11.55,
+          amount: 34.65,
+          discAmount: 10.00000005,
           serviceCharge: 0,
           levy: 1.0670996,
           vatAmount: 2.2409091,

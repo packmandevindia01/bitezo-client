@@ -5,7 +5,8 @@ import { isBillArabicEnabled, getAlternativeArabicName, containsArabic } from ".
 export { isBillArabicEnabled };
 import { getDecimalPart } from "../../../utils/currency";
 import { getModifierTypeNameById } from "../services/menuApi";
-import { getBillingConfig, getPriceView, getVatStatus, roundCalc, CALC_PRECISION } from "../terminal/utils/billing";
+import { getBillingConfig, getPriceView, getVatStatus, roundCalc } from "../terminal/utils/billing";
+import { applyCartPricingToUnified } from "./printPricing";
 import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
 
 export interface GuestPrintData {
@@ -328,7 +329,6 @@ export const generateGuestPrintHtml = async (
     return roundCalc(n, decimalPart).toFixed(decimalPart);
   };
 
-  const billingConfig = getBillingConfig(data.orderType || "Takeaway");
   const printTaxSetting = resolvePrintTaxSetting(data);
   const rawLines = Array.isArray(cartDetails)
     ? cartDetails
@@ -353,13 +353,18 @@ export const generateGuestPrintHtml = async (
   );
 
   // Single Source of Truth: Unified deterministic order pricing
-  const unified: UnifiedOrderPricingResult = isInputMatchingSetting
+  const unifiedBase: UnifiedOrderPricingResult = isInputMatchingSetting
     ? (cartDetails as any)
     : buildUnifiedOrderPricing(cartDetails, {
         ...data,
         printPrice: printTaxSetting,
         priceView: printTaxSetting,
       });
+
+  // Live cart lines (e.g. packager print): numbers straight from the cart engine, in the Print Price view.
+  const unified: UnifiedOrderPricingResult =
+    (!isInputPrecomputed && applyCartPricingToUnified(unifiedBase, rawLines, { printPrice: printTaxSetting, deliveryCharge: data.deliveryCharge, orderType: data.orderType })) ||
+    unifiedBase;
 
   let itemsHtml = "";
   unified.lines.forEach((line) => {
@@ -480,23 +485,19 @@ export const generateGuestPrintHtml = async (
     }
   });
 
-  const rawPrintCharges = Number(data.serviceCharge || (unified as any)?.summary?.serviceCharge || 0) + Number(data.levy || (data as any)?.levyAmt || (unified as any)?.summary?.levy || 0);
 
+  // Footer Sub Total and Discount are ALWAYS exclusive — exactly what the cart / recall screen footer shows,
+  // whatever the Print Price. (Rows still follow Print Price.) Previously an Inclusive print without
+  // charges switched the footer to inclusive amounts, which did not match the screen.
   const resolvedDiscount = Number(
-    (isTaxInclusive && rawPrintCharges <= 0)
-      ? (unified.summary.totalDiscountIncl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(true) : (data.discount ?? (data as any).discAmount ?? 0)))
-      : (unified.summary.totalDiscountExcl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : (data.discount ?? (data as any).discAmount ?? 0)))
+    unified.summary.totalDiscountExcl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : (data.discount ?? (data as any).discAmount ?? 0))
   );
 
   const totalPrintDiscount = resolvedDiscount;
 
-  const grossSubTotal = (isTaxInclusive && rawPrintCharges <= 0)
-    ? (unified.summary.subTotalInclusive > 0
-        ? unified.summary.subTotalInclusive
-        : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(true) : 0))
-    : (unified.summary.subTotalExclusive > 0
-        ? unified.summary.subTotalExclusive
-        : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : 0));
+  const grossSubTotal = unified.summary.subTotalExclusive > 0
+    ? unified.summary.subTotalExclusive
+    : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : 0);
   const displaySubTotal = grossSubTotal > 0
     ? grossSubTotal
     : (data.subTotal !== undefined && Number(data.subTotal) > 0
@@ -553,21 +554,6 @@ export const generateGuestPrintHtml = async (
     let computedVat = unified.summary.vatAmount > 0 ? unified.summary.vatAmount : Number(data.vatAmount || 0);
 
     // If both priceView and printPrice are inclusive (or VAT is 0 despite isVatActive being true), reverse calculate the correct VAT:
-    if (computedVat <= 0) {
-      const activeLineVatRate = unified.lines.find((l) => (l.vatRate || 0) > 0)?.vatRate;
-      const rateFraction = activeLineVatRate && activeLineVatRate > 0
-        ? activeLineVatRate / 100
-        : (billingConfig.vatRate > 0 ? (billingConfig.vatRate > 1 ? billingConfig.vatRate / 100 : billingConfig.vatRate) : 0.10);
-
-      const delivery = Number(data.deliveryCharge || unified.summary?.deliveryCharge || 0);
-      const grandTotal = Number(unified.summary.grandTotal || data.netAmount || 0);
-      const taxableGross = Math.max(0, grandTotal - delivery);
-
-      if (rateFraction > 0 && taxableGross > 0) {
-        // Reverse calculation: Taxable Base = Taxable Gross / (1 + vatRate), VAT = Taxable Gross - Taxable Base
-        computedVat = roundCalc(taxableGross - (taxableGross / (1 + rateFraction)), CALC_PRECISION);
-      }
-    }
 
     data.vatAmount = parseFloat(fmt(computedVat));
     data.subTotal = parseFloat(fmt(displaySubTotal));

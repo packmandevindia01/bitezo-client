@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { buildPrintPricing } from "../../../../utils/printPricing";
+import { applyStoredPricingToCartItems } from "../../../../services/storedOrderView";
+import { deriveOrderChargeRatesFromMaster } from "../../../../pricing";
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../../../../../app/hooks';
 import { loadRecalledOrder, setSectionId, setTableId, setGuestNo, clearCart, setOrderTypeByName, setTableNo, setWaiter } from '../../../store/posSlice';
@@ -15,14 +18,10 @@ import { hasPrinterHeadings, notifyPrinterHeadingWarning } from '../../../../uti
 import { printHtmlReceipt } from '../../../../services/qzService';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
 import {
-  getVatStatus,
   roundCalc,
-  getBillingConfig,
   getPriceView,
   getPrintPrice,
   CALC_PRECISION,
-  getTaxExclusiveExtraPrice,
-  sanitizeTaxExclusiveDetail,
 } from '../../../utils/billing';
 import { isBillArabicEnabled } from '../../../../utils/alternativeHelpers';
 import { sortOrderDetailsBySequence } from '../../../utils/orderSort';
@@ -438,8 +437,9 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       });
 
       dispatch(loadRecalledOrder({
+        editingOrderRates: deriveOrderChargeRatesFromMaster(fullOrder, getPriceView()),
         editingOrderId: selectedMaster.orderId,
-        cartItems: mappedCartItems,
+        cartItems: applyStoredPricingToCartItems(fullOrder, mappedCartItems, { products: (posMasterData as any)?.products, productCache, isBillDiscount: Boolean(isBillLevelDiscount), view: getPriceView() }),
         orderTypeId: master.orderTypeId || 1,
         orderTypeName: 'DineIn',
         customerId: master.customerId || 1,
@@ -571,10 +571,17 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
 
     try {
       const targetOrderId = settleOrderData.orderId || selectedMaster.orderId;
-      const rawOrder = settleOrderData.rawData;
-      const master = rawOrder.masterData || rawOrder.master || rawOrder;
-      const details = sortOrderDetailsBySequence(rawOrder.detailsData || rawOrder.details || []);
-      const modifiersData = rawOrder.modifiersData || rawOrder.modifiers || [];
+      // Settle from the STORED (exclusive) order values — never from the display copy, which may be
+      // converted to the Inclusive view. No re-derivation, no guessing: the invoice carries exactly
+      // what the backend saved for this order.
+      const storedRes = await orderApi.getOrderDetails(targetOrderId, { priceView: "Exclusive" });
+      const rawOrder = storedRes?.data;
+      if (!rawOrder || !Array.isArray(rawOrder.detailsData)) {
+        throw new Error("Could not load the saved order for settlement. Please try again.");
+      }
+      const master = { ...(settleOrderData.rawData?.masterData || {}), ...(rawOrder.masterData || {}) };
+      const details = sortOrderDetailsBySequence(rawOrder.detailsData || []);
+      const modifiersData = rawOrder.modifiersData || [];
 
       const rawTransDate = status?.transDate || localStorage.getItem("transDate") || new Date().toISOString();
       const activeTransDate = rawTransDate.split("T")[0];
@@ -582,80 +589,64 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       const lineDiscountsSum = details.reduce((sum: number, d: any) => sum + Number(d.discAmount ?? d.DiscAmount ?? 0), 0);
       const resolvedDiscAmount = Math.max(Number(master.discAmount ?? master.DiscAmount ?? master.discount ?? 0), lineDiscountsSum);
 
-      const dineInConfig = getBillingConfig("DineIn");
       const mappedDetails = details.map((d: any) => {
-        const sanitized = sanitizeTaxExclusiveDetail(
-          { ...d, orderType: "DineIn", vatRate: d.vatRate ?? master.vatRate, vatValue: d.vatValue ?? master.vatValue },
-          dineInConfig
-        );
+        const qty = Number(d.qty ?? d.Qty ?? 1);
+        const price = Number(d.price ?? d.Price ?? 0);
+        const amount = Number(d.amount ?? d.Amount ?? price * qty);
+        const discAmount = Number(d.discAmount ?? d.DiscAmount ?? 0);
+        const serviceCharge = Number(d.serviceCharge ?? d.ServiceCharge ?? 0);
+        const levy = Number(d.levy ?? d.Levy ?? 0);
+        const vatAmount = Number(d.vatAmount ?? d.VatAmount ?? 0);
+        const discPer = Number(d.discPer ?? d.DiscPer ?? 0);
         return {
-          productId: sanitized.productId || d.itemId || 0,
-          unitId: sanitized.unitId || 1,
-          qty: sanitized.qty,
-          price: sanitized.price,
-          basePrice: sanitized.price,
-          exclusivePrice: sanitized.price,
+          productId: d.productId || d.itemId || 0,
+          unitId: d.unitId || 1,
+          qty,
+          price,
+          basePrice: price,
+          exclusivePrice: price,
           isPriceTaxExclusive: true,
-          discPer: Number(sanitized.discPer ?? d.DiscPer ?? 0),
-          discAmount: sanitized.discAmount,
-          serviceCharge: sanitized.serviceCharge,
-          levy: sanitized.levy,
-          vatId: sanitized.vatId || 0,
-          vatAmount: sanitized.vatAmount,
-          netAmount: sanitized.netAmount,
-          mapId: sanitized.mapId || 0,
-          complimentaryStatus: Boolean(
-            sanitized.complimentaryStatus ||
-            d.ComplimentaryStatus ||
-            Number(sanitized.discPer ?? d.DiscPer ?? 0) === 100
-          ),
-          baseQty: sanitized.baseQty || sanitized.qty || 1,
+          discPer,
+          discAmount,
+          serviceCharge,
+          levy,
+          vatId: d.vatId || 0,
+          vatAmount,
+          netAmount: roundCalc(Math.max(0, amount - discAmount + serviceCharge + levy + vatAmount)),
+          mapId: d.mapId || 0,
+          complimentaryStatus: Boolean(d.complimentaryStatus || d.ComplimentaryStatus || discPer === 100),
+          baseQty: d.baseQty || qty || 1,
         };
       });
 
+      // Stored modifier rows: extras carry their exclusive price, plain modifiers carry 0.
       const mappedModifiers = modifiersData.map((m: any) => {
-        const isExtras = (m.price && Number(m.price) > 0) || (m.status || "").toLowerCase() === "extras";
-        const rawModPrice = Number(m.price || m.amount || 0);
-        const rawVatRate = Number(master.vatRate ?? master.vatValue ?? 0);
-        const priceView = getPriceView();
-        const isIncl = priceView === 'Inclusive';
-        const exclModPrice = isExtras
-          ? getTaxExclusiveExtraPrice(rawModPrice, rawVatRate, isIncl)
-          : 0;
+        const price = Number(m.price ?? m.Price ?? 0);
         const qty = m.qty || 1;
+        const isExtras = price > 0 || (m.status || "").toLowerCase() === "extras";
         return {
           mapId: m.mapId,
           modifierId: m.modifierId,
           qty,
-          price: exclModPrice,
-          amount: isExtras ? roundCalc(exclModPrice * qty, CALC_PRECISION) : 0,
+          price,
+          amount: isExtras ? roundCalc(price * qty, CALC_PRECISION) : 0,
           typeId: m.typeId || 0,
           modifierName: m.modifierName || "",
           arabicName: m.arabicName || "",
-          status: m.status || (rawModPrice > 0 ? "extras" : "modifier"),
+          status: m.status || (isExtras ? "extras" : "modifier"),
         };
       });
 
-      const lineExclSum = mappedDetails.reduce(
-        (sum: number, d: any) => sum + (Number(d.price || 0) * Number(d.qty || 1) - Number(d.discAmount || 0) + Number(d.serviceCharge || 0) + Number(d.levy || 0)),
-        0
+      // Totals are the sums of the stored detail rows (detail amount already includes extras).
+      const calculatedVatExcl = roundCalc(
+        mappedDetails.reduce((sum: number, d: any) => sum + (d.price * d.qty - d.discAmount + d.serviceCharge + d.levy), 0)
       );
-      const modExclSum = mappedModifiers.reduce((sum: number, m: any) => sum + Number(m.amount || 0), 0);
-      let calculatedVatExcl = roundCalc(lineExclSum + modExclSum);
-      let calculatedVatAmt = roundCalc(mappedDetails.reduce((sum: number, d: any) => sum + Number(d.vatAmount || 0), 0));
-      const payableBase = Math.max(0, Number(master.netAmount || selectedMaster.netAmount || 0) - Number(master.deliveryCharge || 0));
+      const calculatedVatAmt = roundCalc(mappedDetails.reduce((sum: number, d: any) => sum + d.vatAmount, 0));
       const isComplimentary = Boolean(
         master.complimentaryStatus ||
         master.ComplimentaryStatus ||
         Number(master.discPer ?? master.DiscPer ?? 0) === 100
       );
-      const isVatEnabled = getVatStatus();
-
-      if (isVatEnabled && calculatedVatAmt <= 0.0001 && payableBase > 0 && !isComplimentary) {
-        const vatRate = 0.10;
-        calculatedVatAmt = roundCalc(payableBase - (payableBase / (1 + vatRate)));
-        calculatedVatExcl = roundCalc(payableBase - calculatedVatAmt);
-      }
 
       const isBillLevelDiscount = Boolean(
         isComplimentary ||
@@ -751,7 +742,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         const printPriceSetting = getPrintPrice();
         const isTaxInclusive = printPriceSetting === "Inclusive";
 
-        const unified = buildUnifiedOrderPricing(settleOrderData.rawData || settleOrderData.mappedItems, {
+        const unified = buildPrintPricing(settleOrderData.rawData || settleOrderData.mappedItems, {
+          dataView: getPriceView(),
           orderType: "DineIn",
           printPrice: printPriceSetting,
           allExtras: getCachedExtras(),
@@ -1163,7 +1155,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       const printPriceSetting = getPrintPrice();
       const isTaxInclusive = printPriceSetting === "Inclusive";
 
-      const unified = buildUnifiedOrderPricing(fullOrder, {
+      const unified = buildPrintPricing(fullOrder, {
+        dataView: getPriceView(),
         orderType: "DineIn",
         printPrice: printPriceSetting,
         allExtras: getCachedExtras(),

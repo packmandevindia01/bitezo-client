@@ -1,10 +1,10 @@
 import { orderApi } from "../../services/orderApi";
+import { buildPrintPricing } from "../../utils/printPricing";
 import { deliveryApi } from "../../customer/services/deliveryApi";
 import { menuApi } from "../../services/menuApi";
 import { printerSettingsApi } from "../../services/printerSettingsApi";
 import { generateGuestPrintHtml, isEnableVatGuestPrint } from "../../utils/guestPrintTemplate";
 import { printHtmlReceipt } from "../../services/qzService";
-import { buildUnifiedOrderPricing } from "../../utils/orderPricing";
 import { checkOrderHasBillDiscount } from "./orderDiscountCheck";
 import { roundCalc, getPrintPrice } from "./billing";
 import { isBillArabicEnabled } from "../../utils/alternativeHelpers";
@@ -263,10 +263,10 @@ export const printRecallOrderGuestReceipt = async (
 
     // 5. Build Unified Order Pricing
     const isBillLevelDiscount = checkOrderHasBillDiscount(printOrder);
-    const unified = buildUnifiedOrderPricing(printOrder, {
+    const unified = buildPrintPricing(printOrder, {
+      dataView: printPriceSetting,
       orderType: orderTypeName,
       printPrice: printPriceSetting,
-      priceView: printPriceSetting,
       modifierTypes,
       allExtras,
       isVatActive: enableVat,

@@ -1,7 +1,9 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { MenuOrderRequest, MenuOrderResponse, RecallParams, RecallResponse } from "../types";
-import { getPriceView, getBillingConfig, sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
+import { sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
 import { allocate } from "../terminal/utils/pos-calc";
+import { STORED_ORDER_PARAMS, applyStoredOrderView } from "./storedOrderView";
+import { mergeStoredOrderSources } from "../pricing";
 
 /**
  * Standard unwrap helper to extract data and handle success/error based on the API response.
@@ -169,68 +171,39 @@ export const orderApi = {
 
   /**
    * Fetches full order details by order ID for recall/edit.
-   * Primary: GET /api/v1/menu/order/order_data/{orderId}?priceView={priceView}
-   * Fallback: GET /api/v1/order/recall/order_data/{orderId}
+   * Always requests the stored (Exclusive) values; the Inclusive view is produced in the
+   * frontend from each line's own saved rates (see services/storedOrderView.ts).
+   * Primary: GET /api/v1/order/recall/order_data/{orderId}
+   * Fallback: GET /api/v1/menu/order/order_data/{orderId}
    */
   getOrderDetails: async (
     orderId: number,
     options?: string | { priceView?: string; orderType?: string; serviceCharge?: number; levy?: number }
   ): Promise<any> => {
-    let priceViewOverride: string | undefined;
-    let orderTypeOverride: string | undefined;
-    let explicitSc: number | undefined;
-    let explicitLevy: number | undefined;
-
-    if (typeof options === "string") {
-      priceViewOverride = options;
-    } else if (typeof options === "object" && options !== null) {
-      priceViewOverride = options.priceView;
-      orderTypeOverride = options.orderType;
-      explicitSc = options.serviceCharge;
-      explicitLevy = options.levy;
+    const requestedView = typeof options === "string" ? options : options?.priceView;
+    const params = STORED_ORDER_PARAMS;
+    // Fetch both saved-order endpoints in parallel and merge (see pricing/mergeStoredOrderSources):
+    // recall = proven prices + extras + display fields; menu = stored vatValue / discPer / netAmount per line.
+    const [recallRes, menuRes] = await Promise.allSettled([
+      unwrap<any>(axiosInstance.get(`/order/recall/order_data/${orderId}`, { params })),
+      unwrap<any>(axiosInstance.get(`/menu/order/order_data/${orderId}`)),
+    ]);
+    const recallBody = recallRes.status === "fulfilled" ? recallRes.value : null;
+    const menuBody = menuRes.status === "fulfilled" ? menuRes.value : null;
+    if (!recallBody && !menuBody) {
+      throw (recallRes as PromiseRejectedResult).reason;
     }
-
-    const priceView = priceViewOverride || getPriceView();
-    const effectiveOrderType = orderTypeOverride || "TakeOut";
-    const isDineIn = effectiveOrderType.toLowerCase().includes("dine");
-
-    const billingConfig = getBillingConfig(isDineIn ? "DineIn" : "TakeOut");
-    const serviceCharge = explicitSc !== undefined
-      ? explicitSc
-      : (isDineIn ? (billingConfig.serviceChargeRate !== undefined && !isNaN(billingConfig.serviceChargeRate) ? Math.round(billingConfig.serviceChargeRate * 100) : 0) : 0);
-    const levy = explicitLevy !== undefined
-      ? explicitLevy
-      : (billingConfig.levyRate !== undefined && !isNaN(billingConfig.levyRate) ? Math.round(billingConfig.levyRate * 100) : 0);
-    const queryParams = { serviceCharge, levy, priceView };
-    try {
-      return await unwrap<any>(
-        axiosInstance.get(`/order/recall/order_data/${orderId}`, { params: queryParams })
-      );
-    } catch (e) {
-      console.warn(`[orderApi] getOrderDetails from /order/recall/order_data/${orderId} failed, trying /menu/order/order_data fallback:`, e);
-      try {
-        return await unwrap<any>(
-          axiosInstance.get(`/menu/order/order_data/${orderId}`, { params: queryParams })
-        );
-      } catch (err2) {
-        console.warn(`[orderApi] fallback getOrderDetails with priceView failed, retrying without params:`, err2);
-        try {
-          return await unwrap<any>(
-            axiosInstance.get(`/order/recall/order_data/${orderId}`)
-          );
-        } catch (err3) {
-          return await unwrap<any>(
-            axiosInstance.get(`/menu/order/order_data/${orderId}`)
-          );
-        }
-      }
+    if (!recallBody) {
+      console.warn(`[orderApi] /order/recall/order_data/${orderId} failed, using /menu/order/order_data only:`, (recallRes as PromiseRejectedResult).reason);
     }
+    const baseBody = recallBody ?? menuBody;
+    const merged = mergeStoredOrderSources(recallBody?.data ?? null, menuBody?.data ?? null);
+    const body = merged ? { ...baseBody, data: merged } : baseBody;
+    return applyStoredOrderView(body, requestedView);
   },
 
   /**
    * Explicitly fetches recall order details by order ID.
-   * Primary: GET /api/v1/menu/order/order_data/{orderId}?priceView={priceView}
-   * Fallback: GET /api/v1/order/recall/order_data/{orderId}
    */
   getRecallOrderDetails: async (
     orderId: number,
@@ -241,41 +214,17 @@ export const orderApi = {
 
   /**
    * Fetches order print data specifically formatted by backend for guest printing.
-   * GET /api/v1/order/recall/order-print-data/{orderId}
+   * GET /api/v1/order/recall/order-print-data/{orderId} (stored values; view applied in frontend)
    */
   getOrderPrintData: async (
     orderId: number,
     options?: string | { priceView?: string; orderType?: string; serviceCharge?: number; levy?: number }
   ): Promise<any> => {
-    let priceViewOverride: string | undefined;
-    let orderTypeOverride: string | undefined;
-    let explicitSc: number | undefined;
-    let explicitLevy: number | undefined;
-
-    if (typeof options === "string") {
-      priceViewOverride = options;
-    } else if (typeof options === "object" && options !== null) {
-      priceViewOverride = options.priceView;
-      orderTypeOverride = options.orderType;
-      explicitSc = options.serviceCharge;
-      explicitLevy = options.levy;
-    }
-
-    const priceView = priceViewOverride || getPriceView();
-    const effectiveOrderType = orderTypeOverride || "TakeOut";
-    const isDineIn = effectiveOrderType.toLowerCase().includes("dine");
-
-    const billingConfig = getBillingConfig(isDineIn ? "DineIn" : "TakeOut");
-    const serviceCharge = explicitSc !== undefined
-      ? explicitSc
-      : (isDineIn ? (billingConfig.serviceChargeRate !== undefined && !isNaN(billingConfig.serviceChargeRate) ? Math.round(billingConfig.serviceChargeRate * 100) : 0) : 0);
-    const levy = explicitLevy !== undefined
-      ? explicitLevy
-      : (billingConfig.levyRate !== undefined && !isNaN(billingConfig.levyRate) ? Math.round(billingConfig.levyRate * 100) : 0);
-    const queryParams = { serviceCharge, levy, priceView };
-    return await unwrap<any>(
-      axiosInstance.get(`/order/recall/order-print-data/${orderId}`, { params: queryParams })
+    const requestedView = typeof options === "string" ? options : options?.priceView;
+    const body = await unwrap<any>(
+      axiosInstance.get(`/order/recall/order-print-data/${orderId}`, { params: STORED_ORDER_PARAMS })
     );
+    return applyStoredOrderView(body, requestedView);
   },
 
   /**
@@ -316,8 +265,9 @@ export const orderApi = {
     delete (payload as any).callBack;
 
     if (payload.details && Array.isArray(payload.details)) {
-      // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
-      payload.details = payload.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
+      // Details come from buildUpdateOrderPayload: exclusive, 7-decimal engine values. They must NOT be
+      // re-sanitized here — the update DTO drops the isPriceTaxExclusive flag, and sanitizing rounded line
+      // VAT / netAmount to 3 decimals on every edited order (e.g. order #288: VAT 0.262 instead of 0.2616144).
       const totalDetailGross = payload.details.reduce((sum: number, d: any) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
       const totalModifierGross = Array.isArray(payload.modifiers)
         ? payload.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)

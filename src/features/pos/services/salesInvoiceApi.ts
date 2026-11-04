@@ -182,10 +182,6 @@ export const salesInvoiceApi = {
               if (reconciledVat > calcVatAmt) {
                 calcVatAmt = reconciledVat;
               }
-            } else if (isVatEnabled && calcVatAmt <= 0.0001 && payableBase > 0 && !postPayload.complimentaryStatus) {
-              const vatRate = 0.10;
-              calcVatAmt = roundCalc(payableBase - (payableBase / (1 + vatRate)));
-              calcVatExcl = roundCalc(payableBase - calcVatAmt);
             }
             postPayload.vatExclAmount = calcVatExcl;
             postPayload.vatAmount = calcVatAmt;
@@ -321,10 +317,6 @@ export const salesInvoiceApi = {
           if (reconciledVat > calcVatAmt) {
             calcVatAmt = reconciledVat;
           }
-        } else if (isVatEnabled && calcVatAmt <= 0.0001 && payableBase > 0 && !payload.complimentaryStatus) {
-          const vatRate = 0.10;
-          calcVatAmt = roundCalc(payableBase - (payableBase / (1 + vatRate)));
-          calcVatExcl = roundCalc(payableBase - calcVatAmt);
         }
       }
 

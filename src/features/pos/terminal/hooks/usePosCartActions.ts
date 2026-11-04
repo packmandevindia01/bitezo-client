@@ -105,6 +105,7 @@ export const usePosCartActions = () => {
     combinedOrderIds,
     isSettling,
     prevUpdatedAt,
+    editingOrderRates,
   } = useAppSelector((state) => state.pos);
 
   const cartMutations = useCartMutations();
@@ -202,6 +203,7 @@ export const usePosCartActions = () => {
     voidModifiers,
     combinedOrderIds,
     prevUpdatedAt,
+    editingOrderRates,
   });
 
   const getDirectSettleOrderPayload = (session: OrderSessionParams) => {

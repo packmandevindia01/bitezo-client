@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
+import { ORDER_TYPE_NAMES, deriveOrderChargeRatesFromMaster } from "../../../../pricing";
+import { applyStoredPricingToCartItems } from "../../../../services/storedOrderView";
+import { getPriceView } from "../../../utils/billing";
 import { Modal, Button } from "../../../../../../components/common";
 import { orderApi } from "../../../../services/orderApi";
 import { usePosProducts } from "../../../hooks/usePosProducts";
@@ -310,7 +313,15 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
           productCache,
         });
 
-        const mappedCartItems = rawMappedCartItems.map((item, idx) => {
+        // Exact pricing from the stored combined lines (stored exclusive values — same converter as edit / split):
+        // price + inclusive flag from the product master, extras back to gross, item discounts restored exactly.
+        const exactCartItems = applyStoredPricingToCartItems(
+          { masterData: {}, detailsData, modifiersData },
+          rawMappedCartItems,
+          { products, productCache, isBillDiscount: false, view: "Exclusive" }
+        );
+
+        const mappedCartItems = exactCartItems.map((item, idx) => {
           return {
             ...item,
             mapId: idx + 1, // Sequentially recalculate mapId to prevent collisions across combined orders
@@ -327,8 +338,10 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
 
         let targetPrevUpdatedAt: string | undefined = undefined;
         let targetMaster: any = null;
+        let targetData: any = null;
         try {
           const targetRes = await orderApi.getOrderDetails(targetOrderId);
+          targetData = targetRes?.data || null;
           targetMaster = targetRes?.data?.masterData || targetRes?.masterData || targetRes?.data;
           const ts = targetMaster?.updatedAt || targetMaster?.updated_at || targetMaster?.createdAt;
           if (ts) {
@@ -346,10 +359,15 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
         // Load the new combined cart entirely, setting the latest order as primary.
         // Bill discount is erased when performing combine; line item discounts are preserved on items.
         dispatch(loadRecalledOrder({
+          // Combined order keeps the service charge / levy the target order was saved with.
+          editingOrderRates: targetData ? deriveOrderChargeRatesFromMaster(targetData, getPriceView()) : null,
           editingOrderId: targetOrderId,
           cartItems: mappedCartItems,
           orderTypeId: targetMaster?.orderTypeId || selectedOrderTypeId,
-          orderTypeName: targetMaster?.orderTypeName || selectedOrderTypeName,
+          // The endpoints return orderType / orderTypeId (never orderTypeName): use the saved order's real type,
+          // not whatever type the terminal currently has selected.
+          orderTypeName: targetMaster?.orderType || targetMaster?.orderTypeName ||
+            (targetMaster?.orderTypeId ? ORDER_TYPE_NAMES[Number(targetMaster.orderTypeId)] : undefined) || selectedOrderTypeName,
           customerId: targetMaster?.customerId || selectedCustomerId,
           addressId: targetMaster?.addressId || selectedAddressId,
           billDiscountValue: 0,

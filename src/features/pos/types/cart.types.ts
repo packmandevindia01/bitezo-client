@@ -56,6 +56,8 @@ export interface PosCartItem {
   price?: number;
   vatValue?: number;
   isIncl?: boolean; // true = price already includes VAT, false = price is exclusive (add VAT on top), undefined = follow global config
+  /** VAT percent a saved order line was stored with (recall/settled edit). Takes priority over the product VAT rate. */
+  savedVatRate?: number;
   discountValue?: number;
   discountType?: 'percentage' | 'amount';
   complimentaryStatus?: boolean;

@@ -558,15 +558,6 @@ export const buildUnifiedOrderPricing = (
           0
         );
 
-    // Self-healing: if order is not DineIn (SC is 0), but backend detail was queried with phantom serviceCharge=10
-    const isPhantomScInflated = !isDineInOrder && masterSc === 0 && !detailsHaveSc && rawMasterNet > 0 &&
-      Math.abs(roundCalc(((rawPrice * qty) - rawDiscAmount) / 1.10, 2) - rawMasterNet) < 0.05 &&
-      Math.abs(((rawPrice * qty) - rawDiscAmount) - rawMasterNet) > 0.10;
-
-    if (isPhantomScInflated) {
-      rawPrice = roundCalc(rawPrice / 1.10, 4);
-      rawDiscAmount = roundCalc(rawDiscAmount / 1.10, 4);
-    }
 
     // ── Deduce Exclusive and Inclusive Unit Rates ──
     let exclusiveBaseUnit: number;

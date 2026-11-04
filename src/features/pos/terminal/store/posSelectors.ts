@@ -1,6 +1,6 @@
 import { createSelector } from '@reduxjs/toolkit';
 import type { RootState } from '../../../../app/store';
-import { calculateOrder, roundCalc, getStoredDefaultDeliveryCharge } from '../utils/billing';
+import { calculateOrder, roundCalc, getStoredDefaultDeliveryCharge, getBillingConfigForOrder } from '../utils/billing';
 export { getStoredDefaultDeliveryCharge };
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
@@ -16,6 +16,7 @@ export const selectCartCalculation = createSelector(
     billDiscountType: pos.billDiscountType,
     customDeliveryCharge: pos.customDeliveryCharge,
     productCache: pos.productCache,
+    config: getBillingConfigForOrder(pos.selectedOrderTypeName, pos.editingOrderRates),
   })
 );
 

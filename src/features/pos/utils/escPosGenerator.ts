@@ -22,7 +22,7 @@ import type { EndReportData } from "../cashier/services/cashierLogService";
 import { getDayEndReportConfig } from "../services/posConfigApi";
 import { isKotArabicEnabled, isBillArabicEnabled, isCompanyNameKotEnabled, getAlternativeArabicName } from "./alternativeHelpers";
 import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
-import { getBillingConfig, roundCalc, CALC_PRECISION } from "../terminal/utils/billing";
+import { roundCalc } from "../terminal/utils/billing";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LINE_WIDTH = 48; // standard 48 chars per line on 80mm thermal paper
@@ -285,7 +285,6 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   });
 
   const isGuestPrint = !data.isSettlement && !data.invoiceNo && !data.isPackager;
-  const billingConfig = getBillingConfig(data.orderType || "Takeaway");
 
   const isVatActive = isGuestPrint
     ? isEnableVatGuestPrint(data)
@@ -545,20 +544,6 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     markup += totalsLine(isBillArabic ? "Delivery Charge (رسوم التوصيل)" : "Delivery Charge", fmt(data.deliveryCharge || 0)) + "\n";
   }
   let effectiveVatAmount = unified.summary.vatAmount > 0 ? unified.summary.vatAmount : Number(data.vatAmount || 0);
-  if (isVatActive && effectiveVatAmount <= 0) {
-    const activeLineVatRate = unified.lines.find((l) => (l.vatRate || 0) > 0)?.vatRate;
-    const rateFraction = activeLineVatRate && activeLineVatRate > 0
-      ? activeLineVatRate / 100
-      : (billingConfig.vatRate > 0 ? (billingConfig.vatRate > 1 ? billingConfig.vatRate / 100 : billingConfig.vatRate) : 0.10);
-
-    const delivery = Number(data.deliveryCharge || unified.summary?.deliveryCharge || 0);
-    const grandTotal = Number(unified.summary.grandTotal || data.netAmount || 0);
-    const taxableGross = Math.max(0, grandTotal - delivery);
-
-    if (rateFraction > 0 && taxableGross > 0) {
-      effectiveVatAmount = roundCalc(taxableGross - (taxableGross / (1 + rateFraction)), CALC_PRECISION);
-    }
-  }
 
   if (isVatActive && effectiveVatAmount > 0) {
     markup += totalsLine(isBillArabic ? "VAT Amount (مبلغ الضريبة)" : "VAT Amount", fmt(effectiveVatAmount)) + "\n";

@@ -1,4 +1,8 @@
 import { sortOrderDetailsBySequence } from "./orderSort";
+import { applyStoredPricingToCartItems } from "../../services/storedOrderView";
+import { deriveOrderChargeRatesFromMaster } from "../../pricing";
+import { storedOrderFooter } from "../../pricing";
+import { resolveRecalledBillDiscount } from "../../services/storedOrderView";
 import { mapOrderDetailsToCartItems } from "../mappers/orderDetailToCartMapper";
 import { getBillingConfig, getVatStatus, roundCalc, getPriceView } from "./billing";
 import { buildUnifiedOrderPricing } from "../../utils/orderPricing";
@@ -134,8 +138,6 @@ export const loadSettledOrderIntoCart = ({
       sessionStorage.setItem(`order_prevUpdatedAt_${orderId}`, prevUpdatedAt);
     }
 
-    const billingConfig = getBillingConfig(orderTypeName);
-    const enableVat = getVatStatus();
     const netAmount = Number(master.netAmount ?? master.NetAmount ?? orderData?.netAmount ?? orderData?.NetAmount ?? 0);
     const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? 0);
 
@@ -151,10 +153,6 @@ export const loadSettledOrderIntoCart = ({
     );
     if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
       resolvedVatAmount = detailsVatSum;
-    }
-    if (enableVat && resolvedVatAmount <= 0 && netAmount > 0) {
-      const vatRate = billingConfig.vatRate > 0 ? billingConfig.vatRate : 0.1;
-      resolvedVatAmount = roundCalc(netAmount - netAmount / (1 + vatRate));
     }
 
     let resolvedDiscount = Number(
@@ -292,7 +290,8 @@ export const loadSettledOrderIntoCart = ({
 
         const authOrigTotal = rawDetailAmount > 0 ? roundCalc(rawDetailAmount, 3) : (recallPrice * (cartItem.quantity || 1));
         const authDiscount = roundCalc(rawDetailDisc, 3);
-        const authLineTotal = roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
+        // Bill discount is shown in the footer only (same as the recall/settled screen rows).
+          const authLineTotal = isBillLevelDiscount ? authOrigTotal : roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
 
         return {
           ...cartItem,
@@ -304,7 +303,7 @@ export const loadSettledOrderIntoCart = ({
           authoritativePrice: recallPrice,
           authoritativeLineTotal: authLineTotal,
           authoritativeOriginalLineTotal: authOrigTotal,
-          authoritativeDiscount: authDiscount,
+          authoritativeDiscount: isBillLevelDiscount ? 0 : authDiscount,
           authoritativeVatAmount: uLine?.vatAmount,
           lineTotal: authLineTotal,
           originalLineTotal: authOrigTotal,
@@ -330,7 +329,8 @@ export const loadSettledOrderIntoCart = ({
         const authDiscount = (isTaxInclusive && rawDetailDisc > 0)
           ? roundCalc(rawDetailDisc, 3)
           : uLine.getDiscount(isTaxInclusive);
-        const authLineTotal = roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
+        // Bill discount is shown in the footer only (same as the recall/settled screen rows).
+          const authLineTotal = isBillLevelDiscount ? authOrigTotal : roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
         const lineIsIncl = isTaxInclusive ? true : (uLine.isProductMasterInclusive !== undefined ? uLine.isProductMasterInclusive : cartItem.isIncl);
         return {
           ...cartItem,
@@ -340,7 +340,7 @@ export const loadSettledOrderIntoCart = ({
           authoritativePrice: authRate,
           authoritativeLineTotal: authLineTotal,
           authoritativeOriginalLineTotal: authOrigTotal,
-          authoritativeDiscount: authDiscount,
+          authoritativeDiscount: isBillLevelDiscount ? 0 : authDiscount,
           authoritativeVatAmount: uLine.vatAmount,
           lineTotal: authLineTotal,
           originalLineTotal: authOrigTotal,
@@ -357,20 +357,14 @@ export const loadSettledOrderIntoCart = ({
       }
       return cartItem;
     });
-    const authSubtotal = (master.subTotal && Math.abs(Number(master.subTotal) - unifiedPricing.summary.subTotalExclusive) < 0.15)
-      ? Number(master.subTotal)
-      : unifiedPricing.summary.subTotalExclusive;
-    const authDiscount = isBillComplimentary
-      ? authSubtotal
-      : (masterDiscAmount > 0 ? masterDiscAmount : (resolvedDiscount > 0 ? resolvedDiscount : (unifiedPricing.summary.totalDiscountExcl || 0)));
-    const authTax = isBillComplimentary ? 0 : unifiedPricing.summary.vatAmount;
-    const authNet = isBillComplimentary ? 0 : unifiedPricing.summary.grandTotal;
-    const authCharges = (unifiedPricing.summary.charges !== undefined && unifiedPricing.summary.charges > 0)
-      ? unifiedPricing.summary.charges
-      : roundCalc(Number(master.serviceCharge || 0) + Number(master.levy || master.levyAmt || 0));
-    const authNetValue = (unifiedPricing.summary.netValue !== undefined && unifiedPricing.summary.netValue > 0)
-      ? unifiedPricing.summary.netValue
-      : roundCalc(Math.max(0, authSubtotal - authDiscount) + authCharges);
+    // Footer = THE stored-order footer — identical to the settled details screen.
+    const editFooter = storedOrderFooter(orderData, priceView);
+    const authCharges = editFooter.charges;
+    const authSubtotal = editFooter.subTotal;
+    const authDiscount = editFooter.discount;
+    const authTax = editFooter.vatAmount; // stored VAT (0 for complimentary)
+    const authNet = editFooter.netAmount; // stored total — a complimentary delivery order still charges its delivery charge
+    const authNetValue = editFooter.netValue;
 
     let resolvedBillDiscVal = isBillComplimentary
       ? 100
@@ -384,16 +378,16 @@ export const loadSettledOrderIntoCart = ({
 
     dispatch(
       loadRecalledOrder({
+        editingOrderRates: deriveOrderChargeRatesFromMaster(orderData, priceView),
         editingOrderId: orderId,
         editingSaleId: resolvedSaleId,
         isSettledEdit: true,
-        cartItems: mappedCartItems,
+        cartItems: applyStoredPricingToCartItems(orderData, mappedCartItems, { products, productCache, isBillDiscount: Boolean(isBillLevelDiscount), view: priceView }),
         orderTypeId: orderTypeId,
         orderTypeName: orderTypeName,
         customerId: master.customerId || 1,
         addressId: master.addressId || 0,
-        billDiscountValue: Number(resolvedBillDiscVal || 0),
-        billDiscountType: resolvedBillDiscType,
+        ...resolveRecalledBillDiscount(orderData, Number(resolvedBillDiscVal || 0), resolvedBillDiscType),
         sectionId: master.sectionId || 0,
         tableId: master.tableId || 0,
         tableNo: master.tableNo || master.tableName || (master.tableId ? String(master.tableId) : ""),
