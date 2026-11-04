@@ -5,6 +5,7 @@ import { useToast } from '../../../../../../app/providers/useToast';
 import { Modal } from '../../../../../../components/common';
 import { Lock, XCircle, Delete, Check, Receipt, CheckCircle2, Clock, Sparkles } from 'lucide-react';
 import { t } from '../../../../utils/posLocalization';
+import { round as roundMoney } from '../../../../../../utils/money';
 
 // ── Next-Gen FinTech Icons ──
 export const NewGenCashIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
@@ -518,11 +519,12 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
 
   const totalPaid  = payments.reduce((sum, p) => sum + p.amount, 0);
 
-  const roundedPaid = Number(totalPaid.toFixed(decimalPart));
-  const roundedDue = Number(totalDue.toFixed(decimalPart));
+  // Compared at the currency decimals (fils) in exact decimal — the total itself carries 14 decimals.
+  const roundedPaid = roundMoney(totalPaid, decimalPart);
+  const roundedDue = roundMoney(totalDue, decimalPart);
 
-  const remaining  = Math.max(0, roundedDue - roundedPaid);
-  const change     = Math.max(0, roundedPaid - roundedDue);
+  const remaining  = Math.max(0, roundMoney(roundedDue - roundedPaid, decimalPart));
+  const change     = Math.max(0, roundMoney(roundedPaid - roundedDue, decimalPart));
   const isComplete = roundedPaid >= roundedDue && roundedDue > 0;
 
   useEffect(() => {
@@ -552,8 +554,8 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
       // Validation Rule: Non-Cash methods cannot cause an overpayment
       if (!isCash) {
         const potentialTotal = otherPaid + amount;
-        if (Number(potentialTotal.toFixed(decimalPart)) > roundedDue) {
-          const maxAllowed = Math.max(0, roundedDue - otherPaid);
+        if (roundMoney(potentialTotal, decimalPart) > roundedDue) {
+          const maxAllowed = Math.max(0, roundMoney(roundedDue - otherPaid, decimalPart));
           showToast(`Overpayment is only allowed for Cash. Maximum allowed for ${tender.label} is ${formatAmount(maxAllowed)}`, "error");
           return;
         }

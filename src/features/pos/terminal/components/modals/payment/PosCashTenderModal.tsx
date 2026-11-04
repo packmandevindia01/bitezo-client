@@ -5,6 +5,7 @@ import { Modal } from '../../../../../../components/common';
 import { XCircle, Delete, Check } from 'lucide-react';
 import { NewGenCashIcon } from './PosMultiPayModal';
 import { t } from '../../../../utils/posLocalization';
+import { round as roundMoney } from '../../../../../../utils/money';
 
 interface PosCashTenderModalProps {
   isOpen: boolean;
@@ -38,10 +39,11 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
   }, [isOpen, totalDue, decimalPart]);
 
   const numTendered = parseFloat(tenderedAmount) || 0;
-  const roundedTendered = Number(numTendered.toFixed(decimalPart));
-  const roundedDue = Number(totalDue.toFixed(decimalPart));
+  // Compared at the currency decimals (fils) in exact decimal — the total itself carries 14 decimals.
+  const roundedTendered = roundMoney(numTendered, decimalPart);
+  const roundedDue = roundMoney(totalDue, decimalPart);
 
-  const change = Math.max(0, roundedTendered - roundedDue);
+  const change = Math.max(0, roundMoney(roundedTendered - roundedDue, decimalPart));
   // Rule: Do not allow underpayment in single Cash mode. Minimum allowed is totalDue.
   const isSufficient = roundedTendered >= roundedDue && roundedDue > 0;
 

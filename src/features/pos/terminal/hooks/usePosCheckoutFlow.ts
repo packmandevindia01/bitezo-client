@@ -855,7 +855,7 @@ export const usePosCheckoutFlow = ({
 
               let itemVat = Number(d.vatAmount ?? d.VatAmount ?? d.vatAmt ?? d.VatAmt ?? d.taxAmount ?? d.TaxAmount ?? cartMatch?.vatAmount ?? 0);
               if (itemVat <= 0 && amount > lineBase) {
-                itemVat = Number((amount - lineBase).toFixed(4));
+                itemVat = roundCalc(amount - lineBase);
               }
               const extrasSumForLine = extras.reduce((sum: number, ex: any) => sum + Number(ex.price || 0) * Number(ex.qty || 1), 0);
               const lineTotal = cartMatch?.lineTotal ?? d.netAmount ?? (d.amount !== undefined ? (Number(d.amount) + extrasSumForLine) : lineBase);
@@ -1053,6 +1053,7 @@ export const usePosCheckoutFlow = ({
             driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
             contactNo: isDeliveryOrder ? (finalContactNo || undefined) : undefined,
             callBack: isDeliveryOrder ? (finalCallBack || undefined) : undefined,
+            missedCall: isDeliveryOrder ? Boolean(masterData?.missedCall ?? orderPayload.missedCall) : undefined,
             change: isDeliveryOrder ? rawKeepChange : undefined,
             keepChanges: isDeliveryOrder ? rawKeepChange : undefined,
             flatNo: isDeliveryOrder ? (finalFlatNo || undefined) : undefined,

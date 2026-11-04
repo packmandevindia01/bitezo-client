@@ -108,7 +108,8 @@ describe("rendered guest bill shows the right numbers", () => {
 
 describe("print footer = screen footer (exclusive Sub Total / Discount), whatever the Print Price", () => {
   for (const printPrice of VIEWS) {
-    it(`#285 ${printPrice} print footer: Sub Total 302.727, Discount -30.273, VAT 27.245, Total 299.700`, async () => {
+    // Balanced footer (fils): the old print showed 302.727 − 30.273 + 27.245 = 299.699 under a 299.700 total.
+    it(`#285 ${printPrice} print footer adds up: Sub Total 302.728 − Discount 30.273 = 272.455, + VAT 27.245 = 299.700`, async () => {
       localStorage.setItem("printPrice", printPrice);
       const data = applyStoredOrderView({ data: JSON.parse(JSON.stringify(order285)) }, "Inclusive").data;
       const pricing = buildPrintPricing(data, { dataView: "Inclusive", printPrice, orderType: "TakeOut", products });
@@ -116,8 +117,9 @@ describe("print footer = screen footer (exclusive Sub Total / Discount), whateve
         orderNo: "285", ticketNo: "285", waiter: "emp1", counter: "C1", orderType: "TakeOut",
         subTotal: 0, vatAmount: 27.2454545, netAmount: 299.7, printPrice, showCompanyHeader: false,
       });
-      expect(html).toMatch(/>\s*302\.727\s*</);
+      expect(html).toMatch(/>\s*302\.728\s*</);
       expect(html).toMatch(/-30\.273/);
+      expect(html).toMatch(/>\s*272\.455\s*</);
       expect(html).toMatch(/>\s*27\.245\s*</);
       expect(html).toMatch(/>\s*299\.700\s*</);
       expect(html).not.toMatch(/>\s*333\.000\s*</);

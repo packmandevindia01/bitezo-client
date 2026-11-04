@@ -11,7 +11,9 @@ import type {
 import { isItemSeperationEnabled } from '../../services/posConfigApi';
 import { sortOrderDetailsBySequence } from '../utils/orderSort';
 import { getDefaultEmployeeConfig } from '../../utils/defaultEmployee';
-import { getPriceView } from '../utils/billing';
+import { getPriceView, roundCalc } from '../utils/billing';
+import { sumPricedLines } from '../../pricing';
+import type { PricedLine } from '../../pricing';
 
 interface PosState {
   cartItems: PosCartItem[];
@@ -79,6 +81,8 @@ interface PosState {
     modifiers?: any[];
     messages?: any[];
     note?: string;
+    /** engine result for the voided units (exclusive + inclusive) — read by the VOID print */
+    pricedLine?: PricedLine;
   }[];
   voidModifiers: {
     mapId: number;
@@ -484,7 +488,11 @@ const posSlice = createSlice({
     },
     setOrderType: (state, action: PayloadAction<PosOrderType>) => {
       if (normalizeOrderTypeName(state.selectedOrderTypeName || "") !== normalizeOrderTypeName(action.payload.orderType || "")) {
+        // A different order type re-prices the order (service charge is Dine-In only): drop the saved
+        // rates AND the saved totals — otherwise an edited Dine-In order keeps showing / saving its old
+        // service charge after switching to Take Out etc.
         state.editingOrderRates = null;
+        state.isCartModified = true;
       }
       state.selectedOrderTypeId = action.payload.orderTypeId;
       state.selectedOrderTypeName = action.payload.orderType;
@@ -500,7 +508,9 @@ const posSlice = createSlice({
       const match = state.orderTypes.find((type) => normalizeOrderTypeName(type.orderType) === normalized);
       const type = match ?? fallbackOrderTypeByName(action.payload);
       if (normalizeOrderTypeName(state.selectedOrderTypeName || "") !== normalizeOrderTypeName(type.orderType || "")) {
+        // see setOrderType — re-price with the new order type's charges
         state.editingOrderRates = null;
+        state.isCartModified = true;
       }
       state.selectedOrderTypeId = type.orderTypeId;
       state.selectedOrderTypeName = type.orderType;
@@ -930,16 +940,21 @@ const posSlice = createSlice({
       modifiers?: any[];
       messages?: any[];
       note?: string;
+      pricedLine?: PricedLine;
     }>) => {
       state.isCartModified = true;
       const targetMapId = action.payload.mapId ? Number(action.payload.mapId) : 0;
-      const existing = state.voidProducts.find((vp) => 
+      const existing = state.voidProducts.find((vp) =>
         (targetMapId > 0 && Number(vp.mapId) === targetMapId) ||
         (!targetMapId && vp.productId === action.payload.productId && vp.unitId === action.payload.unitId)
       );
       if (existing) {
         existing.qty += action.payload.qty;
-        existing.amount = Number((existing.amount + action.payload.amount).toFixed(4));
+        // 7 decimals (R8) — this is the stored exclusive void amount
+        existing.amount = roundCalc(existing.amount + action.payload.amount);
+        existing.pricedLine = existing.pricedLine && action.payload.pricedLine
+          ? sumPricedLines(existing.pricedLine, action.payload.pricedLine)
+          : undefined; // no reliable engine result for the merged row → print falls back
         if (action.payload.productName && !existing.productName) existing.productName = action.payload.productName;
         if (action.payload.variantName && !existing.variantName) existing.variantName = action.payload.variantName;
         if (action.payload.variantArabic && !existing.variantArabic) existing.variantArabic = action.payload.variantArabic;
@@ -1023,7 +1038,7 @@ const posSlice = createSlice({
       );
       if (existing) {
         existing.qty += action.payload.qty;
-        existing.amount = Number((existing.amount + action.payload.amount).toFixed(4));
+        existing.amount = roundCalc(existing.amount + action.payload.amount); // 14 dp half-up (stored void amount)
         if (action.payload.name && !existing.name) existing.name = action.payload.name;
         if (action.payload.arabicName && !existing.arabicName) existing.arabicName = action.payload.arabicName;
         if (action.payload.typeName && !existing.typeName) existing.typeName = action.payload.typeName;

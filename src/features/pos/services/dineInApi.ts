@@ -1,7 +1,7 @@
 import axiosInstance from "../../../api/axiosInstance";
 import type { ApiResponse } from "../../inventory/product/types";
 import type { DineInSection, DineInTable, TableOrdersResponse } from "../types";
-import { getPriceView } from "../terminal/utils/billing";
+import { STORED_ORDER_PARAMS } from "./storedOrderView";
 
 /** Raw shape returned by /menu/dine-in/sections/{sectionId}/tables */
 interface RawDineInTable {
@@ -70,12 +70,16 @@ export const dineInApi = {
     return data as unknown as ApiResponse<DineInTable[]>;
   },
 
-  /** Fetch all orders for an occupied table */
+  /**
+   * Fetch all orders for an occupied table.
+   * Always Exclusive (stored values), like every saved-order request (see services/storedOrderView.ts).
+   * The list only shows view-independent fields (order / ticket no, netAmount); the preview loads the
+   * full order through orderApi.getOrderDetails, exactly like Recall.
+   */
   getTableOrders: async (tableId: number) => {
-    const priceView = getPriceView();
     const { data } = await axiosInstance.get<ApiResponse<TableOrdersResponse>>(
       `/menu/dine-in/tables/${tableId}/orders`,
-      { params: { priceView } }
+      { params: STORED_ORDER_PARAMS }
     );
     return data;
   },

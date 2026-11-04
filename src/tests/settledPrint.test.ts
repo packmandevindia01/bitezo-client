@@ -338,8 +338,9 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       expect(html).toContain('MOMOS');
       expect(html).toContain('>100.000<'); // Sub Total
 
-      // Verify discount: MUST be -9.091 and STRICTLY NOT -8.264
-      expect(html).toContain('>-9.091<');
+      // Discount on the exclusive basis (9.0909091 → 9.091 ± 1 fil after footer balancing), STRICTLY NOT -8.264.
+      // Balanced footer adds up: 100.000 − 9.090 + 4.545 = 95.455; + 9.545 = 105.000 (old print: 104.999).
+      expect(html).toMatch(/>-9\.09[01]</);
       expect(html).not.toContain('8.264');
       expect(html).not.toContain('-8.264');
 
@@ -421,7 +422,8 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       };
 
       const html = await generateGuestPrintHtml(unified as any, printData as any);
-      expect(html).toContain('>-9.091<');
+      // exclusive-basis discount (± 1 fil from footer balancing), never the inclusive-basis 8.264
+      expect(html).toMatch(/>-9\.09[01]</);
       expect(html).not.toContain('8.264');
       expect(html).not.toContain('-8.264');
       expect(html).toContain('>105.000<');

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { modifierLabelOf } from "../../../../utils/modifierLabel";
+import { toDisplayNo } from "../../../../services/orderResponse";
 import { applyStoredPricingToCartItems } from "../../../../services/storedOrderView";
 import { deriveOrderChargeRatesFromMaster } from "../../../../pricing";
 import { resolveRecalledBillDiscount } from "../../../../services/storedOrderView";
@@ -12,7 +14,8 @@ import { deliveryApi } from "../../../../customer/services/deliveryApi";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
 import { loadRecalledOrder, setDeliveryDetails, fallbackOrderTypeByName } from "../../../store/posSlice";
-import { formatAmount } from "../../../../../../utils/currency";
+import { formatAmount, getDecimalPart } from "../../../../../../utils/currency";
+import { balanceBillFooter } from "../../../../../../utils/money";
 import { isEnableVatGuestPrint } from "../../../../utils/guestPrintTemplate";
 import { generateKotHtml } from "../../../../utils/kotTemplate";
 import { executeKotRouting } from "../../../../utils/printerRouting";
@@ -37,6 +40,14 @@ interface PosRecallDetailsModalProps {
   onEditSuccess?: () => void; // Triggered when loading into POS cart to close the parent modals
   onSettleSuccess?: (amount: number) => void; // Triggered when proceeding to settlement
   onOrderVoided?: () => void;
+  /**
+   * Optional: handle SETTLE outside this modal (e.g. the Dine-In table screen, where the terminal's
+   * payment panel is not on screen). When given, the built-in settle (load into cart + terminal payment)
+   * is skipped. Recall on the terminal does not pass it, so its behaviour is unchanged.
+   */
+  onSettleRequest?: (orderId: number) => void;
+  /** Optional: handle EDIT outside this modal (Dine-In table screen keeps its own section/table edit flow). */
+  onEditRequest?: (orderId: number) => void;
 }
 
 const orderTypeNameMap: Record<string, number> = {
@@ -65,6 +76,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   onEditSuccess,
   onSettleSuccess,
   onOrderVoided: _onOrderVoided,
+  onSettleRequest,
+  onEditRequest,
 }) => {
   const { showToast } = useToast();
   const dispatch = useAppDispatch();
@@ -451,7 +464,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
       basePrintOptions = {
         orderNo: master.orderNo ?? String(orderId),
-        ticketNo: master.ticketNo ?? "1",
+        ticketNo: toDisplayNo(master.ticketNo) ?? "",
         waiter: (() => {
           const rawName = master.employeeName ?? fallbackDetails?.employeeName;
           if (rawName && !["waiter", "cashier", "null", "undefined"].includes(String(rawName).trim().toLowerCase())) {
@@ -482,6 +495,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
         contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
         callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
+        missedCall: isDeliveryOrder ? Boolean(master.missedCall ?? master.isMissedCall) : undefined,
         change: isDeliveryOrder ? validKeepChange : undefined,
         keepChanges: isDeliveryOrder ? validKeepChange : undefined,
         flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,
@@ -550,6 +564,10 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
   const handleEditOrder = () => {
     if (!order) return;
+    if (onEditRequest && orderId) {
+      onEditRequest(orderId);
+      return;
+    }
     
     try {
       const rawMaster = order.masterData || order.master || order;
@@ -876,6 +894,10 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
   const handleSettleOrder = () => {
     if (!order) return;
+    if (onSettleRequest && orderId) {
+      onSettleRequest(orderId);
+      return;
+    }
     
     try {
       const rawMaster = order.masterData || order.master || order;
@@ -1215,7 +1237,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   const details = sortOrderDetailsBySequence(order?.detailsData || order?.details || []);
   
   const orderNo = master.orderNo ?? order?.orderNo ?? orderId ?? "";
-  const ticketNo = master.ticketNo ?? order?.ticketNo ?? "1";
+  const ticketNo = toDisplayNo(master.ticketNo) ?? toDisplayNo(order?.ticketNo) ?? "";
   const resolveEmpName = (empId?: number | string | null) => {
     if (!empId) return null;
     try {
@@ -1374,8 +1396,18 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     0
   );
 
-  // Net Value is the tax exclusive amount directly from the API (vatExclAmount)
-  const displayNetValue = roundCalc(rawVatExcl);
+
+  // Footer balanced to the fil so it always adds up (Sub Total − Discount + Charges = Net Value;
+  // Net Value + VAT + Delivery = Grand Total). Display only — utils/money.ts balanceBillFooter.
+  const shownFooter = balanceBillFooter({
+    subTotal: displaySubTotal,
+    discount: displayDiscount,
+    charges: displayCharges,
+    vat: displayVatAmount,
+    delivery: displayDeliveryCharge,
+    grandTotal: netAmount,
+  }, getDecimalPart());
+
 
   const hasDelivery = !!master.mobileNo || !!master.contactNo || !!master.deliveryCustomerName;
   const deliveryDetails = hasDelivery ? {
@@ -1571,14 +1603,11 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
                         {/* Modifiers */}
                         {standardMods.map((mod: any, idx: number) => {
-                          const mName = mod.modifierName || mod.name || "Modifier";
-                          const mQty = Number(mod.qty ?? 1);
-                          const mType = mod.typeName || mod.modifierTypeName || "";
                           return (
                             <div key={`mod-${idx}`} className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 items-start text-[9px] leading-tight mt-0.5">
                               <div></div>
                               <div className="col-span-2 font-medium min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word] text-[#f48120]">
-                                * {mType ? `${mType}: ` : ""}{mQty > 1 ? `${mQty} x ` : ""}{mName}
+                                * {modifierLabelOf(mod)}
                               </div>
                               <div className="text-right font-medium text-[#f48120] shrink-0"></div>
                             </div>
@@ -1625,40 +1654,40 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
             <div className="border-t border-dashed border-stone-400 pt-3 mt-4 space-y-1 text-[11px]">
               <div className="flex justify-between items-center text-stone-600">
                 <span>{t("Sub Total")}</span>
-                <span>{formatAmount(displaySubTotal)}</span>
+                <span>{formatAmount(shownFooter.subTotal)}</span>
               </div>
               {displayDiscount > 0 && (
                 <div className="flex justify-between items-center text-red-600">
                   <span>{t("Discount")}</span>
-                  <span>-{formatAmount(displayDiscount)}</span>
+                  <span>-{formatAmount(shownFooter.discount)}</span>
                 </div>
               )}
               {displayCharges > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>{t("Charges")}</span>
-                  <span>{formatAmount(displayCharges)}</span>
+                  <span>{formatAmount(shownFooter.charges)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-stone-600">
                 <span>{t("Net Value")}</span>
-                <span>{formatAmount(displayNetValue)}</span>
+                <span>{formatAmount(shownFooter.netValue)}</span>
               </div>
               {displayDeliveryCharge > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>{t("Delivery Charge")}</span>
-                  <span>{formatAmount(displayDeliveryCharge)}</span>
+                  <span>{formatAmount(shownFooter.delivery)}</span>
                 </div>
               )}
               {(isVatActive || displayVatAmount > 0) && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>{t("VAT")}</span>
-                  <span>{formatAmount(displayVatAmount)}</span>
+                  <span>{formatAmount(shownFooter.vat)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-xs font-bold text-stone-900 uppercase pt-2 border-t border-dashed border-stone-300">
                 <span>{t("Grand Total")}</span>
                 <span className="text-base font-black text-[#f48120]">
-                  {formatAmount(netAmount)}
+                  {formatAmount(shownFooter.grandTotal)}
                 </span>
               </div>
             </div>

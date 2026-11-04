@@ -10,6 +10,7 @@
  * Instead we always fetch Exclusive (stored values, untouched) and convert here using the
  * rates each line was actually saved with, derived exactly from its own stored amounts.
  */
+import { round } from "./money";
 
 export interface StoredLineRates {
   /** percents */
@@ -145,7 +146,7 @@ export const restoreBillDiscount = (
     return { type: "percentage", value: Math.round(ratios[0] * 100 * 10000) / 10000 };
   }
   const value = discountCalc === "Inclusive" ? lines.reduce((s, l) => s + l.gross, 0) : totalExclusive;
-  return { type: "amount", value: Math.round(value * 1e7) / 1e7 };
+  return { type: "amount", value: round(value) };
 };
 
 /** Exclusive discount of one saved line, whatever view the data is in. */
@@ -167,7 +168,8 @@ export interface StoredOrderFooter {
   netAmount: number;
 }
 
-const r7 = (v: number) => Math.round(v * 1e7) / 1e7;
+/** 14-decimal half-up (pricing/money.ts) — never truncated. */
+const r14 = (v: number) => round(v);
 
 /**
  * THE footer of a saved order — used by the recall screen, recall-edit, and settled-edit so they
@@ -180,22 +182,22 @@ export const storedOrderFooter = (order: StoredOrderParts, view: "Inclusive" | "
   const details = order?.detailsData || [];
 
   const { serviceCharge, levy } = storedOrderCharges(order);
-  const charges = r7(serviceCharge + levy);
+  const charges = r14(serviceCharge + levy);
   const vatAmount = n(field(master, "vatAmount", "VatAmount", "vatAmt"));
   const deliveryCharge = n(field(master, "deliveryCharge", "DeliveryCharge"));
   const netAmount = n(field(master, "netAmount", "NetAmount"));
   const storedVatExcl = field(master, "vatExclAmount", "VatExclAmount");
   // vatExclAmount when stored; print-style payloads only carry netAmount/vatAmount (+ subTotal before discount)
-  const netValue = storedVatExcl !== undefined ? n(storedVatExcl) : r7(Math.max(0, netAmount - vatAmount - deliveryCharge));
+  const netValue = storedVatExcl !== undefined ? n(storedVatExcl) : r14(Math.max(0, netAmount - vatAmount - deliveryCharge));
   const storedSubTotal = field(master, "subTotal", "SubTotal");
   const masterDiscount = n(field(master, "discAmount", "DiscAmount", "discAmt", "DiscAmt", "discount", "Discount", "billDiscount", "BillDiscount"));
   const lineDiscount = details.reduce((s: number, d: any) => s + storedLineExclusiveDiscount(d, view, order), 0);
-  const discount = r7(masterDiscount > 0 ? masterDiscount : lineDiscount);
+  const discount = r14(masterDiscount > 0 ? masterDiscount : lineDiscount);
 
   return {
     subTotal: storedVatExcl === undefined && storedSubTotal !== undefined
       ? n(storedSubTotal)
-      : r7(Math.max(0, netValue - charges) + discount),
+      : r14(Math.max(0, netValue - charges) + discount),
     discount,
     serviceCharge,
     levy,
@@ -306,7 +308,7 @@ export const storedLineToCartPricing = (
     const exBase = toExcl(n(field(m, "price", "Price")));
     const exQty = n(field(m, "qty", "Qty")) || 1;
     extrasBase += exBase * exQty;
-    const gross = Math.round(exBase * f * 1e7) / 1e7;
+    const gross = round(exBase * f);
     extraGrossById.set(n(field(m, "modifierId", "ModifierId", "id")), gross);
     extraGrossList.push(gross);
   }
@@ -324,16 +326,16 @@ export const storedLineToCartPricing = (
     : 0;
 
   return {
-    price: Math.round((options.productIsInclusive ? baseUnitPrice * f : baseUnitPrice) * 1e7) / 1e7,
+    price: round((options.productIsInclusive ? baseUnitPrice * f : baseUnitPrice)),
     isIncl: options.productIsInclusive,
-    baseUnitPrice: Math.round(baseUnitPrice * 1e7) / 1e7,
+    baseUnitPrice: round(baseUnitPrice),
     extraGrossById,
     extraGrossList,
     discount:
       !options.isBillDiscount && storedDiscPer > 0
         ? { type: "percentage", value: storedDiscPer }
         : !options.isBillDiscount && discExcl > 0.0000005
-        ? { type: "amount", value: Math.round((options.discountCalc === "Inclusive" ? discExcl * f : discExcl) * 1e7) / 1e7 }
+        ? { type: "amount", value: round((options.discountCalc === "Inclusive" ? discExcl * f : discExcl)) }
         : null,
     savedVatRate,
   };
@@ -520,7 +522,7 @@ export const storedOrderCharges = (order: StoredOrderParts): { serviceCharge: nu
     field(d, "serviceCharge", "ServiceCharge") !== undefined || field(d, "levy", "Levy", "levyAmt") !== undefined
   );
   if (hasLineCharges && (lineSc > 0 || lineLevy > 0 || (n(field(m, "serviceCharge", "ServiceCharge")) === 0 && n(field(m, "levyAmt", "levy", "Levy")) === 0))) {
-    return { serviceCharge: r7(lineSc), levy: r7(lineLevy) };
+    return { serviceCharge: r14(lineSc), levy: r14(lineLevy) };
   }
   return { serviceCharge: n(field(m, "serviceCharge", "ServiceCharge")), levy: n(field(m, "levyAmt", "levy", "Levy")) };
 };

@@ -2,6 +2,8 @@ import { useState, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { useToast } from "../../../../app/providers/useToast";
 import { orderApi } from "../../services/orderApi";
+import { readCreatedOrder, toDisplayNo } from "../../services/orderResponse";
+import type { CreatedOrderRef } from "../../services/orderResponse";
 import { deliveryApi } from "../../customer/services/deliveryApi";
 import { getModifierTypeNameById } from "../../services/menuApi";
 import type { MenuOrderRequest, MenuOrderUpdateRequest } from "../../types";
@@ -37,6 +39,7 @@ import {
   selectDeliveryCharge,
 } from "../store/posSelectors";
 import { getVatStatus, roundCalc } from "../utils/billing";
+import { buildReorderItems } from "../utils/reorderItems";
 import { useCartMutations } from "./cart/useCartMutations";
 import {
   buildDirectSettleOrderPayload,
@@ -318,15 +321,19 @@ export const usePosCartActions = () => {
           sessionStorage.removeItem(`order_prevUpdatedAt_${targetOrderId}`);
           sessionStorage.removeItem(`order_prevUpdatedAt_${editingOrderId}`);
 
+          // The order being edited is already known; the reply may still carry its order / ticket numbers.
+          const updatedRef = readCreatedOrder(response);
+          const updatedOrderId = updatedRef.id ?? targetOrderId;
+
           const shouldPrintKot = Boolean(shouldPrint);
           if (shouldPrintKot) {
-            await handleOrderPrinting(targetOrderId, session, true, shouldPrint);
+            await handleOrderPrinting(updatedOrderId, session, true, shouldPrint, updatedRef);
           }
 
           dispatch(clearCart());
           localStorage.removeItem("driveThruVehicleNo");
           localStorage.removeItem("driveThruCustomerName");
-          return response.data.id;
+          return updatedOrderId;
         } else {
           throw new Error(response.message || "Failed to update order");
         }
@@ -339,9 +346,14 @@ export const usePosCartActions = () => {
       if (response.isSuccess) {
         showToast("Order submitted successfully!", "success");
 
-        const targetId = response.data.id;
+        // Read the new order's id / order no / ticket no from whatever shape the backend replied with.
+        const createdRef = readCreatedOrder(response);
+        const targetId = createdRef.id;
+        if (!targetId) {
+          console.error("[submitOrder] Order saved but the reply has no order id:", response);
+        }
         const effCb = callBack || deliveryDetails?.callBack || localStorage.getItem("pos_current_callBack") || "";
-        if (effCb) {
+        if (effCb && targetId) {
           localStorage.setItem(`order_callBack_${targetId}`, effCb);
           sessionStorage.setItem(`order_callBack_${targetId}`, effCb);
           if (contactNo) {
@@ -352,13 +364,13 @@ export const usePosCartActions = () => {
 
         const shouldPrintKot = Boolean(shouldPrint);
         if (shouldPrintKot) {
-          await handleOrderPrinting(response.data.id, session, false, shouldPrint);
+          await handleOrderPrinting(targetId, session, false, shouldPrint, createdRef);
         }
 
         dispatch(clearCart());
         localStorage.removeItem("driveThruVehicleNo");
         localStorage.removeItem("driveThruCustomerName");
-        return response.data.id;
+        return targetId ?? undefined;
       } else {
         throw new Error(response.message || "Failed to submit order");
       }
@@ -412,14 +424,17 @@ export const usePosCartActions = () => {
   };
 
   const handleOrderPrinting = async (
-    orderId: number, 
-    session: OrderSessionParams, 
-    isUpdate: boolean, 
-    forcedPrint: boolean = false
+    orderId: number | null,
+    session: OrderSessionParams,
+    isUpdate: boolean,
+    forcedPrint: boolean = false,
+    replyRef?: CreatedOrderRef
   ) => {
     try {
-      let orderNoStr = String(orderId);
-      let ticketNoStr = String(orderId);
+      // Order / ticket numbers are assigned by the backend: take them from the save reply or the saved
+      // order, never invent them. (String(undefined) used to print "#undefined".)
+      let orderNoStr = replyRef?.orderNo ?? "";
+      let ticketNoStr = replyRef?.ticketNo ?? "";
       let orderTypeStr = selectedOrderTypeName || "DINE IN";
       const resolveEmployeeName = async (empId?: number | string | null): Promise<string | null> => {
         if (!empId) return null;
@@ -480,16 +495,30 @@ export const usePosCartActions = () => {
       let customerNameStr = vehicleCustomerName || localStorage.getItem("driveThruCustomerName") || "";
 
       let masterData: any = null;
-      try {
-        const detailsRes = await orderApi.getOrderDetails(orderId);
-        masterData =
+      const fetchSavedMaster = async () => {
+        const detailsRes = await orderApi.getOrderDetails(orderId as number);
+        return (
           detailsRes?.data?.masterData ||
           detailsRes?.masterData ||
           detailsRes?.data?.master ||
-          detailsRes?.master;
+          detailsRes?.master ||
+          null
+        );
+      };
+      try {
+        if (orderId) {
+          try {
+            masterData = await fetchSavedMaster();
+          } catch (firstErr) {
+            // The order was just saved — retry once in case the read hit before the write was visible.
+            console.warn("[KOT] Saved order lookup failed, retrying once:", firstErr);
+            await new Promise((r) => setTimeout(r, 400));
+            masterData = await fetchSavedMaster();
+          }
+        }
         if (masterData) {
-          orderNoStr = masterData.orderNo ? String(masterData.orderNo) : orderNoStr;
-          ticketNoStr = masterData.ticketNo ? String(masterData.ticketNo) : ticketNoStr;
+          orderNoStr = toDisplayNo(masterData.orderNo) ?? orderNoStr;
+          ticketNoStr = toDisplayNo(masterData.ticketNo) ?? ticketNoStr;
           orderTypeStr = masterData.orderType || masterData.orderTypeName || orderTypeStr;
           const masterEmp = masterData.employeeName || (await resolveEmployeeName(masterData.employeeId ?? masterData.empId ?? masterData.waiterId));
           if (masterEmp) {
@@ -506,6 +535,19 @@ export const usePosCartActions = () => {
         }
       } catch (e) {
         console.error("Failed to fetch order details for KOT printing:", e);
+      }
+
+      // Order No: same rule as every other print in the POS (recall / settled / dine-in): the backend
+      // orderNo, else the saved order's id. Ticket No: backend value only — it is a separate counter.
+      if (!orderNoStr && orderId) orderNoStr = String(orderId);
+      if (!orderNoStr || !ticketNoStr) {
+        console.error("[KOT] Order / ticket number not available from the backend", { orderId, replyRef, masterData });
+        showToast(
+          orderId
+            ? "Order saved, but its ticket number could not be loaded. Reprint the KOT from Recall."
+            : "Order saved, but the server did not return the order number. Reprint the KOT from Recall.",
+          "warning"
+        );
       }
 
       const { printerSettingsApi } = await import("../../services/printerSettingsApi");
@@ -580,6 +622,7 @@ export const usePosCartActions = () => {
         driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
         contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
         callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
+        missedCall: isDeliveryOrder ? Boolean((masterData as any)?.missedCall ?? missedCall) : undefined,
         change: hasValidKeepChange ? String(resolvedChange) : undefined,
         keepChanges: hasValidKeepChange ? String(resolvedChange) : undefined,
         flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,
@@ -599,25 +642,8 @@ export const usePosCartActions = () => {
       };
 
       if (isUpdate) {
-        const reorderItems = cartDetails
-          .filter((item) => !item.isExisting || item.quantity > (item.originalQty || 0))
-          .map((item) => {
-            const diffQty = item.isExisting ? item.quantity - (item.originalQty || 0) : item.quantity;
-            const ratio = item.quantity > 0 ? diffQty / item.quantity : 0;
-            return {
-              ...item,
-              quantity: diffQty,
-              lineTotal: (item.lineTotal || 0) * ratio,
-              extras: (item.extras || []).map((ex) => ({
-                ...ex,
-                qty: (ex.qty || 1) * ratio,
-              })),
-              modifiers: (item.modifiers || []).map((mod) => ({
-                ...mod,
-                qty: (mod.qty || 1) * ratio,
-              })),
-            };
-          });
+        // Only what was added (terminal/utils/reorderItems.ts) — modifiers / extras printed as attached.
+        const reorderItems = buildReorderItems(cartDetails);
 
         if (reorderItems.length > 0) {
           await executeKotRouting(
@@ -696,8 +722,11 @@ export const usePosCartActions = () => {
                 price: vp.amount > 0 ? roundCalc(vp.amount / vp.qty) : 0,
                 categoryId: vp.categoryId || 0,
               },
-              vatAmount: vp.vatAmount || 0,
-              netAmount: vp.netAmount || vp.amount + (vp.vatAmount || 0),
+              // Engine result of the voided units (usePosVoidFlow): the KOT template then prints this row in the
+              // Print Price view exactly like a normal KOT line (applyCartPricingToUnified). `amount` is exclusive.
+              pricedLine: vp.pricedLine,
+              vatAmount: vp.pricedLine?.vatAmount ?? (vp.vatAmount || 0),
+              netAmount: vp.pricedLine?.lineNet ?? (vp.netAmount || vp.amount + (vp.vatAmount || 0)),
               extras: vpExtras,
               modifiers: vpModifiers,
               messages: vp.messages || [],
@@ -747,7 +776,8 @@ export const usePosCartActions = () => {
             deliveryCharge,
             enableVat: packagerConfig.enableVat,
             isPackager: true,
-            showCompanyHeader: true,
+            // POS config "packagerHeader" (Enable / Disable) — was always forced on
+            showCompanyHeader: packagerConfig.showHeader,
           };
 
           await executePackagerPrint(

@@ -1,4 +1,5 @@
 import { useCurrency } from "../../../../../hooks/useCurrency";
+import { balanceBillFooter } from "../../../../../utils/money";
 import { t } from "../../../utils/posLocalization";
 
 
@@ -13,7 +14,7 @@ interface PosOrderSummaryProps {
   netValue?: number;
   deliveryCharge?: number;
   isDelivery?: boolean;
-  onDeliveryChargeDoubleClick?: () => void;
+  onDeliveryChargeClick?: () => void;
   onSettle?: (shouldPrint: boolean) => void;
   onOrder?: (print: boolean) => void;
   orderLoading?: boolean;
@@ -27,8 +28,18 @@ interface PosOrderSummaryProps {
   onCom?: () => void;
 }
 
-export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, netValue, deliveryCharge = 0, isDelivery = false, onDeliveryChargeDoubleClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender, tenderOptions, selectedCustomerId, onDiscount, onCom }: PosOrderSummaryProps) => {
-  const { formatAmount } = useCurrency();
+export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliveryCharge = 0, isDelivery = false, onDeliveryChargeClick, onSettle, onOrder, orderLoading, isSettling, isSettledEdit, selectedTender, onSelectTender, tenderOptions, selectedCustomerId, onDiscount, onCom }: PosOrderSummaryProps) => {
+  const { formatAmount, decimalPart } = useCurrency();
+  // Balanced to the fil so the footer always adds up (Sub Total − Discount + Charges = Net Value;
+  // Net Value + VAT + Delivery = Grand Total). Display only — utils/money.ts balanceBillFooter.
+  const shown = balanceBillFooter({
+    subTotal: subtotal,
+    discount,
+    charges,
+    vat: Math.max(0, tax),
+    delivery: deliveryCharge,
+    grandTotal: Math.max(0, total || 0),
+  }, decimalPart);
 
   return (
     <div className="shrink-0 p-2 lg:p-2.5 [@media(max-height:800px)]:p-1 bg-slate-50/80 border-t border-slate-200 space-y-1.5 lg:space-y-2 [@media(max-height:800px)]:space-y-0.5">
@@ -37,18 +48,18 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, netVa
         <div className="flex-1 space-y-0.5 [@media(max-height:800px)]:space-y-0">
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>{t("Sub Total")}</span>
-            <span>{formatAmount(subtotal)}</span>
+            <span>{formatAmount(shown.subTotal)}</span>
           </div>
           {discount > 0 && (
             <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
               <span>{t("Discount")}</span>
-              <span>{formatAmount(discount)}</span>
+              <span>{formatAmount(shown.discount)}</span>
             </div>
           )}
           {charges > 0 && (
             <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
               <span>{t("Charges")}</span>
-              <span>{formatAmount(charges)}</span>
+              <span>{formatAmount(shown.charges)}</span>
             </div>
           )}
         </div>
@@ -56,40 +67,42 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, netVa
           <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
             <span>{t("Net Value")}</span>
             <span>
-              {formatAmount(
-                netValue !== undefined
-                  ? netValue
-                  : Math.max(0, (total || 0) - (tax || 0) - (deliveryCharge || 0))
-              )}
+              {formatAmount(shown.netValue)}
             </span>
           </div>
+          <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
+            <span>{t("VAT")}</span>
+            <span>{formatAmount(shown.vat)}</span>
+          </div>
+          {/* Delivery charge is added AFTER VAT and is not taxed (R7) — so it is shown below VAT.
+              One tap opens the zones (a double-click on a small row was unreliable on touch screens). */}
           {(isDelivery || deliveryCharge > 0) && (
-            <div
-              onDoubleClick={onDeliveryChargeDoubleClick}
-              className={`flex justify-between items-center text-[11px] font-extrabold leading-tight group
-                ${onDeliveryChargeDoubleClick
-                  ? 'text-[#49293e] cursor-pointer select-none rounded px-1 -mx-1 hover:bg-[#49293e]/8 active:bg-[#49293e]/15 transition-colors'
-                  : 'text-slate-600'
+            <button
+              type="button"
+              onClick={onDeliveryChargeClick}
+              disabled={!onDeliveryChargeClick}
+              // Same box as the Net Value / VAT rows (full width, no side padding) so the label and the amount line
+              // up with them. The taller tap area comes from py + equal negative my, which adds no visible space.
+              className={`w-full flex justify-between items-center text-[11px] font-extrabold leading-tight group text-left
+                ${onDeliveryChargeClick
+                  ? 'text-[#49293e] cursor-pointer select-none rounded py-1 -my-1 hover:bg-[#49293e]/8 active:bg-[#49293e]/15 transition-colors'
+                  : 'text-slate-600 cursor-default'
                 }
               `}
-              title="Double-click to change delivery zone"
+              title={onDeliveryChargeClick ? "Tap to change delivery zone" : undefined}
             >
               <span className="flex items-center gap-1">
                 {t("Delivery Charge")}
-                {onDeliveryChargeDoubleClick && (
-                  <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-40 group-hover:opacity-80 transition-opacity">
+                {onDeliveryChargeClick && (
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="opacity-50 group-hover:opacity-90 transition-opacity">
                     <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                     <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                   </svg>
                 )}
               </span>
-              <span>{formatAmount(deliveryCharge)}</span>
-            </div>
+              <span>{formatAmount(shown.delivery)}</span>
+            </button>
           )}
-          <div className="flex justify-between items-center text-[11px] font-extrabold text-slate-600 leading-tight">
-            <span>{t("VAT")}</span>
-            <span>{formatAmount(Math.max(0, tax))}</span>
-          </div>
         </div>
       </div>
 
@@ -113,7 +126,7 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, netVa
         <div className="flex flex-col items-end leading-none mt-1 [@media(max-height:800px)]:mt-0">
           <span className="text-[9px] [@media(max-height:800px)]:text-[7px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">{t("Grand Total")}</span>
           <span className="text-[24px] lg:text-[28px] [@media(max-height:800px)]:text-[18px] font-black text-slate-900 tracking-tighter">
-            {formatAmount(Math.max(0, total || 0))}
+            {formatAmount(shown.grandTotal)}
           </span>
         </div>
       </div>

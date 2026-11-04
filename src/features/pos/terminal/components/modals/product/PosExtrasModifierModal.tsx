@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { formatModifierLabel, rememberModifierTypes } from "../../../../utils/modifierLabel";
 import { menuApi } from "../../../../services/menuApi";
 import { useCurrency } from "../../../../../../hooks/useCurrency";
 import { useAppSelector } from "../../../../../../app/hooks";
@@ -57,9 +58,8 @@ export const PosExtrasModifierModal = ({
   const [modifiersSelections, setModifiersSelections] = useState<ModifierItem[]>([]);
   const [messagesSelections,  setMessagesSelections]  = useState<MessageItem[]>([]);
 
-  // Which row is highlighted in the right panel (for qty +/−)
+  // Which row is highlighted in the right panel
   const [selectedSummaryId,   setSelectedSummaryId]   = useState<string | null>(null);
-  const [selectedSummaryType, setSelectedSummaryType] = useState<'extras' | 'modifiers' | null>(null);
 
   const productCache = useAppSelector((state: any) => state.pos?.productCache || {});
   const prevRef = useRef<{ key: string | null; type: string | null }>({ key: null, type: null });
@@ -78,7 +78,6 @@ export const PosExtrasModifierModal = ({
         setModifiersSelections(initialModifiers || []);
         setMessagesSelections(initialMessages || []);
         setSelectedSummaryId(null);
-        setSelectedSummaryType(null);
         prevRef.current = { key: selectedKey, type };
       }
     } else {
@@ -89,7 +88,6 @@ export const PosExtrasModifierModal = ({
       setModifiersSelections([]);
       setMessagesSelections([]);
       setSelectedSummaryId(null);
-      setSelectedSummaryType(null);
       prevRef.current = { key: null, type: null };
     }
   }, [isOpen, type, selectedKey]);
@@ -172,13 +170,16 @@ export const PosExtrasModifierModal = ({
         }
         const activeType = types.find(t => t.typeId === activeTypeId);
         const typeName = String(activeType?.typeName || activeType?.name || activeType?.modifierTypeName || "").trim();
-        setItems(list.map((m: any) => ({
+        const mapped = list.map((m: any) => ({
           ...m,
           id:    m.modifierId ?? m.modifiersId ?? m.id ?? m.modifierID ?? m.ID ?? Math.random(),
           name:  getName(m),
           typeId: activeTypeId || 0,
           typeName,
-        })));
+        }));
+        // Saved orders can come back without a type name — remember it per modifier id for previews / prints.
+        rememberModifierTypes(mapped, typeName);
+        setItems(mapped);
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -194,11 +195,11 @@ export const PosExtrasModifierModal = ({
       }
       setExtrasSelections(prev => [...prev, { ...item, qty: 1 }]);
     } else {
+      // Same rule as extras: a modifier is added once (qty 1) — tapping it again does not increase it.
       const exists = modifiersSelections.find(si => si.id === item.id && si.typeId === activeTypeId);
       if (exists) {
-        setModifiersSelections(prev =>
-          prev.map(si => (si.id === item.id && si.typeId === activeTypeId) ? { ...si, qty: si.qty + 1 } : si)
-        );
+        showToast("Modifier is already added", "warning");
+        return;
       } else {
         const activeType = types.find(t => t.typeId === activeTypeId);
         const typeName = String(activeType?.typeName || activeType?.name || activeType?.modifierTypeName || item.typeName || "").trim();
@@ -214,42 +215,18 @@ export const PosExtrasModifierModal = ({
     }
   };
 
-  // ── Right-panel qty control (only for matching type) ───────────────────────
-  const canQty = selectedSummaryType === type && type !== 'extras';
-
-  const handleIncrement = () => {
-    if (!canQty || !selectedSummaryId) {
-      if (type === 'extras' && selectedSummaryType === 'extras') {
-        showToast("Extra is already added", "warning");
-      }
-      return;
-    }
-    setModifiersSelections(prev =>
-      prev.map(item => `${item.id}-${item.typeId}` === selectedSummaryId ? { ...item, qty: item.qty + 1 } : item)
-    );
-  };
-
-  const handleDecrement = () => {
-    if (!canQty || !selectedSummaryId) return;
-    setModifiersSelections(prev =>
-      prev.map(item =>
-        `${item.id}-${item.typeId}` === selectedSummaryId ? { ...item, qty: Math.max(1, item.qty - 1) } : item
-      )
-    );
-  };
-
   // ── Right-panel: REMOVE — works for all types from any modal ──────────────
   const removeExtra    = (uniqueKey: string) => {
     setExtrasSelections(prev => prev.filter(i => `${i.id}-${i.typeId}` !== uniqueKey));
-    if (selectedSummaryId === uniqueKey) { setSelectedSummaryId(null); setSelectedSummaryType(null); }
+    if (selectedSummaryId === uniqueKey) { setSelectedSummaryId(null); }
   };
   const removeModifier = (uniqueKey: string) => {
     setModifiersSelections(prev => prev.filter(i => `${i.id}-${i.typeId}` !== uniqueKey));
-    if (selectedSummaryId === uniqueKey) { setSelectedSummaryId(null); setSelectedSummaryType(null); }
+    if (selectedSummaryId === uniqueKey) { setSelectedSummaryId(null); }
   };
   const removeMessage  = (name: string) => {
     setMessagesSelections(prev => prev.filter(m => m.name !== name));
-    if (selectedSummaryId === `msg-${name}`) { setSelectedSummaryId(null); setSelectedSummaryType(null); }
+    if (selectedSummaryId === `msg-${name}`) { setSelectedSummaryId(null); }
   };
 
   const handleSave = () => {
@@ -427,32 +404,8 @@ export const PosExtrasModifierModal = ({
               </div>
             </div>
 
-            {/* Action Bar — qty controls, only for matching type */}
-            <div className="grid grid-cols-3 gap-1 p-2 bg-slate-50 border-b border-slate-200 shrink-0">
-              {/* − */}
-              <button
-                onClick={handleDecrement}
-                disabled={!canQty || !selectedSummaryId}
-                title={!canQty ? `Qty only adjustable in the ${type} modal` : undefined}
-                className={`h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 ${
-                  canQty && selectedSummaryId ? "bg-[#49293e] text-white shadow-sm" : "bg-slate-100 text-slate-300 cursor-not-allowed"
-                }`}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M5 12h14" /></svg>
-                <span className="text-[7px] font-black uppercase tracking-tighter">Minus</span>
-              </button>
-              {/* + */}
-              <button
-                onClick={handleIncrement}
-                disabled={!canQty || !selectedSummaryId}
-                title={!canQty ? `Qty only adjustable in the ${type} modal` : undefined}
-                className={`h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-all active:scale-95 ${
-                  canQty && selectedSummaryId ? "bg-[#49293e] text-white shadow-sm" : "bg-slate-100 text-slate-300 cursor-not-allowed"
-                }`}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14" /></svg>
-                <span className="text-[7px] font-black uppercase tracking-tighter">Plus</span>
-              </button>
+            {/* Action Bar — extras and modifiers are added once (no qty +/−), so only the total count */}
+            <div className="grid grid-cols-1 gap-1 p-2 bg-slate-50 border-b border-slate-200 shrink-0">
               {/* Total count badge */}
               <div className="h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 bg-slate-100 border border-slate-200">
                 <span className="text-lg font-black text-[#49293e] leading-none">{totalCustomisations}</span>
@@ -481,8 +434,8 @@ export const PosExtrasModifierModal = ({
                       <div
                         key={uniqueKey}
                         onClick={() => {
-                          if (isHighlighted) { setSelectedSummaryId(null); setSelectedSummaryType(null); }
-                          else { setSelectedSummaryId(uniqueKey); setSelectedSummaryType('extras'); }
+                          if (isHighlighted) { setSelectedSummaryId(null); }
+                          else { setSelectedSummaryId(uniqueKey); }
                         }}
                         className={`flex items-center gap-2 px-3 py-2 border-b border-slate-50 cursor-pointer transition-all ${
                           isHighlighted ? "bg-[#49293e]/8 ring-1 ring-inset ring-[#49293e]/15" : "hover:bg-slate-50"
@@ -526,8 +479,8 @@ export const PosExtrasModifierModal = ({
                       <div
                         key={uniqueKey}
                         onClick={() => {
-                          if (isHighlighted) { setSelectedSummaryId(null); setSelectedSummaryType(null); }
-                          else { setSelectedSummaryId(uniqueKey); setSelectedSummaryType('modifiers'); }
+                          if (isHighlighted) { setSelectedSummaryId(null); }
+                          else { setSelectedSummaryId(uniqueKey); }
                         }}
                         className={`flex items-center gap-2 px-3 py-2 border-b border-slate-50 cursor-pointer transition-all ${
                           isHighlighted ? "bg-[#49293e]/8 ring-1 ring-inset ring-[#49293e]/15" : "hover:bg-slate-50"
@@ -535,7 +488,7 @@ export const PosExtrasModifierModal = ({
                       >
                         <span className={`text-sm font-black min-w-[20px] text-center ${isHighlighted ? "text-[#ff9500]" : "text-slate-400"}`}>{item.qty}</span>
                         <p className={`flex-1 text-[10px] font-black uppercase truncate ${isHighlighted ? "text-[#49293e]" : "text-slate-700"}`}>
-                          {item.typeName ? `${item.typeName}: ` : ""}{item.name}
+                          {formatModifierLabel(item.typeName, item.name)}
                         </p>
                         <button
                           onClick={e => { e.stopPropagation(); removeModifier(uniqueKey); }}

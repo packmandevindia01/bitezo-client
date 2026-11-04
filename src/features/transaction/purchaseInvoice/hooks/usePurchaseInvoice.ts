@@ -2,6 +2,8 @@ import { useState, useMemo, useEffect, useCallback } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCurrency } from "../../../../hooks/useCurrency";
+import { calculatePurchaseLine, sumPurchaseLines } from "../../shared/purchaseCalc";
+import { dec, sumMoney } from "../../../../utils/money";
 import { createEmptyPurchaseInvoiceForm } from "../constants";
 import { getPurchaseInvoiceSchema } from "../types";
 import type { PurchaseInvoiceForm, PurchaseInvoiceLineItem } from "../types";
@@ -42,20 +44,9 @@ const toNumber = (value: string | number | undefined) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-export const calculateLine = (item: PurchaseInvoiceLineItem, grossTotal: number = 0, globalDiscAmount: number = 0) => {
-  const qty = toNumber(item.qty);
-  const price = toNumber(item.price);
-  const vatPercent = toNumber(item.vatPercent);
-
-  const amount = qty * price;
-  // Pro-rate global discount based on this item's share of the gross total
-  const discountAmount = grossTotal > 0 ? (amount / grossTotal) * globalDiscAmount : 0;
-  
-  const vatAmount = (amount - discountAmount) * (vatPercent / 100);
-  const netAmount = amount - discountAmount + vatAmount;
-
-  return { amount, discountAmount, vatAmount, netAmount };
-};
+/** Line maths shared with purchase return — exact decimal, 14 dp half-up (transaction/shared/purchaseCalc.ts). */
+export const calculateLine = (item: PurchaseInvoiceLineItem, grossTotal: number = 0, globalDiscAmount: number = 0) =>
+  calculatePurchaseLine(item.qty, item.price, item.vatPercent, grossTotal, globalDiscAmount);
 
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
@@ -199,32 +190,15 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   
   // Calculate totals
   const grossTotal = useMemo(() => {
-    return watchedItems.reduce((acc: number, item: any) => acc + (toNumber(item.qty) * toNumber(item.price)), 0);
+    return sumMoney(watchedItems.map((item: any) => dec(toNumber(item.qty)).times(toNumber(item.price))));
   }, [watchedItems]);
 
   const totals = useMemo(() => {
     const globalDiscAmount = toNumber(watchedDiscAmount);
 
-    const itemTotals = watchedItems.reduce(
-      (acc: any, item: any) => {
-        const line = calculateLine(item as PurchaseInvoiceLineItem, grossTotal, globalDiscAmount);
-        acc.discountAmount += line.discountAmount;
-        acc.vatAmount += line.vatAmount;
-        acc.netAmount += line.netAmount;
-        return acc;
-      },
-      { discountAmount: 0, vatAmount: 0, netAmount: 0 }
-    );
-
-    const otherCharge = toNumber(watchedOtherCharge);
-    const roundOff = toNumber(watchedRoundOff);
-    // discount is already subtracted from netAmount in calculateLine
-    const grandTotal = itemTotals.netAmount + otherCharge + roundOff;
-
-    return {
-      ...itemTotals,
-      grandTotal,
-    };
+    // Exact Σ of the 14-dp lines (header always equals Σ lines); discount is already inside netAmount.
+    const lines = watchedItems.map((item: any) => calculateLine(item as PurchaseInvoiceLineItem, grossTotal, globalDiscAmount));
+    return sumPurchaseLines(lines, toNumber(watchedOtherCharge), toNumber(watchedRoundOff));
   }, [watchedDiscAmount, watchedOtherCharge, watchedRoundOff, watchedItems, grossTotal]);
 
     // Paymode list from master data — show all available paymodes as provided by the API.
@@ -827,7 +801,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         narration: data.narration,
         discAmount: toNumber(data.discAmount),
         discPer: toNumber(data.globalDiscPercent),
-        vatExclAmount: totals.netAmount - totals.vatAmount,
+        vatExclAmount: totals.vatExclAmount,
         vatAmount: totals.vatAmount,
         netAmount: totals.grandTotal,
         details: validItems.map((item) => {
@@ -841,9 +815,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
             foc: toNumber(item.foc),
             price: toNumber(item.price),
             discPer: toNumber(item.discPercent),
-            discAmount: Number(l.discountAmount.toFixed(decimalPart)),
-            vatAmount: Number(l.vatAmount.toFixed(decimalPart)),
-            netAmount: Number(l.netAmount.toFixed(decimalPart)),
+            // 14 dp (same values the header totals are summed from)
+            discAmount: l.discountAmount,
+            vatAmount: l.vatAmount,
+            netAmount: l.netAmount,
             baseQty: Number(((toNumber(item.qty) + toNumber(item.foc)) * unitCurrentValue).toFixed(decimalPart)),
           };
         }),

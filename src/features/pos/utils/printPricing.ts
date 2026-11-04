@@ -12,6 +12,7 @@ import { buildUnifiedOrderPricing } from "./orderPricing";
 import type { UnifiedOrderPricingResult, BuildUnifiedPricingOptions } from "./orderPricing";
 import { calculateOrder } from "../terminal/utils/billing";
 import { storedLineRates, dedupeModifierRows, storedOrderCharges } from "../pricing";
+import { round } from "../pricing/money";
 
 type View = "Inclusive" | "Exclusive";
 
@@ -19,7 +20,8 @@ const n = (v: unknown): number => {
   const x = Number(v);
   return Number.isFinite(x) ? x : 0;
 };
-const r7 = (v: number) => Math.round(v * 1e7) / 1e7;
+/** 14-decimal half-up (pricing/money.ts) — never truncated. */
+const r14 = (v: number) => round(v);
 const pickField = (d: any, ...keys: string[]) => {
   for (const k of keys) if (d?.[k] !== undefined && d?.[k] !== null) return d[k];
   return undefined;
@@ -94,24 +96,24 @@ export const buildPrintPricing = (order: any, options: PrintPricingOptions): Uni
   const lines = unified.lines.map((line, i) => {
     const d = details[i];
     const s = lineNumbers(order, d, dataView);
-    const exclusiveRate = r7(s.amount / s.qty);
-    const inclusiveRate = r7((s.amount * s.factor) / s.qty);
-    const exclusiveGross = r7(s.amount);
-    const inclusiveGross = r7(s.amount * s.factor);
+    const exclusiveRate = r14(s.amount / s.qty);
+    const inclusiveRate = r14((s.amount * s.factor) / s.qty);
+    const exclusiveGross = r14(s.amount);
+    const inclusiveGross = r14(s.amount * s.factor);
     // Bill discount is printed once, in the footer — rows show no per-line discount (same as the screen).
-    const lineDiscountExcl = isBill ? 0 : r7(s.disc);
-    const lineDiscountIncl = isBill ? 0 : r7(s.disc * s.factor);
-    const exclusiveAmount = r7(Math.max(0, s.amount - s.disc));
-    const inclusiveAmount = r7(Math.max(0, (s.amount - s.disc) * s.factor));
-    subEx += exclusiveGross; subIn += inclusiveGross; discEx += r7(s.disc); discIn += r7(s.disc * s.factor);
+    const lineDiscountExcl = isBill ? 0 : r14(s.disc);
+    const lineDiscountIncl = isBill ? 0 : r14(s.disc * s.factor);
+    const exclusiveAmount = r14(Math.max(0, s.amount - s.disc));
+    const inclusiveAmount = r14(Math.max(0, (s.amount - s.disc) * s.factor));
+    subEx += exclusiveGross; subIn += inclusiveGross; discEx += r14(s.disc); discIn += r14(s.disc * s.factor);
 
     const mapId = n(pickField(d, "mapId", "MapId"));
     const lineMods = dedupeModifierRows(modifiers).filter((m: any) => n(pickField(m, "mapId", "MapId")) === mapId && n(pickField(m, "price", "Price")) > 0);
     const extras = (line.extras || []).map((ex: any, k: number) => {
       const mod = lineMods.find((m) => n(pickField(m, "modifierId", "ModifierId")) === n(ex.id ?? ex.modifierId)) ?? lineMods[k];
       if (!mod) return ex;
-      const exExcl = r7(dataView === "Inclusive" ? n(mod.price) / s.factor : n(mod.price));
-      const exIncl = r7(exExcl * s.factor);
+      const exExcl = r14(dataView === "Inclusive" ? n(mod.price) / s.factor : n(mod.price));
+      const exIncl = r14(exExcl * s.factor);
       return { ...ex, price: exExcl, exclusivePrice: exExcl, inclusivePrice: exIncl, getPrice: (incl: boolean) => (incl ? exIncl : exExcl) };
     });
 
@@ -141,11 +143,11 @@ export const buildPrintPricing = (order: any, options: PrintPricingOptions): Uni
   const vatAmount = n(pickField(master, "vatAmount", "VatAmount"));
   const deliveryCharge = n(pickField(master, "deliveryCharge", "DeliveryCharge"));
   const grandTotal = n(pickField(master, "netAmount", "NetAmount")) || unified.summary.grandTotal;
-  const subTotalExclusive = r7(subEx);
-  const subTotalInclusive = r7(subIn);
-  const totalDiscountExcl = r7(discEx);
-  const totalDiscountIncl = r7(discIn);
-  const netValue = r7(Math.max(0, subTotalExclusive - totalDiscountExcl) + serviceCharge + levy);
+  const subTotalExclusive = r14(subEx);
+  const subTotalInclusive = r14(subIn);
+  const totalDiscountExcl = r14(discEx);
+  const totalDiscountIncl = r14(discIn);
+  const netValue = r14(Math.max(0, subTotalExclusive - totalDiscountExcl) + serviceCharge + levy);
 
   return {
     lines,
@@ -168,7 +170,7 @@ export const buildPrintPricing = (order: any, options: PrintPricingOptions): Uni
       taxableBase: netValue,
       serviceCharge,
       levy,
-      charges: r7(serviceCharge + levy),
+      charges: r14(serviceCharge + levy),
       netValue,
       vatExclAmount: netValue,
       deliveryCharge,
@@ -214,23 +216,23 @@ export const applyCartPricingToUnified = (
     const p = item?.pricedLine ?? priced?.lines[idx]?.pricedLine;
     if (!p) return line;
     const ratio = p.qty > 0 ? Number(item.quantity ?? p.qty) / p.qty : 1;
-    const exclusiveGross = r7(p.amount * ratio);
-    const inclusiveGross = r7(p.grossAmount * ratio);
-    const dEx = r7(p.discountBase * ratio);
-    const dIn = r7(p.discountGross * ratio);
+    const exclusiveGross = r14(p.amount * ratio);
+    const inclusiveGross = r14(p.grossAmount * ratio);
+    const dEx = r14(p.discountBase * ratio);
+    const dIn = r14(p.discountGross * ratio);
     const lineDiscountExcl = isBill ? 0 : dEx;
     const lineDiscountIncl = isBill ? 0 : dIn;
-    const exclusiveAmount = r7(p.netValue * ratio);
-    const inclusiveAmount = r7(p.lineNet * ratio);
-    const exclusiveRate = p.qty > 0 ? r7(p.amount / p.qty) : 0;
-    const inclusiveRate = p.qty > 0 ? r7(p.grossAmount / p.qty) : 0;
+    const exclusiveAmount = r14(p.netValue * ratio);
+    const inclusiveAmount = r14(p.lineNet * ratio);
+    const exclusiveRate = p.qty > 0 ? r14(p.amount / p.qty) : 0;
+    const inclusiveRate = p.qty > 0 ? r14(p.grossAmount / p.qty) : 0;
     subEx += exclusiveGross; subIn += inclusiveGross; discEx += dEx; discIn += dIn;
     sc += p.serviceCharge * ratio; levy += p.levy * ratio; vat += p.vatAmount * ratio; net += p.lineNet * ratio;
     return {
       ...line,
       exclusiveRate, inclusiveRate, exclusiveGross, inclusiveGross, exclusiveAmount, inclusiveAmount,
       lineDiscount: lineDiscountExcl, lineDiscountExcl, lineDiscountIncl,
-      vatAmount: r7(p.vatAmount * ratio), vatRate: p.vatRate,
+      vatAmount: r14(p.vatAmount * ratio), vatRate: p.vatRate,
       getRate: (incl: boolean) => (incl ? inclusiveRate : exclusiveRate),
       getAmount: (incl: boolean, isBillDisc?: boolean) =>
         (isBillDisc ?? isBill) ? (incl ? inclusiveGross : exclusiveGross) : (incl ? inclusiveAmount : exclusiveAmount),
@@ -239,11 +241,11 @@ export const applyCartPricingToUnified = (
   });
 
   const deliveryCharge = n(options.deliveryCharge);
-  const subTotalExclusive = r7(subEx), subTotalInclusive = r7(subIn);
-  const totalDiscountExcl = r7(discEx), totalDiscountIncl = r7(discIn);
-  const serviceCharge = r7(sc), levyTotal = r7(levy), vatAmount = r7(vat);
-  const netValue = r7(Math.max(0, subTotalExclusive - totalDiscountExcl) + serviceCharge + levyTotal);
-  const grandTotal = r7(net + deliveryCharge);
+  const subTotalExclusive = r14(subEx), subTotalInclusive = r14(subIn);
+  const totalDiscountExcl = r14(discEx), totalDiscountIncl = r14(discIn);
+  const serviceCharge = r14(sc), levyTotal = r14(levy), vatAmount = r14(vat);
+  const netValue = r14(Math.max(0, subTotalExclusive - totalDiscountExcl) + serviceCharge + levyTotal);
+  const grandTotal = r14(net + deliveryCharge);
   return {
     lines,
     summary: {
@@ -257,7 +259,7 @@ export const applyCartPricingToUnified = (
       lineDiscountsTotalIncl: isBill ? 0 : totalDiscountIncl,
       billDiscountTotal: isBill ? totalDiscountExcl : 0,
       totalDiscount: totalDiscountExcl, totalDiscountExcl, totalDiscountIncl,
-      taxableBase: netValue, serviceCharge, levy: levyTotal, charges: r7(serviceCharge + levyTotal),
+      taxableBase: netValue, serviceCharge, levy: levyTotal, charges: r14(serviceCharge + levyTotal),
       netValue, vatExclAmount: netValue, deliveryCharge, vatAmount, grandTotal, netAmount: grandTotal,
       isBillDiscount: isBill,
       getSubTotal: (incl: boolean) => (incl ? subTotalInclusive : subTotalExclusive),

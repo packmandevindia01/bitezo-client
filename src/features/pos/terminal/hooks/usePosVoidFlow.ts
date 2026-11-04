@@ -1,7 +1,40 @@
 import { useState } from 'react';
 import { useEvent } from '../../../../hooks/useEvent';
-import { roundCalc } from '../utils/billing';
+import { roundCalc, getBillingConfigForOrder, toPricingSettings } from '../utils/billing';
 import { getModifierTypeNameById } from '../../services/menuApi';
+import { useAppSelector } from '../../../../app/hooks';
+import { priceVoidedPortion } from '../../pricing';
+import type { PricedLine } from '../../pricing';
+
+/**
+ * Void amounts for `voidQty` units of a saved cart line (+ the voided extras), from the pricing engine.
+ * - `amount` (backend voidProducts.amount) = EXCLUSIVE product amount (R9), whatever the Price View.
+ * - `extraAmounts[i]` (backend voidModifiers.amount) = EXCLUSIVE amount of voided extra i.
+ * - `pricedLine` travels with the void so the VOID print follows Print Price like a normal KOT.
+ * Falls back to the old display-price amount only for a line without an engine result.
+ */
+const priceVoid = (
+  item: any,
+  voidQty: number,
+  voidExtras: { price: number; qty: number }[],
+  orderType: string,
+  editingOrderRates: { serviceCharge: number; levy: number } | null | undefined
+): { amount: number; extraAmounts: number[]; pricedLine?: PricedLine } => {
+  const line: PricedLine | undefined = item?.pricedLine;
+  if (!line) {
+    return {
+      amount: roundCalc((item?.price || 0) * voidQty),
+      extraAmounts: voidExtras.map((e) => roundCalc((e.price || 0) * (e.qty || 1))),
+    };
+  }
+  const settings = toPricingSettings(getBillingConfigForOrder(orderType || "DineIn", editingOrderRates));
+  const priced = priceVoidedPortion(line, voidQty, voidExtras, settings);
+  return {
+    amount: priced.productBase,
+    extraAmounts: priced.extras.map((e) => e.baseAmount),
+    pricedLine: priced,
+  };
+};
 
 interface UsePosVoidFlowProps {
   cartDetails: any[];
@@ -29,6 +62,9 @@ export const usePosVoidFlow = ({
   setSelectedKey,
   showToast,
 }: UsePosVoidFlowProps) => {
+  // Same order type / saved rates the cart is priced with (posSelectors.selectCartCalculation).
+  const orderTypeName = useAppSelector((state) => state.pos.selectedOrderTypeName);
+  const editingOrderRates = useAppSelector((state) => state.pos.editingOrderRates);
   const [voidConfirmState, setVoidConfirmState] = useState<{
     isOpen: boolean;
     uniqueId: string;
@@ -88,12 +124,15 @@ export const usePosVoidFlow = ({
                 name: msg.name,
               }));
 
+              const voidPricing = priceVoid(item, voidQty, voidExtras, orderTypeName, editingOrderRates);
+
               addVoidProduct({
                 productId: item.productId,
                 productName: item.product?.name || `Product #${item.productId}`,
                 unitId,
                 qty: voidQty,
-                amount: roundCalc((item.price || 0) * voidQty),
+                amount: voidPricing.amount,
+                pricedLine: voidPricing.pricedLine,
                 mapId,
                 variantName: item.variantName,
                 variantArabic: item.variantArabic,
@@ -103,19 +142,18 @@ export const usePosVoidFlow = ({
                 messages: voidMessages,
               });
 
-              // Add modifiers/extras to voidModifiers
+              // Add modifiers/extras to voidModifiers (extras first → their exclusive engine amounts)
               const allModifiers = [
                 ...voidExtras,
                 ...voidModifiers,
               ];
 
-              allModifiers.forEach((mod: any) => {
-                const modPrice = mod.price || 0;
+              allModifiers.forEach((mod: any, modIdx: number) => {
                 addVoidModifier({
                   mapId,
                   modifierId: mod.id,
                   qty: mod.qty || 1,
-                  amount: roundCalc(modPrice * (mod.qty || 1)),
+                  amount: modIdx < voidExtras.length ? (voidPricing.extraAmounts[modIdx] ?? 0) : 0,
                   typeId: mod.typeId || 1,
                   name: mod.name,
                   arabicName: mod.arabicName || mod.arabic,
@@ -193,12 +231,15 @@ export const usePosVoidFlow = ({
             name: msg.name,
           }));
           
+          const voidPricing = priceVoid(item, 1, voidExtras, orderTypeName, editingOrderRates);
+
           addVoidProduct({
             productId: item.productId,
             productName: item.product?.name || `Product #${item.productId}`,
             unitId,
             qty: 1,
-            amount: roundCalc(item.price || 0),
+            amount: voidPricing.amount,
+            pricedLine: voidPricing.pricedLine,
             mapId,
             variantName: item.variantName,
             variantArabic: item.variantArabic,
@@ -208,18 +249,18 @@ export const usePosVoidFlow = ({
             messages: voidMessages,
           });
 
+          // extras first → their exclusive engine amounts
           const allModifiers = [
             ...voidExtras,
             ...voidModifiers,
           ];
 
-          allModifiers.forEach((mod: any) => {
-            const modPrice = mod.price || 0;
+          allModifiers.forEach((mod: any, modIdx: number) => {
             addVoidModifier({
               mapId,
               modifierId: mod.id,
               qty: mod.qty || 1,
-              amount: roundCalc(modPrice * (mod.qty || 1)),
+              amount: modIdx < voidExtras.length ? (voidPricing.extraAmounts[modIdx] ?? 0) : 0,
               typeId: mod.typeId || 1,
               name: mod.name,
               arabicName: mod.arabicName || mod.arabic,

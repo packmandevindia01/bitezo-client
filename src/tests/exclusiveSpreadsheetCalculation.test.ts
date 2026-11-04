@@ -307,16 +307,17 @@ describe('Exclusive Price View & Internal Calculation (Exact Spreadsheet Verific
     // Summary
     expect(result.summary.subTotalExclusive).toBe(74);
     expect(result.summary.totalDiscount).toBe(10);
-    expect(result.summary.serviceCharge).toBe(6.4);
-    expect(result.summary.levy).toBe(3.52);
-    expect(result.summary.charges).toBe(9.92);
+    // 14-dp: each line is rounded once at 14 decimals, so Σ lines may differ from the exact bill value by 1e-14
+    expect(result.summary.serviceCharge).toBeCloseTo(6.4, 12);
+    expect(result.summary.levy).toBeCloseTo(3.52, 12);
+    expect(result.summary.charges).toBeCloseTo(9.92, 12);
 
     // Net Value = 74 - 10 + 9.92 = 73.92
     const netVal = result.summary.subtotal - result.summary.totalDiscount + result.summary.charges;
-    expect(netVal).toBe(73.92);
+    expect(netVal).toBeCloseTo(73.92, 12); // plain JS arithmetic in the test itself
 
-    expect(result.summary.vatAmount).toBe(7.392);
-    expect(result.summary.grandTotal).toBe(81.312);
+    expect(result.summary.vatAmount).toBeCloseTo(7.392, 12);
+    expect(result.summary.grandTotal).toBeCloseTo(81.312, 12);
   });
 
   it('correctly handles edge case: Bill discount in Exclusive mode', () => {
@@ -329,15 +330,16 @@ describe('Exclusive Price View & Internal Calculation (Exact Spreadsheet Verific
 
     expect(result.summary.subTotalExclusive).toBe(74);
     expect(result.summary.totalDiscount).toBe(10);
-    expect(result.summary.serviceCharge).toBe(6.4);
-    expect(result.summary.levy).toBe(3.52);
-    expect(result.summary.charges).toBe(9.92);
+    // 14-dp: each line is rounded once at 14 decimals, so Σ lines may differ from the exact bill value by 1e-14
+    expect(result.summary.serviceCharge).toBeCloseTo(6.4, 12);
+    expect(result.summary.levy).toBeCloseTo(3.52, 12);
+    expect(result.summary.charges).toBeCloseTo(9.92, 12);
 
     const netVal = result.summary.subtotal - result.summary.totalDiscount + result.summary.charges;
-    expect(netVal).toBe(73.92);
+    expect(netVal).toBeCloseTo(73.92, 12); // plain JS arithmetic in the test itself
 
-    expect(result.summary.vatAmount).toBe(7.392);
-    expect(result.summary.grandTotal).toBe(81.312);
+    expect(result.summary.vatAmount).toBeCloseTo(7.392, 12);
+    expect(result.summary.grandTotal).toBeCloseTo(81.312, 12);
   });
 
   it('correctly handles edge case: TakeAway / Delivery (No Service Charge, Levy only)', () => {

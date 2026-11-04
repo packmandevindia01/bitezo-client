@@ -9,6 +9,7 @@ import {
   isDeliveryOrderType,
 } from "../../pricing";
 import type { DiscountInput, PricedExtra, PricedLine, PricingSettings } from "../../pricing";
+import { CALC_PRECISION as MONEY_PRECISION, round as moneyRound } from "../../pricing/money";
 
 export interface BillingConfig {
   serviceChargeRate: number;
@@ -339,16 +340,11 @@ export const getVatStatus = (): boolean => {
   }
 };
 
-export const CALC_PRECISION = 7;
+/** 14 decimals, rounded half-up in exact decimal arithmetic — see pricing/money.ts. */
+export const CALC_PRECISION = MONEY_PRECISION;
 
-export const roundCalc = (val: number | string | undefined | null, decimals: number = CALC_PRECISION): number => {
-  const num = typeof val === 'string' ? parseFloat(val) : Number(val || 0);
-  if (!Number.isFinite(num)) return 0;
-  const factor = Math.pow(10, decimals);
-  const sign = num < 0 ? -1 : 1;
-  const abs = Math.abs(num);
-  return sign * (Math.round((abs + 1e-11) * factor) / factor);
-};
+export const roundCalc = (val: number | string | undefined | null, decimals: number = CALC_PRECISION): number =>
+  moneyRound(val, decimals);
 
 /** Converts a legacy BillingConfig into engine PricingSettings (rates as percent). */
 export const toPricingSettings = (config: BillingConfig, priceViewOverride?: "Inclusive" | "Exclusive"): PricingSettings =>

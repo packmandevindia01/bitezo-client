@@ -1,8 +1,9 @@
 import type { PosCartItem } from "../types";
+import { modifierLabelOf } from "./modifierLabel";
+import { toDisplayNo } from "../services/orderResponse";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 import { isKotArabicEnabled, isOtherKitchenItemEnabled, isCompanyNameKotEnabled, getAlternativeArabicName, containsArabic, formatItemDisplayName } from "./alternativeHelpers";
-import { getModifierTypeNameById } from "../services/menuApi";
 import { getDecimalPart } from "../../../utils/currency";
 import { roundCalc } from "../terminal/utils/billing";
 import { applyCartPricingToUnified } from "./printPricing";
@@ -25,6 +26,8 @@ export interface KotPrintData {
   driver?: string;
   driverName?: string;
   contactNo?: string;
+  /** delivery order taken from a missed call (Delivery page toggle) */
+  missedCall?: boolean | string;
   callBack?: string;
   change?: string;
   keepChanges?: string;
@@ -334,25 +337,7 @@ export const generateKotHtml = async (
     // Sub-items: modifiers
     if (line.modifiers && line.modifiers.length > 0) {
       line.modifiers.forEach((mod) => {
-        const rawTypeName = (mod.typeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
-        const rawModName = (mod.name || "MODIFIER").trim();
-        const typeUpper = rawTypeName.toUpperCase();
-        const nameUpper = rawModName.toUpperCase();
-        const qtyPart = (mod.qty && mod.qty > 1) ? `${mod.qty} x ` : "";
-
-        let text = "";
-        if (typeUpper) {
-          if (nameUpper.startsWith(`${typeUpper}:`)) {
-            text = nameUpper;
-          } else if (nameUpper.startsWith(typeUpper)) {
-            const rest = nameUpper.slice(typeUpper.length).replace(/^[:\s-]+/, "").trim();
-            text = rest ? `${typeUpper}: ${qtyPart}${rest}` : `${typeUpper}: ${qtyPart}`;
-          } else {
-            text = `${typeUpper}: ${qtyPart}${nameUpper}`;
-          }
-        } else {
-          text = `${qtyPart}${nameUpper}`;
-        }
+        const text = modifierLabelOf(mod, { upperCase: true });
 
         const modArabic = isKotArabic ? (mod.arabicName || "") : "";
         const modDisplay = modArabic
@@ -548,8 +533,10 @@ export const generateKotHtml = async (
   const hasValidKeepChange = keepChangeVal !== "" && keepChangeVal !== "0" && keepChangeVal !== "0.00" && keepChangeVal !== "0.000";
   const driverVal = (data.driverName || data.driver || "").trim();
 
+  const isMissedCall = ["true", "1", "yes"].includes(String(data.missedCall ?? "").trim().toLowerCase());
+
   const hasDeliveryDetails = isDelivery && Boolean(
-    data.contactNo || data.callBack || hasValidKeepChange || data.customerName || driverVal || data.flatNo || data.buildingNo || 
+    isMissedCall || data.contactNo || data.callBack || hasValidKeepChange || data.customerName || driverVal || data.flatNo || data.buildingNo || 
     data.blockNo || data.roadNo || data.area || data.address || data.providerNo
   );
 
@@ -560,6 +547,7 @@ export const generateKotHtml = async (
         ${isKotArabic ? `<bdi class="arabic-text" style="font-size: 11px; margin-left: 6px; white-space:nowrap; font-weight: bold;">(بيانات التوصيل)</bdi>` : ''}
       </div>
       <div style="width: 100%; font-size: 12px; margin-top: 3px;">
+        ${isMissedCall ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Missed Call${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مكالمة فائتة)</bdi>' : ''} : </span><span style="font-weight: bold;">YES</span></div>` : ''}
         ${data.contactNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Mob No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم الجوال)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.contactNo}</span></div>` : ''}
         ${data.callBack ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Call Back${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(معاودة الاتصال)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.callBack}</span></div>` : ''}
         ${hasValidKeepChange ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Keep Change${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(الباقي)</bdi>' : ''} : </span><span style="font-weight: normal;">${keepChangeVal}</span></div>` : ''}
@@ -583,11 +571,11 @@ export const generateKotHtml = async (
       <tr>
         <td style="width: 50%; text-align: left; padding: 2px 0 6px 0; font-size: 11.5px; line-height: 1.3;">
           <span style="font-weight: bold;">Order No${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal; margin-left: 2px;">(رقم الطلب)</bdi>' : ''}:</span>&nbsp;
-          <span style="font-size: 13.5px; font-weight: bold;">#${data.orderNo}</span>
+          <span style="font-size: 13.5px; font-weight: bold;">${toDisplayNo(data.orderNo) ? "#" + toDisplayNo(data.orderNo) : ""}</span>
         </td>
         <td style="width: 50%; text-align: right; padding: 2px 0 6px 0; font-size: 11.5px; line-height: 1.3;">
           <span style="font-weight: bold;">Ticket No${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal; margin-left: 2px;">(رقم التذكرة)</bdi>' : ''}:</span>&nbsp;
-          <span style="font-size: 13.5px; font-weight: bold;">#${data.ticketNo}</span>
+          <span style="font-size: 13.5px; font-weight: bold;">${toDisplayNo(data.ticketNo) ? "#" + toDisplayNo(data.ticketNo) : ""}</span>
         </td>
       </tr>
     </table>

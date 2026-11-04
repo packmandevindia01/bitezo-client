@@ -1,4 +1,5 @@
 import { orderApi } from "../../services/orderApi";
+import { toDisplayNo } from "../../services/orderResponse";
 import { buildPrintPricing } from "../../utils/printPricing";
 import { deliveryApi } from "../../customer/services/deliveryApi";
 import { menuApi } from "../../services/menuApi";
@@ -456,7 +457,7 @@ export const printRecallOrderGuestReceipt = async (
     // 8. Prepare Guest Print Payload
     const printData = {
       orderNo: master.orderNo ?? String(orderId),
-      ticketNo: master.ticketNo ?? "1",
+      ticketNo: toDisplayNo(master.ticketNo) ?? "",
       waiter: (() => {
         const rawName = master.employeeName ?? master.waiter ?? order?.employeeName;
         if (rawName && !["waiter", "cashier", "null", "undefined"].includes(String(rawName).trim().toLowerCase())) {
@@ -489,6 +490,7 @@ export const printRecallOrderGuestReceipt = async (
       vehicleNo: master.vehicleNo,
       contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
       callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
+      missedCall: isDeliveryOrder ? Boolean(master.missedCall ?? master.isMissedCall) : undefined,
       change: isDeliveryOrder ? validKeepChange : undefined,
       keepChanges: isDeliveryOrder ? validKeepChange : undefined,
       flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,

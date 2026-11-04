@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { unitService } from "../services/unitService";
+import { unitService, toParentId } from "../services/unitService";
 import { useToast } from "../../../../app/providers/useToast";
 import type { UnitFormState, UnitListItem } from "../types";
 import { useUnitList } from "./useUnitList";
@@ -36,6 +36,8 @@ export const useUnitManager = () => {
       }
 
       try {
+        const parentId = toParentId(form.parentId);
+        let savedUnitId = 0;
         if (modal.mode === "edit") {
           await unitService.update(modal.unitId, {
             unitId: modal.unitId,
@@ -43,21 +45,29 @@ export const useUnitManager = () => {
             category: form.category,
             conversion: form.conversion,
             currentValue: form.currentValue,
-            parentId: form.parentId,
+            parentId,
             updatedAt: new Date().toISOString(),
           });
+          savedUnitId = modal.unitId;
         } else {
-          await unitService.create({
+          const res = await unitService.create({
             name: form.name.trim(),
             category: form.category,
             conversion: form.conversion,
             currentValue: form.currentValue,
-            parentId: form.parentId,
+            parentId,
             createdAt: new Date().toISOString(),
           });
+          savedUnitId = Number((res as any)?.id ?? (res as any)?.unitId ?? 0);
         }
-  
+
         showToast(modal.mode === "edit" ? "Unit updated successfully" : "Unit created successfully", "success");
+
+        // Read the unit back: if the server stored another parent than the one sent, say so.
+        const storedParent = await unitService.verifySavedParent(savedUnitId, parentId);
+        if (storedParent !== null) {
+          showToast(`Saved, but the server stored parent unit #${storedParent} instead of #${parentId}. Please report this to the backend team.`, "warning");
+        }
         closeModal();
         await fetchUnits();
       } catch (err: unknown) {

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { modifierLabelOf } from "../../../../utils/modifierLabel";
+import { toDisplayNo } from "../../../../services/orderResponse";
 import { buildPrintPricing } from "../../../../utils/printPricing";
 import { storedOrderFooter, pickOrderMoney } from "../../../../pricing";
 import Modal from "../../../../../../components/common/Modal";
@@ -10,7 +12,8 @@ import { orderApi } from "../../../../services/orderApi";
 import { deliveryApi } from "../../../../customer/services/deliveryApi";
 import { getEmployeeNames, getEmployeeById } from "../../../../../general/employee/services/employeeService";
 import { useToast } from "../../../../../../app/providers/useToast";
-import { formatAmount } from "../../../../../../utils/currency";
+import { formatAmount, getDecimalPart } from "../../../../../../utils/currency";
+import { balanceBillFooter } from "../../../../../../utils/money";
 import { generateGuestPrintHtml, isEnableVatGuestPrint } from "../../../../utils/guestPrintTemplate";
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../../../utils/printHeadingUtils";
 import { printHtmlReceipt } from "../../../../services/qzService";
@@ -967,7 +970,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
       const printData = {
         orderNo: master.orderNo ?? String(orderId),
-        ticketNo: master.ticketNo ?? "1",
+        ticketNo: toDisplayNo(master.ticketNo) ?? "",
         invoiceNo,
         waiter: resolvedWaiter,
         counter: "Main",
@@ -982,6 +985,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         vehicleNo: master.vehicleNo,
         contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
         callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
+        missedCall: isDeliveryOrder ? Boolean(master.missedCall ?? master.isMissedCall) : undefined,
         change: isDeliveryOrder ? validKeepChange : undefined,
         keepChanges: isDeliveryOrder ? validKeepChange : undefined,
         flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,
@@ -1198,6 +1202,18 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
     rawVatExcl > 0 ? rawVatExcl : (Math.max(0, displaySubTotal - displayDiscount) + displayCharges)
   );
 
+  // Footer balanced to the fil so it always adds up (Sub Total − Discount + Charges = Net Value;
+  // Net Value + VAT + Delivery = Grand Total). Display only — utils/money.ts balanceBillFooter.
+  const shownFooter = balanceBillFooter({
+    subTotal: displaySubTotal,
+    discount: displayDiscount,
+    charges: displayCharges,
+    vat: displayVatAmount,
+    delivery: displayDeliveryCharge,
+    grandTotal: displayGrandTotal,
+  }, getDecimalPart());
+
+
   return (
     <Modal
       isOpen={isOpen}
@@ -1393,14 +1409,10 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
                     })}
                     {/* Modifiers */}
                     {standardMods && standardMods.length > 0 && standardMods.map((mod: any, mIdx: number) => {
-                      const mName = mod.modifierName || mod.name || "Modifier";
-                      const mQty = Number(mod.qty ?? 1);
-                      const mType = mod.typeName || mod.modifierTypeName || "";
-                      const typePrefix = mType ? `${mType.toUpperCase()}: ` : "";
                       return (
                         <div key={`mod-${mIdx}`} className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 text-[9px] text-[#f48120] font-medium pl-6 italic items-start">
                           <div className="col-span-3 min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word]">
-                            * {typePrefix}{mQty > 1 ? `${mQty} x ` : ""}{mName}
+                            * {modifierLabelOf(mod)}
                           </div>
                           <div className="text-right shrink-0"></div>
                         </div>
@@ -1426,39 +1438,39 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
             <div className="border-t border-dashed border-stone-400 pt-3 mt-4 space-y-1 text-[11px]">
               <div className="flex justify-between items-center text-stone-600">
                 <span>{t("Sub Total")}</span>
-                <span>{formatAmount(displaySubTotal)}</span>
+                <span>{formatAmount(shownFooter.subTotal)}</span>
               </div>
               {displayDiscount > 0 && (
                 <div className="flex justify-between items-center text-red-600">
                   <span>{t("Discount")}</span>
-                  <span>-{formatAmount(displayDiscount)}</span>
+                  <span>-{formatAmount(shownFooter.discount)}</span>
                 </div>
               )}
               {displayCharges > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>{t("Charges")}</span>
-                  <span>{formatAmount(displayCharges)}</span>
+                  <span>{formatAmount(shownFooter.charges)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-stone-600">
                 <span>{t("Net Value")}</span>
-                <span>{formatAmount(displayNetValue)}</span>
+                <span>{formatAmount(shownFooter.netValue)}</span>
               </div>
               {displayDeliveryCharge > 0 && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>{t("Delivery Charge")}</span>
-                  <span>{formatAmount(displayDeliveryCharge)}</span>
+                  <span>{formatAmount(shownFooter.delivery)}</span>
                 </div>
               )}
               {(isVatActive || displayVatAmount > 0) && (
                 <div className="flex justify-between items-center text-stone-600">
                   <span>{t("VAT")}</span>
-                  <span>{formatAmount(displayVatAmount)}</span>
+                  <span>{formatAmount(shownFooter.vat)}</span>
                 </div>
               )}
               <div className="flex justify-between items-center text-xs font-bold text-stone-900 uppercase pt-2 border-t border-dashed border-stone-300">
                 <span>{t("Grand Total")}</span>
-                <span className="text-base font-black text-[#f48120]">{formatAmount(displayGrandTotal)}</span>
+                <span className="text-base font-black text-[#f48120]">{formatAmount(shownFooter.grandTotal)}</span>
               </div>
             </div>
           </div>

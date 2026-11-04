@@ -3,6 +3,9 @@
  *
  * No localStorage, no Redux, no React, no guessing. Every input is explicit.
  * The rules implemented here are documented in ./types.ts (R1–R9).
+ *
+ * All arithmetic is exact decimal (./money.ts). Results are rounded HALF-UP to 14 decimals
+ * (CALC_PRECISION) — never truncated.
  */
 import type {
   BillInput,
@@ -14,24 +17,17 @@ import type {
   PricingSettings,
   TaxMode,
 } from "./types";
+import { CALC_PRECISION, Money, dec, round, sumDec, toNum } from "./money";
+import type { MoneyValue } from "./money";
 
-export const CALC_PRECISION = 7;
+export { CALC_PRECISION, round };
 
-/** Round half away from zero at `decimals` places (default 7, the storage precision). */
-export const round = (val: number | string | undefined | null, decimals: number = CALC_PRECISION): number => {
-  const num = typeof val === "string" ? parseFloat(val) : Number(val || 0);
-  if (!Number.isFinite(num)) return 0;
-  const factor = Math.pow(10, decimals);
-  const sign = num < 0 ? -1 : 1;
-  return sign * (Math.round((Math.abs(num) + 1e-11) * factor) / factor);
-};
+const ZERO = new Money(0);
+const ONE = new Money(1);
+const HUNDRED = new Money(100);
 
-const num = (v: unknown, fallback = 0): number => {
-  const n = typeof v === "string" ? parseFloat(v) : Number(v);
-  return Number.isFinite(n) ? n : fallback;
-};
-
-const sum = (values: number[]): number => values.reduce((a, b) => a + b, 0);
+const nonNeg = (d: MoneyValue): MoneyValue => (d.isNegative() ? ZERO : d);
+const minDec = (a: MoneyValue, b: MoneyValue): MoneyValue => (a.lessThan(b) ? a : b);
 
 export interface LineRates {
   vat: number;
@@ -40,41 +36,55 @@ export interface LineRates {
   factor: number;
 }
 
+interface LineRatesDec {
+  vat: MoneyValue;
+  serviceCharge: MoneyValue;
+  levy: MoneyValue;
+  factor: MoneyValue;
+}
+
+const lineRatesDec = (vatRatePercent: number, settings: PricingSettings): LineRatesDec => {
+  const vat = settings.vatEnabled ? nonNeg(dec(vatRatePercent)).dividedBy(HUNDRED) : ZERO;
+  const serviceCharge = nonNeg(dec(settings.serviceChargeRate)).dividedBy(HUNDRED);
+  const levy = nonNeg(dec(settings.levyRate)).dividedBy(HUNDRED);
+  const factor = ONE.plus(vat).times(ONE.plus(levy)).times(ONE.plus(serviceCharge));
+  return { vat, serviceCharge, levy, factor };
+};
+
 /** R3 — rates (as fractions) and combined factor for one line. */
 export const lineRates = (vatRatePercent: number, settings: PricingSettings): LineRates => {
-  const vat = settings.vatEnabled ? Math.max(0, num(vatRatePercent)) / 100 : 0;
-  const serviceCharge = Math.max(0, num(settings.serviceChargeRate)) / 100;
-  const levy = Math.max(0, num(settings.levyRate)) / 100;
-  return { vat, serviceCharge, levy, factor: (1 + vat) * (1 + levy) * (1 + serviceCharge) };
+  const r = lineRatesDec(vatRatePercent, settings);
+  return { vat: toNum(r.vat), serviceCharge: toNum(r.serviceCharge), levy: toNum(r.levy), factor: toNum(r.factor) };
 };
 
 /** R4 — convert a typed discount into exclusive (base) and inclusive (gross) amounts for one line. */
 const resolveLineDiscount = (
   discount: DiscountInput | null | undefined,
-  amount: number,
-  factor: number,
+  amount: MoneyValue,
+  factor: MoneyValue,
   discountCalc: TaxMode
-): { base: number; gross: number } => {
-  if (!discount || amount <= 0) return { base: 0, gross: 0 };
-  const value = Math.max(0, num(discount.value));
-  if (value <= 0) return { base: 0, gross: 0 };
+): { base: MoneyValue; gross: MoneyValue } => {
+  if (!discount || !amount.greaterThan(0)) return { base: ZERO, gross: ZERO };
+  const value = nonNeg(dec(discount.value));
+  if (!value.greaterThan(0)) return { base: ZERO, gross: ZERO };
 
-  let base: number;
-  let gross: number;
+  const grossAmount = amount.times(factor);
+  let base: MoneyValue;
+  let gross: MoneyValue;
   if (discount.type === "percentage") {
-    const pct = Math.min(100, value) / 100;
-    base = amount * pct;
-    gross = amount * factor * pct;
+    const pct = minDec(HUNDRED, value).dividedBy(HUNDRED);
+    base = amount.times(pct);
+    gross = grossAmount.times(pct);
   } else if (discountCalc === "Inclusive") {
-    gross = Math.min(amount * factor, value);
-    base = gross / factor;
+    gross = minDec(grossAmount, value);
+    base = gross.dividedBy(factor);
   } else {
-    base = Math.min(amount, value);
-    gross = base * factor;
+    base = minDec(amount, value);
+    gross = base.times(factor);
   }
   return {
-    base: Math.min(amount, Math.max(0, base)),
-    gross: Math.min(amount * factor, Math.max(0, gross)),
+    base: minDec(amount, nonNeg(base)),
+    gross: minDec(grossAmount, nonNeg(gross)),
   };
 };
 
@@ -87,90 +97,89 @@ export const priceLine = (
   settings: PricingSettings,
   options: { discountCalcOverride?: TaxMode; isBillDiscount?: boolean } = {}
 ): PricedLine => {
-  const qty = num(input.qty, 1);
-  const unitPrice = num(input.unitPrice);
-  const rates = lineRates(input.vatRate, settings);
+  const qtyNum = Number.isFinite(Number(input.qty)) ? Number(input.qty) : 1;
+  const qty = dec(qtyNum);
+  const unitPrice = dec(input.unitPrice);
+  const rates = lineRatesDec(input.vatRate, settings);
   const { factor } = rates;
 
   // R1 — exclusive unit price
-  const baseUnitPrice = input.priceIncludesTax ? unitPrice / factor : unitPrice;
-  const productBase = qty * baseUnitPrice;
+  const baseUnitPrice = input.priceIncludesTax ? unitPrice.dividedBy(factor) : unitPrice;
+  const productBase = qty.times(baseUnitPrice);
 
   // R2 — extras are always gross, converted with the line factor
-  const extras: PricedExtra[] = (input.extras || []).map((ex) => {
-    const grossPrice = num(ex.price);
-    const exQty = num(ex.qty) || 1;
-    const basePrice = grossPrice / factor;
-    return {
-      grossPrice,
-      qty: exQty,
-      basePrice: round(basePrice),
-      baseAmount: round(basePrice * exQty),
-    };
+  const extrasDec = (input.extras || []).map((ex) => {
+    const grossPrice = dec(ex.price);
+    const exQty = Number(ex.qty) || 1;
+    const basePrice = grossPrice.dividedBy(factor);
+    return { grossPrice, exQty, basePrice, baseAmount: basePrice.times(exQty) };
   });
-  const extrasGross = sum(extras.map((e) => e.grossPrice * e.qty));
-  const extrasBase = extrasGross > 0 ? extrasGross / factor : 0;
+  const extras: PricedExtra[] = extrasDec.map((e) => ({
+    grossPrice: toNum(e.grossPrice),
+    qty: e.exQty,
+    basePrice: toNum(e.basePrice),
+    baseAmount: toNum(e.baseAmount),
+  }));
+  const extrasGross = sumDec(extrasDec.map((e) => e.grossPrice.times(e.exQty)));
+  const extrasBase = extrasGross.greaterThan(0) ? extrasGross.dividedBy(factor) : ZERO;
 
-  const amount = productBase + extrasBase;
+  const amount = productBase.plus(extrasBase);
 
   // R4 — discount
-  const disc = resolveLineDiscount(
-    input.discount,
-    amount,
-    factor,
-    options.discountCalcOverride ?? settings.discountCalc
-  );
+  const disc = resolveLineDiscount(input.discount, amount, factor, options.discountCalcOverride ?? settings.discountCalc);
 
-  // R6 — charges on discounted base
-  const netValue = Math.max(0, amount - disc.base);
-  const serviceCharge = netValue > 0 ? netValue * rates.serviceCharge : 0;
-  const levy = netValue > 0 ? (netValue + serviceCharge) * rates.levy : 0;
-  const vatBase = Math.max(0, netValue + serviceCharge + levy);
-  const vatAmount = vatBase > 0 ? vatBase * rates.vat : 0;
-  const lineNet = vatBase + vatAmount;
+  // R6 — charges on the discounted base
+  const netValue = nonNeg(amount.minus(disc.base));
+  const serviceCharge = netValue.greaterThan(0) ? netValue.times(rates.serviceCharge) : ZERO;
+  const levy = netValue.greaterThan(0) ? netValue.plus(serviceCharge).times(rates.levy) : ZERO;
+  const vatBase = nonNeg(netValue.plus(serviceCharge).plus(levy));
+  const vatAmount = vatBase.greaterThan(0) ? vatBase.times(rates.vat) : ZERO;
+  const lineNet = vatBase.plus(vatAmount);
 
   return {
-    qty,
-    unitPrice,
+    qty: qtyNum,
+    unitPrice: toNum(unitPrice),
     priceIncludesTax: input.priceIncludesTax,
-    vatRate: rates.vat * 100,
-    factor,
-    baseUnitPrice: round(baseUnitPrice),
-    productBase: round(productBase),
+    vatRate: toNum(rates.vat.times(HUNDRED)),
+    factor: toNum(factor),
+    baseUnitPrice: toNum(baseUnitPrice),
+    productBase: toNum(productBase),
     extras,
-    extrasGross: round(extrasGross),
-    extrasBase: round(extrasBase),
-    amount: round(amount),
-    grossAmount: round(amount * factor),
-    discountBase: round(disc.base),
-    discountGross: round(disc.gross),
+    extrasGross: toNum(extrasGross),
+    extrasBase: toNum(extrasBase),
+    amount: toNum(amount),
+    grossAmount: toNum(amount.times(factor)),
+    discountBase: toNum(disc.base),
+    discountGross: toNum(disc.gross),
     isBillDiscount: Boolean(options.isBillDiscount),
-    netValue: round(netValue),
-    serviceCharge: round(serviceCharge),
-    levy: round(levy),
-    vatBase: round(vatBase),
-    vatAmount: round(vatAmount),
-    lineNet: round(lineNet),
+    netValue: toNum(netValue),
+    serviceCharge: toNum(serviceCharge),
+    levy: toNum(levy),
+    vatBase: toNum(vatBase),
+    vatAmount: toNum(vatAmount),
+    lineNet: toNum(lineNet),
   };
 };
 
 /**
  * R5 — split `total` across `weights` proportionally, at storage precision.
- * The rounding remainder goes to the largest weight so the parts sum exactly to `total`.
+ * The rounding remainder goes to the largest weight so the parts sum EXACTLY to `total`.
  */
 export const allocateProportionally = (total: number, weights: number[]): number[] => {
-  const totalWeight = sum(weights);
-  if (total <= 0 || totalWeight <= 0) return weights.map(() => 0);
-  const parts = weights.map((w) => round((total * w) / totalWeight));
-  const remainder = round(total - sum(parts));
-  if (remainder !== 0) {
+  const totalDec = dec(total);
+  const weightDecs = weights.map((w) => dec(w));
+  const totalWeight = sumDec(weightDecs);
+  if (!totalDec.greaterThan(0) || !totalWeight.greaterThan(0)) return weights.map(() => 0);
+  const parts = weightDecs.map((w) => totalDec.times(w).dividedBy(totalWeight).toDecimalPlaces(CALC_PRECISION));
+  const remainder = totalDec.toDecimalPlaces(CALC_PRECISION).minus(sumDec(parts));
+  if (!remainder.isZero()) {
     let largest = 0;
-    weights.forEach((w, i) => {
-      if (w > weights[largest]) largest = i;
+    weightDecs.forEach((w, i) => {
+      if (w.greaterThan(weightDecs[largest])) largest = i;
     });
-    parts[largest] = round(parts[largest] + remainder);
+    parts[largest] = parts[largest].plus(remainder);
   }
-  return parts;
+  return parts.map((p) => toNum(p));
 };
 
 /** R5 — convert a typed bill discount into an exclusive amount. */
@@ -180,19 +189,20 @@ export const resolveBillDiscountExclusive = (
   totalGross: number,
   discountCalc: TaxMode
 ): number => {
-  const value = Math.max(0, num(discount?.value));
-  if (!discount || value <= 0 || totalBase <= 0) return 0;
-  let exclusive: number;
+  const value = nonNeg(dec(discount?.value));
+  const base = dec(totalBase);
+  if (!discount || !value.greaterThan(0) || !base.greaterThan(0)) return 0;
+  let exclusive: MoneyValue;
   if (discount.type === "percentage") {
-    exclusive = totalBase * (value / 100);
+    exclusive = base.times(value.dividedBy(HUNDRED));
   } else if (discountCalc === "Inclusive") {
     // Average factor of the bill; exact because allocation is proportional to base.
-    const orderFactor = totalGross > 0 ? totalGross / totalBase : 1;
-    exclusive = value / orderFactor;
+    const gross = dec(totalGross);
+    exclusive = gross.greaterThan(0) ? value.times(base).dividedBy(gross) : value;
   } else {
     exclusive = value;
   }
-  return round(Math.min(totalBase, Math.max(0, exclusive)));
+  return toNum(minDec(base, nonNeg(exclusive)));
 };
 
 /** Price a whole bill. */
@@ -201,66 +211,58 @@ export const priceBill = (bill: BillInput, settings: PricingSettings): PricedBil
 
   // Pass 1 — undiscounted lines give the weights and the bill factor.
   const undiscounted = inputs.map((l) => priceLine({ ...l, discount: null }, settings));
-  const totalBase = sum(undiscounted.map((l) => l.amount));
-  const totalGross = sum(undiscounted.map((l) => l.lineNet));
+  const totalBase = toNum(sumDec(undiscounted.map((l) => l.amount)));
+  const totalGross = toNum(sumDec(undiscounted.map((l) => l.lineNet)));
 
-  const billDiscountExclusive = resolveBillDiscountExclusive(
-    bill.billDiscount,
-    totalBase,
-    totalGross,
-    settings.discountCalc
-  );
+  const billDiscountExclusive = resolveBillDiscountExclusive(bill.billDiscount, totalBase, totalGross, settings.discountCalc);
   const billDiscountApplied = billDiscountExclusive > 0;
 
   // Pass 2 — final lines.
   let lines: PricedLine[];
   if (billDiscountApplied) {
-    const allocated = allocateProportionally(
-      billDiscountExclusive,
-      undiscounted.map((l) => l.amount)
-    );
+    const allocated = allocateProportionally(billDiscountExclusive, undiscounted.map((l) => l.amount));
     lines = inputs.map((l, i) =>
-      priceLine(
-        { ...l, discount: { type: "amount", value: allocated[i] } },
-        settings,
-        { discountCalcOverride: "Exclusive", isBillDiscount: true }
-      )
+      priceLine({ ...l, discount: { type: "amount", value: allocated[i] } }, settings, {
+        discountCalcOverride: "Exclusive",
+        isBillDiscount: true,
+      })
     );
   } else {
     lines = inputs.map((l) => priceLine(l, settings));
   }
 
-  const deliveryCharge = round(Math.max(0, num(bill.deliveryCharge)));
+  const deliveryCharge = toNum(nonNeg(dec(bill.deliveryCharge)));
   const itemLines = lines.filter((l) => !l.isBillDiscount);
   const billLines = lines.filter((l) => l.isBillDiscount);
+  const total = (arr: PricedLine[], pick: (l: PricedLine) => number) => toNum(sumDec(arr.map(pick)));
 
-  const itemDiscountExclusive = round(sum(itemLines.map((l) => l.discountBase)));
-  const itemDiscountInclusive = round(sum(itemLines.map((l) => l.discountGross)));
-  const billDiscountExclusiveTotal = round(sum(billLines.map((l) => l.discountBase)));
-  const billDiscountInclusive = round(sum(billLines.map((l) => l.discountGross)));
-  const linesNet = round(sum(lines.map((l) => l.lineNet)));
+  const itemDiscountExclusive = total(itemLines, (l) => l.discountBase);
+  const itemDiscountInclusive = total(itemLines, (l) => l.discountGross);
+  const billDiscountExclusiveTotal = total(billLines, (l) => l.discountBase);
+  const billDiscountInclusive = total(billLines, (l) => l.discountGross);
+  const linesNet = total(lines, (l) => l.lineNet);
 
   return {
     lines,
     billDiscountApplied,
     totals: {
-      subTotalExclusive: round(sum(lines.map((l) => l.amount))),
-      subTotalInclusive: round(sum(lines.map((l) => l.grossAmount))),
+      subTotalExclusive: total(lines, (l) => l.amount),
+      subTotalInclusive: total(lines, (l) => l.grossAmount),
       itemDiscountExclusive,
       itemDiscountInclusive,
       billDiscountExclusive: billDiscountExclusiveTotal,
       billDiscountInclusive,
-      discountExclusive: round(itemDiscountExclusive + billDiscountExclusiveTotal),
-      discountInclusive: round(itemDiscountInclusive + billDiscountInclusive),
-      serviceCharge: round(sum(lines.map((l) => l.serviceCharge))),
-      levy: round(sum(lines.map((l) => l.levy))),
-      vatExclAmount: round(sum(lines.map((l) => l.vatBase))),
-      vatAmount: round(sum(lines.map((l) => l.vatAmount))),
+      discountExclusive: toNum(sumDec([itemDiscountExclusive, billDiscountExclusiveTotal])),
+      discountInclusive: toNum(sumDec([itemDiscountInclusive, billDiscountInclusive])),
+      serviceCharge: total(lines, (l) => l.serviceCharge),
+      levy: total(lines, (l) => l.levy),
+      vatExclAmount: total(lines, (l) => l.vatBase),
+      vatAmount: total(lines, (l) => l.vatAmount),
       linesNet,
       deliveryCharge,
-      grandTotal: round(linesNet + deliveryCharge),
-      itemCount: sum(lines.map((l) => l.qty)),
-      extrasGross: round(sum(lines.map((l) => l.extrasGross))),
+      grandTotal: toNum(sumDec([linesNet, deliveryCharge])),
+      itemCount: lines.reduce((s, l) => s + l.qty, 0),
+      extrasGross: total(lines, (l) => l.extrasGross),
     },
   };
 };

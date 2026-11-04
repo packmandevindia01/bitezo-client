@@ -63,7 +63,9 @@ for (const view of ["Inclusive", "Exclusive"] as const) {
       expect(orderTypeName).toBe("TakeOut");
       expect(savedRates).toEqual({ serviceCharge: 0, levy: 0 });
       const it0 = items[0];
-      expect(it0.discount).toEqual({ type: "amount", value: 15 });
+      // #287 was saved with 7-decimal values; restored at 14 dp it carries that storage noise (14.99999996)
+      expect(it0.discount?.type).toBe("amount");
+      expect(it0.discount?.value).toBeCloseTo(15, 6);
       const whole = bucketTotal([{ item: it0, qty: 3, discountValue: 15, withExtras: true }]);
       expect(whole.grandTotal).toBeCloseTo(285, 3);
       const base = bucketTotal([{ item: it0, qty: 2, discountValue: 10, withExtras: true }]);

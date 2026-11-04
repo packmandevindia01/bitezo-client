@@ -1,3 +1,4 @@
+import { round as moneyRound } from "./money";
 /**
  * Normalizes a value to a valid number of decimal places (between 0 and 6)
  */
@@ -28,11 +29,8 @@ export const roundToDecimals = (
   const num = typeof value === "string" ? parseFloat(value) : Number(value || 0);
   if (!Number.isFinite(num)) return 0;
   if (num === 0) return 0;
-  const d = normalizeDecimalPart(decimals);
-  const factor = Math.pow(10, d);
-  const sign = num < 0 ? -1 : 1;
-  const abs = Math.abs(num);
-  return sign * (Math.round((abs + 1e-11) * factor) / factor);
+  // Exact decimal, half-up (away from zero), float noise removed first — see utils/money.ts.
+  return moneyRound(num, normalizeDecimalPart(decimals));
 };
 
 /**

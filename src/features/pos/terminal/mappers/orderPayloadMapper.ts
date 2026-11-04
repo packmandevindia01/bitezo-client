@@ -7,6 +7,7 @@ import {
   sanitizeTaxExclusiveDetail,
 } from "../utils/billing";
 import { formatDateOnly } from "./invoicePayloadMapper";
+import { sumMoney } from "../../../../utils/money";
 import type {
   PosCartItem,
   MenuOrderRequest,
@@ -336,7 +337,8 @@ export const buildDirectSettleOrderPayload = (
   const resolvedAddressId = selectedAddressId || 0;
 
   // ── Master totals are the sums of the detail rows (one source, always consistent) ──
-  const sumOf = (pick: (d: MenuOrderDetail) => number) => roundCalc(details.reduce((s, d) => s + Number(pick(d) || 0), 0));
+  // exact decimal sums (utils/money.ts) — no float noise in the totals sent to the backend
+  const sumOf = (pick: (d: MenuOrderDetail) => number) => sumMoney(details.map((d) => pick(d) || 0));
 
   const masterDiscAmount = isOrderBillDiscount ? sumOf((d) => d.discAmount) : 0;
   const masterDiscPer = isOrderBillDiscount && billDiscountType === "percentage" ? Number(billDiscountValue || 0) : 0;
@@ -351,7 +353,7 @@ export const buildDirectSettleOrderPayload = (
   const resolvedMasterLevy = sumOf((d) => d.levy);
   const taxableBase = priced.summary.vatExclAmount;
   const linesVat = sumOf((d) => d.vatAmount);
-  const linesNetPayable = roundCalc(sumOf((d) => d.netAmount) + Number(deliveryCharge || 0));
+  const linesNetPayable = sumMoney([sumOf((d) => d.netAmount), deliveryCharge || 0]);
 
   // TRANSITIONAL (until recall mapping is moved onto the engine): an unmodified recalled
   // order keeps the backend's stored totals, exactly as before this refactor.
@@ -528,8 +530,8 @@ export const buildUpdateOrderPayload = (
     typeId: Number(vm.typeId || 1),
   }));
 
-  const cleanedDetailsLevySum = roundCalc(cleanedDetails.reduce((sum, d) => sum + Number(d.levy || 0), 0));
-  const cleanedDetailsScSum = roundCalc(cleanedDetails.reduce((sum, d) => sum + Number(d.serviceCharge || 0), 0));
+  const cleanedDetailsLevySum = sumMoney(cleanedDetails.map((d) => d.levy || 0));
+  const cleanedDetailsScSum = sumMoney(cleanedDetails.map((d) => d.serviceCharge || 0));
   const resolvedUpdateLevy = Number(base.levy || 0) > 0
     ? roundCalc(base.levy || 0)
     : cleanedDetailsLevySum;

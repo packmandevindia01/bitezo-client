@@ -1,3 +1,4 @@
+import { round as moneyRound } from "./money";
 // src/utils/currency.ts — DYNAMIC, never hardcoded
 
 export const getCurrencySymbol = (): string =>
@@ -14,10 +15,8 @@ export const formatCurrency = (value: number | string): string => {
   if (numValue === 0) {
     return `${symbol} ${(0).toFixed(decimals)}`;
   }
-  const factor = Math.pow(10, decimals);
-  const sign = numValue < 0 ? -1 : 1;
-  const abs = Math.abs(numValue);
-  const rounded = sign * (Math.round((abs + 1e-11) * factor) / factor);
+  // Exact decimal, half-up, float noise removed first — see utils/money.ts.
+  const rounded = moneyRound(numValue, decimals);
   return `${symbol} ${rounded.toLocaleString("en-US", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -31,10 +30,8 @@ export const formatAmount = (value: number | string): string => {
   if (numValue === 0) {
     return (0).toFixed(decimals);
   }
-  const factor = Math.pow(10, decimals);
-  const sign = numValue < 0 ? -1 : 1;
-  const abs = Math.abs(numValue);
-  const rounded = sign * (Math.round((abs + 1e-11) * factor) / factor);
+  // Exact decimal, half-up, float noise removed first — see utils/money.ts.
+  const rounded = moneyRound(numValue, decimals);
   return rounded.toLocaleString("en-US", {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,

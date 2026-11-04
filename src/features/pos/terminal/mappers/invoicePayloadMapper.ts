@@ -1,5 +1,6 @@
 import { roundCalc, sanitizeTaxExclusiveDetail, getVatStatus } from "../utils/billing";
 import type { SalesInvoicePayload, PaymodeItem } from "../../types";
+import { dec, sumDec, toNum } from "../../../../utils/money";
 import type { DirectSettleOrderBase } from "./orderPayloadMapper";
 
 export interface BuildInvoiceOptions {
@@ -145,37 +146,46 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
       };
     });
 
-    const totalModifierGross = (orderPayload.modifiers || []).reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0);
-    const lineExclSum = sanitizedDetails.reduce(
-      (sum, d) => sum + (Number(d.price || 0) * Number(d.qty || 1) - Number(d.discAmount || 0)),
-      0
-    );
-    const areDetailsCombined = sanitizedDetails.length > 0 && Math.abs(lineExclSum - (Number(orderPayload.vatExclAmount || 0) - Number(orderPayload.serviceCharge || 0) - Number(orderPayload.levy || 0))) < 0.05;
-    let calcVatExcl = roundCalc(areDetailsCombined ? lineExclSum : (lineExclSum + totalModifierGross));
-    const lineVatSum = roundCalc(sanitizedDetails.reduce((sum, d) => sum + Number(d.vatAmount || 0), 0));
+    // All totals in EXACT decimal (utils/money.ts) and kept as decimals until the end: converting a partial
+    // total to a JS number can drop its 14th decimal (only ~16 significant digits), e.g. 100 → 99.99999999999999.
+    const totalModifierGrossD = sumDec((orderPayload.modifiers || []).map((m: any) =>
+      m.amount !== undefined ? m.amount : dec(m.price || 0).times(Number(m.qty || 1))));
+    // Exclusive line value after discount. From the engine's own line values when present (exact);
+    // price × qty only for old data — a 14-dp unit price × qty cannot always rebuild the amount (10/3 × 3).
+    const lineExcl = (d: any) =>
+      d.netAmount !== undefined && d.netAmount !== null
+        ? dec(d.netAmount).minus(dec(d.vatAmount || 0)).minus(dec(d.serviceCharge || 0)).minus(dec(d.levy || 0))
+        : dec(d.price || 0).times(Number(d.qty || 1)).minus(dec(d.discAmount || 0));
+    const lineExclSumD = sumDec(sanitizedDetails.map(lineExcl));
+    const masterNetD = dec(orderPayload.vatExclAmount || 0).minus(dec(orderPayload.serviceCharge || 0)).minus(dec(orderPayload.levy || 0));
+    const areDetailsCombined = sanitizedDetails.length > 0 && lineExclSumD.minus(masterNetD).abs().lessThan(0.05);
+    let calcVatExclD = areDetailsCombined ? lineExclSumD : lineExclSumD.plus(totalModifierGrossD);
+    const lineVatSumD = sumDec(sanitizedDetails.map((d) => d.vatAmount || 0));
 
     const invoiceDiscAmount = isOrderBillDiscount ? roundCalc(Number(orderPayload.discAmount || 0)) : 0;
     const invoiceDiscPer = isOrderBillDiscount ? Number(orderPayload.discPer || 0) : 0;
-    const totalDetailDiscSum = sanitizedDetails.reduce((sum, d) => sum + Number(d.discAmount || 0), 0);
+    const totalDetailDiscSum = toNum(sumDec(sanitizedDetails.map((d) => d.discAmount || 0)));
     if (isOrderBillDiscount && totalDetailDiscSum < 0.001) {
-      calcVatExcl = roundCalc(Math.max(0, calcVatExcl - invoiceDiscAmount));
+      calcVatExclD = calcVatExclD.minus(dec(invoiceDiscAmount));
     }
+    if (calcVatExclD.isNegative()) calcVatExclD = dec(0);
 
     const isVatEnabled = getVatStatus();
     const isComplimentary = Boolean((orderPayload as any).complimentaryStatus || Number(orderPayload.discPer) === 100);
-    const detailsSc = sanitizedDetails.reduce((sum, d) => sum + Number(d.serviceCharge || 0), 0);
-    const detailsLevy = sanitizedDetails.reduce((sum, d) => sum + Number(d.levy || 0), 0);
-    const totalSc = Number(orderPayload.serviceCharge || 0) || detailsSc;
-    const totalLevy = Number(orderPayload.levy || 0) || detailsLevy;
-    const taxableBase = Math.max(0, calcVatExcl + totalSc + totalLevy);
+    const totalScD = Number(orderPayload.serviceCharge || 0) ? dec(orderPayload.serviceCharge) : sumDec(sanitizedDetails.map((d) => d.serviceCharge || 0));
+    const totalLevyD = Number(orderPayload.levy || 0) ? dec(orderPayload.levy) : sumDec(sanitizedDetails.map((d) => d.levy || 0));
+    let taxableBaseD = calcVatExclD.plus(totalScD).plus(totalLevyD);
+    if (taxableBaseD.isNegative()) taxableBaseD = dec(0);
     // VAT is the sum of the per-line VAT (each line uses its own product VAT rate).
     // Previously this was floored at a hard-coded 10% of the whole bill, which over-taxed
     // zero-rated / lower-rated items on the sales invoice.
-    let calcVatAmt = 0;
+    let calcVatAmtD = dec(0);
     if (isVatEnabled && !isComplimentary) {
-      calcVatAmt = lineVatSum > 0 ? lineVatSum : roundCalc(Number(orderPayload.vatAmount || 0));
+      calcVatAmtD = lineVatSumD.greaterThan(0) ? lineVatSumD : dec(orderPayload.vatAmount || 0);
     }
-    const netPayable = roundCalc(taxableBase + calcVatAmt + Number(orderPayload.deliveryCharge || 0));
+    const taxableBase = toNum(taxableBaseD);
+    const calcVatAmt = toNum(calcVatAmtD);
+    const netPayable = toNum(taxableBaseD.plus(calcVatAmtD).plus(dec(orderPayload.deliveryCharge || 0)));
 
   return {
     seriesId: systemSeriesId,

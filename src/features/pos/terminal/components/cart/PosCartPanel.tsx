@@ -174,7 +174,7 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
               }
             }}
             onClose={() => setIsCartOpen(false)}
-            onDeliveryChargeDoubleClick={isDelivery ? () => setIsDeliveryChargeModalOpen(true) : undefined}
+            onDeliveryChargeClick={isDelivery ? () => setIsDeliveryChargeModalOpen(true) : undefined}
           />
         </ErrorBoundary>
       </div>

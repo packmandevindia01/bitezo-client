@@ -1,4 +1,5 @@
 import React from "react";
+import { modifierLabelOf } from "../../../../utils/modifierLabel";
 import { formatAmount } from "../../../../../../utils/currency";
 import { getLocalizedName, t } from "../../../../utils/posLocalization";
 import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
@@ -267,14 +268,10 @@ export const PosReceiptTicket: React.FC<PosReceiptTicketProps> = ({
 
               {/* Modifiers */}
               {standardMods.length > 0 && standardMods.map((mod: any, mIdx: number) => {
-                const mName = mod.modifierName || mod.name || "Modifier";
-                const mQty = Number(mod.qty ?? 1);
-                const mType = mod.typeName || mod.modifierTypeName || "";
-                const typePrefix = mType ? `${mType.toUpperCase()}: ` : "";
                 return (
                   <div key={`mod-${mIdx}`} className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 text-[9px] text-[#f48120] font-medium pl-6 italic items-start mt-0.5">
                     <div className="col-span-3 min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word]">
-                      * {typePrefix}{mQty > 1 ? `${mQty} x ` : ""}{mName}
+                      * {modifierLabelOf(mod)}
                     </div>
                     <div className="text-right shrink-0"></div>
                   </div>

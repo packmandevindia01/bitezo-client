@@ -17,6 +17,7 @@
 
 import type { PosCartItem } from "../types";
 import { type GuestPrintData, resolvePrintTaxSetting, isEnableVatGuestPrint } from "./guestPrintTemplate";
+import { toDisplayNo } from "../services/orderResponse";
 import { type KotPrintData, resolveKotPrintTaxSetting, resolveKotHeaderStyle } from "./kotTemplate";
 import type { EndReportData } from "../cashier/services/cashierLogService";
 import { getDayEndReportConfig } from "../services/posConfigApi";
@@ -354,12 +355,12 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   if (data.invoiceNo) {
     const invDisplay = data.invoiceNo.startsWith('#') ? data.invoiceNo : (isNaN(Number(data.invoiceNo)) ? data.invoiceNo : '#' + data.invoiceNo);
     markup += twoCol(`${invLbl}: ${invDisplay}`, `${ordLbl} ${formatOrderNo(data.orderNo)}`) + "\n";
-    markup += twoCol(`${tktLbl} #${data.ticketNo}`, `${dateLbl}: ${dateStr}`) + "\n";
+    markup += twoCol(`${tktLbl} ${toDisplayNo(data.ticketNo) ? "#" + toDisplayNo(data.ticketNo) : ""}`, `${dateLbl}: ${dateStr}`) + "\n";
     markup += twoCol(`${timeLbl}: ${timeStr}`, `${empLbl}: ${data.waiter}`) + "\n";
     if (data.counter) markup += twoCol(`${cntLbl}: ${data.counter}`, isDineIn ? `${secLbl}: ${data.section}` : (driverVal ? `${drvLbl}: ${driverVal}` : "")) + "\n";
     if (isDineIn && data.table) markup += `[L]${tblLbl}: ${data.table}\n`;
   } else {
-    markup += twoCol(`${ordLbl} ${formatOrderNo(data.orderNo)}`, `${tktLbl} #${data.ticketNo}`) + "\n";
+    markup += twoCol(`${ordLbl} ${formatOrderNo(data.orderNo)}`, `${tktLbl} ${toDisplayNo(data.ticketNo) ? "#" + toDisplayNo(data.ticketNo) : ""}`) + "\n";
     markup += twoCol(`${dateLbl}: ${dateStr}`, `${timeLbl}: ${timeStr}`) + "\n";
     markup += twoCol(`${empLbl}: ${data.waiter}`, `${cntLbl}: ${data.counter}`) + "\n";
     if (isDineIn) {
@@ -728,7 +729,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   const kotSecLbl = isKotArabic ? "Section (القسم)" : "Section";
   const kotTblLbl = isKotArabic ? "Table (الطاولة)" : "Table";
 
-  markup += twoCol(`${kotOrdLbl}: ${formatOrderNo(data.orderNo || "")}`, `${kotTktLbl}: #${data.ticketNo || ""}`) + "\n";
+  markup += twoCol(`${kotOrdLbl}: ${formatOrderNo(data.orderNo || "")}`, `${kotTktLbl}: ${toDisplayNo(data.ticketNo) ? "#" + toDisplayNo(data.ticketNo) : ""}`) + "\n";
   markup += twoCol(`${kotDateLbl}: ${dateStr || ""}`, `${kotTimeLbl}: ${timeStr || ""}`) + "\n";
   markup += twoCol(`${kotWaitLbl}: ${data.waiter || "Cashier"}`, `${kotCntLbl}: ${data.counter || "Main"}`) + "\n";
 

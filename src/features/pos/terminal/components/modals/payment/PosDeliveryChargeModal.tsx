@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Truck, X, Check, MapPin } from "lucide-react";
 import { useCurrency } from "../../../../../../hooks/useCurrency";
+import { getStoredDefaultDeliveryCharge } from "../../../utils/billing";
 
 interface PosDeliveryChargeModalProps {
   isOpen: boolean;
@@ -9,7 +10,6 @@ interface PosDeliveryChargeModalProps {
   onSelect: (charge: number) => void;
 }
 
-// ── Sample zones — replace with real API data when backend is ready ─────────
 interface DeliveryZone {
   id: string;
   name: string;
@@ -17,15 +17,29 @@ interface DeliveryZone {
   description?: string;
 }
 
-const SAMPLE_ZONES: DeliveryZone[] = [
-  { id: "1", name: "Zone 1", charge: 0.5,  description: "Nearby" },
-  { id: "2", name: "Zone 2", charge: 1.0,  description: "City" },
-  { id: "3", name: "Zone 3", charge: 1.5,  description: "Suburbs" },
-  { id: "4", name: "Zone 4", charge: 2.0,  description: "Outskirts" },
-  { id: "5", name: "Zone 5", charge: 2.5,  description: "Far" },
-  { id: "6", name: "Zone 6", charge: 3.0,  description: "Remote" },
-];
-// ────────────────────────────────────────────────────────────────────────────
+/**
+ * Delivery zones come ONLY from the POS configuration (`deliverycharges`, set in Configuration → Charges,
+ * cached as localStorage.posConfigs when the terminal starts). There are no built-in sample zones — those
+ * showed invented charges (0.500 … 3.000) whenever no zones were configured.
+ * With no zones configured, the configured default delivery charge (if any) is offered instead.
+ */
+const readConfiguredZones = (): DeliveryZone[] => {
+  try {
+    const raw = localStorage.getItem('posConfigs') || localStorage.getItem('posConfig');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const list = parsed?.deliverycharges || parsed?.configs?.deliverycharges || parsed?.deliveryCharges || [];
+    if (!Array.isArray(list)) return [];
+    return list.map((item: any, idx: number) => ({
+      id: String(item.id || item.chargeName || idx + 1),
+      name: item.chargeName || item.name || `Zone ${idx + 1}`,
+      charge: Number(item.chargeValue ?? item.charge ?? 0),
+      description: item.description,
+    }));
+  } catch {
+    return [];
+  }
+};
 
 export const PosDeliveryChargeModal = ({
   isOpen,
@@ -36,24 +50,14 @@ export const PosDeliveryChargeModal = ({
   const { formatAmount } = useCurrency();
   const [selected, setSelected] = useState<string | null>(null);
 
-  const zones: DeliveryZone[] = (() => {
-    try {
-      const raw = localStorage.getItem('posConfigs') || localStorage.getItem('posConfig');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        const list = parsed?.deliverycharges || parsed?.configs?.deliverycharges || parsed?.deliveryCharges || [];
-        if (Array.isArray(list) && list.length > 0) {
-          return list.map((item: any, idx: number) => ({
-            id: String(item.id || item.chargeName || idx + 1),
-            name: item.chargeName || item.name || `Zone ${idx + 1}`,
-            charge: Number(item.chargeValue ?? item.charge ?? 0),
-            description: item.description
-          }));
-        }
-      }
-    } catch { /* ignore */ }
-    return SAMPLE_ZONES;
-  })();
+  const configuredZones = readConfiguredZones();
+  const defaultCharge = getStoredDefaultDeliveryCharge();
+  const zones: DeliveryZone[] =
+    configuredZones.length > 0
+      ? configuredZones
+      : defaultCharge > 0
+      ? [{ id: "default", name: "Default", charge: defaultCharge }]
+      : [];
 
   if (!isOpen) return null;
 
@@ -119,6 +123,12 @@ export const PosDeliveryChargeModal = ({
 
         {/* ── Zone grid ─────────────────────────────────────────────── */}
         <div className="p-4">
+          {configuredZones.length === 0 && (
+            <p className="mb-3 text-[10px] font-bold text-slate-500 leading-snug">
+              No delivery zones are set up. Add them in POS Configuration → Charges.
+              {zones.length > 0 ? " The configured default delivery charge is shown below." : ""}
+            </p>
+          )}
           <div className="grid grid-cols-3 gap-2">
             {zones.map((zone) => {
               const isActive =
@@ -187,7 +197,7 @@ export const PosDeliveryChargeModal = ({
         {/* ── Footer ────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-4 pb-4 pt-1">
           <p className="text-[8px] text-slate-300 uppercase tracking-widest">
-            Double-click row to open
+            Tap a zone to apply
           </p>
           <button
             onClick={onClose}

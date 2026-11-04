@@ -3,7 +3,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
-import { unitService } from "../../unit/services/unitService";
+import { unitService, toParentId } from "../../unit/services/unitService";
 import { useToast } from "../../../../app/providers/useToast";
 
 const schema = z.object({
@@ -60,13 +60,19 @@ export const useQuickAddUnit = (
         category: data.category,
         conversion: Number(data.conversion),
         currentValue: data.currentValue,
-        parentId: Number(data.parentId),
+        parentId: toParentId(data.parentId),
         createdAt: new Date().toISOString(),
       }),
-    onSuccess: (res, variables) => {
+    onSuccess: async (res, variables) => {
       queryClient.invalidateQueries({ queryKey: ["productMasterData"] });
       showToast("Unit created successfully", "success");
       const newId = (res as any)?.id ?? (res as any)?.unitId ?? "";
+      // Read the unit back: if the server stored another parent than the one sent, say so.
+      const sentParent = toParentId(variables.parentId);
+      const storedParent = await unitService.verifySavedParent(Number(newId), sentParent);
+      if (storedParent !== null) {
+        showToast(`Saved, but the server stored parent unit #${storedParent} instead of #${sentParent}. Please report this to the backend team.`, "warning");
+      }
       onCreated(String(newId), variables.name);
       form.reset({ name: "", category: "Quantity", conversion: 1, parentId: 0, currentValue: 0 });
       onClose();

@@ -12,6 +12,7 @@ import {
 } from "./alternativeHelpers";
 import { checkOrderHasBillDiscount } from "../terminal/utils/orderDiscountCheck";
 import { getModifierTypeNameById, getCachedExtras } from "../services/menuApi";
+import { resolveModifierTypeName } from "./modifierLabel";
 
 export interface UnifiedExtraModifier {
   id: number;
@@ -460,6 +461,7 @@ export const buildUnifiedOrderPricing = (
           (statusStr !== "message" && statusStr !== "extras" && statusStr !== "extra" && price <= 0)
         ) {
           const resolvedTypeName =
+            resolveModifierTypeName(m) ||
             m.typeName ||
             m.TypeName ||
             m.modifierTypeName ||

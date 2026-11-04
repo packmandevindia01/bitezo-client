@@ -34,8 +34,9 @@
  *
  *  R7  Delivery charge is added to the grand total after VAT and is not taxed.
  *
- *  R8  Amounts keep CALC_PRECISION (7) decimals for storage; only display/print rounds
- *      to the currency decimals. Totals are sums of the (7-dp) line values.
+ *  R8  Arithmetic is exact decimal (money.ts). Amounts keep CALC_PRECISION (14) decimals, ROUNDED
+ *      HALF-UP — never truncated. Only display / print / amount-to-pay round to the currency decimals
+ *      (half-up). Totals are exact sums of the 14-dp line values.
  *
  *  R9  The backend stores exclusive values only (price, discAmount, serviceCharge, levy,
  *      vatAmount, netAmount, vatExclAmount).

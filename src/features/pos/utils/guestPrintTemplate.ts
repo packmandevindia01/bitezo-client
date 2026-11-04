@@ -1,12 +1,14 @@
 import type { PosCartItem } from "../types";
+import { modifierLabelOf } from "./modifierLabel";
+import { toDisplayNo } from "../services/orderResponse";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 import { isBillArabicEnabled, getAlternativeArabicName, containsArabic } from "./alternativeHelpers";
 export { isBillArabicEnabled };
 import { getDecimalPart } from "../../../utils/currency";
-import { getModifierTypeNameById } from "../services/menuApi";
 import { getBillingConfig, getPriceView, getVatStatus, roundCalc } from "../terminal/utils/billing";
 import { applyCartPricingToUnified } from "./printPricing";
+import { balanceBillFooter, balanceToTotal } from "../../../utils/money";
 import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
 
 export interface GuestPrintData {
@@ -25,6 +27,8 @@ export interface GuestPrintData {
   driverName?: string;
   vehicleNo?: string;
   contactNo?: string;
+  /** delivery order taken from a missed call (Delivery page toggle) */
+  missedCall?: boolean | string;
   callBack?: string;
   change?: string;
   keepChanges?: string;
@@ -366,124 +370,6 @@ export const generateGuestPrintHtml = async (
     (!isInputPrecomputed && applyCartPricingToUnified(unifiedBase, rawLines, { printPrice: printTaxSetting, deliveryCharge: data.deliveryCharge, orderType: data.orderType })) ||
     unifiedBase;
 
-  let itemsHtml = "";
-  unified.lines.forEach((line) => {
-    const name = line.productName.toUpperCase();
-    const qty = line.quantity;
-    const altArabicName = isBillArabic ? getAlternativeArabicName(line.rawItem) : "";
-    const lineDiscVal = Number(
-      isTaxInclusive
-        ? (line.lineDiscountIncl ?? (typeof line.getDiscount === "function" ? line.getDiscount(true) : line.lineDiscount))
-        : (line.lineDiscountExcl ?? (typeof line.getDiscount === "function" ? line.getDiscount(false) : line.lineDiscount))
-    );
-    const totalItemDisc = lineDiscVal > 0 ? lineDiscVal : 0;
-
-    const origRate = line.getRate(isTaxInclusive);
-    const origGrossAmt = isTaxInclusive ? line.inclusiveGross : line.exclusiveGross;
-    const netAmt = totalItemDisc > 0
-      ? Math.max(0, origGrossAmt - totalItemDisc)
-      : (isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount);
-
-    const rate = fmt(origRate);
-    const amt = fmt(origGrossAmt);
-
-    itemsHtml += `
-      <tr>
-        <td style="width: 14%; text-align: left; vertical-align: top; padding: 1px 0;">${qty}</td>
-        <td style="width: 46%; text-align: left; vertical-align: top; padding: 1px 0;">
-          <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">${name}</div>
-          ${altArabicName ? `<div dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:bold; line-height:1.25; margin-top:1px; color:#000000; text-align:left; white-space:normal;">${altArabicName}</div>` : ''}
-        </td>
-        <td style="width: 18%; text-align: right; vertical-align: top; padding: 1px 0;">${rate}</td>
-        <td style="width: 22%; text-align: right; vertical-align: top; padding: 1px 0;">${amt}</td>
-      </tr>
-      ${totalItemDisc > 0 ? `
-      <tr>
-        <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
-        <td colspan="2" style="text-align: right; vertical-align: top; padding: 0.5px 0; font-size: 11px; font-weight: bold; white-space: nowrap;">
-          Disc : ${fmt(totalItemDisc)}${isBillArabic ? ` <span dir="rtl" lang="ar" class="arabic-text" style="font-size:9.5px; font-weight:normal;">(الخصم)</span>` : ''}
-        </td>
-        <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0; font-weight: bold;">
-          ${fmt(netAmt)}
-        </td>
-      </tr>
-      ` : ''}
-    `;
-
-    if (line.extras && line.extras.length > 0) {
-      line.extras.forEach((ex) => {
-        const exName = (ex.name || "EXTRA").toUpperCase();
-        const exArabic = isBillArabic ? (ex.arabicName || "") : "";
-        const exDisplay = exArabic
-          ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-weight:normal; margin-left:4px; color:#000000; white-space:nowrap;">(${exArabic})</span>`
-          : `+ ${exName}`;
-        const qtyLabel = (ex.qty && ex.qty > 1) ? ` (x${ex.qty})` : "";
-        itemsHtml += `
-          <tr>
-            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
-            <td style="width: 46%; text-align: left; vertical-align: top; padding: 0.5px 0; font-style: italic; color: #555;">${exDisplay}${qtyLabel}</td>
-            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
-            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
-          </tr>
-        `;
-      });
-    }
-
-    if (line.modifiers && line.modifiers.length > 0) {
-      line.modifiers.forEach((mod) => {
-        const rawTypeName = (mod.typeName || (mod.typeId ? getModifierTypeNameById(mod.typeId) : "") || "").trim();
-        const rawModName = (mod.name || "MODIFIER").trim();
-        const typeUpper = rawTypeName.toUpperCase();
-        const nameUpper = rawModName.toUpperCase();
-        const qtyPart = (mod.qty && mod.qty > 1) ? `${mod.qty} x ` : "";
-
-        let text = "";
-        if (typeUpper) {
-          if (nameUpper.startsWith(`${typeUpper}:`)) {
-            text = nameUpper;
-          } else if (nameUpper.startsWith(typeUpper)) {
-            const rest = nameUpper.slice(typeUpper.length).replace(/^[:\s-]+/, "").trim();
-            text = rest ? `${typeUpper}: ${qtyPart}${rest}` : `${typeUpper}: ${qtyPart}`;
-          } else {
-            text = `${typeUpper}: ${qtyPart}${nameUpper}`;
-          }
-        } else {
-          text = `${qtyPart}${nameUpper}`;
-        }
-
-        const modArabic = isBillArabic ? (mod.arabicName || "") : "";
-        const modDisplay = modArabic
-          ? `* ${text} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-style:normal; margin-left:4px;">(${modArabic})</span>`
-          : `* ${text}`;
-        itemsHtml += `
-          <tr>
-            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
-            <td style="width: 46%; text-align: left; vertical-align: top; font-style: italic; padding: 0.5px 0;">${modDisplay}</td>
-            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
-            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
-          </tr>
-        `;
-      });
-    }
-
-    if (line.messages && line.messages.length > 0) {
-      line.messages.forEach((msg) => {
-        const rawName = msg.name || "NOTE";
-        const isMsgArabic = containsArabic(rawName);
-        const msgDisplay = isMsgArabic
-          ? `MSG: <span dir="rtl" lang="ar" class="arabic-text">${rawName}</span>`
-          : `MSG: ${rawName.toUpperCase()}`;
-        itemsHtml += `
-          <tr>
-            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
-            <td style="width: 46%; text-align: left; vertical-align: top; font-style: italic; padding: 0.5px 0;">${msgDisplay}</td>
-            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
-            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
-          </tr>
-        `;
-      });
-    }
-  });
 
 
   // Footer Sub Total and Discount are ALWAYS exclusive — exactly what the cart / recall screen footer shows,
@@ -568,6 +454,135 @@ export const generateGuestPrintHtml = async (
   } else {
     delete (data as any).discount;
   }
+
+  // ── Balanced display (fils): every printed equation adds up exactly ───────────────────────────
+  //   Sub Total − Discount + Charges = Net Value;  Net Value + VAT + Delivery = Grand Total
+  //   Exclusive print: Σ row amounts = Sub Total and Σ row discounts = Discount.
+  // Display only (utils/money.ts balanceBillFooter / balanceToTotal) — stored / charged amounts are unchanged.
+  const exactGrandTotal = unified.summary.grandTotal > 0 ? unified.summary.grandTotal : Number((data as any).netAmount ?? 0);
+  const exactVat = isVatActive ? (unified.summary.vatAmount > 0 ? unified.summary.vatAmount : Number((data as any).vatAmount || 0)) : 0;
+  const shownFooter = balanceBillFooter({
+    subTotal: displaySubTotal,
+    discount: totalPrintDiscount,
+    charges: effectiveCharges,
+    vat: exactVat,
+    delivery: Number(data.deliveryCharge || 0),
+    grandTotal: exactGrandTotal,
+  }, decimalPart);
+  data.vatAmount = isVatActive ? shownFooter.vat : 0;
+  data.netAmount = shownFooter.grandTotal;
+  if (totalPrintDiscount > 0) data.discount = shownFooter.discount;
+
+  // Exclusive print rows add up to the footer (Inclusive rows carry VAT, the footer Sub Total never does).
+  const rowsBalanceable = !isTaxInclusive && unified.lines.length > 0;
+  const shownLineGross: number[] | null = rowsBalanceable
+    ? balanceToTotal(unified.lines.map((l) => l.exclusiveGross), shownFooter.subTotal, decimalPart)
+    : null;
+  const exactRowDisc = unified.lines.map((l) => Number(l.lineDiscountExcl ?? (typeof l.getDiscount === "function" ? l.getDiscount(false) : l.lineDiscount) ?? 0));
+  const shownLineDisc: number[] | null = rowsBalanceable && !unified.summary.isBillDiscount && exactRowDisc.some((d) => d > 0)
+    ? balanceToTotal(exactRowDisc, shownFooter.discount, decimalPart)
+    : null;
+
+  let itemsHtml = "";
+  unified.lines.forEach((line, lineIdx) => {
+    const name = line.productName.toUpperCase();
+    const qty = line.quantity;
+    const altArabicName = isBillArabic ? getAlternativeArabicName(line.rawItem) : "";
+    const lineDiscVal = Number(
+      isTaxInclusive
+        ? (line.lineDiscountIncl ?? (typeof line.getDiscount === "function" ? line.getDiscount(true) : line.lineDiscount))
+        : (line.lineDiscountExcl ?? (typeof line.getDiscount === "function" ? line.getDiscount(false) : line.lineDiscount))
+    );
+    const totalItemDisc = shownLineDisc ? shownLineDisc[lineIdx] : (lineDiscVal > 0 ? lineDiscVal : 0);
+
+    const origRate = line.getRate(isTaxInclusive);
+    const origGrossAmt = shownLineGross ? shownLineGross[lineIdx] : (isTaxInclusive ? line.inclusiveGross : line.exclusiveGross);
+    const netAmt = totalItemDisc > 0
+      ? Math.max(0, origGrossAmt - totalItemDisc)
+      : (isTaxInclusive ? line.inclusiveAmount : line.exclusiveAmount);
+
+    const rate = fmt(origRate);
+    const amt = fmt(origGrossAmt);
+
+    itemsHtml += `
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 1px 0;">${qty}</td>
+        <td style="width: 46%; text-align: left; vertical-align: top; padding: 1px 0;">
+          <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">${name}</div>
+          ${altArabicName ? `<div dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:bold; line-height:1.25; margin-top:1px; color:#000000; text-align:left; white-space:normal;">${altArabicName}</div>` : ''}
+        </td>
+        <td style="width: 18%; text-align: right; vertical-align: top; padding: 1px 0;">${rate}</td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 1px 0;">${amt}</td>
+      </tr>
+      ${totalItemDisc > 0 ? `
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+        <td colspan="2" style="text-align: right; vertical-align: top; padding: 0.5px 0; font-size: 11px; font-weight: bold; white-space: nowrap;">
+          Disc : ${fmt(totalItemDisc)}${isBillArabic ? ` <span dir="rtl" lang="ar" class="arabic-text" style="font-size:9.5px; font-weight:normal;">(الخصم)</span>` : ''}
+        </td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0; font-weight: bold;">
+          ${fmt(netAmt)}
+        </td>
+      </tr>
+      ` : ''}
+    `;
+
+    if (line.extras && line.extras.length > 0) {
+      line.extras.forEach((ex) => {
+        const exName = (ex.name || "EXTRA").toUpperCase();
+        const exArabic = isBillArabic ? (ex.arabicName || "") : "";
+        const exDisplay = exArabic
+          ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-weight:normal; margin-left:4px; color:#000000; white-space:nowrap;">(${exArabic})</span>`
+          : `+ ${exName}`;
+        const qtyLabel = (ex.qty && ex.qty > 1) ? ` (x${ex.qty})` : "";
+        itemsHtml += `
+          <tr>
+            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 46%; text-align: left; vertical-align: top; padding: 0.5px 0; font-style: italic; color: #555;">${exDisplay}${qtyLabel}</td>
+            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+          </tr>
+        `;
+      });
+    }
+
+    if (line.modifiers && line.modifiers.length > 0) {
+      line.modifiers.forEach((mod) => {
+        const text = modifierLabelOf(mod, { upperCase: true });
+
+        const modArabic = isBillArabic ? (mod.arabicName || "") : "";
+        const modDisplay = modArabic
+          ? `* ${text} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-style:normal; margin-left:4px;">(${modArabic})</span>`
+          : `* ${text}`;
+        itemsHtml += `
+          <tr>
+            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 46%; text-align: left; vertical-align: top; font-style: italic; padding: 0.5px 0;">${modDisplay}</td>
+            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+          </tr>
+        `;
+      });
+    }
+
+    if (line.messages && line.messages.length > 0) {
+      line.messages.forEach((msg) => {
+        const rawName = msg.name || "NOTE";
+        const isMsgArabic = containsArabic(rawName);
+        const msgDisplay = isMsgArabic
+          ? `MSG: <span dir="rtl" lang="ar" class="arabic-text">${rawName}</span>`
+          : `MSG: ${rawName.toUpperCase()}`;
+        itemsHtml += `
+          <tr>
+            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 46%; text-align: left; vertical-align: top; font-style: italic; padding: 0.5px 0;">${msgDisplay}</td>
+            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+          </tr>
+        `;
+      });
+    }
+  });
 
   return `
     <html>
@@ -743,7 +758,7 @@ export const generateGuestPrintHtml = async (
             <td style="width: 50%; white-space: nowrap;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${formatOrderNo(data.orderNo)}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">#${data.ticketNo}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${toDisplayNo(data.ticketNo) ? "#" + toDisplayNo(data.ticketNo) : ""}</span></td>
             <td style="width: 50%; white-space: nowrap;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(التاريخ)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${dateStr}</span></td>
           </tr>
           <tr>
@@ -765,7 +780,7 @@ export const generateGuestPrintHtml = async (
         <table class="meta-table">
           <tr>
             <td style="width: 50%; white-space: nowrap;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${formatOrderNo(data.orderNo)}</span></td>
-            <td style="width: 50%; white-space: nowrap;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">#${data.ticketNo}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${toDisplayNo(data.ticketNo) ? "#" + toDisplayNo(data.ticketNo) : ""}</span></td>
           </tr>
           <tr>
             <td style="width: 50%; white-space: nowrap;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(التاريخ)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${dateStr}</span></td>
@@ -810,30 +825,30 @@ export const generateGuestPrintHtml = async (
         <table class="totals-table">
           <tr>
             <td class="totals-label">Sub Total${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(المجموع الفرعي)</bdi>' : ''}</td>
-            <td class="totals-value">${fmt(displaySubTotal)}</td>
+            <td class="totals-value">${fmt(shownFooter.subTotal)}</td>
           </tr>
           ${totalPrintDiscount > 0 ? `
           <tr>
             <td class="totals-label">Discount${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(الخصم)</bdi>' : ''}</td>
-            <td class="totals-value">-${fmt(totalPrintDiscount)}</td>
+            <td class="totals-value">-${fmt(shownFooter.discount)}</td>
           </tr>
           ` : ''}
           ${effectiveCharges > 0 ? `
           <tr>
             <td class="totals-label">Charges${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(الرسوم)</bdi>' : ''}</td>
-            <td class="totals-value">${fmt(effectiveCharges)}</td>
+            <td class="totals-value">${fmt(shownFooter.charges)}</td>
           </tr>
           ` : ''}
           ${(displayNetValue > 0) ? `
           <tr>
             <td class="totals-label">Net Value${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(القيمة الصافية)</bdi>' : ''}</td>
-            <td class="totals-value">${fmt(displayNetValue)}</td>
+            <td class="totals-value">${fmt(shownFooter.netValue)}</td>
           </tr>
           ` : ''}
           ${(isDelivery || (data.deliveryCharge && data.deliveryCharge > 0)) ? `
           <tr>
             <td class="totals-label">Delivery Charge${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(رسوم التوصيل)</bdi>' : ''}</td>
-            <td class="totals-value">${fmt(data.deliveryCharge || 0)}</td>
+            <td class="totals-value">${fmt(shownFooter.delivery)}</td>
           </tr>
           ` : ''}
           ${isVatActive && (data.vatAmount || 0) > 0 ? `
@@ -924,7 +939,8 @@ export const generateGuestPrintHtml = async (
           const hasValidKeepChange = keepChangeVal !== "" && keepChangeVal !== "0" && keepChangeVal !== "0.00" && keepChangeVal !== "0.000";
           const formattedKeepChange = hasValidKeepChange && !isNaN(Number(keepChangeVal)) ? fmt(Number(keepChangeVal)) : keepChangeVal;
           if (!isDelivery) return '';
-          if (!(data.contactNo || effectiveCallBack || hasValidKeepChange || data.customerName || driverVal || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo)) return '';
+          const isMissedCall = ["true", "1", "yes"].includes(String(data.missedCall ?? "").trim().toLowerCase());
+          if (!(isMissedCall || data.contactNo || effectiveCallBack || hasValidKeepChange || data.customerName || driverVal || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo)) return '';
 
           return `
         <div style="margin-top: 10px; font-size: 12px; width: 100%;">
@@ -934,6 +950,7 @@ export const generateGuestPrintHtml = async (
           </div>
           <div class="solid-hr" style="border-top: 1px solid #000; margin-bottom: 6px;"></div>
           <div style="width: 100%; font-size: 12px;">
+            ${isMissedCall ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Missed Call${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مكالمة فائتة)</bdi>' : ''} : </span><span style="font-weight: bold;">YES</span></div>` : ''}
             ${data.contactNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Mob No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم الجوال)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.contactNo}</span></div>` : ''}
             ${effectiveCallBack ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Call Back${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(معاودة الاتصال)</bdi>' : ''} : </span><span style="font-weight: normal;">${effectiveCallBack}</span></div>` : ''}
             ${hasValidKeepChange ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Keep Change${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(الباقي)</bdi>' : ''} : </span><span style="font-weight: normal;">${formattedKeepChange}</span></div>` : ''}

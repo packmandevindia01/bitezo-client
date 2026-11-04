@@ -25,11 +25,12 @@ describe('High-Precision Rounding & Dynamic Decimal Display Engine', () => {
     }));
   });
 
-  describe('1. 7-Decimal Calculation Precision vs Dynamic Display Rounding', () => {
-    it('should maintain at least 7 decimals precision during internal calculations', () => {
-      const raw = 69.877512345;
-      const calc7 = roundCalc(raw, CALC_PRECISION);
-      expect(calc7).toBe(69.8775123);
+  describe('1. 14-Decimal Calculation Precision vs Dynamic Display Rounding', () => {
+    it('should keep 14 decimals (rounded half-up, never truncated) during internal calculations', () => {
+      expect(CALC_PRECISION).toBe(14);
+      expect(roundCalc(69.877512345, CALC_PRECISION)).toBe(69.877512345);
+      expect(roundCalc(1.123456789012345, CALC_PRECISION)).toBe(1.12345678901235); // half-up at the 14th
+      expect(roundCalc(9.999999999999995, CALC_PRECISION)).toBe(10);
     });
 
     it('should accurately round half-up for 69.8775 to 69.878 when displayed with 3 decimals', () => {

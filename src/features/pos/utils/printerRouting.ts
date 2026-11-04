@@ -383,7 +383,8 @@ export const executePackagerPrint = async (
 
   const html = await generateGuestPrintHtml(items, {
     ...printData,
-    showCompanyHeader: true,
+    // respect the packager header setting passed by the caller (default: show)
+    showCompanyHeader: printData?.showCompanyHeader ?? true,
     isPackager: true
   });
 

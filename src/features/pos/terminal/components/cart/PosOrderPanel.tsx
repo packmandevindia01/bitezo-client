@@ -62,7 +62,7 @@ interface PosOrderPanelProps {
   onCancelSettledEdit?: () => void;
   selectedTender: string;
   onSelectTender: (tender: string) => void;
-  onDeliveryChargeDoubleClick?: () => void;
+  onDeliveryChargeClick?: () => void;
   tenderOptions: { id: string; label: string }[];
   selectedCustomerId?: number;
 }
@@ -101,7 +101,7 @@ export const PosOrderPanel = ({
   onCancelSettledEdit,
   selectedTender,
   onSelectTender,
-  onDeliveryChargeDoubleClick,
+  onDeliveryChargeClick,
   tenderOptions,
   selectedCustomerId,
 }: PosOrderPanelProps) => {
@@ -371,7 +371,7 @@ export const PosOrderPanel = ({
         baseSubtotal={baseSubtotal}
         deliveryCharge={deliveryCharge}
         isDelivery={isDelivery}
-        onDeliveryChargeDoubleClick={onDeliveryChargeDoubleClick}
+        onDeliveryChargeClick={onDeliveryChargeClick}
         onOrder={onOrder}
         onSettle={onSettle}
         orderLoading={orderLoading}
