@@ -80,7 +80,7 @@ inside a feature, `ui` may import `model`/`lib`, `lib` imports nothing UI.
 | P3 | `usePosCheckoutFlow` (1,304 lines) → `useSettle` (state machine: idle → paying → saving → printing → done) + pure `buildSettlement()` | Locks/refs scattered; state machine makes double-submit impossible by design | 3 d |
 | P4 | Retire legacy pricing: `orderPricing.ts` (names/extras only → small `lineLabels.ts`), `pos-calc.ts`, tolerance-based `getTaxExclusive*` | Last heuristics outside the engine | 2–3 d |
 | P5 | Printing module: one `print(job)` API with adapters (Printer Agent WS, Android plugin, browser), templates as pure functions (already tested) | Printing code spread over 8 files | 3 d |
-| P6 | Typed `posSettings` store (reads posConfigs once, exposes `vatEnabled`, `priceView`, `decimals` …) replacing ~400 POS `localStorage` reads | Single source of truth; testable | 3 d |
+| P6 | Typed `posSettings` store (reads posConfigs once, exposes `vatEnabled`, `priceView`, `decimals` …) replacing ~400 POS `localStorage` reads | Single source of truth; testable | 3 d | **PARTLY DONE 2026-11-05** (device context + price-view getters, AGENT.md §11.7; printers in Phase 3) |
 | P7 | Redux only for cart/session state; server data only in React Query (menu, config, recall lists) | Two caches today | 2 d |
 
 ### 4.2 POS UI / UX

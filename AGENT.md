@@ -846,3 +846,15 @@ Settled → Edit (`loadSettledOrderIntoCart`, now a thin wrapper), Recall → Ed
   discount (same total) — saved data cannot tell them apart (`savedOrderToCart.test.ts`).
 - Not migrated: `PosCombineModal` (merges several orders into one — different flow; it already uses `applyStoredPricingToCartItems`).
 - Tests: `savedOrderToCart.test.ts` (8) + `posCrossVerification` test 5 now runs all three modes on 200 random carts.
+
+### 11.7 Phase 2b — settings / device context (2026-11-05)
+- `shared/config/device.ts`: `getTerminalBranchId()` (systemBranchId → activeBranchId → branchId → 0), `getSystemBranchId()`,
+  `getUserBranchId()`, `getSystemCounterId()`, `getTerminalId()` — each reproduces one existing inline chain exactly; call sites keep
+  their own final fallback (`|| 0`, `|| 1` = All). Replaced 13 three-step chains + 9 single reads in POS. Use these in new code.
+- Order / print paths read Price View / Print Price through `getPriceView()` / `getPrintPrice()` (billing.ts) instead of raw
+  `localStorage.getItem("priceView" | "printPrice")` (15 sites: checkout, cart actions, recall, dine-in, recall print). Same value when the
+  key is set (terminal init writes it); the getter also handles lower-case values and falls back to posConfigs.
+- `shared/api/http.ts` no longer imports the auth feature: `setTokenRefresher()` is registered in `app/providers/AppProviders.tsx`
+  (ESLint boundary exception removed). Refresh calls no longer fall back to the tenant `"bitezo_db"` when tenantId is missing.
+- POS direct `localStorage.getItem` reads: 463 → 400. Left on purpose: printer targets (Phase 3 printing module), print-template
+  resolvers, settings-screen form defaults, session ids and local caches.

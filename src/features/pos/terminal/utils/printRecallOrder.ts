@@ -1,3 +1,4 @@
+import { getTerminalBranchId } from "@shared/config/device";
 import { orderApi } from "../../services/orderApi";
 import { toDisplayNo } from "../../services/orderResponse";
 import { buildPrintPricing } from "../../utils/printPricing";
@@ -7,7 +8,7 @@ import { printerSettingsApi } from "../../services/printerSettingsApi";
 import { generateGuestPrintHtml, isEnableVatGuestPrint } from "../../utils/guestPrintTemplate";
 import { printHtmlReceipt } from "../../services/qzService";
 import { checkOrderHasBillDiscount } from "./orderDiscountCheck";
-import { roundCalc, getPrintPrice } from "./billing";
+import { roundCalc, getPrintPrice, getPriceView } from "./billing";
 import { isBillArabicEnabled } from "../../utils/alternativeHelpers";
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../utils/printHeadingUtils";
 import { alternativesCache } from "../hooks/usePosProducts";
@@ -439,10 +440,7 @@ export const printRecallOrderGuestReceipt = async (
     if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
       try {
         const branchId =
-          Number(localStorage.getItem("systemBranchId")) ||
-          Number(localStorage.getItem("activeBranchId")) ||
-          Number(localStorage.getItem("branchId")) ||
-          1;
+          getTerminalBranchId() || 1;
         const { employeeService } = await import("../../../general/employee/services/employeeService");
         const dList = await employeeService.getDrivers(branchId);
         const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));
@@ -510,8 +508,8 @@ export const printRecallOrderGuestReceipt = async (
       netAmount: resolvedGrandTotal,
       deliveryCharge: master.deliveryCharge || 0,
       enableVat,
-      printPrice: printPriceSetting || (localStorage.getItem("printPrice") as any) || undefined,
-      priceView: (localStorage.getItem("priceView") as any) || undefined,
+      printPrice: printPriceSetting || getPrintPrice(),
+      priceView: getPriceView(),
       billArabic: isBillArabicEnabled() || mappedItems.some((it: any) =>
         Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
       ),

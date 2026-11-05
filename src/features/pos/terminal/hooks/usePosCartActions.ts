@@ -1,3 +1,4 @@
+import { getTerminalBranchId } from "@shared/config/device";
 import { useState, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { useToast } from "../../../../app/providers/useToast";
@@ -38,7 +39,7 @@ import {
   selectBaseSubtotal,
   selectDeliveryCharge,
 } from "../store/posSelectors";
-import { getVatStatus, roundCalc } from "../utils/billing";
+import { getVatStatus, roundCalc, getPriceView, getPrintPrice } from "../utils/billing";
 import { buildReorderItems } from "../utils/reorderItems";
 import { useCartMutations } from "./cart/useCartMutations";
 import {
@@ -456,10 +457,7 @@ export const usePosCartActions = () => {
 
         try {
           const branchId =
-            Number(localStorage.getItem("systemBranchId")) ||
-            Number(localStorage.getItem("activeBranchId")) ||
-            Number(localStorage.getItem("branchId")) ||
-            0;
+            getTerminalBranchId() || 0;
           const { getEmployeeNames } = await import("../../../general/employee/services/employeeService");
           const list = await getEmployeeNames(branchId);
           if (Array.isArray(list) && list.length > 0) {
@@ -635,8 +633,8 @@ export const usePosCartActions = () => {
         kotArabic: isKotArabicEnabled(),
         billArabic: isBillArabicEnabled(),
         forcedPrint,
-        priceView: (localStorage.getItem("priceView") as any) || undefined,
-        printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+        priceView: getPriceView(),
+        printPrice: getPrintPrice(),
         kotHeader: (localStorage.getItem("kotHeader") as any) || undefined,
         companyNameKot: isCompanyNameKotEnabled(),
       };

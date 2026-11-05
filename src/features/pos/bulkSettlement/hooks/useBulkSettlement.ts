@@ -1,3 +1,4 @@
+import { getSystemBranchId } from "@shared/config/device";
 import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { bulkSettlementApi } from "../services/bulkSettlementApi";
@@ -24,7 +25,7 @@ export const useBulkSettlement = () => {
   const userBranchId = useAppSelector(selectBranchId);
   const branchId = useMemo(() => {
     return (
-      Number(localStorage.getItem("systemBranchId")) ||
+      getSystemBranchId() ||
       activeBranchId ||
       userBranchId ||
       Number(localStorage.getItem("activeBranchId")) ||

@@ -1,3 +1,4 @@
+import { getSystemBranchId } from "@shared/config/device";
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Modal, ConfirmDialog } from "../../../../../../components/common";
 import { cashierLogService, type CashierInStatus } from "../../../../cashier/services/cashierLogService";
@@ -125,7 +126,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({
   const loadAll = useCallback(async () => {
     setStatusLoading(true);
     try {
-      const branchId  = Number(localStorage.getItem("systemBranchId"))  || 0;
+      const branchId  = getSystemBranchId()  || 0;
       const counterId = Number(localStorage.getItem("systemCounterId")) || 0;
 
       const response = await cashierLogService.checkStatus(branchId, counterId);
@@ -245,7 +246,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({
     setSubmitting(true);
     try {
       const userId    = Number(localStorage.getItem("userId"))            || cashierStatus.userId || 0;
-      const branchId  = Number(localStorage.getItem("systemBranchId"))   || 0;
+      const branchId  = getSystemBranchId()   || 0;
 
       if (!branchId || !userId) throw new Error("Missing Branch or User. Please re-login.");
 
@@ -332,7 +333,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({
     setSubmitting(true);
     try {
       const userId    = Number(localStorage.getItem("userId"))            || cashierStatus.userId || 0;
-      const branchId  = Number(localStorage.getItem("systemBranchId"))   || 0;
+      const branchId  = getSystemBranchId()   || 0;
       if (!branchId || !userId) throw new Error("Missing Branch or User. Please re-login.");
 
       const isoString  = localDateAtCurrentTimeIso(selectedDate);

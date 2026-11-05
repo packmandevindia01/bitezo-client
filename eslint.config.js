@@ -25,8 +25,6 @@ export default defineConfig([
   // src/shared is used by POS and Back Office: it must never depend on a feature or the app shell.
   {
     files: ['src/shared/**/*.{ts,tsx}'],
-    // Documented exception until Phase 2: the HTTP client still imports the auth refresh calls.
-    ignores: ['src/shared/api/http.ts'],
     rules: {
       'no-restricted-imports': ['error', {
         patterns: [{

@@ -72,7 +72,7 @@ export const backofficeRefreshTokenApi = async (
   refreshToken?: string
 ): Promise<RefreshTokenResponse> => {
   const baseURL = getConfig().apiBaseUrl;
-  const tenantId = localStorage.getItem("tenantId") || "bitezo_db";
+  const tenantId = localStorage.getItem("tenantId") || "" /* never a hardcoded tenant DB */;
 
   const response = await axios.post<RefreshTokenResponse | { data: RefreshTokenResponse }>(
     `${baseURL}/auth/backoffice-refresh-token`,
@@ -99,7 +99,7 @@ export const posRefreshTokenApi = async (
   refreshToken?: string
 ): Promise<RefreshTokenResponse> => {
   const baseURL = getConfig().apiBaseUrl;
-  const tenantId = localStorage.getItem("tenantId") || "bitezo_db";
+  const tenantId = localStorage.getItem("tenantId") || "" /* never a hardcoded tenant DB */;
 
   const response = await axios.post<RefreshTokenResponse | { data: RefreshTokenResponse }>(
     `${baseURL}/auth/pos-refresh-token`,

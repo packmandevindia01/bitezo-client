@@ -1,3 +1,4 @@
+import { getSystemBranchId } from "@shared/config/device";
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { settledOrdersApi } from '../../services/settledOrdersApi';
 import type { SettledOrdersParams } from '../../services/settledOrdersApi';
@@ -37,7 +38,7 @@ export const usePosSettled = () => {
     try {
       setLoading(true);
 
-      const activeBranchId = Number(localStorage.getItem("systemBranchId")) || Number(localStorage.getItem("branchId")) || undefined;
+      const activeBranchId = getSystemBranchId() || Number(localStorage.getItem("branchId")) || undefined;
 
       const cleanParams: SettledOrdersParams = {
         OrderTypeId: params.OrderTypeId ?? 0,

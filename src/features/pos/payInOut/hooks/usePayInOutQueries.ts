@@ -1,3 +1,4 @@
+import { getSystemBranchId } from "@shared/config/device";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { payInOutService } from "../services/payInOutService";
 import { paymodeService } from "../../../general/paymode/services/paymodeService";
@@ -8,7 +9,7 @@ export const useCashierStatus = () => {
   return useQuery({
     queryKey: ['cashierStatus'],
     queryFn: async () => {
-      const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
+      const branchId = getSystemBranchId() || 0;
       const counterId = Number(localStorage.getItem("systemCounterId")) || 0;
       const response = await cashierLogService.checkStatus(branchId, counterId);
       return response.cashierInStatus;

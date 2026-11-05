@@ -1,3 +1,4 @@
+import { getTerminalBranchId } from "@shared/config/device";
 import React, { useState, useEffect } from "react";
 import { modifierLabelOf } from "../../../../utils/modifierLabel";
 import { toDisplayNo } from "../../../../services/orderResponse";
@@ -434,10 +435,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
         try {
           const branchId =
-            Number(localStorage.getItem("systemBranchId")) ||
-            Number(localStorage.getItem("activeBranchId")) ||
-            Number(localStorage.getItem("branchId")) ||
-            1;
+            getTerminalBranchId() || 1;
           const { employeeService } = await import("../../../../../general/employee/services/employeeService");
           const dList = await employeeService.getDrivers(branchId);
           const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));
@@ -494,8 +492,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         providerNo: master.providerNo || master.providerOrderNo || "",
         kotArabic: isKotArabicEnabled(),
         forcedPrint: true,
-        priceView: (localStorage.getItem("priceView") as any) || undefined,
-        printPrice: (localStorage.getItem("printPrice") as any) || undefined,
+        priceView: getPriceView(),
+        printPrice: getPrintPrice(),
         kotHeader: (localStorage.getItem("kotHeader") as any) || undefined,
       };
 

@@ -7,6 +7,13 @@ import { tokenRefreshed } from "../../features/auth/store/authSlice";
 import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useToast } from "./useToast";
 import { QUERY_ERROR_EVENT, reportQueryError } from "./queryErrors";
+import { setTokenRefresher } from "../../shared/api/http";
+import { backofficeRefreshTokenApi, posRefreshTokenApi } from "../../features/auth/services/authApi";
+
+// The shared HTTP client asks the auth feature to rotate tokens on a 401 (registered once, at load).
+setTokenRefresher((accessToken, refreshToken, backoffice) =>
+  backoffice ? backofficeRefreshTokenApi(accessToken, refreshToken) : posRefreshTokenApi(accessToken, refreshToken)
+);
 
 interface AppProvidersProps {
   children: ReactNode;

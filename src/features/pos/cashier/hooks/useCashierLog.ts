@@ -1,3 +1,4 @@
+import { getSystemBranchId } from "@shared/config/device";
 import { useQuery } from "@tanstack/react-query";
 import {
   cashierLogService,
@@ -5,7 +6,7 @@ import {
 } from "../services/cashierLogService";
 
 export const useCashierLog = () => {
-  const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
+  const branchId = getSystemBranchId() || 0;
   const counterId = Number(localStorage.getItem("systemCounterId")) || 0;
 
   const { data, isLoading, error, refetch } = useQuery<CashierStatusResponse, Error>({

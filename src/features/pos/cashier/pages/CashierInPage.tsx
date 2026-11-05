@@ -1,3 +1,4 @@
+import { getSystemBranchId } from "@shared/config/device";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { posLoginApi } from "../../../../features/auth/services/authApi";
@@ -126,7 +127,7 @@ const CashierInPage = () => {
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const branchId = Number(localStorage.getItem("systemBranchId")) || 0;
+  const branchId = getSystemBranchId() || 0;
   const counterId = Number(localStorage.getItem("systemCounterId")) || 0;
   const seriesId = Number(localStorage.getItem("systemSeriesId")) || 0;
   const clientDb = localStorage.getItem("tenantId") || "";

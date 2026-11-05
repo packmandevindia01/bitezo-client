@@ -1,3 +1,4 @@
+import { getTerminalBranchId } from "@shared/config/device";
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "../../../../../app/hooks";
@@ -56,10 +57,7 @@ export const applyDefaultEmployeeOverride = (config: RuntimePosConfig | null): R
 
 export const getRuntimePosConfig = async (): Promise<RuntimePosConfig | null> => {
   const branchId =
-    Number(localStorage.getItem("systemBranchId")) ||
-    Number(localStorage.getItem("activeBranchId")) ||
-    Number(localStorage.getItem("branchId")) ||
-    0;
+    getTerminalBranchId() || 0;
   if (branchId) {
     try {
       const response = await posConfigApi.getPosConfig(branchId);
@@ -154,10 +152,7 @@ export const useTerminalInit = ({
 
     const loadAndCacheEmployees = () => {
       const branchId =
-        Number(localStorage.getItem("systemBranchId")) ||
-        Number(localStorage.getItem("activeBranchId")) ||
-        Number(localStorage.getItem("branchId")) ||
-        0;
+        getTerminalBranchId() || 0;
 
       getEmployeeNames(branchId)
         .then((employees) => {

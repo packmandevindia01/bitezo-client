@@ -1,3 +1,4 @@
+import { getSystemBranchId } from "@shared/config/device";
 import { useState, useEffect } from "react";
 import { Modal, Button } from "../../../../../../components/common";
 import { Truck, X } from "lucide-react";
@@ -34,7 +35,7 @@ export const PosDriverSelectionModal = ({
   useEffect(() => {
     if (isOpen) {
       setSelectedDriverId(null);
-      const posBranchId = Number(localStorage.getItem("systemBranchId"));
+      const posBranchId = getSystemBranchId();
       const branchId = authBranchId || Number(localStorage.getItem("activeBranchId")) || Number(localStorage.getItem("branchId")) || posBranchId || 1;
       setBranchIdDebug(branchId);
       

@@ -1,3 +1,4 @@
+import { getTerminalBranchId } from "@shared/config/device";
 import { useEffect, useState, useCallback } from "react";
 import { INITIAL_CONFIG } from "../../../general/configuration/constants";
 import type { ConfigurationState, DeliveryCharge } from "../../../general/configuration/types";
@@ -170,10 +171,7 @@ export const usePosConfiguration = () => {
   const refreshEmployees = useCallback(async (): Promise<{ empId: number; empName: string }[]> => {
     try {
       const branchId =
-        Number(localStorage.getItem("systemBranchId")) ||
-        Number(localStorage.getItem("activeBranchId")) ||
-        Number(localStorage.getItem("branchId")) ||
-        0;
+        getTerminalBranchId() || 0;
 
       let employees = await getEmployeeNames(branchId).catch((e) => {
         console.error("Failed to fetch branch employee names:", e);
@@ -222,7 +220,7 @@ export const usePosConfiguration = () => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const branchId = Number(localStorage.getItem("systemBranchId")) || Number(localStorage.getItem("activeBranchId")) || Number(localStorage.getItem("branchId")) || 0;
+        const branchId = getTerminalBranchId() || 0;
         
         // Fetch employees, order types, pos config, and branch print layout concurrently
         const [employees, orderTypesRes, posConfigRes, printLinesRes] = await Promise.all([
@@ -390,7 +388,7 @@ export const usePosConfiguration = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const branchId = Number(localStorage.getItem("systemBranchId")) || Number(localStorage.getItem("activeBranchId")) || Number(localStorage.getItem("branchId")) || 0;
+      const branchId = getTerminalBranchId() || 0;
       const payload = mapStateToApi(form, branchId);
       
       const res = await posConfigApi.updatePosConfig(payload);

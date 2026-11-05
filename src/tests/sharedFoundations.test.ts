@@ -74,3 +74,35 @@ describe("moves are transparent (old import paths still work)", () => {
     expect(toLocalDateString(new Date(2026, 0, 2, 0, 30))).toBe("2026-01-02");
   });
 });
+
+import { getTerminalBranchId, getSystemBranchId, getUserBranchId, getSystemCounterId, getTerminalId } from "@shared/config/device";
+import { setTokenRefresher } from "@shared/api/http";
+
+describe("shared/config/device (Phase 2b) — same results as the inline chains it replaced", () => {
+  const store = (o: Record<string, string>) => ({ getItem: (k: string) => (k in o ? o[k] : null) });
+  const inline = (o: Record<string, string>) =>
+    Number(o.systemBranchId ?? null) || Number(o.activeBranchId ?? null) || Number(o.branchId ?? null);
+
+  it("terminal branch: registered → login → user → 0", () => {
+    const cases: Record<string, string>[] = [
+      {}, { branchId: "4" }, { activeBranchId: "3", branchId: "4" }, { systemBranchId: "2", activeBranchId: "3" },
+      { systemBranchId: "abc", activeBranchId: "5" }, { systemBranchId: "0", branchId: "6" }, { systemBranchId: "" },
+    ];
+    for (const c of cases) expect(getTerminalBranchId(store(c))).toBe(inline(c));
+    expect(getTerminalBranchId(store({})) || 1).toBe(1); // call sites keep their own fallback (1 = All)
+  });
+
+  it("single reads", () => {
+    expect(getSystemBranchId(store({ systemBranchId: "2" }))).toBe(2);
+    expect(getSystemBranchId(store({}))).toBe(0);
+    expect(getUserBranchId(store({ activeBranchId: "", branchId: "7" }))).toBe(7);
+    expect(getSystemCounterId(store({ systemCounterId: "9" }))).toBe(9);
+    expect(getTerminalId(store({}))).toBe("");
+  });
+
+  it("the HTTP client takes its token refresher from the outside (no feature import)", () => {
+    expect(typeof setTokenRefresher).toBe("function");
+    expect(() => setTokenRefresher(async () => ({ accessToken: "x" }))).not.toThrow();
+    setTokenRefresher(null);
+  });
+});

@@ -1,3 +1,4 @@
+import { getTerminalBranchId } from "@shared/config/device";
 import React, { useState, useEffect } from "react";
 import { modifierLabelOf } from "../../../../utils/modifierLabel";
 import { toDisplayNo } from "../../../../services/orderResponse";
@@ -73,10 +74,7 @@ const resolveEmployeeNameAsync = async (
     // 3. Try fetching branch employee names
     try {
       const branchId =
-        Number(localStorage.getItem("systemBranchId")) ||
-        Number(localStorage.getItem("activeBranchId")) ||
-        Number(localStorage.getItem("branchId")) ||
-        0;
+        getTerminalBranchId() || 0;
       const list = await getEmployeeNames(branchId);
       if (Array.isArray(list) && list.length > 0) {
         const map: Record<string, string> = {};
@@ -937,10 +935,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
       if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
         try {
           const branchId =
-            Number(localStorage.getItem("systemBranchId")) ||
-            Number(localStorage.getItem("activeBranchId")) ||
-            Number(localStorage.getItem("branchId")) ||
-            1;
+            getTerminalBranchId() || 1;
           const { employeeService } = await import("../../../../../general/employee/services/employeeService");
           const dList = await employeeService.getDrivers(branchId);
           const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));

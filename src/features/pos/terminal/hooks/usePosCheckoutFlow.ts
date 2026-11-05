@@ -1,3 +1,4 @@
+import { getTerminalBranchId } from "@shared/config/device";
 import { useState, useRef } from 'react';
 import { buildPrintPricing } from "../../utils/printPricing";
 import { useEvent } from '../../../../hooks/useEvent';
@@ -6,7 +7,7 @@ import { setIsSettling, setWaiter } from '../store/posSlice';
 import { salesInvoiceApi } from '../../services/salesInvoiceApi';
 import { orderApi } from '../../services/orderApi';
 import { settledOrdersApi } from '../../services/settledOrdersApi';
-import { getVatStatus, roundCalc, getPrintPrice } from '../utils/billing';
+import { getVatStatus, roundCalc, getPrintPrice, getPriceView } from '../utils/billing';
 import { isBillArabicEnabled, cleanProductName } from '../../utils/alternativeHelpers';
 import { buildSalesInvoicePayload } from '../mappers/invoicePayloadMapper';
 import { sortOrderDetailsBySequence } from '../utils/orderSort';
@@ -351,10 +352,7 @@ export const usePosCheckoutFlow = ({
 
           try {
             const branchId =
-              Number(localStorage.getItem("systemBranchId")) ||
-              Number(localStorage.getItem("activeBranchId")) ||
-              Number(localStorage.getItem("branchId")) ||
-              0;
+              getTerminalBranchId() || 0;
             const { getEmployeeNames } = await import("../../../general/employee/services/employeeService");
             const list = await getEmployeeNames(branchId);
             if (Array.isArray(list) && list.length > 0) {
@@ -907,7 +905,7 @@ export const usePosCheckoutFlow = ({
                 extras,
                 modifiers,
                 messages,
-                itemDiscount: (localStorage.getItem("printPrice") === "Inclusive") ? (itemDiscIncl > 0 ? itemDiscIncl : itemDisc) : itemDisc,
+                itemDiscount: (getPrintPrice() === "Inclusive") ? (itemDiscIncl > 0 ? itemDiscIncl : itemDisc) : itemDisc,
                 itemDiscountAmount: itemDiscExcl > 0 ? itemDiscExcl : itemDisc,
                 itemDiscountExcl: itemDiscExcl > 0 ? itemDiscExcl : itemDisc,
                 itemDiscountIncl: itemDiscIncl > 0 ? itemDiscIncl : undefined,
@@ -925,7 +923,7 @@ export const usePosCheckoutFlow = ({
         }
 
         if (mappedPrintItems === cartDetails && Array.isArray(cartDetails) && cartDetails.length > 0) {
-          const isPrintIncl = localStorage.getItem("printPrice") === "Inclusive";
+          const isPrintIncl = getPrintPrice() === "Inclusive";
           mappedPrintItems = cartDetails.map((c: any) => {
             const itemDiscIncl = isBillDisc
               ? 0
@@ -1019,10 +1017,7 @@ export const usePosCheckoutFlow = ({
         if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
           try {
             const branchId =
-              Number(localStorage.getItem("systemBranchId")) ||
-              Number(localStorage.getItem("activeBranchId")) ||
-              Number(localStorage.getItem("branchId")) ||
-              1;
+              getTerminalBranchId() || 1;
             const { employeeService } = await import("../../../general/employee/services/employeeService");
             const dList = await employeeService.getDrivers(branchId);
             const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));
@@ -1132,7 +1127,7 @@ export const usePosCheckoutFlow = ({
             changeAmount: settlementCashChangeRef.current > 0 ? settlementCashChangeRef.current : undefined,
             isSettlement: true,
             printPrice: (printPriceSetting as any) || undefined,
-            priceView: (localStorage.getItem("priceView") as any) || undefined,
+            priceView: getPriceView(),
             billArabic: isBillArabicEnabled(),
             productCache: currentProductCache,
           }

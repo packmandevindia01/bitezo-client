@@ -7,10 +7,21 @@ import {
   isBackofficeMode,
   updateAuthTokens,
 } from "../../utils/authUtils";
-import {
-  backofficeRefreshTokenApi,
-  posRefreshTokenApi,
-} from "../../features/auth/services/authApi";
+
+/**
+ * Token refresh is provided by the auth feature at start-up (setTokenRefresher, see app/providers),
+ * so this shared client does not import a feature (Phase 2b — was the one ESLint boundary exception).
+ */
+export interface RefreshedTokens {
+  accessToken?: string;
+  refreshToken?: string;
+  session?: { expiresAt?: string };
+}
+export type TokenRefresher = (accessToken: string, refreshToken: string, backoffice: boolean) => Promise<RefreshedTokens>;
+let tokenRefresher: TokenRefresher | null = null;
+export const setTokenRefresher = (fn: TokenRefresher | null): void => {
+  tokenRefresher = fn;
+};
 
 /**
  * Without a timeout a place-order / settle request could hang forever on a bad network, and the
@@ -199,9 +210,8 @@ axiosInstance.interceptors.response.use(
 
       try {
         const isBackoffice = isBackofficeMode();
-        const refreshResponse = isBackoffice
-          ? await backofficeRefreshTokenApi(currentAccessToken || "", currentRefreshToken || "")
-          : await posRefreshTokenApi(currentAccessToken || "", currentRefreshToken || "");
+        if (!tokenRefresher) throw new Error("No token refresher registered");
+        const refreshResponse = await tokenRefresher(currentAccessToken || "", currentRefreshToken || "", isBackoffice);
 
         const newAccessToken = refreshResponse.accessToken;
         const newRefreshToken = refreshResponse.refreshToken;

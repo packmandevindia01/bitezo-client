@@ -1,7 +1,7 @@
 {
-  "total": 3938,
+  "total": 3927,
   "byRule": {
-    "@typescript-eslint/no-explicit-any": 3686,
+    "@typescript-eslint/no-explicit-any": 3675,
     "no-empty": 77,
     "prefer-const": 47,
     "@typescript-eslint/no-unused-vars": 44,

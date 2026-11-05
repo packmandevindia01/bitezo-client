@@ -1,3 +1,4 @@
+import { getTerminalBranchId } from "@shared/config/device";
 import { buildSavedOrderLoad, dispatchSavedOrderLoad } from "../../../utils/savedOrderToCart";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { toDisplayNo } from "../../../../services/orderResponse";
@@ -728,7 +729,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           serviceCharge: Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0),
           levy: Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0),
           charges: roundCalc(Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0) + Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0)),
-          netValue: (localStorage.getItem("printPrice") !== "Inclusive") ? roundCalc(Math.max(0, settleSubTotal - settleDiscount) + roundCalc(Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0) + Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0))) : undefined,
+          netValue: (getPrintPrice() !== "Inclusive") ? roundCalc(Math.max(0, settleSubTotal - settleDiscount) + roundCalc(Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0) + Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0))) : undefined,
           vatAmount: settleResolvedVat,
           netAmount: unified.summary.grandTotal,
           deliveryCharge: master.deliveryCharge || 0,
@@ -742,8 +743,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           })),
           isSettlement: true,
           enableVat,
-          printPrice: (localStorage.getItem("printPrice") as any) || undefined,
-          priceView: (localStorage.getItem("priceView") as any) || undefined,
+          printPrice: getPrintPrice(),
+          priceView: getPriceView(),
           isBillDiscount: unified.summary.isBillDiscount,
           billArabic:
             isBillArabicEnabled() ||
@@ -962,10 +963,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
       // 3. Try fetching branch employee names
       try {
         const branchId =
-          Number(localStorage.getItem("systemBranchId")) ||
-          Number(localStorage.getItem("activeBranchId")) ||
-          Number(localStorage.getItem("branchId")) ||
-          0;
+          getTerminalBranchId() || 0;
         const list = await getEmployeeNames(branchId);
         if (Array.isArray(list) && list.length > 0) {
           const map: Record<string, string> = {};
@@ -1145,13 +1143,13 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         serviceCharge: Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0),
         levy: Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0),
         charges: roundCalc(Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0) + Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0)),
-        netValue: (localStorage.getItem("printPrice") !== "Inclusive") ? roundCalc(Math.max(0, resolvedSubTotal - resolvedDiscount) + roundCalc(Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0) + Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0))) : undefined,
+        netValue: (getPrintPrice() !== "Inclusive") ? roundCalc(Math.max(0, resolvedSubTotal - resolvedDiscount) + roundCalc(Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0) + Number(master.levyAmt ?? master.levy ?? (master as any).Levy ?? unified.summary.levy ?? 0))) : undefined,
         vatAmount: resolvedVatAmount,
         netAmount: unified.summary.grandTotal,
         deliveryCharge: master.deliveryCharge || 0,
         enableVat,
-        printPrice: (localStorage.getItem("printPrice") as any) || undefined,
-        priceView: (localStorage.getItem("priceView") as any) || undefined,
+        printPrice: getPrintPrice(),
+        priceView: getPriceView(),
         isBillDiscount: unified.summary.isBillDiscount,
         billArabic,
       };
