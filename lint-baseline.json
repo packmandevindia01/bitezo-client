@@ -1,0 +1,20 @@
+{
+  "total": 3948,
+  "byRule": {
+    "@typescript-eslint/no-explicit-any": 3692,
+    "no-empty": 77,
+    "prefer-const": 51,
+    "@typescript-eslint/no-unused-vars": 44,
+    "react-hooks/set-state-in-effect": 29,
+    "no-useless-escape": 16,
+    "react-hooks/refs": 11,
+    "react-refresh/only-export-components": 6,
+    "react-hooks/preserve-manual-memoization": 5,
+    "no-extra-boolean-cast": 5,
+    "react-hooks/use-memo": 4,
+    "react-hooks/purity": 3,
+    "react-hooks/immutability": 2,
+    "@typescript-eslint/ban-ts-comment": 2,
+    "no-loss-of-precision": 1
+  }
+}

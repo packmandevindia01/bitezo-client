@@ -2,9 +2,19 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { fileURLToPath, URL } from 'node:url'
+
+/** Path aliases (Phase 0) — keep in sync with tsconfig.app.json and vitest.config.ts */
+const aliases = {
+  '@shared': fileURLToPath(new URL('./src/shared', import.meta.url)),
+  '@pos': fileURLToPath(new URL('./src/features/pos', import.meta.url)),
+  '@features': fileURLToPath(new URL('./src/features', import.meta.url)),
+  '@app': fileURLToPath(new URL('./src/app', import.meta.url)),
+}
 
 // https://vite.dev/config/
 export default defineConfig({
+  resolve: { alias: aliases },
   plugins: [
     react(),
     tailwindcss(),

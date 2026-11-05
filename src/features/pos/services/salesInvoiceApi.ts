@@ -1,3 +1,4 @@
+import { unwrapStrict as unwrap } from "../../../shared/api/unwrap";
 import axiosInstance from "../../../api/axiosInstance";
 import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
 import { sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
@@ -12,13 +13,6 @@ export interface ApiResponse<T = any> {
   errors?: Record<string, string[]>;
 }
 
-const unwrap = <T>(promise: Promise<{ data: ApiResponse<T> }>) => 
-  promise.then(res => {
-    if (!res.data.isSuccess) {
-      throw new Error(res.data.message || "An unexpected error occurred");
-    }
-    return res.data.data;
-  });
 
 export interface SalesInvoicePayload {
   seriesId: number;

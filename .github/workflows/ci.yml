@@ -1,0 +1,42 @@
+# Phase 0 — every push / PR must keep the POS behaviour and the build intact.
+name: CI
+
+on:
+  push:
+    branches: [main, "refactor/**", "feature/**", "fix/**"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # --legacy-peer-deps: existing Capacitor peer-dependency conflict (see AGENT.md §11.3)
+      - name: Install
+        run: npm ci --legacy-peer-deps
+
+      - name: Type check
+        run: npx tsc -b
+
+      - name: POS safety net (golden master + cross-verification + regressions)
+        run: npm run test:pos-safety
+
+      - name: All tests
+        run: npx vitest run
+
+      - name: Lint ratchet (no new lint errors)
+        run: npm run lint:ratchet
+
+      - name: Build
+        run: npx vite build

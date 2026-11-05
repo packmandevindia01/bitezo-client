@@ -14,6 +14,14 @@
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
+
+    /* Path aliases (Phase 0) — keep in sync with vite.config.ts and vitest.config.ts */
+    "paths": {
+      "@shared/*": ["./src/shared/*"],
+      "@pos/*": ["./src/features/pos/*"],
+      "@features/*": ["./src/features/*"],
+      "@app/*": ["./src/app/*"]
+    },
     "jsx": "react-jsx",
 
     /* Linting */

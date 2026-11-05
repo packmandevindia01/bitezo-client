@@ -9,7 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:pos-safety": "vitest run src/tests/posFlowSafetyNet.test.ts src/tests/posCrossVerification.test.ts src/tests/posRegressions.test.ts"
+    "test:pos-safety": "vitest run src/tests/posFlowSafetyNet.test.ts src/tests/posCrossVerification.test.ts src/tests/posRegressions.test.ts",
+    "lint:ratchet": "node scripts/lint-ratchet.mjs",
+    "lint:baseline": "node scripts/lint-ratchet.mjs --update",
+    "typecheck": "tsc -b",
+    "verify": "tsc -b && vitest run && node scripts/lint-ratchet.mjs && vite build"
   },
   "dependencies": {
     "@albgen/capacitor-escpos-plugin": "^1.0.18",

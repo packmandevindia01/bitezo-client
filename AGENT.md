@@ -629,6 +629,7 @@ Main market: Bahrain / GCC (3-decimal currencies, see R8).
 | `components/` | shared UI (do not edit without permission), `layout/` (sidebar, topbar) |
 | `hooks/`, `utils/` | `usePermissions`, `useBranchScope`, `authUtils`, `money.ts` (decimal.js) … |
 | `tests/` | Vitest, mostly POS pricing (see §9) |
+| `shared/` (Phase 0) | used by POS and Back Office, may not import features (ESLint): `api/http.ts` (axios client; old path `api/axiosInstance.ts` re-exports), `api/unwrap.ts` (`unwrapBody` / `unwrapData` / `unwrapEnvelope` / `unwrapStrict`), `lib/` money, date, html, print, currency (old `utils/*` paths re-export), `config/settings.ts` (typed safe reads of localStorage settings — use in new code) |
 
 Size: ~84k lines of TS/TSX. Files over 1,000 lines (hard to change safely): `PosRecallDetailsModal.tsx`,
 `escPosGenerator.ts`, `PosSettledDetailsModal.tsx`, `DineInTableOrdersModal.tsx`, `orderPricing.ts`,
@@ -637,6 +638,10 @@ Size: ~84k lines of TS/TSX. Files over 1,000 lines (hard to change safely): `Pos
 
 ### 11.3 Commands
 ```
+npm run verify         # tsc -b + all tests + lint ratchet + build (run before every push)
+npm run test:pos-safety  # POS golden master + cross-verification + regressions
+npm run lint:ratchet   # fails if any lint rule has MORE errors than lint-baseline.json
+npm run lint:baseline  # lock in a lint improvement (refuses to raise the baseline)
 npm run dev            # Vite dev server; /api, /uploads, /images proxied to the LAN backend (vite.config.ts)
 npm run build          # tsc -b && vite build  → dist/
 npm test               # vitest run
@@ -812,3 +817,14 @@ Tests: `src/tests/productionHardening.test.ts` (local dates, `escapeHtml`, guest
 - [ ] Backend confirms role checks on every endpoint and decimal column precision
 - [ ] Full shift tested on a real terminal + printer (web + Printer Agent, and Android); totals match the day-end report
 - [ ] Release built from a tagged commit on `main`; Android versionCode bumped, release keystore, cleartext off
+
+### 11.5 Phase 0 foundations (2026-11-05)
+- **Aliases** (tsconfig.app.json + vite.config.ts + vitest.config.ts, keep in sync): `@shared/*` → `src/shared/*`,
+  `@pos/*` → `src/features/pos/*`, `@features/*` → `src/features/*`, `@app/*` → `src/app/*`. New code uses them.
+- **Moved with re-export shims** (old imports keep working, new code imports `@shared/...`): `api/axiosInstance.ts` → `shared/api/http.ts`,
+  `utils/{money,date,html,print,currency}.ts` → `shared/lib/`. Currency decimals (`currencyDecimals`, `resolveDecimalPart`) live in `shared/lib/currency.ts`.
+- **Unwrap**: 7 duplicated `unwrap` helpers replaced by the matching `shared/api/unwrap.ts` variant (same behaviour); `settledOrdersApi` keeps its own (different shape).
+- **ESLint boundaries**: `src/shared/**` may not import features/app (exception: `shared/api/http.ts` still imports the auth refresh calls — remove in Phase 2);
+  `pos/pricing/**` may not use React/Redux/axios/store/services or `localStorage`/`window`. A POS ↔ Back Office import boundary needs the folder move (relative paths cannot be matched reliably) — Phase 6.
+- **Lint ratchet**: `lint-baseline.json` (3,948 errors at start, 3,692 `no-explicit-any`). New errors fail `npm run lint:ratchet` / CI.
+- **CI**: `.github/workflows/ci.yml` — install (`--legacy-peer-deps`), `tsc -b`, `test:pos-safety`, all tests, lint ratchet, build — on push to main / refactor/** / feature/** / fix/** and on PRs.

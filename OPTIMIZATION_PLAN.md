@@ -166,7 +166,7 @@ print (iframe, no reload), Excel/PDF export (lazy-loaded), column chooser, saved
 
 | Phase | Content | Days | Risk control |
 |---|---|---|---|
-| **0. Foundations** | `shared/` (api/http, unwrap, date, money, print, settings store skeleton), path aliases (`@shared`, `@pos`, `@bo`), ESLint boundaries + ratchet, CI | 4–5 | no behaviour change; tests green |
+| **0. Foundations** | `shared/` (api/http, unwrap, date, money, print, settings store skeleton), path aliases (`@shared`, `@pos`, `@bo`), ESLint boundaries + ratchet, CI | 4–5 | no behaviour change; tests green | **DONE 2026-11-05** (see AGENT.md §11.5) |
 | **1. Design tokens** | tokens + type scale, codemod colours/sizes, `shared/ui` Button/Input/Modal/Drawer/DataTable | 6–8 | visual check per screen; screenshot diff on 10 key screens |
 | **2. POS core** | P1 saved-order loader, P3 settle state machine, P6 settings store, modal stack + hotkeys | 8–10 | cross-verification + regressions must pass; one real-terminal shift test |
 | **3. POS UI** | 3-zone layout, virtualised menu, split giant modals (P2), printing module (P5) | 10–12 | terminal test on tablet + desktop + Android |

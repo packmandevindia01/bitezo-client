@@ -1,3 +1,4 @@
+import { unwrapBody as unwrap } from "../../../../shared/api/unwrap";
 import axiosInstance from "../../../../api/axiosInstance";
 import type { 
   SaveDeliveryAddressRequest, 
@@ -5,8 +6,6 @@ import type {
   DeliveryAddressResponse 
 } from "../types/delivery";
 
-const unwrap = <T>(promise: Promise<{ data: any }>) => 
-  promise.then(res => res.data as T);
 
 export const deliveryApi = {
   getDeliveryAddress: (mobileNo: string) => 

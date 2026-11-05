@@ -1,8 +1,7 @@
+import { unwrapBody as unwrap } from "../../../../shared/api/unwrap";
 import axiosInstance from "../../../../api/axiosInstance";
 import type { Customer } from "../types/customer";
 
-const unwrap = <T>(promise: Promise<{ data: any }>) => 
-  promise.then(res => res.data as T);
 
 const parseIsActive = (val: any): boolean => {
   if (typeof val === "boolean") return val;

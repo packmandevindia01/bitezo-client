@@ -1,3 +1,4 @@
+import { unwrapEnvelope as unwrap } from "../../../shared/api/unwrap";
 import axiosInstance from "../../../api/axiosInstance";
 import type { 
   PosCategory, 
@@ -18,11 +19,6 @@ export interface ApiResponse<T> {
   isSuccess: boolean;
 }
 
-const unwrap = <T>(promise: Promise<{ data: ApiResponse<T> }>) => 
-  promise.then(res => {
-    if (res.data && res.data.isSuccess === false) throw new Error(res.data.message);
-    return (res.data?.data !== undefined ? res.data.data : res.data) as T;
-  });
 
 const getTenantQuery = () => {
   const tenantId = localStorage.getItem("tenantId") || "";

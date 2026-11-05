@@ -1,3 +1,4 @@
+import { unwrapBody as unwrap } from "../../../shared/api/unwrap";
 import axiosInstance from "../../../api/axiosInstance";
 import type { MenuOrderRequest, MenuOrderResponse, RecallParams, RecallResponse } from "../types";
 import { sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
@@ -10,8 +11,6 @@ import { toLocalDateString } from "../../../utils/date";
 /**
  * Standard unwrap helper to extract data and handle success/error based on the API response.
  */
-const unwrap = <T>(promise: Promise<{ data: any }>) => 
-  promise.then(res => res.data as T);
 
 /**
  * Service for Order-related API calls in POS.

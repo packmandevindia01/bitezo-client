@@ -1,12 +1,5 @@
+import { unwrapData as unwrap } from "../../shared/api/unwrap";
 import axiosInstance from "../../api/axiosInstance";
-const unwrap = async <T>(promise: Promise<{ data: { data: T } | T }>): Promise<T> => {
-  const response = await promise;
-  // Handle standard { data: { data: ... } } envelope
-  if (response.data && "data" in (response.data as any)) {
-    return (response.data as any).data;
-  }
-  return response.data as T;
-};
 import type { AdminDashboardData, UserDashboardData } from "./types";
 
 const getAdminDashboard = async (branchId: number, decimals: number): Promise<AdminDashboardData> => {
