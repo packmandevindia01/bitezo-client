@@ -45,7 +45,9 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
 
   const change = Math.max(0, roundMoney(roundedTendered - roundedDue, decimalPart));
   // Rule: Do not allow underpayment in single Cash mode. Minimum allowed is totalDue.
-  const isSufficient = roundedTendered >= roundedDue && roundedDue > 0;
+  // A complimentary bill (total 0) must still settle — it used to be blocked by `roundedDue > 0`
+  // (Cash is the default tender). The cart-empty check happens before this screen opens.
+  const isSufficient = Number.isFinite(roundedDue) && roundedDue >= 0 && roundedTendered >= roundedDue;
 
   const handleKeyPress = (key: string) => {
     if (key === 'Back') {

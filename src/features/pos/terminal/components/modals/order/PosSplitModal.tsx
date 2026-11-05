@@ -7,8 +7,8 @@ import { orderApi } from "../../../../services/orderApi";
 import { useAppSelector } from "../../../../../../app/hooks";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { PosSplitTableModal } from "./PosSplitTableModal";
-import { calculateLineItem, calculateOrder, roundCalc, CALC_PRECISION, getTaxExclusivePrice, getBillingConfigForOrder, getPriceView, getDiscountCalculation } from "../../../utils/billing";
-import { storedLineToCartPricing, deriveOrderChargeRatesFromMaster, ORDER_TYPE_NAMES } from "../../../../pricing";
+import { calculateLineItem, calculateOrder, roundCalc, CALC_PRECISION, getTaxExclusivePrice, getBillingConfigForOrder, getPriceView, getDiscountCalculation, toPricingSettings } from "../../../utils/billing";
+import { storedLineToCartPricing, deriveOrderChargeRatesFromMaster, ORDER_TYPE_NAMES, priceLine } from "../../../../pricing";
 import { useCashierLog } from "../../../../cashier";
 import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { mapOrderDetailToCartItem } from "../../../mappers/orderDetailToCartMapper";
@@ -208,6 +208,22 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     return false;
   };
 
+// Delivery is charged ONCE: the base bill (the original order) keeps its saved delivery charge, new split
+  // bills get none. Without this, calculateOrder added the default delivery charge to EVERY split bill
+  // (screen total and saved netAmount) for Delivery orders.
+/** Most a fixed discount can take off `qty` units of a line WITHOUT its extras (in Discount Calc terms). */
+  const productDiscountCapacity = (item: SplitCartItem, qty: number): number => {
+    const settings = toPricingSettings(getBillingConfigForOrder(originalOrder?.orderTypeName || "DineIn", originalOrder?.savedRates));
+    const line = priceLine(
+      { qty, unitPrice: item.price, priceIncludesTax: item.isIncl, vatRate: Number(item.detail?.vatValue ?? settings.defaultVatRate), extras: [] },
+      settings
+    );
+    return settings.discountCalc === "Inclusive" ? line.grossAmount : line.amount;
+  };
+
+  const bucketDeliveryCharge = (bucket: SplitBucket) =>
+    bucket.isBase ? Number(originalOrder?.deliveryCharge ?? originalOrder?.DeliveryCharge ?? 0) || 0 : 0;
+
   const calculateBucketTotal = (bucket: SplitBucket) => {
     const cartItems = bucket.items.map(item => {
       const extras = ownsModifiers(bucket, item.mapId)
@@ -243,6 +259,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     const result = calculateOrder(cartItems, {
       orderType: originalOrder?.orderTypeName || "DineIn",
       config: getBillingConfigForOrder(originalOrder?.orderTypeName || "DineIn", originalOrder?.savedRates),
+      customDeliveryCharge: bucketDeliveryCharge(bucket),
     });
     return result.summary.total;
   };
@@ -286,7 +303,15 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       if (sourceItem.discountType === 'amount') {
         const totalDiscount = Number(sourceItem.discountValue || 0);
         const unitDiscount = sourceItem.currentQty > 0 ? (totalDiscount / sourceItem.currentQty) : 0;
-        movedDiscount = roundCalc(unitDiscount * actualMoveQty, CALC_PRECISION);
+        const byQty = unitDiscount * actualMoveQty;
+        // The moved part never carries the extras (they stay with the bill that keeps the line), so it can
+        // absorb at most its own product value. A fixed discount bigger than the product (covering the
+        // extras too) used to be shared by quantity only: the part without extras got more discount than
+        // it was worth, the excess was capped away and the split bills added up to MORE than the order.
+        movedDiscount = roundCalc(
+          actualMoveQty >= sourceItem.currentQty ? totalDiscount : Math.min(byQty, productDiscountCapacity(sourceItem, actualMoveQty)),
+          CALC_PRECISION
+        );
         remainingDiscount = roundCalc(Math.max(0, totalDiscount - movedDiscount), CALC_PRECISION);
       } else {
         movedDiscount = Number(sourceItem.discountValue || 0);
@@ -508,6 +533,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     const result = calculateOrder(cartItems, {
       orderType: originalOrder?.orderTypeName || "DineIn",
       config: getBillingConfigForOrder(originalOrder?.orderTypeName || "DineIn", originalOrder?.savedRates),
+      customDeliveryCharge: bucketDeliveryCharge(bucket),
     });
 
     const details = bucket.items.map((item, index) => {
@@ -573,6 +599,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         levy: roundCalc(result.summary.totalLevy),
         vatExclAmount: roundCalc(result.summary.vatExclAmount),
         vatAmount: roundCalc(result.summary.tax),
+        deliveryCharge: roundCalc(result.summary.deliveryCharge),
         netAmount: roundCalc(result.summary.total)
       },
       details,

@@ -12,6 +12,7 @@ import {
   type DeliverySettlePrintData,
 } from "../../utils/deliverySettlePrintTemplate";
 import type { MultiPaymentLine, TenderOption } from "../../terminal/components/modals/payment/PosMultiPayModal";
+import { allocateBulkPayments, bulkAmountDue } from "../utils/allocatePayments";
 
 export const useBulkSettlement = () => {
   const { showToast } = useToast();
@@ -227,11 +228,11 @@ export const useBulkSettlement = () => {
   }, [isAllSelected, orders]);
 
   // Total amount calculation
-  const totalSelectedAmount = useMemo(() => {
-    return orders
-      .filter((o) => selectedOrderIds.includes(o.orderId))
-      .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  }, [orders, selectedOrderIds]);
+  // Σ of each order's total rounded to fils (exactly what the orders are allocated) — see allocatePayments.ts.
+  const totalSelectedAmount = useMemo(
+    () => bulkAmountDue(orders.filter((o) => selectedOrderIds.includes(o.orderId)), decimals),
+    [orders, selectedOrderIds, decimals]
+  );
 
   const [lastSettledPrintData, setLastSettledPrintData] = useState<DeliverySettlePrintData | null>(null);
 
@@ -261,72 +262,8 @@ export const useBulkSettlement = () => {
           : [{ paymodeId: 1, label: "Cash", amount: totalSelectedAmount }];
         const change = multiPayData?.change || 0;
 
-        let remainingChange = change;
-        const netPayments = payments.map((p) => {
-          const isCash = (p.label || "").toLowerCase().includes("cash");
-          let net = p.amount;
-          if (isCash && remainingChange > 0) {
-            const deduct = Math.min(net, remainingChange);
-            net -= deduct;
-            remainingChange -= deduct;
-          }
-          return {
-            paymodeId: Number(p.paymodeId),
-            label: p.label,
-            remainingAmount: Number(net.toFixed(decimals)),
-          };
-        });
-
-        // 2. Allocate payment pool across selected orders
-        const allocatedOrders: {
-          orderId: number;
-          paymodes: { paymodeId: number; amount: number }[];
-          primaryPaymodeName: string;
-        }[] = [];
-
-        for (const order of selectedOrders) {
-          let needed = Number(order.totalAmount.toFixed(decimals));
-          const orderPaymodes: { paymodeId: number; amount: number }[] = [];
-          const usedModes: string[] = [];
-
-          for (const p of netPayments) {
-            if (needed <= 0.00001) break;
-            if (p.remainingAmount <= 0.00001) continue;
-
-            const alloc = Number(Math.min(needed, p.remainingAmount).toFixed(decimals));
-            if (alloc > 0) {
-              orderPaymodes.push({
-                paymodeId: p.paymodeId,
-                amount: alloc,
-              });
-              if (!usedModes.includes(p.label)) {
-                usedModes.push(p.label);
-              }
-              needed = Number((needed - alloc).toFixed(decimals));
-              p.remainingAmount = Number((p.remainingAmount - alloc).toFixed(decimals));
-            }
-          }
-
-          // In case of microscopic rounding residue, add to the last paymode
-          if (needed > 0.00001) {
-            if (orderPaymodes.length > 0) {
-              orderPaymodes[orderPaymodes.length - 1].amount = Number(
-                (orderPaymodes[orderPaymodes.length - 1].amount + needed).toFixed(decimals)
-              );
-            } else {
-              orderPaymodes.push({
-                paymodeId: netPayments[0]?.paymodeId || 1,
-                amount: Number(needed.toFixed(decimals)),
-              });
-            }
-          }
-
-          allocatedOrders.push({
-            orderId: order.orderId,
-            paymodes: orderPaymodes,
-            primaryPaymodeName: usedModes.join(" / ") || "CASH",
-          });
-        }
+        // 2. Split the payments across the orders (fils, half-up, change from cash first).
+        const allocatedOrders = allocateBulkPayments(selectedOrders, payments, change, decimals);
 
         const totalCashTendered = payments
           .filter((p) => (p.label || "").toLowerCase().includes("cash"))

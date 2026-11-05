@@ -1156,10 +1156,11 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         ? 100
         : masterDiscPer > 0
         ? masterDiscPer
-        : (!hasLineItemDiscounts && masterDiscAmount > 0.001)
-        ? masterDiscAmount
-        : (hasLineItemDiscounts && masterDiscAmount > lineDiscountsSum + 0.05)
-        ? roundCalc(masterDiscAmount - lineDiscountsSum)
+        : isBillLevelDiscount
+        // Amount bill discount: pass the saved value; resolveRecalledBillDiscount rebuilds the exact typed
+        // amount from the saved lines (restoreBillDiscount). The old "master − Σ line discounts" gave 0 here,
+        // because a bill discount IS stored on the lines (R5) — the discount was lost on settle / edit.
+        ? (masterDiscAmount > 0.001 ? masterDiscAmount : roundCalc(lineDiscountsSum))
         : 0;
 
       dispatch(loadRecalledOrder({
