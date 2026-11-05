@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:pos-safety": "vitest run src/tests/posFlowSafetyNet.test.ts src/tests/posCrossVerification.test.ts src/tests/posRegressions.test.ts"
   },
   "dependencies": {
     "@albgen/capacitor-escpos-plugin": "^1.0.18",

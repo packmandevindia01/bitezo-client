@@ -181,6 +181,8 @@ Order matters: Phase 0 makes the rest cheap; Phase 2 before Phase 3 because UI w
 
 ## 10. Definition of done (per phase)
 
+- `npm run test:pos-safety` green with NO snapshot changes (golden master of the current POS flow, see AGENT.md §9).
+
 - `npx tsc -b` clean, `npx vitest run` green (incl. `posCrossVerification`), build OK, lint count not higher than before.
 - No change in saved payloads unless intended (payload snapshot tests).
 - AGENT.md updated (file map, rules) in the same PR.

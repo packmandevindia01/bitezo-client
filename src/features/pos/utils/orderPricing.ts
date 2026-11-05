@@ -454,11 +454,16 @@ export const buildUnifiedOrderPricing = (
         const statusStr = (m.status || m.Status || "").toLowerCase().trim();
         const price = Number(m.price ?? m.Price ?? m.amount ?? m.Amount ?? 0);
         const typeId = Number(m.typeId ?? m.TypeId ?? 0);
+        // A row whose status is Message is ONLY a message. Message rows are saved with typeId 1, so the
+        // `typeId === 1` test used to make every saved message print twice ("* NOTE" and "MSG: NOTE").
+        const isMessageRow = statusStr === "message" || statusStr === "messages";
         if (
-          statusStr === "modifier" ||
-          statusStr === "modifiers" ||
-          typeId === 1 ||
-          (statusStr !== "message" && statusStr !== "extras" && statusStr !== "extra" && price <= 0)
+          !isMessageRow && (
+            statusStr === "modifier" ||
+            statusStr === "modifiers" ||
+            typeId === 1 ||
+            (statusStr !== "extras" && statusStr !== "extra" && price <= 0)
+          )
         ) {
           const resolvedTypeName =
             resolveModifierTypeName(m) ||
