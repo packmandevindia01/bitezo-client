@@ -33,6 +33,7 @@ const CompanyForm = ({
     isLoadingMasterData,
     countries,
     currencies,
+    masterDataMissing,
     resetForm
   } = useCompanyOnboardingForm({
     initialValues,
@@ -48,18 +49,8 @@ const CompanyForm = ({
 
   const selectedCountryId = form.watch("country");
 
-  // Use API master data if available, otherwise fall back to standard regional list with mobCodes
-  const activeCountries = countries.length > 0
-    ? countries
-    : [
-        { id: 1, name: "Bahrain", mobCode: "+973" },
-        { id: 2, name: "Oman", mobCode: "+968" },
-        { id: 3, name: "Uae", mobCode: "+971" },
-        { id: 4, name: "Saudi Arabia", mobCode: "+966" },
-        { id: 5, name: "Kuwait", mobCode: "+965" },
-        { id: 6, name: "Qatar", mobCode: "+974" },
-        { id: 7, name: "India", mobCode: "+91" },
-      ];
+  // Countries / currencies come ONLY from the backend master data (no invented IDs).
+  const activeCountries = countries;
 
   const countryOptions = activeCountries.map((item) => ({
     label: item.name,
@@ -71,18 +62,7 @@ const CompanyForm = ({
   );
   const currentMobCode = selectedCountryId ? (selectedCountryObj?.mobCode || "") : "";
 
-  const activeCurrencies = currencies.length > 0
-    ? currencies
-    : [
-        { currencyId: 1, currencyName: "BHD" },
-        { currencyId: 2, currencyName: "SAR" },
-        { currencyId: 3, currencyName: "AED" },
-        { currencyId: 4, currencyName: "OMR" },
-        { currencyId: 5, currencyName: "KWD" },
-        { currencyId: 6, currencyName: "QAR" },
-        { currencyId: 7, currencyName: "INR" },
-        { currencyId: 8, currencyName: "USD" },
-      ];
+  const activeCurrencies = currencies;
 
   const currencyOptions = activeCurrencies.map((item) => ({
     label: item.currencyName,
@@ -99,6 +79,11 @@ const CompanyForm = ({
 
   return (
     <>
+      {masterDataMissing && (
+        <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+          Countries / currencies could not be loaded from the server. Reload the page before saving.
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-3 lg:gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Controller
           name="regId"

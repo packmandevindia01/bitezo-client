@@ -19,6 +19,7 @@ import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/ser
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
+import { stockLineAmount, stockNetAmount } from "../../shared/stockCalc";
 
 const toNumber = (val: any): number => {
   if (typeof val === "number") return val;
@@ -29,7 +30,7 @@ const toNumber = (val: any): number => {
 const calculateLine = (item: any) => {
   const qty = toNumber(item.qty);
   const cost = toNumber(item.cost);
-  return { amount: qty * cost };
+  return { amount: stockLineAmount(qty, cost) };
 };
 
 export const initialTransferForm: InternalStockTransferForm = {
@@ -442,10 +443,7 @@ export const useInternalStockTransfer = (id?: string) => {
 
     setSaving(true);
     try {
-      const netAmount = validItems.reduce((acc, item) => {
-        const line = calculateLine(item as any);
-        return acc + line.amount;
-      }, 0);
+      const netAmount = stockNetAmount(validItems.map((item) => ({ amount: calculateLine(item as any).amount })));
 
       const vDate = formatDateOnly(data.date);
       const details = validItems.map(item => {

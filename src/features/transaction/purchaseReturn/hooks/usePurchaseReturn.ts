@@ -1066,12 +1066,12 @@ export const usePurchaseReturn = (invoiceId?: string) => {
 
     try {
       const paymentsList = (data.payments && data.payments.length > 0) ? data.payments : watchedPayments;
-      const rootPaymodeId = (selectedPaymodeId === (multiPayId || 3) || selectedPaymodeId === 3 || (paymentsList && paymentsList.length > 1))
+      const rootPaymodeId = (selectedPaymodeId === (multiPayId || 3) || (paymentsList && paymentsList.length > 1))
         ? (multiPayId || 3)
         : (selectedPaymodeId || (paymentsList?.[0]?.paymodeId ? Number(paymentsList[0].paymodeId) : 1));
 
       const computedPaymodes = (() => {
-        if (rootPaymodeId === 3 && paymentsList && paymentsList.length > 0) {
+        if (rootPaymodeId === (multiPayId || 3) && paymentsList && paymentsList.length > 0) {
           const map = new Map<number, number>();
           for (const p of paymentsList as any[]) {
             const pid = Number(p.paymodeId) || selectedPaymodeId || 1;

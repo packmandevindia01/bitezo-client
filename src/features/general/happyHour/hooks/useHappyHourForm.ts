@@ -17,6 +17,7 @@ import type {
 import type { SubCategoryListItem } from "../../../inventory/subcategory/types";
 import type { HappyHourData, HappyHourPayload, HappyHourEntry } from "../types";
 import { happyHourService } from "../services/happyHourService";
+import { happyHourFromDiscount, happyHourFromPercent, happyHourFromPromo, validateHappyHourEntry } from "../utils/happyHourCalc";
 
 export const toLocalISOString = (date: Date = new Date()) => {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -205,9 +206,9 @@ export const useHappyHourForm = (
     setEntryDiscPercent(newPercent ?? "");
     
     if (price > 0) {
-      const discValue = (price * percent) / 100;
-      setEntryDiscValue(isNaN(discValue) ? "0" : discValue.toFixed(decimalPart));
-      setEntryPromoPrice(isNaN(price - discValue) ? "0" : (price - discValue).toFixed(decimalPart));
+      const r = happyHourFromPercent(price, percent, decimalPart);
+      setEntryDiscValue(r.discount.toFixed(decimalPart));
+      setEntryPromoPrice(r.promo.toFixed(decimalPart));
     }
   };
 
@@ -217,9 +218,9 @@ export const useHappyHourForm = (
     setEntryDiscValue(newValue ?? "");
 
     if (price > 0) {
-      const percent = discValue > 0 ? (discValue / price) * 100 : 0;
-      setEntryDiscPercent(isNaN(percent) ? "0" : parseFloat(percent.toFixed(2)).toString());
-      setEntryPromoPrice(isNaN(price - discValue) ? "0" : (price - discValue).toFixed(decimalPart));
+      const r = happyHourFromDiscount(price, discValue, decimalPart);
+      setEntryDiscPercent(String(r.percent));
+      setEntryPromoPrice(r.promo.toFixed(decimalPart));
     }
   };
 
@@ -229,10 +230,9 @@ export const useHappyHourForm = (
     setEntryPromoPrice(newPromo ?? "");
 
     if (price > 0) {
-      const discValue = price - promoPrice;
-      const percent = price > 0 ? (discValue / price) * 100 : 0;
-      setEntryDiscValue(isNaN(discValue) ? "0" : discValue.toFixed(decimalPart));
-      setEntryDiscPercent(isNaN(percent) ? "0" : parseFloat(percent.toFixed(2)).toString());
+      const r = happyHourFromPromo(price, promoPrice, decimalPart);
+      setEntryDiscValue(r.discount.toFixed(decimalPart));
+      setEntryDiscPercent(String(r.percent));
     }
   };
 
@@ -377,6 +377,11 @@ export const useHappyHourForm = (
     }
     const priceVal = parseFloat(entryPrice);
     const promoVal = parseFloat(entryPromoPrice);
+    const entryError = validateHappyHourEntry(priceVal, promoVal);
+    if (entryError) {
+      showToast(entryError, "warning");
+      return;
+    }
     
     if (entries.some((e) => e.productId === entryProductId && e.unitId === entryUnitId)) {
       showToast("Already in the list", "warning");
@@ -394,9 +399,10 @@ export const useHappyHourForm = (
         || altNameOptions.find(a => a.unitId === entryUnitId)?.altName 
         || "",
       price: priceVal,
-      discountPercentage: parseFloat(entryDiscPercent) || 0,
-      discountValue: parseFloat(entryDiscValue) || 0,
-      promoPrice: promoVal,
+      // Saved values derived from price + promo so the row is always consistent (e.g. a typed 150 % is not saved).
+      discountPercentage: happyHourFromPromo(priceVal, promoVal, decimalPart).percent,
+      discountValue: happyHourFromPromo(priceVal, promoVal, decimalPart).discount,
+      promoPrice: happyHourFromPromo(priceVal, promoVal, decimalPart).promo,
       isIncl: entryIsIncl,
     };
 
@@ -421,8 +427,8 @@ export const useHappyHourForm = (
   const handleUpdateEntryPrice = (productId: number, unitId: number, newPrice: number) => {
     setEntries(prev => prev.map(e => {
         if (e.productId === productId && e.unitId === unitId) {
-            const discValue = (newPrice * e.discountPercentage) / 100;
-            return { ...e, price: newPrice, discountValue: discValue, promoPrice: newPrice - discValue };
+            const r = happyHourFromPercent(newPrice, e.discountPercentage, decimalPart);
+            return { ...e, price: newPrice, discountValue: r.discount, promoPrice: r.promo };
         }
         return e;
     }));

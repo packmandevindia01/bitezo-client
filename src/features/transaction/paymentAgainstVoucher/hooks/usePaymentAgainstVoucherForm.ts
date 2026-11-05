@@ -19,6 +19,7 @@ import { paymodeService } from "../../../general/paymode/services/paymodeService
 import { subscribeToPaymodeUpdates } from "../../../general/paymode/utils/paymodeSync";
 import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import { invoiceBalance, voucherAmount, voucherTotal, multiPaymodeId } from "../../shared/voucherCalc";
 
 export { formatDateOnly };
 
@@ -410,7 +411,7 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
           invoiceNo: d.invoiceNo,
           invoiceDate: formatDateOnly(d.invoiceDate),
           invoiceAmount: d.invoiceAmount,
-          balance: d.invoiceAmount - d.receivedAmount, // Adjust as needed
+          balance: invoiceBalance(d.invoiceAmount, d.receivedAmount, getDecimalPart()),
           amount: Number(d.receivedAmount).toFixed(getDecimalPart())
         })),
         paymodes: []
@@ -422,14 +423,15 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
     mutationFn: async (data: PaymentAgainstVoucherFormData) => {
       const vDate = formatDateOnly(data.voucherDate);
       const decimals = getDecimalPart();
-      const totalAmount = Number(data.details.reduce((sum, item) => sum + Number(item.amount || 0), 0).toFixed(decimals));
+      // Header = exact Σ of the rounded lines.
+      const totalAmount = voucherTotal(data.details.map((d) => d.amount), decimals);
       const selectedPaymodeId = Number(data.paymodeId) || 1;
 
       let paymodesPayload: { paymodeId: number; amount: number }[] = [];
-      if (selectedPaymodeId === 3 && data.paymodes && data.paymodes.length > 0) {
+      if (selectedPaymodeId === multiPaymodeId(paymodeList) && data.paymodes && data.paymodes.length > 0) {
         paymodesPayload = data.paymodes.map((p) => ({
           paymodeId: Number(p.paymodeId),
-          amount: Number(Number(p.amount).toFixed(decimals)),
+          amount: voucherAmount(p.amount, decimals),
         }));
       } else {
         paymodesPayload = [];
@@ -438,7 +440,7 @@ export const usePaymentAgainstVoucherForm = (transId?: number) => {
       const detailsPayload = data.details.map((d) => ({
         invoiceId: Number(d.invoiceId),
         voucherType: String(d.voucherType || ""),
-        amount: Number(Number(d.amount).toFixed(decimals)),
+        amount: voucherAmount(d.amount, decimals),
       }));
 
       if (transId) {

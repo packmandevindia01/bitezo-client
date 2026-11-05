@@ -27,6 +27,7 @@ import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/bran
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 import axiosInstance from "../../../../api/axiosInstance";
+import { stockLineAmount, stockBaseQty, stockNetAmount } from "../../shared/stockCalc";
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -36,7 +37,7 @@ const toNumber = (value: string | number | undefined) => {
 export const calculateLine = (item: StockAdjustmentLineItem) => {
   const qty = toNumber(item.qty);
   const cost = toNumber(item.cost);
-  const amount = qty * cost;
+  const amount = stockLineAmount(qty, cost);
   return { amount };
 };
 
@@ -773,11 +774,10 @@ export const useStockAdjustment = (id?: string | null) => {
 
     setSaving(true);
     try {
-      const netAmount = validItems.reduce((acc, item) => {
-        const line = calculateLine(item as StockAdjustmentLineItem);
-        const effect = item.effect === "-" ? -1 : 1;
-        return acc + (line.amount * effect);
-      }, 0);
+      const netAmount = stockNetAmount(validItems.map((item) => ({
+        amount: calculateLine(item as StockAdjustmentLineItem).amount,
+        sign: item.effect === "-" ? -1 : 1,
+      })));
 
       const vDate = formatDateOnly(data.date);
       const detailsPayload = validItems.map(item => {
@@ -796,8 +796,8 @@ export const useStockAdjustment = (id?: string | null) => {
           unitId,
           qty: toNumber(item.qty),
           price: toNumber(item.cost),
-          amount: toNumber(item.qty) * toNumber(item.cost),
-          baseQty: toNumber(item.qty) * unitCurrentValue,
+          amount: stockLineAmount(item.qty, item.cost),
+          baseQty: stockBaseQty(item.qty, unitCurrentValue),
           typeId: item.typeId || parseInt(item.type, 10) || 0,
           effect: item.effect || "+",
         };

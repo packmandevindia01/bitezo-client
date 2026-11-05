@@ -27,7 +27,7 @@ export const exportReportToPdf = async (
   const { jsPDF } = await import('jspdf');
   const autoTable = (await import('jspdf-autotable')).default;
   const doc = new jsPDF();
-  const companyName = localStorage.getItem('companyName') || 'BITEZO POS';
+  const companyName = localStorage.getItem('companyName') || ''; // never print the vendor name as the client's company
 
   if (reportType === 'VOID_ORDER_SUMMARY') {
     const logs = logsData.voidOrderLogs || [];

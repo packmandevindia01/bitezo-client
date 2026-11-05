@@ -15,6 +15,7 @@ const CompanyPage = () => {
     },
     currencies,
     countries = [],
+    masterDataMissing,
     isLoading,
     isSaving,
     showLogoutNotice,
@@ -69,6 +70,11 @@ const CompanyPage = () => {
       >
         {/* ── Header ── */}
         <div className="px-6 pt-5 pb-4 border-b border-gray-100 shrink-0">
+          {masterDataMissing && (
+            <div role="alert" className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
+              Countries / currencies could not be loaded from the server. Reload the page before saving.
+            </div>
+          )}
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">Settings</p>
           <h1 className="flex items-center gap-2 text-2xl font-bold uppercase tracking-wide text-gray-900 mt-0.5">
             <Building2 size={22} className="text-[#49293e]" />

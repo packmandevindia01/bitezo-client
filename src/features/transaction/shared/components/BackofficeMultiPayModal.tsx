@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Modal, Button } from "../../../../components/common";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useToast } from "../../../../app/providers/useToast";
+import { comparePaid } from "../voucherCalc";
 
 interface PaymentLine {
   mode: string;
@@ -66,13 +67,8 @@ export const BackofficeMultiPayModal: React.FC<BackofficeMultiPayModalProps> = (
     setTimeout(() => inputRefs.current[0]?.focus(), 150);
   }, [isOpen, paymodes, initialPayments]);
 
-  const totalPaid = rows.reduce((sum, r) => sum + (parseFloat(r.inputValue) || 0), 0);
-  const roundedPaid = Number(totalPaid.toFixed(decimalPart));
-  const roundedDue = Number(totalDue.toFixed(decimalPart));
-  const balance = Number((roundedDue - roundedPaid).toFixed(decimalPart));
-  const change = balance < 0 ? Math.abs(balance) : 0;
-  const remaining = balance > 0 ? balance : 0;
-  const isComplete = roundedPaid >= roundedDue && roundedDue > 0;
+  // Compared at fils, half-up, exact decimal (shared/voucherCalc.ts).
+  const { roundedPaid, roundedDue, change, remaining, isComplete } = comparePaid(rows.map((r) => r.inputValue), totalDue, decimalPart);
 
   const setRowValue = useCallback((idx: number, val: string) => {
     setRows(prev => {
@@ -231,7 +227,7 @@ export const BackofficeMultiPayModal: React.FC<BackofficeMultiPayModalProps> = (
           <div className="grid grid-cols-[1fr_140px] border-t-2 border-[#49293e]/30 bg-[#49293e]/5">
             <div className="px-4 py-2 text-xs font-black text-[#49293e] uppercase tracking-widest">Total Paid</div>
             <div className="px-4 py-2 text-sm font-black text-[#49293e] text-right border-l border-[#49293e]/20 tabular-nums">
-              {formatAmount(totalPaid)}
+              {formatAmount(roundedPaid)}
             </div>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { resolveDecimalPart } from "../utils/regionalData";
 import { useEffect, useMemo, useState } from "react";
 import { Building2, Mail, Monitor, LayoutGrid, ShieldCheck, UserRoundPlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -164,8 +165,9 @@ const CompanyOnboardingPage = () => {
         userName: "POS Terminal",
         isMaster: false,
         userRoles: [],
-        decimalPart: 2,
-        currencySymbol: "BHD",
+        // Placeholder until cashier sign-in loads the company; BHD has 3 decimals (was a fixed 2).
+        decimalPart: resolveDecimalPart(localStorage.getItem("decimalPart"), localStorage.getItem("currencySymbol") || "BHD"),
+        currencySymbol: localStorage.getItem("currencySymbol") || "BHD",
       })
     );
     

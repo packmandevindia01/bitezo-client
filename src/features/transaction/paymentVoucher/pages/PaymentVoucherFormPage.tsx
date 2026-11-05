@@ -1,3 +1,4 @@
+import { multiPaymodeId } from "../../shared/voucherCalc";
 import { useParams, useNavigate } from "react-router-dom";
 import { PageShell, FormInput, SearchableSelect, Button, ConfirmDialog } from "../../../../components/common";
 import { usePaymentVoucher, formatDateOnly } from "../hooks/usePaymentVoucher";
@@ -157,11 +158,11 @@ const PaymentVoucherFormPage = () => {
                   id="pv-paymode"
                   label="PAYMODE"
                   required
-                  value={watch("paymodeId") === 3 ? "3" : String(watch("paymodeId") || "")}
+                  value={String(watch("paymodeId") || "")}
                   onChange={(val) => {
                     const numVal = Number(val);
                     setValue("paymodeId", numVal, { shouldValidate: true });
-                    if (numVal === 3) setIsMultiPayOpen(true);
+                    if (numVal === multiPaymodeId(paymodeList)) setIsMultiPayOpen(true);
                   }}
                   placeholder="Select Paymode"
                   options={paymodeList.map(p => ({ label: p.paymodeName, value: String(p.paymodeId) }))}

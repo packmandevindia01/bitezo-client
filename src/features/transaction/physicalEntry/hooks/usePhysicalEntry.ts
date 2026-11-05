@@ -21,6 +21,7 @@ import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/ser
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
+import { stockLineAmount } from "../../shared/stockCalc";
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -30,7 +31,7 @@ const toNumber = (value: string | number | undefined) => {
 export const calculateLine = (item: PhysicalEntryLineItem) => {
   const qty = toNumber(item.qty);
   const cost = toNumber(item.cost);
-  const amount = qty * cost;
+  const amount = stockLineAmount(qty, cost);
   return { amount };
 };
 
@@ -679,7 +680,7 @@ export const usePhysicalEntry = (id?: string | null) => {
           unitId: Number(item.unit) || 0,
           qty: Number(item.qty),
           price: Number(item.cost),
-          amount: Number(item.qty) * Number(item.cost),
+          amount: stockLineAmount(item.qty, item.cost),
           baseQty: baseQty
         };
       }).filter(i => i.productId && i.qty > 0);

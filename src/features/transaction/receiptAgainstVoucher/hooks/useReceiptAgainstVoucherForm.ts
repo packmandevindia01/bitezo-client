@@ -20,6 +20,7 @@ import { paymodeService } from "../../../general/paymode/services/paymodeService
 import { subscribeToPaymodeUpdates } from "../../../general/paymode/utils/paymodeSync";
 import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
+import { invoiceBalance, voucherAmount, voucherTotal, multiPaymodeId } from "../../shared/voucherCalc";
 
 export { formatDateOnly };
 
@@ -407,7 +408,8 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
           const vDate = (d.invoiceDate || d.InvoiceDate || d.date || "").split("T")[0];
           const invAmnt = Number(d.invoiceAmount ?? d.InvoiceAmount ?? d.invAmnt ?? d.amount ?? 0);
           const recAmnt = Number(d.receivedAmount ?? d.ReceivedAmount ?? d.amount ?? 0);
-          const bal = Number(d.balance ?? d.Balance ?? (invAmnt > recAmnt ? invAmnt - recAmnt : recAmnt));
+          // Fallback balance: never the received amount (a fully paid invoice showed its full amount as balance).
+          const bal = Number(d.balance ?? d.Balance ?? invoiceBalance(invAmnt, recAmnt, getDecimalPart()));
           return {
             invoiceId: invId,
             voucherType: vType,
@@ -467,16 +469,17 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
   const saveMutation = useMutation({
     mutationFn: async (data: ReceiptAgainstVoucherFormData): Promise<any> => {
       const vDate = formatDateOnly(data.voucherDate);
-      const totalAmount = data.details.reduce((sum, item) => sum + Number(item.amount || 0), 0);
       const decimalPart = getDecimalPart();
+      // Header = exact Σ of the rounded lines (was a float sum rounded once → could be 1 fil off).
+      const totalAmount = voucherTotal(data.details.map((d) => d.amount), decimalPart);
       const selectedPaymodeId = Number(data.paymodeId) || 1;
 
       // Build paymodes: only populated when paymode is 3 (Multi), otherwise empty
       const paymodesPayload: ReceiptAgainstPaymodePayload[] = (() => {
-        if (selectedPaymodeId === 3 && data.paymodes && data.paymodes.length > 0) {
+        if (selectedPaymodeId === multiPaymodeId(paymodeList) && data.paymodes && data.paymodes.length > 0) {
           return data.paymodes.map(p => ({
             paymodeId: Number(p.paymodeId || 0) || 1,
-            amount: Number(Number(p.amount || 0).toFixed(decimalPart))
+            amount: voucherAmount(p.amount, decimalPart)
           }));
         }
         return [];
@@ -485,7 +488,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
       const detailsPayload: ReceiptAgainstDetailPayload[] = data.details.map(d => ({
         invoiceId: Number(d.invoiceId || 0),
         voucherType: d.voucherType || "",
-        amount: Number(Number(d.amount || 0).toFixed(decimalPart))
+        amount: voucherAmount(d.amount, decimalPart)
       }));
 
       if (transId) {
@@ -497,7 +500,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
           employeeId: Number(data.employeeId || 0),
           voucherDate: vDate,
           discount: Number(data.discount || 0),
-          amount: Number(totalAmount.toFixed(decimalPart)),
+          amount: totalAmount,
           refNo: data.refNo?.trim() || "",
           narration: data.narration?.trim() || "",
           updatedAt: new Date().toISOString(),
@@ -519,7 +522,7 @@ export const useReceiptAgainstVoucherForm = (transId?: number, onSuccess?: () =>
         employeeId: Number(data.employeeId || 0),
         voucherDate: vDate,
         discount: Number(data.discount || 0),
-        amount: Number(totalAmount.toFixed(decimalPart)),
+        amount: totalAmount,
         refNo: data.refNo?.trim() || "",
         narration: data.narration?.trim() || "",
         createdAt: new Date().toISOString(),

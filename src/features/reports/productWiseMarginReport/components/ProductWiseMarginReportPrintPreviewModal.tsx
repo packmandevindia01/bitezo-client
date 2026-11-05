@@ -21,7 +21,7 @@ const ProductWiseMarginReportPrintPreviewModal: React.FC<ProductWiseMarginReport
   totals,
   filters,
 }) => {
-  const companyName = localStorage.getItem("companyName") || "Bitezo";
+  const companyName = localStorage.getItem("companyName") || ""; // never print the vendor name as the client's company
   
   const handlePrint = () => {
     const printContent = document.getElementById("pwm-print-area");

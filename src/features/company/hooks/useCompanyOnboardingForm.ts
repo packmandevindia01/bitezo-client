@@ -6,6 +6,7 @@ import { companyFormSchema, type CompanyFormValues } from "../schemas";
 import { useCompanyMasterData, useCreateCompany } from "./useCompanyQueries";
 
 import { toLocalDateString } from "../../../utils/date";
+import { withDialCodes } from "../utils/regionalData";
 interface UseCompanyOnboardingFormProps {
   initialValues?: Partial<CompanyFormValues>;
   clientDb?: string;
@@ -83,9 +84,9 @@ export const useCompanyOnboardingForm = ({
     }
   }, [initialValues, comId, form]);
 
-  const countries = masterDataPayload?.masterData?.data?.country ||
+  const countries = withDialCodes(masterDataPayload?.masterData?.data?.country ||
     masterDataPayload?.masterData?.data?.countries ||
-    masterDataPayload?.masterData?.data?.countryList || [];
+    masterDataPayload?.masterData?.data?.countryList || []);
     
   const rawMasterCurrencies = masterDataPayload?.masterData?.data?.currency ||
     masterDataPayload?.masterData?.data?.currencies ||
@@ -94,7 +95,13 @@ export const useCompanyOnboardingForm = ({
     ? rawMasterCurrencies.map((c) => ({ currencyId: c.id, currencyName: c.name }))
     : masterDataPayload?.currencyData || [];
 
+  const masterDataMissing = !isLoadingMasterData && (countries.length === 0 || currencies.length === 0);
+
   const onSubmit = (data: CompanyFormValues) => {
+    if (masterDataMissing) {
+      showToast("Countries / currencies could not be loaded from the server. Reload the page before saving.", "error");
+      return;
+    }
     const targetComId = comId ?? data.comId ?? (data as any).companyId ?? 0;
     const finalData: CompanyFormValues = {
       ...data,
@@ -127,6 +134,7 @@ export const useCompanyOnboardingForm = ({
     isLoadingMasterData,
     countries,
     currencies,
+    masterDataMissing,
     resetForm: () => form.reset(),
   };
 };

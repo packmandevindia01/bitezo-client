@@ -1,3 +1,4 @@
+import { multiPaymodeId } from "../../shared/voucherCalc";
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -400,7 +401,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
       const voucherAmount = Number(Number(data.amount).toFixed(decimalPart));
 
       let paymodesPayload: { paymodeId: number; amount: number }[] = [];
-      if (selectedPaymodeId === 3 && data.paymodes && data.paymodes.length > 0) {
+      if (selectedPaymodeId === multiPaymodeId(paymodeList) && data.paymodes && data.paymodes.length > 0) {
         paymodesPayload = data.paymodes.map((p) => ({
           paymodeId: Number(p.paymodeId),
           amount: Number(Number(p.amount).toFixed(decimalPart)),
@@ -461,7 +462,7 @@ export const usePaymentVoucher = (transId?: number, onSuccessCallback?: () => vo
   const onSubmit = handleSubmit(
     (data) => {
       const selectedPaymode = paymodeList.find(p => p.paymodeId === Number(data.paymodeId));
-      const isMultiPay = selectedPaymode?.paymodeName?.toLowerCase().includes("multi") || Number(data.paymodeId) === 3;
+      const isMultiPay = selectedPaymode?.paymodeName?.toLowerCase().includes("multi") || Number(data.paymodeId) === multiPaymodeId(paymodeList);
       
       if (isMultiPay) {
         const totalMultiPay = data.paymodes?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;

@@ -16,6 +16,7 @@ import { useCurrency } from "../../../../hooks/useCurrency";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { productionLineAmount, productionTotals } from "../utils/productionCalc";
 export const useProductionForm = (initialTransId?: number) => {
   const { decimalPart } = useCurrency();
   const { isBranchLocked, initialBranchId } = useBranchScope();
@@ -78,16 +79,8 @@ export const useProductionForm = (initialTransId?: number) => {
 
   // 3. Totals Calculation
   const totals = useMemo(() => {
-    const currentItems = watchedItems || [];
-    const itemTotal = currentItems.reduce((acc, item) => {
-      const q = Number(item.qty) || 0;
-      const c = Number(item.cost) || 0;
-      return acc + (q * c);
-    }, 0);
-    const otherCharge = Number(watchedOtherCharge) || 0;
-    const grandTotal = itemTotal + otherCharge;
-    const finQty = Number(watchedFinishedProductQty) || 0;
-    const costPerUnit = finQty > 0 ? grandTotal / finQty : 0;
+    // Exact decimal (productionCalc.ts) — no float noise in the totals sent to the backend.
+    const { grandTotal, costPerUnit } = productionTotals(watchedItems || [], watchedOtherCharge, watchedFinishedProductQty);
 
     return { grandTotal, costPerUnit };
   }, [watchedItems, watchedOtherCharge, watchedFinishedProductQty]);
@@ -559,7 +552,7 @@ export const useProductionForm = (initialTransId?: number) => {
           unitId: uId,
           qty: Number(item.qty),
           cost: Number(item.cost),
-          amount: Number(item.qty) * Number(item.cost),
+          amount: productionLineAmount(item.qty, item.cost),
           baseQty: Number(item.qty) * uVal
         };
       });

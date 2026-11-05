@@ -33,7 +33,11 @@ export const calculatePurchaseLine = (
 ): PurchaseLineAmounts => {
   const amount = dec(num(qty)).times(dec(num(price)));
   const gross = dec(num(grossTotal));
-  const discountAmount = gross.greaterThan(0) ? amount.times(dec(num(billDiscount))).dividedBy(gross) : dec(0);
+  // The bill discount is limited to 0 … gross total: a discount larger than the bill used to make
+  // taxable amounts (and VAT) negative.
+  const rawDisc = dec(num(billDiscount));
+  const billDisc = rawDisc.isNegative() ? dec(0) : rawDisc.greaterThan(gross) ? gross : rawDisc;
+  const discountAmount = gross.greaterThan(0) ? amount.times(billDisc).dividedBy(gross) : dec(0);
   const taxable = amount.minus(discountAmount);
   const vatAmount = taxable.times(dec(num(vatPercent))).dividedBy(100);
   const netAmount = taxable.plus(vatAmount);

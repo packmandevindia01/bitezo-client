@@ -782,7 +782,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
 
     setSaving(true);
     try {
-      const finalPaymodeId = (selectedPaymodeId === (multiPayId || 3) || selectedPaymodeId === 3 || data.payments.length > 1)
+      const finalPaymodeId = (selectedPaymodeId === (multiPayId || 3) || data.payments.length > 1)
         ? (multiPayId || 3)
         : (selectedPaymodeId || (data.payments.length > 0 ? Number((data.payments[0] as any).paymodeId) || 1 : 1));
 
@@ -824,7 +824,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
           };
         }),
         paymodes: (() => {
-          if (finalPaymodeId === 3 && data.payments && data.payments.length > 0) {
+          if (finalPaymodeId === (multiPayId || 3) && data.payments && data.payments.length > 0) {
             const map = new Map<number, number>();
             for (const p of data.payments as any[]) {
               const pid = Number(p.paymodeId) || 1;

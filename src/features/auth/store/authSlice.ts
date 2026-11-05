@@ -41,7 +41,7 @@ const initialState: AuthState = {
   userRoles: isBackoffice
     ? (sessionStorage.getItem("backoffice_userRoles") ? JSON.parse(sessionStorage.getItem("backoffice_userRoles")!) : [])
     : (localStorage.getItem("userRoles") ? JSON.parse(localStorage.getItem("userRoles")!) : []),
-  decimalPart: Number(localStorage.getItem("decimalPart")) || 2,
+  decimalPart: resolveDecimalPart(localStorage.getItem("decimalPart"), localStorage.getItem("currencySymbol") || "BHD"),
   currencySymbol: localStorage.getItem("currencySymbol") || "BHD",
   companyConfig: {
     isRegistered: localStorage.getItem("companyRegistered") === "true",
@@ -128,7 +128,7 @@ const authSlice = createSlice({
       state.branchId = null;
       state.activeBranchId = null;
       state.userRoles = [];
-      state.decimalPart = 2;
+      state.decimalPart = resolveDecimalPart(localStorage.getItem("decimalPart"), state.currencySymbol);
       state.currencySymbol = "BHD";
 
       clearAuthStorage();
@@ -189,6 +189,7 @@ export const { setCredentials, logout, setCompanyConfig, setActiveBranchId, setU
 
 // ─── Selectors ──────────────────────────────────────────────────────────────
 import type { RootState } from '../../../app/store';
+import { resolveDecimalPart } from "../../company/utils/regionalData";
 
 export const selectDecimalPart = (state: RootState) => state.auth.decimalPart;
 export const selectCurrencySymbol = (state: RootState) => state.auth.currencySymbol;

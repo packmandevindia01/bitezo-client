@@ -6,6 +6,7 @@ import { useToast } from "../../../app/providers/useToast";
 import { useAppDispatch } from "../../../app/hooks";
 import { setCredentials } from "../store/authSlice";
 import { User, Lock, Eye, EyeOff } from "lucide-react";
+import { resolveDecimalPart } from "../../company/utils/regionalData";
 
 interface LocationState {
   username?: string;
@@ -58,8 +59,9 @@ const LoginForm = () => {
       const data = await loginApi(username.trim(), password.trim());
 
       if (data?.accessToken && data?.user?.userId) {
-        const decimalPart = data.company?.decimalPart ?? 2;
         const currencySymbol = data.company?.currencySymbol ?? "BHD";
+        // Missing decimalPart → from the currency (BHD = 3), never a fixed 2.
+        const decimalPart = resolveDecimalPart(data.company?.decimalPart, currencySymbol);
 
         localStorage.setItem("decimalPart", String(decimalPart));
         localStorage.setItem("currencySymbol", currencySymbol);

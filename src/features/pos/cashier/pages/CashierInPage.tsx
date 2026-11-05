@@ -7,6 +7,7 @@ import { useAppDispatch } from "../../../../app/hooks";
 import { setCredentials } from "../../../../features/auth/store/authSlice";
 import { fetchPosMasterDataApi } from "../../../../features/auth/services/authApi";
 import { Delete } from "lucide-react";
+import { resolveDecimalPart } from "../../../company/utils/regionalData";
 
 // --- Custom Premium Numpad Component ---
 const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
@@ -159,13 +160,14 @@ const CashierInPage = () => {
 
         // Load POS Master Data in the background
         const terminalId = localStorage.getItem("terminalId") || "";
-        let decimalPart = data.company?.decimalPart ?? 2;
         let currencySymbol = data.company?.currencySymbol ?? "BHD";
+        // Missing decimalPart → from the currency (BHD = 3), never a fixed 2.
+        let decimalPart = resolveDecimalPart(data.company?.decimalPart, currencySymbol);
         
         try {
           const masterData = await fetchPosMasterDataApi(terminalId, seriesId);
-          decimalPart = masterData.company?.decimalPart ?? data.company?.decimalPart ?? 2;
           currencySymbol = masterData.company?.currencySymbol ?? data.company?.currencySymbol ?? "BHD";
+          decimalPart = resolveDecimalPart(masterData.company?.decimalPart ?? data.company?.decimalPart, currencySymbol);
 
           if (masterData.configs) {
             localStorage.setItem("posConfigs", JSON.stringify(masterData.configs));

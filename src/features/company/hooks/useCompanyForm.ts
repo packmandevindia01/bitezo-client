@@ -12,6 +12,7 @@ import { logout } from "../../auth/store/authSlice";
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
 
 import { toLocalDateString } from "../../../utils/date";
+import { withDialCodes } from "../utils/regionalData";
 const companySchema = z.object({
   custName: z.string().trim().min(1, "Company name is required").max(100, "max 100 chars"),
   crNo: z.string().trim().min(1, "CR No is required").max(20, "max 20 chars"),
@@ -66,20 +67,6 @@ const companySchema = z.object({
   }
 });
 
-const DEFAULT_COUNTRIES = [
-  { id: 1, name: "Bahrain", mobCode: "+973" },
-  { id: 2, name: "Oman", mobCode: "+968" },
-  { id: 3, name: "Uae", mobCode: "+971" },
-  { id: 4, name: "Saudi Arabia", mobCode: "+966" },
-  { id: 5, name: "Kuwait", mobCode: "+965" },
-  { id: 6, name: "Qatar", mobCode: "+974" },
-  { id: 7, name: "India", mobCode: "+91" },
-];
-
-const DEFAULT_CURRENCIES = [
-  { currencyId: 1, currencyName: "Bahraini Dinar" },
-  { currencyId: 2, currencyName: "Qatari Riyal" },
-];
 
 const cleanPhoneNumber = (mob: string, countryId: string, countriesList: any[]): string => {
   if (!mob) return "";
@@ -152,7 +139,8 @@ export const useCompanyForm = () => {
       masterDataPayload?.data?.currency ||
       masterDataPayload?.data?.currencies ||
       masterDataPayload?.data?.currencyList;
-    if (!list || list.length === 0) return DEFAULT_CURRENCIES;
+    // No invented fallback IDs: an empty list blocks saving (see masterDataMissing).
+    if (!list || list.length === 0) return [];
     return list.map((c: any) => ({
       currencyId: Number(c.currencyId ?? c.id),
       currencyName: String(c.currencyName ?? c.name),
@@ -164,8 +152,10 @@ export const useCompanyForm = () => {
       masterDataPayload?.data?.country ||
       masterDataPayload?.data?.countries ||
       masterDataPayload?.data?.countryList;
-    return (apiCountries && apiCountries.length > 0) ? apiCountries : DEFAULT_COUNTRIES;
+    return withDialCodes(apiCountries && apiCountries.length > 0 ? apiCountries : []);
   }, [masterDataPayload]);
+
+  const masterDataMissing = !masterLoading && (currencies.length === 0 || countries.length === 0);
 
   // Fetch Company Data
   const { data: raw, isLoading: companyLoading } = useQuery({
@@ -276,6 +266,10 @@ export const useCompanyForm = () => {
   });
 
   const onSubmit = form.handleSubmit((data) => {
+    if (masterDataMissing) {
+      showToast("Countries / currencies could not be loaded from the server. Reload the page before saving.", "error");
+      return;
+    }
     mutation.mutate(data);
   });
 
@@ -304,6 +298,7 @@ export const useCompanyForm = () => {
     form,
     currencies,
     countries,
+    masterDataMissing,
     isLoading: companyLoading || currenciesLoading || masterLoading,
     isSaving: mutation.isPending,
     showLogoutNotice,
