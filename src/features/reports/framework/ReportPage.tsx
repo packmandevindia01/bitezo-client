@@ -40,6 +40,7 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
     definition.filters.forEach((f) => {
       const v = r.filters[f.key];
       if (f.kind === "branch") lines.push([f.label ?? "Location", branchOptions.find((o) => o.value === v)?.label || "All"]);
+      if (f.kind === "lookup") lines.push([f.label, r.lookups[f.key]?.find((o) => o.value === v)?.label || "All"]);
     });
     return { title: definition.title, subtitle, lines };
   };
@@ -53,6 +54,16 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
           <span className="text-[11px] text-gray-500 w-16 text-left shrink-0">{f.label ?? "Location"}</span>
           <div className="w-40">
             <SearchableSelect id={id} options={branchOptions} value={value} onChange={(v: string) => r.setFilter(f.key, v)} placeholder="All" disabled={r.isBranchLocked} />
+          </div>
+        </div>
+      );
+    }
+    if (f.kind === "lookup") {
+      return (
+        <div key={f.key} className="flex items-center gap-2">
+          <span className="text-[11px] text-gray-500 text-left shrink-0">{f.label}</span>
+          <div className="w-44">
+            <SearchableSelect id={id} options={r.lookups[f.key] ?? []} value={value} onChange={(v: string) => r.setFilter(f.key, v || "0")} placeholder={f.allLabel ?? "All"} />
           </div>
         </div>
       );

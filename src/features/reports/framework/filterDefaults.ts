@@ -15,6 +15,8 @@ export const defaultFilterValue = (def: FilterDef, now: Date, initialBranchId: s
       return `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
     case "select":
       return def.default ?? def.options[0]?.value ?? "";
+    case "lookup":
+      return "0"; // All
   }
 };
 

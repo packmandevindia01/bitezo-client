@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useBranchScope } from "../../../hooks/useBranchScope";
 import { subscribeToTransactionUpdates } from "../../../utils/transactionSync";
 import { branchApi } from "../../inventory/branches/services/branchApi";
@@ -35,6 +35,22 @@ export const useReport = (def: ReportDefinition) => {
     meta: { silentError: true }, // a failure here is explained by the report error banner
   });
 
+  // Lookup filters (e.g. Category / Group lists) — options loaded once, "All" (0) first.
+  const lookupDefs = def.filters.filter((f): f is Extract<typeof f, { kind: "lookup" }> => f.kind === "lookup");
+  const lookupResults = useQueries({
+    queries: lookupDefs.map((f) => ({
+      queryKey: ["reportLookup", f.queryKey],
+      queryFn: f.load,
+      staleTime: 5 * 60 * 1000,
+      meta: { silentError: true },
+    })),
+  });
+  const lookups: Record<string, { label: string; value: string }[]> = {};
+  lookupDefs.forEach((f, i) => {
+    const opts = (lookupResults[i]?.data ?? []).filter((o) => o.value !== "0");
+    lookups[f.key] = [{ label: f.allLabel ?? "All", value: "0" }, ...opts];
+  });
+
   const queryKey = [def.id, filters];
   const query = useQuery({
     queryKey,
@@ -67,6 +83,7 @@ export const useReport = (def: ReportDefinition) => {
     reset,
     branches: branches as { id: number | string; branchName: string }[],
     isBranchLocked,
+    lookups,
     table: query.data ?? EMPTY,
     isLoading: query.isLoading || query.isFetching,
     error: query.error ? reportErrorMessage(query.error) : "",

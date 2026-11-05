@@ -897,7 +897,10 @@ visible error banner (403 / network — was "No records found"), live refresh on
 (dd/MM/yyyy), money, number, qty.
 - Definitions in `src/features/reports/definitions/`; each route points at a `*FrameworkPage.tsx`. Old module folders stay until the
   owner has checked the new page with real data, then they are deleted.
-- **Migrated (4 / 31):** Monthly Sales (`monthlySales.ts`), Daily / Hourly / Order-Type Sales (`salesByPeriod.ts` → `periodTable`).
-  Fixed on the way: Order-Type sent BranchId 0 and double-counted a backend "Total" column; float totals everywhere.
-- Tests: `reportFramework.test.ts` — maths, defaults, errors and old-vs-new comparisons (header, cells, totals to the fil).
+- **Migrated (8 / 31):** Monthly Sales (`monthlySales.ts`); Daily / Hourly / Order-Type / Menu Session Sales (`salesByPeriod.ts` →
+  `periodTable`, row Total modes compute / columnOnly / computeIfMissing); Category / Group / Employee Sales (`itemSales.ts`: field
+  fallbacks, Category name resolved against the category master, money totals from backend `totalData` via `totalsOverride`).
+  Framework additions: `lookup` filter (options loaded from the server, "All" = 0), `totalsOverride` on `ReportTable`.
+  Fixed on the way: Order-Type / Category / Group defaulted the branch to 0 and Order-Type double-counted a backend "Total"; float totals.
+- Tests: `reportFramework.test.ts`, `reportBatch1.test.ts` — maths, defaults, errors and old-vs-new comparisons (cells, totals to the fil).
 - Adding a report: write a definition (fetch + table mapping), a comparison test against the old page logic, a 3-line page, switch the route.

@@ -1,9 +1,11 @@
 import { getDailySalesReport } from "../dailySalesReport/services/dailySalesReportApi";
 import { getHourlySalesReport } from "../hourlySalesReport/services/hourlySalesReportApi";
 import { getOrderTypeSalesReport } from "../orderTypeSalesReport/services/orderTypeSalesReportApi";
+import { getMenuSessionSalesReport } from "../menuSessionSalesReport/services/menuSessionSalesReportApi";
 import { getDecimalPart } from "../../../shared/lib/currency";
 import { toReportBranchId } from "../../../hooks/useBranchScope";
-import { dynamicColumns, withRowTotal } from "../framework/reportMath";
+import { dynamicColumns, withRowTotal, cellNumber } from "../framework/reportMath";
+import { sumDec, toNum } from "../../../shared/lib/money";
 import type { FilterValues, ReportDefinition, ReportTable } from "../framework/types";
 
 /**
@@ -21,8 +23,9 @@ export interface PeriodTableOptions {
   dateKeys?: string[];
   /** Display labels, e.g. { VoucherDate: "Date" }. */
   labels?: Record<string, string>;
-  /** "compute": add Total = Σ money columns; "columnOnly": rows already carry Total (Hourly). */
-  rowTotal: "compute" | "columnOnly";
+  /** "compute": add Total = Σ money columns; "columnOnly": rows already carry Total (Hourly);
+   *  "computeIfMissing": keep a row Total the backend sent, compute it otherwise (Menu Session). */
+  rowTotal: "compute" | "columnOnly" | "computeIfMissing";
   /** Copy a field into another key on every row (Order-Type: VoucherDate → Date). */
   copyField?: { from: string; to: string };
 }
@@ -38,6 +41,12 @@ export const periodTable = (data: Payload, o: PeriodTableOptions): ReportTable =
   const columns = dynamicColumns(names, o.textKeys, (n) => (o.dateKeys?.includes(n) ? "date" : o.textKeys.includes(n) ? "text" : "money"))
     .map((c) => ({ ...c, label: o.labels?.[c.key] ?? c.label, align: c.kind === "money" ? ("right" as const) : ("left" as const) }));
   const table: ReportTable = { columns, rows };
+  if (o.rowTotal === "computeIfMissing") {
+    const keys = names.filter((n) => !o.textKeys.includes(n) && n !== "Total");
+    const withTotals = rows.map((row) => (row.Total !== undefined ? row : { ...row, Total: toNum(sumDec(keys.map((k) => cellNumber(row[k])))) }));
+    const cols = names.includes("Total") ? table.columns : [...table.columns, { key: "Total", label: "Total", kind: "money" as const, align: "right" as const }];
+    return { columns: cols, rows: withTotals };
+  }
   if (names.includes("Total")) return table;
   if (o.rowTotal === "columnOnly") {
     return { columns: [...table.columns, { key: "Total", label: "Total", kind: "money", align: "right" }], rows };
@@ -83,4 +92,15 @@ export const orderTypeSalesReport: ReportDefinition = {
     return periodTable(res?.data, { textKeys: ["Date", "VoucherDate"], dateKeys: ["Date", "VoucherDate"], labels: { VoucherDate: "Date" }, rowTotal: "compute", copyField: { from: "VoucherDate", to: "Date" } });
   },
   subtitle: (f) => `Order Type Sales Report from ${f.from} To ${f.to}`,
+};
+
+export const menuSessionSalesReport: ReportDefinition = {
+  id: "menuSessionSalesReport",
+  title: "Menu Session Sales Report",
+  filters: dateFilters("today"),
+  fetch: async (f) => {
+    const res = (await getMenuSessionSalesReport(dateRangeParams(f))) as { data?: Payload } | null;
+    return periodTable(res?.data, { textKeys: ["Date", "VoucherDate"], dateKeys: ["Date", "VoucherDate"], labels: { VoucherDate: "Date" }, rowTotal: "computeIfMissing", copyField: { from: "VoucherDate", to: "Date" } });
+  },
+  subtitle: (f) => `Menu Session Sales Report from ${f.from} To ${f.to}`,
 };

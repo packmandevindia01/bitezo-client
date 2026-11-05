@@ -24,7 +24,10 @@ export const computeTotals = (table: ReportTable): Record<string, number> => {
   const totals: Record<string, number> = {};
   for (const col of table.columns) {
     if (!isTotalled(col)) continue;
-    totals[col.key] = toNum(sumDec(table.rows.map((r) => cellNumber(r[col.key]))));
+    const override = table.totalsOverride?.[col.key];
+    totals[col.key] = override !== undefined && Number.isFinite(override)
+      ? override
+      : toNum(sumDec(table.rows.map((r) => cellNumber(r[col.key]))));
   }
   return totals;
 };

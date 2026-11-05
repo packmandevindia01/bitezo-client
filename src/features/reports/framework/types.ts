@@ -19,6 +19,8 @@ export type ReportRow = Record<string, unknown>;
 export interface ReportTable {
   columns: ReportColumn[];
   rows: ReportRow[];
+  /** Totals sent by the backend (e.g. totalData) — they win over the computed sum, like the old pages. */
+  totalsOverride?: Record<string, number>;
 }
 
 /** Filter values are kept as strings (form inputs); definitions convert them in `fetch`. */
@@ -28,7 +30,9 @@ export type FilterDef =
   | { kind: "branch"; key: string; label?: string }
   | { kind: "date"; key: string; label: string; default: "today" | "firstOfMonth" }
   | { kind: "month"; key: string; label: string; default: "januaryThisYear" | "decemberThisYear" | "thisMonth" }
-  | { kind: "select"; key: string; label: string; options: { label: string; value: string }[]; default?: string };
+  | { kind: "select"; key: string; label: string; options: { label: string; value: string }[]; default?: string }
+  /** Options loaded from the server; an "All" option (value "0") is added first. */
+  | { kind: "lookup"; key: string; label: string; queryKey: string; load: () => Promise<{ label: string; value: string }[]>; allLabel?: string };
 
 export interface ReportDefinition {
   /** Unique id — also the React Query key. */
