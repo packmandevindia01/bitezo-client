@@ -887,3 +887,17 @@ option pick, grids, forms using `useEnterKeyNavigation`), in multi-line text box
   top popup). Not registered on purpose: the small-screen cart overlay in `PosCartPanel` (its flag can stay true on desktop).
   Report print previews are custom overlays — they move to the report framework in Phase 4.
 - Tests: `layers.test.ts`.
+
+### 11.10 Phase 4 — report framework (in progress, 2026-11-05)
+`src/features/reports/framework/` — a report is a definition (`ReportDefinition`: id, title, filters, `fetch` → `{ columns, rows }`,
+subtitle). The framework gives every report the same page (`ReportPage`): filter panel (branch / date / month / select, LOCAL-date
+defaults, branch never sent as 0 via `toReportBranchId`, branch lock respected), table with S.No, exact totals row (`reportMath`, decimal),
+visible error banner (403 / network — was "No records found"), live refresh on transactions + window focus, Print (iframe), PDF and XLS
+(`reportOutput`: jsPDF / xlsx loaded only on click; all three from the same `toMatrix` as the screen). Column kinds: text, date
+(dd/MM/yyyy), money, number, qty.
+- Definitions in `src/features/reports/definitions/`; each route points at a `*FrameworkPage.tsx`. Old module folders stay until the
+  owner has checked the new page with real data, then they are deleted.
+- **Migrated (4 / 31):** Monthly Sales (`monthlySales.ts`), Daily / Hourly / Order-Type Sales (`salesByPeriod.ts` → `periodTable`).
+  Fixed on the way: Order-Type sent BranchId 0 and double-counted a backend "Total" column; float totals everywhere.
+- Tests: `reportFramework.test.ts` — maths, defaults, errors and old-vs-new comparisons (header, cells, totals to the fil).
+- Adding a report: write a definition (fetch + table mapping), a comparison test against the old page logic, a 3-line page, switch the route.
