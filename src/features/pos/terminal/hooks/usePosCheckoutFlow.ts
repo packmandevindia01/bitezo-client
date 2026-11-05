@@ -1,3 +1,4 @@
+import { createSettleFlow, type SettleFlow } from '../utils/settleFlow';
 import { getTerminalBranchId } from "@shared/config/device";
 import { useState, useRef } from 'react';
 import { buildPrintPricing } from "../../utils/printPricing";
@@ -89,7 +90,13 @@ export const usePosCheckoutFlow = ({
 }: UsePosCheckoutFlowProps) => {
   const dispatch = useAppDispatch();
   const [settledPrintPayload, setSettledPrintPayload] = useState<{ mappedItems: any[], printData: any } | null>(null);
-  const isSettlingRef = useRef<boolean>(false);
+  // Settle lock = a small state machine (utils/settleFlow.ts). It also drives the Redux `isSettling`
+  // flag that disables the Settle / Place buttons, and is held until the receipt print + cart clear finish.
+  const settleFlowRef = useRef<SettleFlow | null>(null);
+  if (!settleFlowRef.current) {
+    settleFlowRef.current = createSettleFlow((state) => dispatch(setIsSettling(state !== "idle")));
+  }
+  const settleFlow = settleFlowRef.current;
   const settleShouldPrintRef = useRef<boolean>(false);
   const settlementCashChangeRef = useRef<number>(0);
   const settlementEmployeeIdRef = useRef<number | null>(null);
@@ -134,6 +141,15 @@ export const usePosCheckoutFlow = ({
   });
 
   const finalizeSettlement = useEvent(async (shouldPrint: boolean, payloadToPrint?: any) => {
+    try {
+      await printAndClearAfterSettle(shouldPrint, payloadToPrint);
+    } finally {
+      // Release the settle lock only now: receipt printed (or failed) and the cart is cleared.
+      settleFlow.finish();
+    }
+  });
+
+  const printAndClearAfterSettle = async (shouldPrint: boolean, payloadToPrint?: any) => {
     const payload = payloadToPrint || settledPrintPayload;
     if (shouldPrint && payload) {
       showToast("Printing receipt...", "info");
@@ -178,12 +194,11 @@ export const usePosCheckoutFlow = ({
     setSettledPrintPayload(null);
     settleShouldPrintRef.current = false;
     settlementEmployeeIdRef.current = null;
-  });
+  };
 
   const submitSettlementForEmployee = useEvent(async (employeeId: number, payments: { paymodeId: number, amount: number }[]) => {
-    if (!status || isSettlingRef.current) return;
-    isSettlingRef.current = true;
-    dispatch(setIsSettling(true));
+    // A settlement already running (saving OR printing) → ignore the tap.
+    if (!status || !settleFlow.begin()) return;
     
     const orderPayload = getDirectSettleOrderPayload({
       employeeId,
@@ -196,8 +211,7 @@ export const usePosCheckoutFlow = ({
     if (isDelivery && (!orderPayload.addressId || Number(orderPayload.addressId) === 0)) {
       showToast("Please select a delivery address before settling.", "warning");
       // Release the settle lock — otherwise every later Settle is silently ignored until reload.
-      isSettlingRef.current = false;
-      dispatch(setIsSettling(false));
+      settleFlow.fail();
       return;
     }
 
@@ -271,6 +285,7 @@ export const usePosCheckoutFlow = ({
       let createRes: any = null;
       if (editingSaleId) {
         success = await salesInvoiceApi.updateSalesInvoice(editingSaleId, salesPayload);
+        if (success) settleFlow.saved(); // invoice saved — the lock is now released only by finalizeSettlement
       } else {
         try {
           createRes = await salesInvoiceApi.createSalesInvoice(salesPayload);
@@ -314,6 +329,7 @@ export const usePosCheckoutFlow = ({
           if (vNo) invoiceNoStr = String(vNo);
         }
         success = !!newSaleId;
+        if (success) settleFlow.saved(); // invoice saved — the lock is now released only by finalizeSettlement
       }
 
       if (success) {
@@ -1157,16 +1173,20 @@ export const usePosCheckoutFlow = ({
       showToast(errorMsg, "error");
       return { success: false, isEmployeeNotFound: false };
     } finally {
-      isSettlingRef.current = false;
-      dispatch(setIsSettling(false));
+      // Nothing saved → release. Once saved, this is a no-op: finalizeSettlement releases after print + cart clear.
+      settleFlow.fail();
     }
   });
 
-  const handleCompleteSettlement = useEvent(async (payments: { paymodeId: number, amount: number, tenderedAmount?: number }[], changeAmount: number) => {
-    settlementCashChangeRef.current = Number(changeAmount) || 0;
-    setChange(changeAmount.toFixed(decimalPart));
-    if (!status) return;
-
+  /**
+   * Who settles: the authorised employee → the waiter → the configured default employee (when it still
+   * exists) → otherwise ask for authorisation (permission 19). Shared by cash / multi-pay and card / credit
+   * (the same 40 lines were duplicated in both handlers).
+   */
+  const settleWithResolvedEmployee = async (
+    payments: { paymodeId: number, amount: number, tenderedAmount?: number }[],
+    overrideEmployeeId?: number
+  ) => {
     let config: any = null;
     try {
       config = await getRuntimePosConfig();
@@ -1177,71 +1197,6 @@ export const usePosCheckoutFlow = ({
 
     const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
     const defaultEmployeeId = Number(config?.employeeId ?? 0);
-
-    const authorizedEmpId = settlementEmployeeIdRef.current || (localStorage.getItem("authorizedEmployeeId") ? Number(localStorage.getItem("authorizedEmployeeId")) : null);
-    let effectiveEmployeeId = (authorizedEmpId && authorizedEmpId > 0)
-      ? authorizedEmpId
-      : (waiterId && waiterId > 0)
-      ? waiterId
-      : (defaultEmployeeEnabled && defaultEmployeeId > 0 ? defaultEmployeeId : null);
-
-    if (effectiveEmployeeId && !waiterId && !authorizedEmpId && defaultEmployeeEnabled) {
-      if (!isDefaultEmployeeValidInCache(defaultEmployeeId)) {
-        disableDefaultEmployeeConfig("Default employee not found in branch employees cache");
-        dispatch(setWaiter({ waiterId: null, waiterName: null }));
-        showToast("Configured default employee was not found in this branch and has been disabled. Please authorize settlement.", "warning");
-        effectiveEmployeeId = null;
-      }
-    }
-
-    if (effectiveEmployeeId) {
-      const res = await submitSettlementForEmployee(effectiveEmployeeId, payments);
-      if (res && (res as any).isEmployeeNotFound) {
-        requestAuthorization({
-          actionLabel: "Settlement",
-          permissionId: 19, // Settle
-          bypassDefaultEmployee: true,
-          onAuthorized: (employeeId: number) => submitSettlementForEmployee(employeeId, payments),
-        });
-      }
-      return;
-    }
-
-    if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
-      disableDefaultEmployeeConfig("Invalid default employee ID in settlement");
-      dispatch(setWaiter({ waiterId: null, waiterName: null }));
-      showToast("Default employee was not configured properly and has been disabled. Please authorize settlement.", "warning");
-    }
-
-    requestAuthorization({
-      actionLabel: "Settlement",
-      permissionId: 19, // Settle
-      bypassDefaultEmployee: true,
-      onAuthorized: (employeeId: number) => submitSettlementForEmployee(employeeId, payments),
-    });
-  });
-
-  const handleCardCreditSettlement = useEvent(async (selectedPaymodeId: number, overrideEmployeeId?: number) => {
-    setChange("");
-    if (!status) return;
-
-    let resolvedPaymodeId = Number(selectedPaymodeId);
-    if (!resolvedPaymodeId || isNaN(resolvedPaymodeId) || resolvedPaymodeId <= 0) {
-      const cashTender = (tenderOptions || []).find((t: any) => (t.label || "").toLowerCase().includes("cash"));
-      resolvedPaymodeId = cashTender ? Number(cashTender.id) : 1;
-    }
-
-    let config: any = null;
-    try {
-      config = await getRuntimePosConfig();
-    } catch {
-      showToast("Unable to load POS configuration", "error");
-      return;
-    }
-
-    const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
-    const defaultEmployeeId = Number(config?.employeeId ?? 0);
-    const payments = [{ paymodeId: resolvedPaymodeId, amount: total }];
 
     const authorizedEmpId = overrideEmployeeId || settlementEmployeeIdRef.current || (localStorage.getItem("authorizedEmployeeId") ? Number(localStorage.getItem("authorizedEmployeeId")) : null);
     let effectiveEmployeeId = (authorizedEmpId && authorizedEmpId > 0)
@@ -1284,6 +1239,27 @@ export const usePosCheckoutFlow = ({
       bypassDefaultEmployee: true,
       onAuthorized: (employeeId: number) => submitSettlementForEmployee(employeeId, payments),
     });
+  };
+
+  const handleCompleteSettlement = useEvent(async (payments: { paymodeId: number, amount: number, tenderedAmount?: number }[], changeAmount: number) => {
+    settlementCashChangeRef.current = Number(changeAmount) || 0;
+    setChange(changeAmount.toFixed(decimalPart));
+    if (!status) return;
+
+    await settleWithResolvedEmployee(payments);
+  });
+
+  const handleCardCreditSettlement = useEvent(async (selectedPaymodeId: number, overrideEmployeeId?: number) => {
+    setChange("");
+    if (!status) return;
+
+    let resolvedPaymodeId = Number(selectedPaymodeId);
+    if (!resolvedPaymodeId || isNaN(resolvedPaymodeId) || resolvedPaymodeId <= 0) {
+      const cashTender = (tenderOptions || []).find((t: any) => (t.label || "").toLowerCase().includes("cash"));
+      resolvedPaymodeId = cashTender ? Number(cashTender.id) : 1;
+    }
+
+    await settleWithResolvedEmployee([{ paymodeId: resolvedPaymodeId, amount: total }], overrideEmployeeId);
   });
 
   return {

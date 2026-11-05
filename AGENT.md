@@ -858,3 +858,13 @@ Settled → Edit (`loadSettledOrderIntoCart`, now a thin wrapper), Recall → Ed
   (ESLint boundary exception removed). Refresh calls no longer fall back to the tenant `"bitezo_db"` when tenantId is missing.
 - POS direct `localStorage.getItem` reads: 463 → 400. Left on purpose: printer targets (Phase 3 printing module), print-template
   resolvers, settings-screen form defaults, session ids and local caches.
+
+### 11.8 Phase 2c — settle lock state machine (2026-11-05)
+- `terminal/utils/settleFlow.ts`: `idle → saving → printing → idle` (or `saving → idle` on failure). `usePosCheckoutFlow` uses it instead of
+  the `isSettlingRef` boolean; it also drives Redux `isSettling` (disables Settle / Place buttons).
+- **Bug closed:** the lock used to be released right after the invoice was saved while the receipt print (up to 20 s) and the cart clear
+  still ran → a second Settle tap could save a SECOND invoice for the same order. Now `saved()` is called the moment the invoice save
+  succeeds and only `finalizeSettlement` (after print + cart clear, in `finally`) releases the lock; failures before the save release it.
+- Employee resolution for settlement (authorised → waiter → default employee → ask authorisation) is one helper
+  `settleWithResolvedEmployee` (was duplicated in the cash/multi-pay and card/credit handlers).
+- Tests: `settleFlow.test.ts`. Real-terminal check: tap Settle again while the receipt prints → ignored; a print failure still clears the cart.
