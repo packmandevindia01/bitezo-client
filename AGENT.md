@@ -1,7 +1,8 @@
 # AGENT.md — Bitezo POS + Back Office (frontend)
 
 Guide for any AI agent or developer working on this app. Sections 1–9 cover the POS terminal
-(`src/features/pos/`); section 10 covers the Back Office (everything under `/dashboard`).
+(`src/features/pos/`); section 10 covers the Back Office (everything under `/dashboard`); section 11 covers the
+whole project (layout, environments, build, deploy); section 12 is the **production-readiness audit** (2026-11-05).
 **All POS money calculations happen in the frontend.** The backend only stores what we send
 (exclusive values) and returns it. A pricing bug means real money is lost, so read the
 "Calculation rules" section before changing anything that touches a price.
@@ -18,8 +19,8 @@ General project rules (git, shared components, architecture) live in `GEMINI.md`
 - Redux Toolkit (`src/app/store.ts`, POS state in `terminal/store/posSlice.ts`)
 - TanStack Query for menu / config fetching
 - axios (`axiosInstance`, JWT from `localStorage.accessToken`)
-- Capacitor (Android) + ESC/POS and QZ Tray for printing
-- Vitest (`src/tests/`, 37 files / 382 tests)
+- Printing: own **Bitezo Printer Agent** (`PrinterAgent.exe`, WebSocket) on web/Windows; Capacitor native `BitezoPrinterPlugin` (raw ESC/POS TCP :9100) on Android. **QZ Tray is NOT used** (only legacy names `qzService.ts` / `connectQZ` remain)
+- Vitest (`src/tests/`, 50 files / 488 tests, all passing on 2026-11-05)
 
 Verify every change with:
 ```
@@ -47,7 +48,7 @@ src/features/pos/
     settledOrdersApi.ts    settled list / details / print data / cancel
     storedOrderView.ts     ALWAYS fetch saved orders Exclusive; build Inclusive view locally;
                            applyStoredPricingToCartItems / resolveRecalledBillDiscount (edit)
-    menuApi.ts, posConfigApi.ts, dineInApi.ts, printerSettingsApi.ts, qzService.ts
+    menuApi.ts, posConfigApi.ts, dineInApi.ts, printerSettingsApi.ts, qzService.ts (= Printer Agent client, legacy name)
   terminal/
     store/posSlice.ts      cart, order type, discounts, editing state, void lists
     store/posSelectors.ts  selectCartCalculation → calculateOrder (the cart totals on screen)
@@ -304,8 +305,13 @@ session/day/shift (`cashier/`) must be open before orders.
   - Same product + variant + price + discount and no customisations merges into one row, unless item separation is on.
 - Line actions: qty (`updateItemQty`), price edit (`updateItemPrice`, sets `isIncl` from the keypad or Price View),
   item discount (`setItemDiscount`, `setAllItemsDiscount`), extras/modifiers/messages (`setItemCustomizations`).
-- Extras AND modifiers are added once per line (qty 1); tapping one again shows "already added"
-  (`PosExtrasModifierModal`, no qty +/−).
+- **Extras / modifiers screen** (`PosExtrasModifierModal`, redesigned 2026-11-05): ONE screen for the whole bill.
+  Header tabs Extras ↔ Modifiers; right panel lists every cart line (qty / description / price / amount) with its
+  extras, modifiers and messages; tap a line to target it ("Adding to #n" bar), tap a grid item to add it, tap again
+  to remove; ↑ ↓ change line; Esc closes (captured so the global Esc = clear-cart shortcut never fires). Drafts for all
+  lines are kept until **Done**, which calls `setItemCustomizations` only for lines that changed; Cancel discards.
+  Opens with any non-empty cart (starts on the selected line, else the last one). Grid items are filtered by the
+  target line's category. Extras and modifiers stay qty 1 per line (R2: extras are per line, not × line qty).
 - Bill discount: `setBillDiscount` (replaces item discounts, R5).
 - Delivery: customer + address required; delivery charge editable (`setCustomDeliveryCharge`). The footer shows
   Delivery Charge AFTER VAT (it is not taxed, R7); one tap opens `PosDeliveryChargeModal`, which lists only the
@@ -351,7 +357,7 @@ Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set
 ### 6.7 Split / Combine / Void
 - **Split / Combine are blocked** for orders with a bill discount or complimentary status
   (`checkOrderAllowsSplitOrCombine`). Only item discounts are allowed.
-- Split (`PosSplitModal`, `useSplitBuckets`, `useSplitOrderData`): lines are moved between buckets;
+- Split (`PosSplitModal`, `useSplitBuckets`): lines are moved between buckets;
   item discount moves pro-rata per unit; each bucket priced with `calculateOrder` and the saved rates;
   `POST /order-split`.
 - Combine (`PosCombineModal`): `GET /order/combine` → `/order/combine/combined-orders` → loaded into cart
@@ -374,7 +380,7 @@ Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set
 - Package (packager) print: guest template with `isPackager: true` (title PACKAGER) after an order is placed,
   when POS config `packagerPrint` is on; whole order; balanced footer; `packagerHeader` setting controls the
   company header (`showCompanyHeader`). Not printed on direct settle (no order placed first).
-- Templates: `guestPrintTemplate.ts`, `kotTemplate.ts`, `escPosGenerator.ts` (Android), QZ Tray (desktop).
+- Templates: `guestPrintTemplate.ts`, `kotTemplate.ts`, `escPosGenerator.ts` (Android), Bitezo Printer Agent over WebSocket (desktop, `qzService.ts`).
 - Bill discount is printed once in the footer; rows show no per-line discount.
 - Delivery orders taken from a missed call (`missedCall`) print "Missed Call : YES" in the DELIVERY DETAILS block
   of the KOT and guest bill; every print-data builder passes `missedCall` (saved order value, else cart state).
@@ -419,7 +425,7 @@ customers, provider orders (`orderTypeId 5`, customer = provider post account).
   selector's (authoritative) `netAmount`/`vatAmount`. Transitional.
 - `invoicePayloadMapper` recomputes `vatExclAmount` from details (+ modifiers when not already combined)
   and VAT as the sum of line VAT.
-- `useSplitOrderData` allocates a master discount by `price × qty` without the engine's remainder rule.
+- ~~`useSplitOrderData` remainder rule~~: the hook was unused and was deleted on 2026-11-05.
 - `terminal/utils/pos-calc.ts`: different charge cascade; only `allocate` is used.
 - `getBillingConfig` falls back to a 10% VAT rate when the config has none — confirm the menu
   `/products` API sends `vatValue` per product.
@@ -587,3 +593,214 @@ warning is shown if the server stored a different parent than the one sent — t
    as "No records found". Product Transaction Log now shows the reason; do the same in other reports. Test:
    `productTransactionLog.test.ts`. Report default dates use the LOCAL day (`localDateString`), not
    `toISOString()` (UTC = yesterday early morning in GCC / India).
+
+---
+
+## 11. Project overview (whole repo)
+
+### 11.1 What it is
+One React SPA (`bitezo-admin`) that serves two products from the same build:
+- **POS terminal** (cashier / waiter screens, KOT + bill printing). Runs in a browser (own Printer Agent, `PrinterAgent.exe`, for printers) or as
+  an Android app (Capacitor, ESC/POS plugin + custom `BitezoPrinterPlugin.java`).
+- **Back Office** (`/dashboard`): masters, inventory, transactions, ~30 reports, company onboarding, system registration.
+
+Backend: separate ASP.NET API (not in this repo), multi-tenant (`clientDb` header = tenant), JWT + refresh token.
+Main market: Bahrain / GCC (3-decimal currencies, see R8).
+
+### 11.2 Source layout (`src/`)
+| Folder | Contents |
+|---|---|
+| `main.tsx`, `config.ts` | loads `/config.json` (runtime API URL) before render, falls back to `VITE_API_BASE_URL`, then `/api/v1` |
+| `api/axiosInstance.ts` | the only HTTP client: Bearer token, `clientDb`, branchId injection, refresh-token queue (see §10.2) |
+| `app/` | `store.ts` (Redux), `routes/` (`AppRoutes` ~120 routes, `ProtectedRoute`, `RoleGuard`, `ShiftGuard`, registration guards), providers |
+| `features/auth` | login (POS + back office), auth slice |
+| `features/company`, `systemRegistration` | tenant onboarding, company profile, terminal/system registration |
+| `features/dashboard` | back-office home |
+| `features/general` | bom, configuration, counter, denomination, employee(+role), happyHour, menuSettings, paymode, provider(+settings), recipe, section, supplier, tableMaster, user, userRole |
+| `features/inventory` | branches, category, subcategory, group, extras(+type), modifier(+type), product, lockProduct, tax, unit, stockAdjustmentType, voucherSeries |
+| `features/transaction` | purchase invoice/return, stock adjustment, physical entry, production, internal stock transfer, vouchers (`shared/purchaseCalc.ts`) |
+| `features/reports` | ~31 report modules (sales, VAT, levy, margin, stock, statements, day-end, shift-end …) |
+| `features/pos` | see §2 |
+| `components/` | shared UI (do not edit without permission), `layout/` (sidebar, topbar) |
+| `hooks/`, `utils/` | `usePermissions`, `useBranchScope`, `authUtils`, `money.ts` (decimal.js) … |
+| `tests/` | Vitest, mostly POS pricing (see §9) |
+
+Size: ~84k lines of TS/TSX. Files over 1,000 lines (hard to change safely): `PosRecallDetailsModal.tsx`,
+`escPosGenerator.ts`, `PosSettledDetailsModal.tsx`, `DineInTableOrdersModal.tsx`, `orderPricing.ts`,
+`usePosCheckoutFlow.ts`, `endReportTemplate.ts`, `usePurchaseReturn.ts`, `PosCashierSessionModal.tsx`,
+`posSlice.ts`, `PosTerminalPage.tsx`.
+
+### 11.3 Commands
+```
+npm run dev            # Vite dev server; /api, /uploads, /images proxied to the LAN backend (vite.config.ts)
+npm run build          # tsc -b && vite build  → dist/
+npm test               # vitest run
+npm run lint           # eslint (currently fails, see §12)
+npx cap sync android   # copy dist/ into the Android project
+```
+`npm install` needs `--legacy-peer-deps` (Capacitor peer conflict).
+
+### 11.4 Environments and configuration
+| File | Used for | Notes |
+|---|---|---|
+| `public/config.json` | **runtime** API URL in every build (read first) | edit on the server after deploy, no rebuild needed |
+| `.env` | build-time fallback + `VITE_BYPASS_PERMISSIONS` | ignored by git |
+| `.env.android` | Android build fallback | untracked + ignored since 2026-11-05 (keep a copy outside git) |
+| `.env.development` | dev (empty base → Vite proxy) | ignored |
+| `public/web.config` | IIS SPA rewrite (all non-file, non-/api URLs → `/`) | deploy target is IIS |
+
+Auth storage: POS tokens in `localStorage` (`accessToken`, `refreshToken`, `userId`, `isMaster`, `userRoles` …);
+back-office tokens in `sessionStorage` (`backoffice_*`). `systemType` / `tempSystemType` decide the mode
+(`isBackofficeMode`). POS settings are cached in `localStorage.posConfigs` (§3). The cart is persisted
+(`posSlice.loadCart`), so a reload keeps it.
+
+PWA: `vite-plugin-pwa` with `registerType: 'prompt'` (update banner in `src/app/AppStatusBanner.tsx`), precaches js/css/html/png/svg (not `config.json`).
+Android: `com.bitezo.admin`, `androidScheme: http`, cleartext allowed, `allowBackup=false`, versionCode 1, minify off.
+HTTP: `axiosInstance` timeout 60 s (`API_TIMEOUT_MS`). Dates: always `src/utils/date.ts` (never `toISOString().split("T")[0]`). Print HTML: always `escapeHtml` (`src/utils/html.ts`) for text values; print fragments with `printHtmlInIframe` (`src/utils/print.ts`).
+
+---
+
+## 12. Production-readiness audit (2026-11-05)
+
+> **STATUS (2026-11-05): FRONTEND PRODUCTION READY**, signed off by the project owner. All frontend audit items are
+> fixed (§12.0); tsc clean, 50 files / 486 tests pass, build OK. Release-day steps (not code): put the production API
+> URL in `public/config.json` / `.env.android` (HTTPS recommended), commit and merge `refactor/pricing-engine` to
+> `main`, run a smoke test on a real terminal + printer (Printer Agent and Android). Backend items (idempotency, role
+> checks, decimal precision) are out of frontend scope.
+
+Checked on branch `refactor/pricing-engine` (3 commits ahead of `main`, not merged):
+- `npx tsc -b` → **clean**. `npx vitest run` → **49 files / 477 tests pass**. `vite build` → **succeeds**.
+- `npm run lint` → **fails: 3,904 errors, 118 warnings** (3,640 `no-explicit-any`, 104 `exhaustive-deps`,
+  77 `no-empty` catch blocks, 46 unused vars). Not a release blocker by itself, but `no-empty` and
+  `exhaustive-deps` hide real bugs (swallowed errors, stale values in callbacks).
+
+Severity: **P0** = fix before go-live · **P1** = fix soon after / verify with backend · **P2** = clean-up.
+Mark items done here (with date) as they are fixed.
+
+### 12.0 Fix status (2026-11-05, frontend only — backend items are out of scope for now)
+| Item | Status | What was done |
+|---|---|---|
+| P0-2 secrets / junk in git | **DONE (untracked)** | `git rm --cached` for logcats, zips, `dist.rar`, `.env.android`, `scratch/`, `test.js`, `old_*`, `fix_*`, `dev-dist/` …; files stay on disk; `.gitignore` fixed + extended. Old commits still contain them (history not rewritten). |
+| P0-3 vulnerable deps | **DONE** | `npm audit fix --legacy-peer-deps`: axios 1.21, react-router 7.18.5, @capacitor/android 8.6, dompurify 3.4.17, form-data 4.0.6, follow-redirects 1.16.2. `npm audit --omit=dev` → only `xlsx` (no fix exists; export-only use). Dev-only advisories remain (eslint/workbox/sharp), not shipped. |
+| P0-4 HTTP timeout | **DONE** | `axiosInstance` `timeout: API_TIMEOUT_MS` (60 s). No-response errors get a clear message. |
+| P0-5 duplicate orders | **PARTIAL (frontend part)** | On a timeout / network error for POST/PUT `/menu/order` or `/sales-invoice*`, the message says "the order may already be saved — check Recall / Settled orders before trying again". A real idempotency key needs the backend. |
+| P0-6 UTC date | **DONE** | New `src/utils/date.ts` (`toLocalDateString`, `firstOfMonthLocalString`, `localDateAtCurrentTimeIso`). All 119 `X.toISOString().split("T")[0]` uses replaced (POS voucherDate, purchase / voucher / stock forms, every report default). Report "from" defaults also used to be the **last day of the previous month** in UTC+ zones; fixed. Cashier-session timestamps glued the local date to the UTC time (a day off after midnight); now `localDateAtCurrentTimeIso`. |
+| P1-2 HTML escaping | **DONE for POS prints** | `src/utils/html.ts` `escapeHtml`; guest bill, KOT and delivery-settle templates escape product / extra / modifier / note names, Arabic names, customer, address, contact, driver and paymode names. Back-office report prints still interpolate raw values (lower risk: back-office staff data). No CSP added (Printer Agent websocket (ws://localhost:9191), Google Fonts and API host would need whitelisting; test first). |
+| P1-3 token mode mixing | **DONE** | `axiosInstance` / `getStoredAccessToken` / `getStoredRefreshToken` no longer fall back to the other mode's token (legacy `localStorage.backoffice_*` keys still read in back-office mode). `clearAuthStorage` intentionally still keeps `tenantId` / `systemType` / printer keys (device registration). |
+| P1-4 PWA auto-reload | **DONE** | `registerType: 'prompt'`, `injectRegister: false`, dev SW off. `src/app/AppStatusBanner.tsx` registers the SW and shows "A new version is available — Reload now / Later". |
+| P1-5 Android | **PARTIAL** | `allowBackup="false"`. Cleartext kept (API is still http). Version / keystore / minify are release-time tasks. |
+| P1-7 report print reload | **DONE** | `src/utils/print.ts` `printHtmlInIframe` (hidden iframe with copied stylesheets). The 12 report modals no longer replace `document.body` or reload the app. |
+| P1-9 offline | **DONE (banner)** | `AppStatusBanner` shows a red "No network connection" banner on `offline`. No offline order queue. |
+| P2 console.log | **DONE** | `build.rollupOptions.treeshake.manualPureFunctions: ['console.log','console.debug']` (Vite 8 / Rolldown). Bundle `console.log` 89 → 6 (remaining are inside libraries). |
+| P2 title | **DONE** | `index.html` title `Bitezo POS`. |
+| Esc clears cart | **DONE** | `usePosShortcuts` Esc used to wipe the cart instantly, with no confirmation, even while another popup was open. It now only opens the existing "Clear Order Data?" confirmation (`PosTerminalPage`); Space no longer hijacks a focused button. |
+| Fake password reset | **DONE** | Forgot Password → OTP → Reset was a mock (any email/OTP accepted, "Password reset successful" with no API call). Now `ForgotPasswordPage` explains that an administrator resets passwords (Back Office → Users → Change Password); `/verify-otp` and `/reset-password` redirect there; mock screens deleted. Replace with a real flow when a reset API exists. |
+| Silent load failures | **DONE** | `app/providers/queryErrors.ts` + `QueryCache.onError` in `AppProviders`: any query that fails with nothing on screen shows an error toast (403 = "No permission …"); 401 / cancellations ignored; identical messages within 4 s shown once; background refetches stay silent. Opt out with `meta: { silentError: true }` (Product Transaction Log shows its own inline error; subscription check). |
+| Placeholders | **DONE** | Delivery page "Logs" button (only `alert("Logs Clicked")`) removed; settle print failure no longer shows a blocking `alert()` (toast only, sale is saved). Popup-blocked `alert()`s in report prints kept (legitimate). Remaining empty `catch {}` in POS core are name/setting lookups with fallbacks (reviewed, harmless). |
+| Unused files | **DONE (deleted)** | Root: 12 logcat files (~800 MB), android zips, `dist.rar`, `dev-dist/`, `scratch/`, `scratch.js`, `test.js`, `checkBranch.js`, `get_swagger.cjs`, `get_bom_details.cjs`, all `fix_*` / `fix-*` / `old_*` / `temp_*` files, `oldGrid.tsx`, `move_and_fix_modals.cjs`, `lint_output.txt`, `vite-dev*.log`, `test203.png`. `public/`: `config.js` (never loaded) and 11 unreferenced images (`-1.png`, `LOGO1/2/3/5/7`, `POS_LOGIN.jpeg`, `bitezo-logo-hq.png`, `product-icon.png`, `product-placeholder.png`, `icons.svg`, `favicon-16.png`; ~1.6 MB less precached by the PWA). `src/`: 28 files not imported anywhere (incl. `components/layout/Navbar.tsx`, `useSplitOrderData.ts`, `PosModalsContainer.tsx`, `PosSubCategoryRail/Tabs.tsx`, `PayInOutModal.tsx`, `pdfGenerator.ts`, `lib/authenticatedFetch.ts`, duplicate `inventory/lockProduct/services/lockProductService.ts`, unused `constants.ts` files). Kept: docs (`AGENT.md`, `GEMINI.md`, `README.md`, `.agents/`, printer architecture report), feature `index.ts` barrels, `dist/`. tsc clean, 486 tests pass, build OK after the cleanup. |
+| Not done | — | P0-1 HTTPS URL (needs the real production host), P0-7 real-terminal test, P0-8 merge to main, P1-1 / P0-5 backend checks, P1-8 empty catches / `alert()`, fonts bundling, big-file splitting. |
+
+Tests: `src/tests/productionHardening.test.ts` (local dates, `escapeHtml`, guest bill + KOT print a `<img onerror>` product/customer name as text). After the fixes: `tsc -b` clean, **50 files / 486 tests pass**, `vite build` OK.
+
+**Verify in the real app:** report Print buttons (iframe print), the update banner after a deploy, login / logout in POS and back office (token fallback removed), receipts with `&` in names, cashier-in / cashier-out dates after midnight.
+
+### 12.1 P0 — before go-live
+1. **Production API is plain HTTP on a private LAN IP.** `public/config.json`, `.env` and `.env.android` point to
+   `http://192.168.x.x:8068/api/v1`. Tokens, passwords and sales data travel unencrypted, and the app only works
+   inside that LAN. Put the real production host over **HTTPS** in `config.json` (and `.env.android`) for each
+   deployment. If the web app is served over HTTPS, an http API is also blocked as mixed content.
+2. **Secrets and junk committed to git (`.git` = 437 MB).** Tracked: bearer JWTs in `test.js`,
+   `scratch/fetch_extras.cjs`, `scratch/test-configs.cjs`, `scratch/test-configs.js` (expired May/Jun 2026, but
+   they carry tenant/branch/user ids); 12 `logcat*.txt` files (~800 MB of device logs); `android_project.zip`,
+   `android_project_v3.zip`, `dist.rar`; `.env.android`; `old_*`, `fix_*`, `temp_*`, `scratch.js`,
+   `lint_output.txt`, `test203.png`, `dev-dist/`. Remove them from the repo (`git rm --cached`, add to
+   `.gitignore`), keep tokens out of code, and never hand the repo or these files to the client. If the repo was
+   ever shared, rotate the backend JWT signing key. `.gitignore` also has a broken line
+   (`.env".env" ".env.development"`); `.env` is only ignored because of a later line.
+3. **Vulnerable dependencies (`npm audit --omit=dev`).** Critical: `@capacitor/android` (<8.4.3), `dompurify`
+   (pulled in by jspdf/html2pdf). High: `axios` ≤1.19 (prototype-pollution header/credential gadgets),
+   `react-router` 7.x, `form-data`. Moderate: `follow-redirects`. `npm audit fix` covers all of them; re-run
+   tests and build afterwards. `xlsx@0.18.5` (SheetJS on npm) is unmaintained with known CVEs; low risk while it is
+   only used for export. Do not use it to parse uploaded files.
+4. **No HTTP timeout.** `axiosInstance` has no `timeout`. On a bad network a place-order / settle request can
+   hang forever, and the `isSettlingRef` / `isSubmittingOrderRef` locks ignore every later attempt until it ends.
+   Set a timeout (e.g. 30 s) and show a clear "check the network" message.
+5. **Possible duplicate orders / invoices.** Place order and settle are protected against double-clicks, but
+   there is no idempotency key. If the server saves the order and the response is lost (timeout, Wi-Fi drop),
+   the cashier retries and a second order / sales invoice is created. Ask the backend for an idempotency key
+   (client GUID per order/settle), or check for an existing invoice before retrying.
+6. **Wrong business date around midnight (UTC vs local).** `orderApi.ts` (~line 34, ~350), `salesInvoiceApi.ts`
+   (~127, ~251) and `invoicePayloadMapper.ts` (~20) fall back to `new Date().toISOString().split("T")[0]` for
+   `voucherDate`. That is the **UTC** date: in Bahrain (UTC+3) a bill made between 00:00 and 03:00 gets
+   yesterday's date (India: before 05:30). 121 places use this pattern (mostly date-filter defaults); POS payloads
+   and day/shift reports matter most. Use a local-date helper (like `localDateString`). Also confirm the backend
+   reads `createdAt` / `transDate` (sent as UTC ISO strings) as UTC.
+7. **Real-app checks not done yet** (from §8): print templates, split, combine and bulk settle after the pricing
+   refactor; 14-dp / fils behaviour against the real backend (DB column precision unknown). Run one full shift on a
+   real terminal and printer: open shift → dine-in / takeaway / delivery orders → edit → split → combine →
+   discount → void → multi-pay settle → day-end and shift-end reports, and compare the totals with the reports.
+8. **Merge the branch.** The production code is on `refactor/pricing-engine`; `main` is at `d359ea8`. Build the
+   release from a tagged commit on `main`, not from a working copy (`dev-dist/sw.js` is currently modified).
+
+### 12.2 P1 — security and reliability (verify with backend)
+1. **Permissions are client-side only.** `isMaster` and `userRoles` are read from `localStorage` /
+   `sessionStorage`; anyone can set `isMaster=true` in DevTools and see every screen. This is fine only if the
+   **backend checks the role on every endpoint**. Confirm that. Keep `VITE_BYPASS_PERMISSIONS=false` in every
+   production `.env` (it is a global "allow all").
+2. **Tokens in localStorage + HTML built from strings.** The POS JWT and refresh token are in `localStorage`, so
+   any XSS can steal them. Print code builds HTML with template strings and `document.write` / `innerHTML`
+   (reports, KOT, recall print, vouchers) without HTML escaping, and product, customer and address names come from
+   the DB. Escape values in print templates and add a Content-Security-Policy in `web.config`.
+3. **Token fallback mixes modes.** `axiosInstance` and `getStoredAccessToken` fall back from the back-office token
+   to the POS token (and the reverse) when one is missing, so a request can go out under the other user's identity
+   on a shared PC. `clearAuthStorage` does not clear `tenantId`, `systemType`, `posConfigs` or printer keys, so the
+   next login on the same device can start with the previous tenant's settings.
+4. **PWA auto-update during a shift.** `registerType: 'autoUpdate'` reloads open tabs when a new build is
+   deployed. The cart survives (it is persisted), but an open modal or half-entered payment does not. Deploy outside
+   service hours or switch to `prompt` mode. `devOptions.enabled: true` registers a service worker in dev and is
+   why `dev-dist/` keeps changing.
+5. **Android release settings.** `usesCleartextTraffic="true"`, `androidScheme: 'http'`, `allowBackup="true"`
+   (WebView storage with tokens goes into device backups), `minifyEnabled false`, `versionCode 1`. For release:
+   HTTPS API, cleartext off (or a network-security-config limited to printer IPs), `allowBackup=false`, bump the
+   version on every release, sign with a release keystore kept out of the repo.
+6. **Printer Agent (corrected 2026-11-05: QZ Tray is not used).** Desktop printing goes to the own agent
+   `PrinterAgent.exe` over plain WebSocket: `printServerIp` → `ws://localhost:9191/print` → `:8181` → page host
+   (`qzService.ts` `PrintAgentClient`, JSON `{action, requestId, …}`, 20 s reply timeout); Android uses
+   `BitezoPrinterPlugin` raw ESC/POS to `<printer IP>:9100`. Points for the agent side (not this repo): it has no
+   auth, so any web page open on that PC can connect to `ws://localhost:9191` and send jobs. The agent should
+   accept only the Bitezo origin (check the WebSocket `Origin` header). If the web app is served over **HTTPS**,
+   `ws://localhost` still works in Chrome/Edge, but `ws://<ip>` (`printServerIp` / page host) is blocked as mixed
+   content. Use the local agent, or give the agent TLS (`wss://`).
+7. **Report print reloads the app.** 12 report preview modals replace `document.body.innerHTML`, print, then call
+   `window.location.reload()`. It works, but reloads the whole app. Use the new-window / iframe approach that the
+   other reports use.
+8. **Silent failures.** 77 empty `catch {}` blocks and 23 `alert()` calls (blocking, poor on Android). Reports that
+   swallow errors show "No records found" for a 403 (§10.7 rule 6); check every report.
+9. **Offline.** No offline mode and no `navigator.onLine` check. When the network drops, orders cannot be placed;
+   the cashier should see a clear banner instead of failing requests.
+
+### 12.3 P2 — clean-up / maintainability
+- **DONE 2026-11-05:** dead files deleted (see §12.0 "Unused files").
+- `index.html` title is `bitezo-client`. Google Fonts load from the internet; terminals without internet fall back
+  to system fonts. Bundle the fonts locally.
+- Bundle sizes: `xlsx` (865 kB), `html2pdf` (738 kB), `jspdf` (400 kB), charts (407 kB). They are separate chunks;
+  make sure they are only imported lazily from export/print actions.
+- 422 `console.*` calls (78 `console.log`), some may log payloads. Drop `console.log` in production builds
+  (`esbuild.drop` / `pure`).
+- 1,036 direct `localStorage` reads/writes; settings are read from several keys with fallbacks (§3). Prefer one
+  typed settings module.
+- Legacy pricing code listed in §8 (`orderPricing.ts`, `pos-calc.ts`, tolerance-based `getTaxExclusive*`).
+- The back office has almost no automated tests (§10.6). The giant components (§11.2) need splitting before more
+  features are added.
+- `ProtectedRoute` calls `clearAuthStorage()` during render (side effect in render).
+- `build.target: ['es2015','chrome74']`: confirm the oldest Android WebView you support is Chrome 74+.
+
+### 12.4 Go-live checklist
+- [ ] `config.json` / `.env.android` → production **HTTPS** URL; `VITE_BYPASS_PERMISSIONS=false`
+- [x] `npm audit fix` → `npx vitest run` → `npx tsc -b` → `npm run build` all green
+- [x] Secrets, logs and zips removed from git (untracked; history not rewritten); backend JWT key rotated if the repo was shared
+- [x] axios timeout + network-error message · [ ] idempotency agreed with the backend
+- [x] Local-date fix for `voucherDate` and day/shift reports
+- [ ] Backend confirms role checks on every endpoint and decimal column precision
+- [ ] Full shift tested on a real terminal + printer (web + Printer Agent, and Android); totals match the day-end report
+- [ ] Release built from a tagged commit on `main`; Android versionCode bumped, release keystore, cleartext off

@@ -12,13 +12,14 @@ import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { subscribeToTransactionUpdates } from "../../../../utils/transactionSync";
 import { subscribeToCategoryUpdates } from "../../../inventory/category/utils/categorySync";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useCategoryWiseSalesReport = () => {
   const queryClient = useQueryClient();
   const { initialBranchId: currentBranchId, isBranchLocked } = useBranchScope();
   const defaultBranchId = isBranchLocked ? String(currentBranchId) : "0";
 
   const today = new Date();
-  const defaultDate = today.toISOString().split("T")[0];
+  const defaultDate = toLocalDateString(today);
 
   const [branchId, setBranchId] = useState<string>(defaultBranchId);
   const [categoryId, setCategoryId] = useState<string>("0");

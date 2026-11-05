@@ -1,3 +1,4 @@
+import { printHtmlInIframe } from "../../../../utils/print";
 import React, { useRef } from "react";
 import { Printer, X, Download } from "lucide-react";
 import { Button } from "../../../../components/common";
@@ -28,13 +29,8 @@ export const DailySalesPrintPreviewModal: React.FC<Props> = ({
 
   const handlePrint = () => {
     const printContent = printAreaRef.current?.innerHTML;
-    const originalContent = document.body.innerHTML;
-
     if (printContent) {
-      document.body.innerHTML = printContent;
-      window.print();
-      document.body.innerHTML = originalContent;
-      window.location.reload(); // Reload to restore React bindings
+      printHtmlInIframe(printContent);
     }
   };
 

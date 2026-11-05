@@ -763,7 +763,12 @@ export const PosTerminalPage = () => {
   });
 
   usePosShortcuts({
-    onClearCart: handleClearCart,
+    // Esc used to wipe the cart instantly (even while another popup was open). It now only opens the
+    // "Clear Order Data?" confirmation, so a stray Esc can never lose an order.
+    onClearCart: () => {
+      if (terminal.cartDetails.length === 0 || isClearConfirmOpen) return;
+      setIsClearConfirmOpen(true);
+    },
     onHoldTicket: () => {},
     onCheckout: () => {},
   });

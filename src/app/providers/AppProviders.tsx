@@ -4,13 +4,24 @@ import { Provider } from "react-redux";
 import { store } from "../store";
 import { useAppDispatch } from "../hooks";
 import { tokenRefreshed } from "../../features/auth/store/authSlice";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useToast } from "./useToast";
+import { QUERY_ERROR_EVENT, reportQueryError } from "./queryErrors";
 
 interface AppProvidersProps {
   children: ReactNode;
 }
 
 const queryClient = new QueryClient({
+  // Every failed data load becomes a visible toast (see queryErrors.ts) instead of an empty screen.
+  queryCache: new QueryCache({
+    // Only when nothing is on screen yet: background refetches of data already shown (POS menu polls
+    // every 30 s) must not raise a toast on every poll while the network is down.
+    onError: (error, query) => {
+      if (query.state.data !== undefined) return;
+      reportQueryError(error, query.meta as Record<string, unknown> | undefined);
+    },
+  }),
   defaultOptions: {
     queries: {
       refetchOnWindowFocus: false,
@@ -44,12 +55,29 @@ const AuthTokenListener = () => {
   return null;
 };
 
+/** Shows the toasts requested by reportQueryError (must live inside ToastProvider). */
+const QueryErrorToaster = () => {
+  const { showToast } = useToast();
+  useEffect(() => {
+    const onError = (event: Event) => {
+      const message = (event as CustomEvent<string>).detail;
+      if (message) showToast(message, "error");
+    };
+    window.addEventListener(QUERY_ERROR_EVENT, onError);
+    return () => window.removeEventListener(QUERY_ERROR_EVENT, onError);
+  }, [showToast]);
+  return null;
+};
+
 const AppProviders = ({ children }: AppProvidersProps) => {
   return (
     <QueryClientProvider client={queryClient}>
       <Provider store={store}>
         <AuthTokenListener />
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <QueryErrorToaster />
+          {children}
+        </ToastProvider>
       </Provider>
     </QueryClientProvider>
   );

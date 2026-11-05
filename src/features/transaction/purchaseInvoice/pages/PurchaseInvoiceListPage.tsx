@@ -7,14 +7,15 @@ import { purchaseInvoiceApi } from "../services/purchaseInvoiceApi";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useCurrency } from "../../../../hooks/useCurrency";
 
+import { toLocalDateString } from "../../../../utils/date";
 const getFirstDayOfMonth = () => {
   const d = new Date();
   d.setDate(1);
-  return d.toISOString().split("T")[0];
+  return toLocalDateString(d);
 };
 
 const getToday = () => {
-  return new Date().toISOString().split("T")[0];
+  return toLocalDateString();
 };
 
 interface PurchaseInvoiceRow {

@@ -10,6 +10,7 @@ import { selectDecimalPart } from "../../../auth/store/authSlice";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import type { BranchOption, EmployeeOption } from "../types";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useStockTransferReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
   const { isBranchLocked, initialBranchId } = useBranchScope();
@@ -22,7 +23,7 @@ export const useStockTransferReport = () => {
       .split("T")[0];
   });
   const [toDate, setToDate] = useState<string>(() =>
-    new Date().toISOString().split("T")[0]
+    toLocalDateString()
   );
   const [fromBranchId, setFromBranchId] = useState<string>(initialBranchId);
   const [toBranchId, setToBranchId] = useState<string>("0");
@@ -99,7 +100,7 @@ export const useStockTransferReport = () => {
       : localStorage.getItem("activeBranchId");
 
     setFromDate(defaultFrom);
-    setToDate(today.toISOString().split("T")[0]);
+    setToDate(toLocalDateString(today));
     setFromBranchId(activeBranchId || "1");
     setToBranchId("0");
     setEmployeeId("0");

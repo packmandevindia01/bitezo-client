@@ -10,12 +10,13 @@ import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption, GroupOption, GroupWiseSalesRow, GroupWiseTotalData } from "../types";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useGroupWiseSalesReport = () => {
   const { initialBranchId: currentBranchId, isBranchLocked } = useBranchScope();
   const defaultBranchId = isBranchLocked ? String(currentBranchId) : "0";
 
   const today = new Date();
-  const defaultDate = today.toISOString().split("T")[0];
+  const defaultDate = toLocalDateString(today);
 
   const [branchId, setBranchId] = useState<string>(defaultBranchId);
   const [groupId, setGroupId] = useState<string>("0");

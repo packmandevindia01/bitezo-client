@@ -857,14 +857,6 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
                 </div>
               </div>
 
-              <div className="col-span-12 md:col-span-3 flex flex-col justify-end pb-[4px]">
-                <button
-                  onClick={() => alert("Logs Clicked")}
-                  className="h-9 w-full bg-slate-800 hover:bg-slate-900 text-white font-extrabold text-[10px] tracking-wider uppercase rounded-lg shadow-sm transition-all active:scale-95 flex items-center justify-center"
-                >
-                  Logs
-                </button>
-              </div>
             </div>
 
           </div>

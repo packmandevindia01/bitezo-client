@@ -10,6 +10,7 @@ import { selectDecimalPart } from "../../../auth/store/authSlice";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import type { BranchOption, ProductOption, ProductWiseStockTransferRow } from "../types";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useProductWiseStockTransferReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
   const { isBranchLocked, initialBranchId } = useBranchScope();
@@ -23,7 +24,7 @@ export const useProductWiseStockTransferReport = () => {
       .split("T")[0];
   });
   const [toDate, setToDate] = useState<string>(() =>
-    new Date().toISOString().split("T")[0]
+    toLocalDateString()
   );
   const [fromBranchId, setFromBranchId] = useState<string>(defaultBranchId);
 
@@ -106,7 +107,7 @@ export const useProductWiseStockTransferReport = () => {
       .split("T")[0];
 
     setFromDate(defaultFrom);
-    setToDate(today.toISOString().split("T")[0]);
+    setToDate(toLocalDateString(today));
     setFromBranchId(defaultBranchId);
     setToBranchId("0");
     setProductId("0");

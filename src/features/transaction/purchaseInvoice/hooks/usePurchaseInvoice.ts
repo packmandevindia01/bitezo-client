@@ -18,7 +18,7 @@ import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/empl
 
 
 export const formatDateOnly = (dateVal: string | Date | undefined | null): string => {
-  if (!dateVal) return new Date().toISOString().split("T")[0];
+  if (!dateVal) return toLocalDateString();
   if (typeof dateVal === "string") {
     const trimmed = dateVal.trim();
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
@@ -50,6 +50,7 @@ export const calculateLine = (item: PurchaseInvoiceLineItem, grossTotal: number 
 
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const usePurchaseInvoice = (invoiceId?: string) => {
   const { showToast } = useToast();
   const { formatAmount, decimalPart } = useCurrency();

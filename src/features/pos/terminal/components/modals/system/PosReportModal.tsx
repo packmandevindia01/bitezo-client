@@ -47,6 +47,7 @@ import { DriverSummaryView } from './reports/DriverSummaryView';
 import { AllTransactionSummaryView } from './reports/AllTransactionSummaryView';
 import { GenericReportView } from './reports/GenericReportView';
 
+import { toLocalDateString } from "../../../../../../utils/date";
 interface PosReportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -290,7 +291,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   useEffect(() => {
     let isMounted = true;
     if (isOpen && isDayEndChecked) {
-      const targetDate = asOnDate || toDate || new Date().toISOString().split('T')[0];
+      const targetDate = asOnDate || toDate || toLocalDateString();
       setDayStartEndLoading(true);
       cashierLogService.getDayStartEndDate(targetDate)
         .then((data) => {

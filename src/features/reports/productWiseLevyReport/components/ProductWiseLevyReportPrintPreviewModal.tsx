@@ -1,3 +1,4 @@
+import { printHtmlInIframe } from "../../../../utils/print";
 import { useRef } from "react";
 import { Printer, Download } from "lucide-react";
 import { Button, Modal } from "../../../../components/common";
@@ -30,12 +31,7 @@ export const ProductWiseLevyReportPrintPreviewModal = ({
   const handlePrint = () => {
     if (printRef.current) {
       const printContents = printRef.current.innerHTML;
-      const originalContents = document.body.innerHTML;
-
-      document.body.innerHTML = printContents;
-      window.print();
-      document.body.innerHTML = originalContents;
-      window.location.reload();
+      printHtmlInIframe(printContents);
     }
   };
 

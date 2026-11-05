@@ -17,12 +17,13 @@ import type {
 } from "../types";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useProductOutputVatReport = () => {
   const { initialBranchId, isBranchLocked } = useBranchScope();
   const defaultBranchId = initialBranchId || "1";
 
   const today = new Date();
-  const defaultDate = today.toISOString().split("T")[0];
+  const defaultDate = toLocalDateString(today);
 
   const [branchId, setBranchId] = useState<string>(defaultBranchId);
   const handleSetBranchId = (val: string) => {

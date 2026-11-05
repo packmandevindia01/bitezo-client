@@ -13,8 +13,6 @@ const MainLayout = lazy(() => import("../../components/layout/MainLayout"));
 const BackofficeSubscriptionWrapper = lazy(() => import("../../features/company/components/BackofficeSubscriptionWrapper"));
 const LoginPage = lazy(() => import("../../features/auth/pages/LoginPage"));
 const ForgotPasswordPage = lazy(() => import("../../features/auth/pages/ForgotPasswordPage"));
-const VerifyOtpPage = lazy(() => import("../../features/auth/pages/VerifyOtpPage"));
-const ResetPasswordPage = lazy(() => import("../../features/auth/pages/ResetPasswordPage"));
 const CompanyOnboardingPage = lazy(() => import("../../features/company/pages/CompanyOnboardingPage"));
 const DashboardPage = lazy(() => import("../../features/dashboard/pages/DashboardPage"));
 const UserList = lazy(() => import("../../features/general/user/pages/UserList"));
@@ -171,8 +169,9 @@ const AppRoutes = () => {
             {/* Public routes */}
             <Route path="/" element={<LoginRedirect />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/verify-otp" element={<VerifyOtpPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            {/* Old mock OTP / reset screens: no reset API exists, send old links to the explanation page */}
+            <Route path="/verify-otp" element={<Navigate to="/forgot-password" replace />} />
+            <Route path="/reset-password" element={<Navigate to="/forgot-password" replace />} />
             <Route path="/company/onboarding" element={<CompanyOnboardingPage />} />
             <Route path="/system/register" element={<SystemRegistrationPage />} />
 

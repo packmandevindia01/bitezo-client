@@ -1,3 +1,4 @@
+import { escapeHtml } from "../../../utils/html";
 import type { PosCartItem } from "../types";
 import { modifierLabelOf } from "./modifierLabel";
 import { toDisplayNo } from "../services/orderResponse";
@@ -281,7 +282,7 @@ export const generateGuestPrintHtml = async (
   const isDineIn = data.orderType?.toLowerCase().includes("dine");
   const hasDeliveryAddress = Boolean(data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address);
   const isDelivery = Boolean(data.orderType?.toLowerCase().includes("delivery") || hasDeliveryAddress);
-  const driverVal = (data.driverName || data.driver || "").trim();
+  const driverVal = escapeHtml((data.driverName || data.driver || "").trim());
 
   const rawCallBack = (data.callBack || (data as any).callback || (data as any).callBackNo || (data as any).callbackNo || (data as any).callBackNumber || (data as any).callbackNumber || "").trim();
   const effectiveCallBack = rawCallBack || (isDelivery ? (
@@ -289,8 +290,8 @@ export const generateGuestPrintHtml = async (
     (data.orderNo ? sessionStorage.getItem(`order_callBack_${String(data.orderNo).replace(/\D/g, '')}`) : null) ||
     (data.invoiceNo ? localStorage.getItem(`order_callBack_${String(data.invoiceNo).replace(/\D/g, '')}`) : null) ||
     (data.invoiceNo ? sessionStorage.getItem(`order_callBack_${String(data.invoiceNo).replace(/\D/g, '')}`) : null) ||
-    (data.contactNo ? localStorage.getItem(`delivery_callBack_${data.contactNo}`) : null) ||
-    (data.contactNo ? sessionStorage.getItem(`delivery_callBack_${data.contactNo}`) : null) ||
+    (data.contactNo ? localStorage.getItem(`delivery_callBack_${escapeHtml(data.contactNo)}`) : null) ||
+    (data.contactNo ? sessionStorage.getItem(`delivery_callBack_${escapeHtml(data.contactNo)}`) : null) ||
     localStorage.getItem("pos_current_callBack") ||
     sessionStorage.getItem("pos_current_callBack") ||
     ""
@@ -485,9 +486,9 @@ export const generateGuestPrintHtml = async (
 
   let itemsHtml = "";
   unified.lines.forEach((line, lineIdx) => {
-    const name = line.productName.toUpperCase();
+    const name = escapeHtml(line.productName.toUpperCase());
     const qty = line.quantity;
-    const altArabicName = isBillArabic ? getAlternativeArabicName(line.rawItem) : "";
+    const altArabicName = isBillArabic ? escapeHtml(getAlternativeArabicName(line.rawItem)) : "";
     const lineDiscVal = Number(
       isTaxInclusive
         ? (line.lineDiscountIncl ?? (typeof line.getDiscount === "function" ? line.getDiscount(true) : line.lineDiscount))
@@ -529,8 +530,8 @@ export const generateGuestPrintHtml = async (
 
     if (line.extras && line.extras.length > 0) {
       line.extras.forEach((ex) => {
-        const exName = (ex.name || "EXTRA").toUpperCase();
-        const exArabic = isBillArabic ? (ex.arabicName || "") : "";
+        const exName = escapeHtml((ex.name || "EXTRA").toUpperCase());
+        const exArabic = isBillArabic ? escapeHtml((ex.arabicName || "")) : "";
         const exDisplay = exArabic
           ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-weight:normal; margin-left:4px; color:#000000; white-space:nowrap;">(${exArabic})</span>`
           : `+ ${exName}`;
@@ -548,9 +549,9 @@ export const generateGuestPrintHtml = async (
 
     if (line.modifiers && line.modifiers.length > 0) {
       line.modifiers.forEach((mod) => {
-        const text = modifierLabelOf(mod, { upperCase: true });
+        const text = escapeHtml(modifierLabelOf(mod, { upperCase: true }));
 
-        const modArabic = isBillArabic ? (mod.arabicName || "") : "";
+        const modArabic = isBillArabic ? escapeHtml((mod.arabicName || "")) : "";
         const modDisplay = modArabic
           ? `* ${text} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:10px; font-style:normal; margin-left:4px;">(${modArabic})</span>`
           : `* ${text}`;
@@ -567,7 +568,7 @@ export const generateGuestPrintHtml = async (
 
     if (line.messages && line.messages.length > 0) {
       line.messages.forEach((msg) => {
-        const rawName = msg.name || "NOTE";
+        const rawName = escapeHtml(msg.name || "NOTE");
         const isMsgArabic = containsArabic(rawName);
         const msgDisplay = isMsgArabic
           ? `MSG: <span dir="rtl" lang="ar" class="arabic-text">${rawName}</span>`
@@ -867,7 +868,7 @@ export const generateGuestPrintHtml = async (
             const arPay = isBillArabic && getPaymodeArabic(p.name) ? ` <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(${getPaymodeArabic(p.name)})</bdi>` : '';
             return `
           <tr>
-            <td class="totals-label">${p.name}${arPay}</td>
+            <td class="totals-label">${escapeHtml(p.name)}${arPay}</td>
             <td class="totals-value">${fmt(p.amount)}</td>
           </tr>
           `;
@@ -951,18 +952,18 @@ export const generateGuestPrintHtml = async (
           <div class="solid-hr" style="border-top: 1px solid #000; margin-bottom: 6px;"></div>
           <div style="width: 100%; font-size: 12px;">
             ${isMissedCall ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Missed Call${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مكالمة فائتة)</bdi>' : ''} : </span><span style="font-weight: bold;">YES</span></div>` : ''}
-            ${data.contactNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Mob No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم الجوال)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.contactNo}</span></div>` : ''}
-            ${effectiveCallBack ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Call Back${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(معاودة الاتصال)</bdi>' : ''} : </span><span style="font-weight: normal;">${effectiveCallBack}</span></div>` : ''}
+            ${data.contactNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Mob No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم الجوال)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.contactNo)}</span></div>` : ''}
+            ${effectiveCallBack ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Call Back${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(معاودة الاتصال)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(effectiveCallBack)}</span></div>` : ''}
             ${hasValidKeepChange ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Keep Change${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(الباقي)</bdi>' : ''} : </span><span style="font-weight: normal;">${formattedKeepChange}</span></div>` : ''}
-            ${data.customerName ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Customer${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العميل)</bdi>' : ''} : </span><span style="font-weight: normal;" dir="auto">${data.customerName}</span></div>` : ''}
+            ${data.customerName ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Customer${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العميل)</bdi>' : ''} : </span><span style="font-weight: normal;" dir="auto">${escapeHtml(data.customerName)}</span></div>` : ''}
             ${driverVal ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(السائق)</bdi>' : ''} : </span><span style="font-weight: normal;" dir="auto">${driverVal}</span></div>` : ''}
-            ${data.flatNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Flat No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(شقة)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.flatNo}</span></div>` : ''}
-            ${data.buildingNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Building${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مبنى)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.buildingNo}</span></div>` : ''}
-            ${data.blockNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Block${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مجمع)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.blockNo}</span></div>` : ''}
-            ${data.roadNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Road${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(طريق)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.roadNo}</span></div>` : ''}
-            ${data.area ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Area${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(المنطقة)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.area}</span></div>` : ''}
-            ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Address${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العنوان)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.address}</span></div>` : ''}
-            ${data.providerNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Provider No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم المزود)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.providerNo}</span></div>` : ''}
+            ${data.flatNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Flat No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(شقة)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.flatNo)}</span></div>` : ''}
+            ${data.buildingNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Building${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مبنى)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.buildingNo)}</span></div>` : ''}
+            ${data.blockNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Block${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مجمع)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.blockNo)}</span></div>` : ''}
+            ${data.roadNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Road${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(طريق)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.roadNo)}</span></div>` : ''}
+            ${data.area ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Area${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(المنطقة)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.area)}</span></div>` : ''}
+            ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Address${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العنوان)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.address)}</span></div>` : ''}
+            ${data.providerNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Provider No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم المزود)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.providerNo)}</span></div>` : ''}
           </div>
         </div>
         `;

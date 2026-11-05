@@ -14,13 +14,14 @@ import {
 } from "../services/stockRegisterReportApi";
 import type { StockRegisterReportParams } from "../types";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useStockRegisterReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
 
   // Filter states
   const [asOnDate, setAsOnDate] = useState<string>(() => {
     const today = new Date();
-    return today.toISOString().split("T")[0];
+    return toLocalDateString(today);
   });
   
   const { initialBranchId, isBranchLocked } = useBranchScope();
@@ -139,7 +140,7 @@ export const useStockRegisterReport = () => {
 
   const resetFilters = () => {
     const today = new Date();
-    const defaultDate = today.toISOString().split("T")[0];
+    const defaultDate = toLocalDateString(today);
     
     setAsOnDate(defaultDate);
     setBranchId(initialBranchId);

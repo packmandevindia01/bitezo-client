@@ -6,6 +6,7 @@ import { STORED_ORDER_PARAMS, applyStoredOrderView } from "./storedOrderView";
 import { mergeStoredOrderSources } from "../pricing";
 import { withDetailNet7 } from "../../../utils/money";
 
+import { toLocalDateString } from "../../../utils/date";
 /**
  * Standard unwrap helper to extract data and handle success/error based on the API response.
  */
@@ -31,7 +32,7 @@ export const orderApi = {
             ? payload.voucherDate.split("T")[0]
             : payload.voucherDate;
         } else {
-          payload.voucherDate = new Date().toISOString().split("T")[0];
+          payload.voucherDate = toLocalDateString();
         }
 
         payload.createdAt = new Date().toISOString();
@@ -347,7 +348,7 @@ export const orderApi = {
         ? postPayload.voucherDate.split("T")[0]
         : postPayload.voucherDate;
     } else {
-      postPayload.voucherDate = new Date().toISOString().split("T")[0];
+      postPayload.voucherDate = toLocalDateString();
     }
     const sanitizeSplitBucket = (bucket: any) => {
       if (!bucket) return bucket;

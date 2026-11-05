@@ -126,10 +126,18 @@ const PosCartPanelComponent: React.FC<PosCartPanelProps> = ({
             onIncrement={incrementItem}
             onDecrement={handleDecrementItem}
             onRemove={handleRemoveItem}
-            onMod={() => setExtrasModifierType('modifiers')}
+            // The extras / modifiers screen covers every cart line (pick the product inside it),
+            // so a selection is not needed — only a non-empty cart.
+            onMod={() => {
+              if (cartDetails.length === 0) {
+                showToast("Add an item to the cart first", "warning");
+                return;
+              }
+              setExtrasModifierType('modifiers');
+            }}
             onExtras={() => {
-              if (!selectedKey) {
-                showToast("Please select an item in the cart first", "warning");
+              if (cartDetails.length === 0) {
+                showToast("Add an item to the cart first", "warning");
                 return;
               }
               setExtrasModifierType('extras');

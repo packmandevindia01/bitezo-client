@@ -56,6 +56,7 @@ export const useProductTransactionLogReport = () => {
     error: reportError,
     refetch,
   } = useQuery({
+    meta: { silentError: true }, // shown inline on the page (errorMessage)
     queryKey: ["productTransactionLogReport", { fromDate, toDate, branchId, productId }],
     queryFn: () =>
       getProductTransactionLogReport({

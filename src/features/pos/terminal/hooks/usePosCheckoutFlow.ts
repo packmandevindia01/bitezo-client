@@ -167,8 +167,8 @@ export const usePosCheckoutFlow = ({
         showToast("Sales saved successfully", "success");
       } catch (printErr: any) {
         console.error("Settled print failed:", printErr);
-        alert("PRINTING ERROR: " + (printErr.message || printErr));
-        showToast("Order settled, but printing failed", "warning");
+        // No blocking alert() in the middle of service: the sale IS saved, only the print failed.
+        showToast(`Order settled, but printing failed: ${printErr?.message || printErr}`, "warning");
       }
     } else {
         showToast("Sales saved successfully", "success");

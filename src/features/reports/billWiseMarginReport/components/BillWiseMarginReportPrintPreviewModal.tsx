@@ -1,3 +1,4 @@
+import { printHtmlInIframe } from "../../../../utils/print";
 import { useRef } from "react";
 import { Printer, Download } from "lucide-react";
 import { Modal, Button } from "../../../../components/common";
@@ -26,12 +27,7 @@ export const BillWiseMarginReportPrintPreviewModal = ({
   const handlePrint = () => {
     if (componentRef.current) {
       const printContents = componentRef.current.innerHTML;
-      const originalContents = document.body.innerHTML;
-
-      document.body.innerHTML = printContents;
-      window.print();
-      document.body.innerHTML = originalContents;
-      window.location.reload(); 
+      printHtmlInIframe(printContents);
     }
   };
 

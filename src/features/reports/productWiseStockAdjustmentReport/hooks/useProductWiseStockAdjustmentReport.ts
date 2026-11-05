@@ -11,6 +11,7 @@ import { selectDecimalPart } from "../../../auth/store/authSlice";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import type { BranchOption, ProductOption, AdjustmentTypeOption, ProductWiseStockAdjustmentRow } from "../types";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const EFFECT_OPTIONS = [
   { label: "All", value: "" },
   { label: "In (+)", value: "+" },
@@ -30,7 +31,7 @@ export const useProductWiseStockAdjustmentReport = () => {
       .split("T")[0];
   });
   const [toDate, setToDate] = useState<string>(() => {
-    return new Date().toISOString().split("T")[0];
+    return toLocalDateString();
   });
   const [branchId, setBranchId] = useState<string>(defaultBranchId);
 
@@ -117,7 +118,7 @@ export const useProductWiseStockAdjustmentReport = () => {
     const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1)
       .toISOString()
       .split("T")[0];
-    const defaultTo = today.toISOString().split("T")[0];
+    const defaultTo = toLocalDateString(today);
 
     setFromDate(defaultFrom);
     setToDate(defaultTo);

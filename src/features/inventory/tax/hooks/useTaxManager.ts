@@ -5,6 +5,7 @@ import type { TaxFormState, TaxListItem } from "../types";
 import { useTaxList } from "./useTaxList";
 import { useTaxModal } from "./useTaxModal";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useTaxManager = () => {
   const { showToast } = useToast();
 
@@ -37,7 +38,7 @@ export const useTaxManager = () => {
       }
 
       // ── Date validation check ───────────────────────────────────────────────
-      const today = new Date().toISOString().split("T")[0];
+      const today = toLocalDateString();
       if (form.expireAt && form.expireAt < today) {
         setMutationError("End Date cannot be a past date.");
         showToast("End Date cannot be a past date.", "error");

@@ -5,6 +5,7 @@ import type { BranchOption, CustomerOption, SeriesOption } from "../types";
 import { getBillWiseMarginReport, getBranchList, getCustomerList, getSeriesList } from "../services/billWiseMarginReportApi";
 import { getDecimalPart } from "../../../../utils/currency";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useBillWiseMarginReport = () => {
   const { initialBranchId, isBranchLocked } = useBranchScope();
   const [branchId, setBranchId] = useState<string>(initialBranchId);
@@ -12,10 +13,10 @@ export const useBillWiseMarginReport = () => {
   const [customerId, setCustomerId] = useState<string>("0");
   
   const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = toLocalDateString(today);
   
   const [fromDate, setFromDate] = useState<string>(() => {
-    return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+    return toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1));
   });
   const [toDate, setToDate] = useState<string>(todayStr);
 
@@ -94,7 +95,7 @@ export const useBillWiseMarginReport = () => {
     setBranchId(initialBranchId);
     setSeriesId("0");
     setCustomerId("0");
-    setFromDate(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]);
+    setFromDate(toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1)));
     setToDate(todayStr);
     setTimeout(() => {
       reportQuery.refetch();

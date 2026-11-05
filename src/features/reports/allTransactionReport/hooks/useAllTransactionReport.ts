@@ -6,13 +6,14 @@ import { getDecimalPart } from "../../../../utils/currency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 import { subscribeToTransactionUpdates } from "../../../../utils/transactionSync";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useAllTransactionReport = () => {
   const queryClient = useQueryClient();
   // Setup default dates (start of month to today)
   const today = new Date();
   const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-  const defaultFromDate = startOfMonth.toISOString().split("T")[0];
-  const defaultToDate = today.toISOString().split("T")[0];
+  const defaultFromDate = toLocalDateString(startOfMonth);
+  const defaultToDate = toLocalDateString(today);
 
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const [fromDate, setFromDate] = useState(defaultFromDate);

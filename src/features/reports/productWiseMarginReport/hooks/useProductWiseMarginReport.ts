@@ -18,6 +18,7 @@ import {
 import { getDecimalPart } from "../../../../utils/currency";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useProductWiseMarginReport = () => {
   const { initialBranchId, isBranchLocked } = useBranchScope();
   const defaultBranchId = initialBranchId || "1";
@@ -33,10 +34,10 @@ export const useProductWiseMarginReport = () => {
   const [subcategoryId, setSubcategoryId] = useState<string>("0");
   
   const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
+  const todayStr = toLocalDateString(today);
   
   const [fromDate, setFromDate] = useState<string>(() => {
-    return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+    return toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1));
   });
   const [toDate, setToDate] = useState<string>(todayStr);
 
@@ -164,7 +165,7 @@ export const useProductWiseMarginReport = () => {
     setGroupId("0");
     setCategoryId("0");
     setSubcategoryId("0");
-    setFromDate(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]);
+    setFromDate(toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1)));
     setToDate(todayStr);
     setTimeout(() => {
       reportQuery.refetch();

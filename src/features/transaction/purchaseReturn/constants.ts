@@ -1,8 +1,9 @@
+import { toLocalDateString } from "../../../utils/date";
 
 export const createEmptyPurchaseReturnForm = (): any => ({
   series: "",
   purchaseNo: "",
-  purchaseDate: new Date().toISOString().split("T")[0],
+  purchaseDate: toLocalDateString(),
   invoiceNo: "",
   refNo: "",
   supplier: "",

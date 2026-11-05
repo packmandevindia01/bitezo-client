@@ -26,6 +26,7 @@ export const useSubscriptionStatus = (): SubscriptionStatusInfo => {
   );
 
   const { data, isLoading, isError, refetch } = useQuery<SubscriptionStatusData | null>({
+    meta: { silentError: true }, // background check, not a screen
     queryKey: ["companySubscriptionStatus"],
     queryFn: fetchSubscriptionStatus,
     enabled: hasToken,

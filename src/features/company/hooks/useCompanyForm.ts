@@ -11,6 +11,7 @@ import { logout } from "../../auth/store/authSlice";
 
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
 
+import { toLocalDateString } from "../../../utils/date";
 const companySchema = z.object({
   custName: z.string().trim().min(1, "Company name is required").max(100, "max 100 chars"),
   crNo: z.string().trim().min(1, "CR No is required").max(20, "max 20 chars"),
@@ -122,7 +123,7 @@ export const useCompanyForm = () => {
       road: "",
       flatNo: "",
       regId: "",
-      startDate: new Date().toISOString().split("T")[0],
+      startDate: toLocalDateString(),
       isDemo: false,
       database: "",
       branchCount: 0,

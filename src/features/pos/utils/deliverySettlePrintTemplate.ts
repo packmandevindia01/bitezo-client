@@ -1,3 +1,4 @@
+import { escapeHtml } from "../../../utils/html";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
 import { getDecimalPart } from "../../../utils/currency";
@@ -268,7 +269,7 @@ export const generateDeliverySettlePrintHtml = async (
           <table class="meta-table">
             <tr>
               <td class="meta-label">Driver${isArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(السائق)</bdi>' : ''}</td>
-              <td class="meta-value">${data.driverName}</td>
+              <td class="meta-value">${escapeHtml(data.driverName)}</td>
             </tr>
             <tr>
               <td class="meta-label">Date${isArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(التاريخ)</bdi>' : ''}</td>

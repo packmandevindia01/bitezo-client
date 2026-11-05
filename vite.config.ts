@@ -9,10 +9,11 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
+      // 'prompt': never reload a running POS by itself; AppStatusBanner asks the user (src/app/AppStatusBanner.tsx).
+      registerType: 'prompt',
+      injectRegister: false,
       devOptions: {
-        enabled: true
+        enabled: false
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
@@ -78,6 +79,10 @@ export default defineConfig({
   build: {
     target: ['es2015', 'chrome74'],
     rollupOptions: {
+      // Strip console.log / console.debug from production bundles (warn / error stay for diagnostics).
+      treeshake: {
+        manualPureFunctions: ['console.log', 'console.debug'],
+      },
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {

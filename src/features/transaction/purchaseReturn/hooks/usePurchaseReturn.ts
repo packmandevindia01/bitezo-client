@@ -16,8 +16,9 @@ import { backofficeConfigApi } from "../../../general/configuration/services/bac
 import { subscribeToSupplierUpdates } from "../../../general/supplier/utils/supplierSync";
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const formatDateOnly = (dateVal: string | Date | undefined | null): string => {
-  if (!dateVal) return new Date().toISOString().split("T")[0];
+  if (!dateVal) return toLocalDateString();
   if (typeof dateVal === "string") {
     const trimmed = dateVal.trim();
     if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;

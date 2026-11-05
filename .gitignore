@@ -23,8 +23,27 @@ dist-ssr
 *.sln
 *.sw?
 
-.env".env" 
-".env.development" 
+.env
+.env.development
 
 .env
 .env.development
+
+# Never commit: env files with endpoints/flags, device logs, archives, build output, scratch scripts
+.env.android
+.env.production
+dev-dist/
+*.zip
+*.rar
+logcat*.txt
+lint_output.txt
+scratch/
+scratch.js
+test.js
+old_*
+fix_*.cjs
+fix_*.mjs
+temp_*.tsx
+oldGrid.tsx
+move_and_fix_modals.cjs
+test203.png

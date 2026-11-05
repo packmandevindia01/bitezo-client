@@ -8,6 +8,7 @@ import { X, Trash2, Printer } from "lucide-react";
 import { useState, useMemo } from "react";
 import { numberToWords } from "../../../../utils/numberToWords";
 
+import { toLocalDateString } from "../../../../utils/date";
 const ReceiptVoucherFormPage = () => {
   const { id } = useParams();
   const isEditMode = !!id;
@@ -115,7 +116,7 @@ const ReceiptVoucherFormPage = () => {
               id="rv-date"
               label="DATE"
               type="date"
-              max={new Date().toISOString().split("T")[0]}
+              max={toLocalDateString()}
               value={watch("voucherDate")}
               onChange={(e) => setValue("voucherDate", e.target.value, { shouldValidate: true })}
               onKeyDown={(e) => handleKeyDown(e, "rv-employee")}

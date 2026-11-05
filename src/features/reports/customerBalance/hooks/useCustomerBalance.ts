@@ -6,6 +6,7 @@ import { selectDecimalPart } from "../../../auth/store/authSlice";
 import { fetchCustomerBalance } from "../services/customerBalanceApi";
 import { getBranchList, getCustomerList } from "../../billWiseMarginReport/services/billWiseMarginReportApi";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useCustomerBalance = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
   const { initialBranchId, isBranchLocked } = useBranchScope();
@@ -13,10 +14,10 @@ export const useCustomerBalance = () => {
   // 1. Setup Filter States
   const [fromDate, setFromDate] = useState<string>(() => {
     const today = new Date();
-    return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+    return toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1));
   });
   const [toDate, setToDate] = useState<string>(() => {
-    return new Date().toISOString().split("T")[0];
+    return toLocalDateString();
   });
   const [branchId, setBranchId] = useState<string>(initialBranchId);
   const [customerId, setCustomerId] = useState<string>("0");
@@ -49,8 +50,8 @@ export const useCustomerBalance = () => {
   // Reset Filters Function
   const resetFilters = () => {
     const today = new Date();
-    setFromDate(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0]);
-    setToDate(today.toISOString().split("T")[0]);
+    setFromDate(toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1)));
+    setToDate(toLocalDateString(today));
     setBranchId(initialBranchId);
     setCustomerId("0");
     setTimeout(() => {

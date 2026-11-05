@@ -87,12 +87,9 @@ export const CartModals: React.FC<CartModalsProps> = React.memo((props) => {
         cartItems={props.cartDetails}
         selectedKey={props.selectedKey}
         onSelectRow={props.setSelectedKey}
-        initialExtras={props.currentSelectedItem?.extras || []}
-        initialModifiers={props.currentSelectedItem?.modifiers || []}
-        initialMessages={props.currentSelectedItem?.messages || []}
-        onDone={(extras, modifiers, messages) => {
-          if (!props.selectedKey) return;
-          props.setItemCustomizations(props.selectedKey, extras, modifiers, messages);
+        onDone={(changes) => {
+          // One screen for the whole bill: save every line whose extras / modifiers / messages changed.
+          changes.forEach((c) => props.setItemCustomizations(c.uniqueId, c.extras, c.modifiers, c.messages));
           props.setExtrasModifierType("none");
         }}
       />

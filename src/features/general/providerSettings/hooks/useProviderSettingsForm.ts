@@ -24,6 +24,7 @@ import type {
 } from "../types";
 import type { SubCategoryListItem } from "../../../inventory/subcategory/types";
 
+import { toLocalDateString } from "../../../../utils/date";
 const createEmptyEntry = (): ProviderSettingEntry => ({
   productId: 0,
   unitId: 0,
@@ -61,7 +62,7 @@ export const useProviderSettingsForm = (
   // ─── Filter selections ────────────────────────────────────────────────────
   const [selectedProvider, setSelectedProvider] = useState("");
   const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
+    toLocalDateString()
   );
   const [selectedBranch, setSelectedBranch] = useState("");
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
@@ -159,7 +160,7 @@ export const useProviderSettingsForm = (
     const { master, details } = initialData;
     setSelectedProvider(master.providerId.toString());
     setSelectedBranch(master.branchId.toString());
-    setSelectedDate(master.createdAt?.split("T")[0] || new Date().toISOString().split("T")[0]);
+    setSelectedDate(master.createdAt?.split("T")[0] || toLocalDateString());
 
     if (details && details.length > 0) {
       const uniqueDetails: ProviderSettingEntry[] = [];

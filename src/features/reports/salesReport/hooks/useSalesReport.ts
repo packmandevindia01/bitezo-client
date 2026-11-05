@@ -6,6 +6,7 @@ import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption, PaymodeOption, CustomerOption } from "../types";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useSalesReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
   const { isBranchLocked, initialBranchId } = useBranchScope();
@@ -14,11 +15,11 @@ export const useSalesReport = () => {
   const [fromDate, setFromDate] = useState<string>(() => {
     const today = new Date();
     // Default to start of current month as is common for reports
-    return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+    return toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1));
   });
   const [toDate, setToDate] = useState<string>(() => {
     const today = new Date();
-    return today.toISOString().split("T")[0];
+    return toLocalDateString(today);
   });
   const [branchId, setBranchId] = useState<string>(initialBranchId);
   const [customerId, setCustomerId] = useState<string>("0");
@@ -108,8 +109,8 @@ export const useSalesReport = () => {
 
   const resetFilters = () => {
     const today = new Date();
-    const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
-    const defaultTo = today.toISOString().split("T")[0];
+    const defaultFrom = toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1));
+    const defaultTo = toLocalDateString(today);
     
     const isBackofficeMode = sessionStorage.getItem("tempSystemType") === "backoffice" || localStorage.getItem("systemType") === "backoffice";
     const activeBranchId = isBackofficeMode 

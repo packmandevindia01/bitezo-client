@@ -20,6 +20,7 @@ import { useAppSelector } from "../../../../app/hooks";
 import { selectActiveBranchId } from "../../../auth/store/authSlice";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
+import { toLocalDateString } from "../../../../utils/date";
 const ReceiptAgainstVoucherPage = () => {
   const { id } = useParams<{ id: string }>();
   const transId = id ? parseInt(id, 10) : undefined;
@@ -167,7 +168,7 @@ const ReceiptAgainstVoucherPage = () => {
       invoiceId: manualItem.invoiceId || 0,
       voucherType: manualItem.voucherType,
       invoiceNo: manualItem.invoiceNo,
-      invoiceDate: new Date().toISOString().split("T")[0],
+      invoiceDate: toLocalDateString(),
       invoiceAmount: Number(manualItem.invoiceAmount) || 0,
       balance: Number(manualItem.balance) || 0,
       amount: Number(manualItem.amount).toFixed(getDecimalPart()),

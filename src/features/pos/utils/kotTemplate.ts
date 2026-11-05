@@ -1,3 +1,4 @@
+import { escapeHtml } from "../../../utils/html";
 import type { PosCartItem } from "../types";
 import { modifierLabelOf } from "./modifierLabel";
 import { toDisplayNo } from "../services/orderResponse";
@@ -304,10 +305,10 @@ export const generateKotHtml = async (
   let itemsHtml = "";
 
   unified.lines.forEach((line) => {
-    const name = line.productName.toUpperCase();
+    const name = escapeHtml(line.productName.toUpperCase());
     const qty = line.quantity;
 
-    const altArabicName = isKotArabic ? getAlternativeArabicName(line.rawItem) : "";
+    const altArabicName = isKotArabic ? escapeHtml(getAlternativeArabicName(line.rawItem)) : "";
     const nameDisplayHtml = altArabicName
       ? `<div style="line-height: 1.3; font-weight: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${name}</div><div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:normal; line-height:1.4; padding: 2px 0 1px 0; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${altArabicName}</div>`
       : `<div style="line-height: 1.3; font-weight: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${name}</div>`;
@@ -321,8 +322,8 @@ export const generateKotHtml = async (
     // Sub-items: extras
     if (line.extras && line.extras.length > 0) {
       line.extras.forEach((ex) => {
-        const exName = (ex.name || "EXTRA").toUpperCase();
-        const exArabic = isKotArabic ? (ex.arabicName || "") : "";
+        const exName = escapeHtml((ex.name || "EXTRA").toUpperCase());
+        const exArabic = isKotArabic ? escapeHtml((ex.arabicName || "")) : "";
         const exDisplay = exArabic
           ? `+ ${exName} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${exArabic})</span>`
           : `+ ${exName}`;
@@ -337,9 +338,9 @@ export const generateKotHtml = async (
     // Sub-items: modifiers
     if (line.modifiers && line.modifiers.length > 0) {
       line.modifiers.forEach((mod) => {
-        const text = modifierLabelOf(mod, { upperCase: true });
+        const text = escapeHtml(modifierLabelOf(mod, { upperCase: true }));
 
-        const modArabic = isKotArabic ? (mod.arabicName || "") : "";
+        const modArabic = isKotArabic ? escapeHtml((mod.arabicName || "")) : "";
         const modDisplay = modArabic
           ? `* ${text} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${modArabic})</span>`
           : `* ${text}`;
@@ -354,7 +355,7 @@ export const generateKotHtml = async (
     // Sub-items: messages / notes
     if (line.messages && line.messages.length > 0) {
       line.messages.forEach((msg) => {
-        const rawName = msg.name || "NOTE";
+        const rawName = escapeHtml(msg.name || "NOTE");
         const isMsgArabic = containsArabic(rawName);
         const msgDisplay = isMsgArabic
           ? `NOTE: <span dir="rtl" lang="ar" class="arabic-text" style="font-weight: normal;">${rawName}</span>`
@@ -513,7 +514,7 @@ export const generateKotHtml = async (
       metaHtml += `
         <tr>
           <td colspan="2" style="width: 100%; padding: 1px 0; font-size: 11px; line-height: 1.25;">
-            <span style="font-weight: bold;">${metaLabel("Customer")} :</span> <span style="font-weight: normal;">${data.customerName}</span>
+            <span style="font-weight: bold;">${metaLabel("Customer")} :</span> <span style="font-weight: normal;">${escapeHtml(data.customerName)}</span>
           </td>
         </tr>
       `;
@@ -522,7 +523,7 @@ export const generateKotHtml = async (
       metaHtml += `
         <tr>
           <td colspan="2" style="width: 100%; padding: 1px 0; font-size: 11px; line-height: 1.25;">
-            <span style="font-weight: bold;">${metaLabel("Vehicle")} :</span> <span style="font-weight: normal;">${data.vehicleNo}</span>
+            <span style="font-weight: bold;">${metaLabel("Vehicle")} :</span> <span style="font-weight: normal;">${escapeHtml(data.vehicleNo)}</span>
           </td>
         </tr>
       `;
@@ -531,7 +532,7 @@ export const generateKotHtml = async (
 
   const keepChangeVal = (data.change || data.keepChanges || "").trim();
   const hasValidKeepChange = keepChangeVal !== "" && keepChangeVal !== "0" && keepChangeVal !== "0.00" && keepChangeVal !== "0.000";
-  const driverVal = (data.driverName || data.driver || "").trim();
+  const driverVal = escapeHtml((data.driverName || data.driver || "").trim());
 
   const isMissedCall = ["true", "1", "yes"].includes(String(data.missedCall ?? "").trim().toLowerCase());
 
@@ -548,19 +549,19 @@ export const generateKotHtml = async (
       </div>
       <div style="width: 100%; font-size: 12px; margin-top: 3px;">
         ${isMissedCall ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Missed Call${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مكالمة فائتة)</bdi>' : ''} : </span><span style="font-weight: bold;">YES</span></div>` : ''}
-        ${data.contactNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Mob No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم الجوال)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.contactNo}</span></div>` : ''}
-        ${data.callBack ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Call Back${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(معاودة الاتصال)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.callBack}</span></div>` : ''}
+        ${data.contactNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Mob No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم الجوال)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.contactNo)}</span></div>` : ''}
+        ${data.callBack ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Call Back${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(معاودة الاتصال)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.callBack)}</span></div>` : ''}
         ${hasValidKeepChange ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Keep Change${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(الباقي)</bdi>' : ''} : </span><span style="font-weight: normal;">${keepChangeVal}</span></div>` : ''}
-        ${data.customerName ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Customer${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العميل)</bdi>' : ''} : </span><span style="font-weight: normal;" dir="auto">${data.customerName}</span></div>` : ''}
+        ${data.customerName ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Customer${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العميل)</bdi>' : ''} : </span><span style="font-weight: normal;" dir="auto">${escapeHtml(data.customerName)}</span></div>` : ''}
         ${driverVal ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Driver${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(السائق)</bdi>' : ''} : </span><span style="font-weight: normal;" dir="auto">${driverVal}</span></div>` : ''}
-        ${data.flatNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Flat No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(شقة)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.flatNo}</span></div>` : ''}
-        ${data.buildingNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Building${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مبنى)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.buildingNo}</span></div>` : ''}
-        ${data.blockNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Block${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مجمع)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.blockNo}</span></div>` : ''}
-        ${data.roadNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Road${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(طريق)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.roadNo}</span></div>` : ''}
-        ${data.area ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Area${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(المنطقة)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.area}</span></div>` : ''}
-        ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Address${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العنوان)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.address}</span></div>` : ''}
-        ${data.vehicleNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Vehicle No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(المركبة)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.vehicleNo}</span></div>` : ''}
-        ${data.providerNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Provider No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم المزود)</bdi>' : ''} : </span><span style="font-weight: normal;">${data.providerNo}</span></div>` : ''}
+        ${data.flatNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Flat No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(شقة)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.flatNo)}</span></div>` : ''}
+        ${data.buildingNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Building${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مبنى)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.buildingNo)}</span></div>` : ''}
+        ${data.blockNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Block${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مجمع)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.blockNo)}</span></div>` : ''}
+        ${data.roadNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Road${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(طريق)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.roadNo)}</span></div>` : ''}
+        ${data.area ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Area${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(المنطقة)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.area)}</span></div>` : ''}
+        ${data.address && !data.flatNo && !data.buildingNo && !data.roadNo && !data.blockNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Address${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(العنوان)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.address)}</span></div>` : ''}
+        ${data.vehicleNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Vehicle No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(المركبة)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.vehicleNo)}</span></div>` : ''}
+        ${data.providerNo ? `<div style="padding: 1.5px 0; line-height: 1.35; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Provider No${isKotArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم المزود)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.providerNo)}</span></div>` : ''}
       </div>
     </div>
   ` : '';
@@ -636,13 +637,13 @@ export const generateKotHtml = async (
   if (rawOtherItems.length > 0) {
     let otherRowsHtml = "";
     rawOtherItems.forEach((item) => {
-      const name = formatItemDisplayName(
+      const name = escapeHtml(formatItemDisplayName(
         item.product?.name || `Item #${item.productId}`,
         item.variantName
-      ).toUpperCase();
+      ).toUpperCase());
       const qty = item.quantity;
 
-      const altArabicName = isKotArabic ? getAlternativeArabicName(item) : "";
+      const altArabicName = isKotArabic ? escapeHtml(getAlternativeArabicName(item)) : "";
       const nameDisplayHtml = altArabicName
         ? `<div style="line-height: 1.3; font-weight: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${name}</div><div dir="rtl" lang="ar" class="arabic-text" style="font-size:13px; font-weight:normal; line-height:1.4; padding: 2px 0 1px 0; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${altArabicName}</div>`
         : `<div style="line-height: 1.3; font-weight: normal; word-break: break-word; overflow-wrap: break-word; white-space: normal;">${name}</div>`;
@@ -650,9 +651,9 @@ export const generateKotHtml = async (
       let otherSubRowsHtml = "";
       if (item.modifiers && item.modifiers.length > 0) {
         item.modifiers.forEach((mod: any) => {
-          const rawModName = (mod.name || mod.modifierName || "").trim();
+          const rawModName = escapeHtml((mod.name || mod.modifierName || "").trim());
           if (!rawModName) return;
-          const modArabic = isKotArabic ? (mod.arabicName || mod.arabic || "") : "";
+          const modArabic = isKotArabic ? escapeHtml((mod.arabicName || mod.arabic || "")) : "";
           const modDisplay = modArabic
             ? `* ${rawModName.toUpperCase()} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${modArabic})</span>`
             : `* ${rawModName.toUpperCase()}`;
@@ -665,7 +666,7 @@ export const generateKotHtml = async (
       }
       if (item.messages && item.messages.length > 0) {
         item.messages.forEach((msg: any) => {
-          const rawName = msg.name || "NOTE";
+          const rawName = escapeHtml(msg.name || "NOTE");
           const isMsgArabic = containsArabic(rawName);
           const msgDisplay = isMsgArabic
             ? `NOTE: <span dir="rtl" lang="ar" class="arabic-text" style="font-weight: normal;">${rawName}</span>`

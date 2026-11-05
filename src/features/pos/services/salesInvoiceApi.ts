@@ -4,6 +4,7 @@ import { sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal
 import { allocate } from "../terminal/utils/pos-calc";
 import { withDetailNet7 } from "../../../utils/money";
 
+import { toLocalDateString } from "../../../utils/date";
 export interface ApiResponse<T = any> {
   isSuccess: boolean;
   message: string | null;
@@ -124,7 +125,7 @@ export const salesInvoiceApi = {
             ? postPayload.voucherDate.split("T")[0]
             : postPayload.voucherDate;
         } else {
-          postPayload.voucherDate = new Date().toISOString().split("T")[0];
+          postPayload.voucherDate = toLocalDateString();
         }
 
         const now = new Date();
@@ -248,7 +249,7 @@ export const salesInvoiceApi = {
       const numSaleId = Number(saleId);
       const voucherDateStr = payload.voucherDate
         ? (payload.voucherDate.includes("T") ? payload.voucherDate.split("T")[0] : payload.voucherDate)
-        : new Date().toISOString().split("T")[0];
+        : toLocalDateString();
 
       const cleanedDetails = (payload.details || []).map((d: any) => {
         // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)

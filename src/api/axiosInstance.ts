@@ -12,7 +12,14 @@ import {
   posRefreshTokenApi,
 } from "../features/auth/services/authApi";
 
+/**
+ * Without a timeout a place-order / settle request could hang forever on a bad network, and the
+ * POS double-submit locks (isSettlingRef / isSubmittingOrderRef) would ignore every retry.
+ */
+export const API_TIMEOUT_MS = 60_000;
+
 const axiosInstance = axios.create({
+  timeout: API_TIMEOUT_MS,
   headers: {
     "Content-Type": "application/json",
     "Accept": "*/*",
@@ -28,9 +35,8 @@ axiosInstance.interceptors.request.use((config) => {
     ? sessionStorage.getItem("backoffice_accessToken") 
     : localStorage.getItem("accessToken");
 
-  if (!token) {
-    token = localStorage.getItem("accessToken") || sessionStorage.getItem("backoffice_accessToken") || localStorage.getItem("backoffice_accessToken");
-  }
+  // No cross-mode fallback: a back-office tab must never send the POS user's token (or the reverse).
+  if (!token && backoffice) token = localStorage.getItem("backoffice_accessToken"); // legacy key
   const explicitTenantId = config.headers ? (config.headers["clientDb"] || config.headers["clientdb"]) : undefined;
   const tenantId = typeof explicitTenantId === "string" ? explicitTenantId : (localStorage.getItem("tenantId") ?? "");
 
@@ -237,6 +243,24 @@ axiosInstance.interceptors.response.use(
       } finally {
         isRefreshing = false;
       }
+    }
+
+    // Network failure / timeout: no response from the server.
+    if (!error.response && !axios.isCancel(error)) {
+      const method = String(originalRequest?.method || "get").toLowerCase();
+      const reqUrl = String(originalRequest?.url || "").toLowerCase();
+      const isTimeout = error.code === "ECONNABORTED" || error.code === "ETIMEDOUT";
+      const base = isTimeout
+        ? "The server did not respond in time."
+        : "Cannot reach the server. Check the network connection.";
+      // A write may have been saved even though the reply was lost: warn before a blind retry
+      // creates a duplicate order / invoice.
+      const isMoneyWrite =
+        method !== "get" && (reqUrl.includes("/menu/order") || reqUrl.includes("/sales-invoice"));
+      error.message = isMoneyWrite
+        ? `${base} The order may already be saved - check Recall / Settled orders before trying again.`
+        : base;
+      return Promise.reject(error);
     }
 
     // Extract human-readable backend message (e.g. 400, 404, 409, 500 error envelopes)

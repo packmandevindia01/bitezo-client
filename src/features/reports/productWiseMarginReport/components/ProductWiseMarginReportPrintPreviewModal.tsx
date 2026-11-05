@@ -1,3 +1,4 @@
+import { printHtmlInIframe } from "../../../../utils/print";
 import React from "react";
 import Modal from "../../../../components/common/Modal";
 import Button from "../../../../components/common/Button";
@@ -25,11 +26,7 @@ const ProductWiseMarginReportPrintPreviewModal: React.FC<ProductWiseMarginReport
   const handlePrint = () => {
     const printContent = document.getElementById("pwm-print-area");
     if (printContent) {
-      const originalContents = document.body.innerHTML;
-      document.body.innerHTML = printContent.innerHTML;
-      window.print();
-      document.body.innerHTML = originalContents;
-      window.location.reload();
+      printHtmlInIframe(printContent.innerHTML);
     }
   };
 

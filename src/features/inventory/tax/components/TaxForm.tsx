@@ -3,6 +3,7 @@ import { Trash2, Save, RotateCcw } from "lucide-react";
 import { Button, FormInput } from "../../../../components/common";
 import type { TaxFormState, TaxDetail } from "../types";
 
+import { toLocalDateString } from "../../../../utils/date";
 interface Props {
   initialData?: TaxDetail | null;
   saving?: boolean;
@@ -16,7 +17,7 @@ interface Props {
 const createInitialForm = (initialData?: TaxDetail | null): TaxFormState => ({
   name: initialData?.name ?? "",
   value: initialData?.value?.toString() ?? "",
-  expireAt: initialData?.expireAt ? new Date(initialData.expireAt).toISOString().split("T")[0] : "",
+  expireAt: initialData?.expireAt ? toLocalDateString(new Date(initialData.expireAt)) : "",
 });
 
 interface FieldErrors {
@@ -67,7 +68,7 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onCle
     if (!form.expireAt) {
       newErrors.expireAt = "required";
     } else {
-      const today = new Date().toISOString().split("T")[0];
+      const today = toLocalDateString();
       if (form.expireAt < today) {
         newErrors.expireAt = "Cannot be a past date";
       }
@@ -143,7 +144,7 @@ const TaxForm = ({ initialData, saving = false, error, onSubmit, onDelete, onCle
           id="tax-date"
           label="End Date"
           type="date"
-          min={new Date().toISOString().split("T")[0]}
+          min={toLocalDateString()}
           value={form.expireAt}
           error={errors.expireAt}
           onChange={(e) => handleChange("expireAt", e.target.value)}

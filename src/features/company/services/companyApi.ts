@@ -6,6 +6,7 @@ import type {
   SubscriptionStatusData,
 } from "../types";
 
+import { toLocalDateString } from "../../../utils/date";
 export const fetchCompanyMasterload = async (clientDb?: string) => {
   const headers = clientDb ? { clientDb } : undefined;
   const { data } = await axiosInstance.get<CompanyMasterloadResponse>("/company/masterload", { headers });
@@ -49,7 +50,7 @@ export const createCompany = async (data: CompanyFormData, clientDb: string, tem
     taxRegNo: data.taxRegNo || "",
     currencyId: parseLookupId(data.currency, "Currency"),
     regId: data.regId,
-    startDate: data.startDate ? data.startDate : new Date().toISOString().split("T")[0],
+    startDate: data.startDate ? data.startDate : toLocalDateString(),
     createdAt: new Date().toISOString(),
   };
 
@@ -109,7 +110,7 @@ export const updateCompany = async (formData: CompanyFormData, comId = 0) => {
     currencyId: parsedCurrency,
     currency: parsedCurrency,
     regId: formData.regId || "",
-    startDate: formData.startDate ? formData.startDate : new Date().toISOString().split("T")[0],
+    startDate: formData.startDate ? formData.startDate : toLocalDateString(),
     updatedAt: new Date().toISOString(),
   };
 

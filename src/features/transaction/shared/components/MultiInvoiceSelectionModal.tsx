@@ -5,6 +5,7 @@ import { useCurrency } from "../../../../hooks/useCurrency";
 import { getDecimalPart } from "../../../../utils/currency";
 import { useQuery } from "@tanstack/react-query";
 
+import { toLocalDateString } from "../../../../utils/date";
 export interface InvoiceRecord {
   id: number;
   vchType: string;
@@ -38,8 +39,8 @@ export const MultiInvoiceSelectionModal = ({
   thirtyDaysAgo.setDate(today.getDate() - 30);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [fromDate, setFromDate] = useState(thirtyDaysAgo.toISOString().split("T")[0]);
-  const [toDate, setToDate] = useState(today.toISOString().split("T")[0]);
+  const [fromDate, setFromDate] = useState(toLocalDateString(thirtyDaysAgo));
+  const [toDate, setToDate] = useState(toLocalDateString(today));
   const [ignoreDates, setIgnoreDates] = useState(false);
   
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

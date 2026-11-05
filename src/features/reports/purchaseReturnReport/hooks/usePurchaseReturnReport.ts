@@ -12,17 +12,18 @@ import {
   getSeriesList,
 } from "../services/purchaseReturnReportApi";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const usePurchaseReturnReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
 
   // Filter states
   const [fromDate, setFromDate] = useState<string>(() => {
     const today = new Date();
-    return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+    return toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1));
   });
   const [toDate, setToDate] = useState<string>(() => {
     const today = new Date();
-    return today.toISOString().split("T")[0];
+    return toLocalDateString(today);
   });
   const { initialBranchId, isBranchLocked } = useBranchScope();
   const [branchId, setBranchId] = useState<string>(initialBranchId);
@@ -115,8 +116,8 @@ export const usePurchaseReturnReport = () => {
 
   const resetFilters = () => {
     const today = new Date();
-    const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
-    const defaultTo = today.toISOString().split("T")[0];
+    const defaultFrom = toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1));
+    const defaultTo = toLocalDateString(today);
     
     setFromDate(defaultFrom);
     setToDate(defaultTo);

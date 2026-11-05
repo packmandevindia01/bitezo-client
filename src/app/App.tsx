@@ -1,7 +1,13 @@
 import AppRoutes from "./routes/AppRoutes";
+import AppStatusBanner from "./AppStatusBanner";
 
 const App = () => {
-  return <AppRoutes />;
+  return (
+    <>
+      <AppRoutes />
+      <AppStatusBanner />
+    </>
+  );
 };
 
 export default App;

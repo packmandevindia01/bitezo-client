@@ -34,12 +34,8 @@ export const getStoredAccessToken = (): string | null => {
     ? sessionStorage.getItem("backoffice_accessToken")
     : localStorage.getItem("accessToken");
 
-  if (!token) {
-    token =
-      localStorage.getItem("accessToken") ||
-      sessionStorage.getItem("backoffice_accessToken") ||
-      localStorage.getItem("backoffice_accessToken");
-  }
+  // No cross-mode fallback (POS token must never be used by the back office, or the reverse).
+  if (!token && backoffice) token = localStorage.getItem("backoffice_accessToken"); // legacy key
 
   return token;
 };
@@ -50,12 +46,7 @@ export const getStoredRefreshToken = (): string | null => {
     ? sessionStorage.getItem("backoffice_refreshToken")
     : localStorage.getItem("refreshToken");
 
-  if (!token) {
-    token =
-      localStorage.getItem("refreshToken") ||
-      sessionStorage.getItem("backoffice_refreshToken") ||
-      localStorage.getItem("backoffice_refreshToken");
-  }
+  if (!token && backoffice) token = localStorage.getItem("backoffice_refreshToken"); // legacy key
 
   return token;
 };

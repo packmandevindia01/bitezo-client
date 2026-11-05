@@ -6,6 +6,7 @@ import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption, UserOption, CounterOption } from "../types";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useShiftEndReport = () => {
   const decimalPart = useAppSelector(selectDecimalPart);
   const { isBranchLocked, initialBranchId } = useBranchScope();
@@ -13,11 +14,11 @@ export const useShiftEndReport = () => {
   // Filter states
   const [fromDate, setFromDate] = useState<string>(() => {
     const today = new Date();
-    return new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
+    return toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1));
   });
   const [toDate, setToDate] = useState<string>(() => {
     const today = new Date();
-    return today.toISOString().split("T")[0];
+    return toLocalDateString(today);
   });
   const [branchId, setBranchId] = useState<string>(isBranchLocked ? initialBranchId : "");
   const [userId, setUserId] = useState<string>("0");
@@ -103,8 +104,8 @@ export const useShiftEndReport = () => {
 
   const resetFilters = () => {
     const today = new Date();
-    const defaultFrom = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split("T")[0];
-    const defaultTo = today.toISOString().split("T")[0];
+    const defaultFrom = toLocalDateString(new Date(today.getFullYear(), today.getMonth(), 1));
+    const defaultTo = toLocalDateString(today);
     
     setFromDate(defaultFrom);
     setToDate(defaultTo);

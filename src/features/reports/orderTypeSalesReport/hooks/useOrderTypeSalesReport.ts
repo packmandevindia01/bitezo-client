@@ -6,13 +6,14 @@ import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption, OrderTypeSalesReportData } from "../types";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useOrderTypeSalesReport = () => {
   const { initialBranchId: currentBranchId, isBranchLocked } = useBranchScope();
   const defaultBranchId = isBranchLocked ? String(currentBranchId) : "0";
 
   // Use today's date in YYYY-MM-DD format as the default
   const today = new Date();
-  const defaultDate = today.toISOString().split("T")[0];
+  const defaultDate = toLocalDateString(today);
 
   const [branchId, setBranchId] = useState<string>(defaultBranchId);
   const [fromDate, setFromDate] = useState<string>(defaultDate);

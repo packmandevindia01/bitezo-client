@@ -18,7 +18,7 @@ export const usePosShortcuts = (actions: {
 
       switch (e.key) {
         case "Escape":
-          // Esc voids the ticket
+          // Esc asks to clear the ticket (the page opens a confirmation; it never clears directly)
           actions.onClearCart();
           e.preventDefault();
           break;
@@ -28,7 +28,9 @@ export const usePosShortcuts = (actions: {
           e.preventDefault();
           break;
         case " ": // Spacebar
-          // Spacebar forces checkout
+          // Let a focused button handle Space itself (keyboard activation).
+          if (e.target instanceof HTMLButtonElement) break;
+          // Spacebar: checkout shortcut (currently a no-op on the terminal page)
           actions.onCheckout();
           e.preventDefault();
           break;

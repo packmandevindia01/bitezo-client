@@ -13,6 +13,7 @@ import { bulkSettlementApi } from "../../../../bulkSettlement/services/bulkSettl
 import { roundCalc } from "../../../utils/billing";
 import { PosPreSessionMoreModal } from "./PosPreSessionMoreModal";
 
+import { toLocalDateString, localDateAtCurrentTimeIso } from "../../../../../../utils/date";
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -61,7 +62,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({
   const [viewScreen, setViewScreen] = useState<"MANUAL" | "DENOMS">("MANUAL");
   const [manualAmount, setManualAmount] = useState<string>("");
   const [activeField, setActiveField] = useState<string | number>("TOTAL");
-  const [selectedDate, setSelectedDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(() => toLocalDateString());
   const inputRefs = useRef<Record<string | number, HTMLInputElement | null>>({});
   const submitButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -184,7 +185,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({
     if (isOpen) {
       resetSessionModalState();
       setCloseTab(initialTab || "SHIFT");
-      setSelectedDate(new Date().toISOString().split("T")[0]);
+      setSelectedDate(toLocalDateString());
       void loadAll();
     } else {
       resetSessionModalState();
@@ -248,9 +249,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({
 
       if (!branchId || !userId) throw new Error("Missing Branch or User. Please re-login.");
 
-      const now        = new Date();
-      const timePart   = now.toISOString().split("T")[1] || "00:00:00.000Z";
-      const isoString  = `${selectedDate}T${timePart}`;
+      const isoString  = localDateAtCurrentTimeIso(selectedDate);
       const dateOnly   = selectedDate;
       
       const denominations: any[] = (entryMode !== "DENOM") 
@@ -336,9 +335,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({
       const branchId  = Number(localStorage.getItem("systemBranchId"))   || 0;
       if (!branchId || !userId) throw new Error("Missing Branch or User. Please re-login.");
 
-      const now        = new Date();
-      const timePart   = now.toISOString().split("T")[1] || "00:00:00.000Z";
-      const isoString  = `${selectedDate}T${timePart}`;
+      const isoString  = localDateAtCurrentTimeIso(selectedDate);
       const denominations: any[] = entryMode === "DENOM" 
         ? Object.entries(counts).map(([id, count]) => ({
             denominationId: Number(id),

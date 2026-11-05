@@ -3,6 +3,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import { happyHourService } from "../services/happyHourService";
 import type { HappyHourListItem, HappyHourData, HappyHourPayload } from "../types";
 
+import { toLocalDateString } from "../../../../utils/date";
 export const useHappyHourList = () => {
   const { showToast } = useToast();
   const [list, setList] = useState<HappyHourListItem[]>([]);
@@ -17,13 +18,13 @@ export const useHappyHourList = () => {
   const [fromDate, setFromDate] = useState(() => {
     const d = new Date();
     d.setDate(1);
-    return d.toISOString().split("T")[0];
+    return toLocalDateString(d);
   });
   const [toDate, setToDate] = useState(() => {
     const d = new Date();
     d.setMonth(d.getMonth() + 1);
     d.setDate(0);
-    return d.toISOString().split("T")[0];
+    return toLocalDateString(d);
   });
 
   const loadList = useCallback(async () => {

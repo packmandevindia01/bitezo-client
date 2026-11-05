@@ -5,6 +5,7 @@ import { useToast } from "../../../app/providers/useToast";
 import { companyFormSchema, type CompanyFormValues } from "../schemas";
 import { useCompanyMasterData, useCreateCompany } from "./useCompanyQueries";
 
+import { toLocalDateString } from "../../../utils/date";
 interface UseCompanyOnboardingFormProps {
   initialValues?: Partial<CompanyFormValues>;
   clientDb?: string;
@@ -37,7 +38,7 @@ export const useCompanyOnboardingForm = ({
       flatNo: "",
       branchCount: 0,
       regId: "",
-      startDate: new Date().toISOString().split("T")[0],
+      startDate: toLocalDateString(),
       isDemo: true,
       database: "",
       crNo: "",
@@ -68,7 +69,7 @@ export const useCompanyOnboardingForm = ({
         flatNo: "",
         branchCount: 0,
         regId: "",
-        startDate: new Date().toISOString().split("T")[0],
+        startDate: toLocalDateString(),
         isDemo: true,
         database: "",
         crNo: "",

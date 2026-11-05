@@ -1,12 +1,13 @@
 import type { PurchaseInvoiceForm } from "./types";
 
+import { toLocalDateString } from "../../../utils/date";
 export const createEmptyPurchaseInvoiceForm = (): PurchaseInvoiceForm => ({
   series: "",
   purchaseNo: "",
-  purchaseDate: new Date().toISOString().split("T")[0],
+  purchaseDate: toLocalDateString(),
   invoiceNo: "",
   refNo: "",
-  invoiceDate: new Date().toISOString().split("T")[0],
+  invoiceDate: toLocalDateString(),
   supplier: "",
   branch: "",
   salesman: "",
