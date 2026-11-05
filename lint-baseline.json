@@ -1,9 +1,9 @@
 {
-  "total": 3948,
+  "total": 3938,
   "byRule": {
-    "@typescript-eslint/no-explicit-any": 3692,
+    "@typescript-eslint/no-explicit-any": 3686,
     "no-empty": 77,
-    "prefer-const": 51,
+    "prefer-const": 47,
     "@typescript-eslint/no-unused-vars": 44,
     "react-hooks/set-state-in-effect": 29,
     "no-useless-escape": 16,

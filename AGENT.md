@@ -57,6 +57,9 @@ src/features/pos/
                            (calculateOrder, calculateLineItem, getBillingConfigForOrder)
     mappers/orderPayloadMapper.ts    cart → order payload (new / update / direct settle)
     mappers/invoicePayloadMapper.ts  order payload + payments → sales-invoice payload
+    utils/savedOrderToCart.ts       THE saved order → cart loader (Phase 2a): buildSavedOrderLoad (pure) +
+                           dispatchSavedOrderLoad; modes settledEdit / recallEdit / recallSettle
+                           (used by loadSettledOrderIntoCart, PosRecallDetailsModal edit + settle, Dine-In table edit)
     mappers/orderDetailToCartMapper.ts, utils/loadSettledOrderIntoCart.ts  saved order → cart
     hooks/usePosCartActions.ts   place / update order, KOT printing
     hooks/usePosCheckoutFlow.ts  settle (cash / card / credit / multi-pay), settle prints
@@ -828,3 +831,18 @@ Tests: `src/tests/productionHardening.test.ts` (local dates, `escapeHtml`, guest
   `pos/pricing/**` may not use React/Redux/axios/store/services or `localStorage`/`window`. A POS ↔ Back Office import boundary needs the folder move (relative paths cannot be matched reliably) — Phase 6.
 - **Lint ratchet**: `lint-baseline.json` (3,948 errors at start, 3,692 `no-explicit-any`). New errors fail `npm run lint:ratchet` / CI.
 - **CI**: `.github/workflows/ci.yml` — install (`--legacy-peer-deps`), `tsc -b`, `test:pos-safety`, all tests, lint ratchet, build — on push to main / refactor/** / feature/** / fix/** and on PRs.
+
+### 11.6 Phase 2a — one saved-order loader (2026-11-05)
+`terminal/utils/savedOrderToCart.ts` replaces four copies of "saved order → cart" (~1,000 duplicated lines):
+Settled → Edit (`loadSettledOrderIntoCart`, now a thin wrapper), Recall → Edit and Recall → Settle (`PosRecallDetailsModal`,
+1,761 → 1,155 lines) and Dine-In table → Edit (`DineInTableOrdersModal`).
+- One bill-discount rule for every path (Recall → Edit used a looser one; results match in practice because
+  `checkOrderHasBillDiscount` flags the same cases). Kept per mode on purpose: sale id / settled flag (settled: rich lookup with
+  order-id fallback; recall: voucher number only), order-type default (settled DineIn, recall TakeOut + hints), recall-settle extra
+  delivery fields + `isSettling`, settled-edit table + customer dispatches.
+- Dine-In table edit now uses the stored-order footer and `resolveRecalledBillDiscount` (it rebuilt the footer from the legacy
+  pricing and passed the bill discount raw); table, waiter, Dine-In and delivery charge 0 are applied as overrides.
+- Known limitation (unchanged): if the backend stores the SUM of item discounts on the master, they come back as an equal bill
+  discount (same total) — saved data cannot tell them apart (`savedOrderToCart.test.ts`).
+- Not migrated: `PosCombineModal` (merges several orders into one — different flow; it already uses `applyStoredPricingToCartItems`).
+- Tests: `savedOrderToCart.test.ts` (8) + `posCrossVerification` test 5 now runs all three modes on 200 random carts.

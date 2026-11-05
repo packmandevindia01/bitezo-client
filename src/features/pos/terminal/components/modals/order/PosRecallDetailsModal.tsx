@@ -1,9 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { modifierLabelOf } from "../../../../utils/modifierLabel";
 import { toDisplayNo } from "../../../../services/orderResponse";
-import { applyStoredPricingToCartItems } from "../../../../services/storedOrderView";
-import { deriveOrderChargeRatesFromMaster } from "../../../../pricing";
-import { resolveRecalledBillDiscount } from "../../../../services/storedOrderView";
 import { buildPrintPricing } from "../../../../utils/printPricing";
 import { storedOrderFooter } from "../../../../pricing";
 import Modal from "../../../../../../components/common/Modal";
@@ -13,7 +10,7 @@ import { menuApi } from "../../../../services/menuApi";
 import { deliveryApi } from "../../../../customer/services/deliveryApi";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
-import { loadRecalledOrder, setDeliveryDetails, fallbackOrderTypeByName } from "../../../store/posSlice";
+import { fallbackOrderTypeByName } from "../../../store/posSlice";
 import { formatAmount, getDecimalPart } from "../../../../../../utils/currency";
 import { balanceBillFooter } from "../../../../../../utils/money";
 import { isEnableVatGuestPrint } from "../../../../utils/guestPrintTemplate";
@@ -21,16 +18,15 @@ import { generateKotHtml } from "../../../../utils/kotTemplate";
 import { executeKotRouting } from "../../../../utils/printerRouting";
 import { printHtmlReceipt } from "../../../../services/qzService";
 import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getVatStatus, getBillingConfig, roundCalc, getPriceView, getPrintPrice } from "../../../utils/billing";
+import { getVatStatus, roundCalc, getPriceView, getPrintPrice } from "../../../utils/billing";
 import { isKotArabicEnabled, formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
-import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
-import { buildUnifiedOrderPricing } from "../../../../utils/orderPricing";
 import { checkOrderHasBillDiscount } from "../../../utils/orderDiscountCheck";
 import { printRecallOrderGuestReceipt } from "../../../utils/printRecallOrder";
 
 import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
 import { t, getLocalizedName } from "../../../../utils/posLocalization";
+import { buildSavedOrderLoad, dispatchSavedOrderLoad } from "../../../utils/savedOrderToCart";
 
 interface PosRecallDetailsModalProps {
   isOpen: boolean;
@@ -57,15 +53,6 @@ const orderTypeNameMap: Record<string, number> = {
   Delivery: 4,
   Providers: 5,
   Coming: 6,
-};
-
-const orderTypeIdToNameMap: Record<number, string> = {
-  1: "DineIn",
-  2: "TakeOut",
-  3: "DriveThru",
-  4: "Delivery",
-  5: "Providers",
-  6: "Coming",
 };
 
 export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
@@ -570,320 +557,21 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     }
     
     try {
-      const rawMaster = order.masterData || order.master || order;
-      const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
-
-      const rawTypeCandidate =
-        master.orderType ||
-        master.orderTypeName ||
-        (master.orderTypeId ? orderTypeIdToNameMap[Number(master.orderTypeId)] : "") ||
-        order?.orderTypeName ||
-        fallbackDetails?.orderTypeName ||
-        (orderDetailsStr?.match(/\((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming)\)/i)?.[1]) ||
-        "TakeOut";
-      const resolvedOrderTypeObj = fallbackOrderTypeByName(rawTypeCandidate);
-      const orderTypeName = resolvedOrderTypeObj.orderType;
-      const orderTypeId = master.orderTypeId ? Number(master.orderTypeId) : resolvedOrderTypeObj.orderTypeId;
-
-      const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\D/g, '') : '';
-      const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
-      const saleId = !isNaN(parsedVoucher) ? parsedVoucher : null;
-
-      const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
-      const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
-      if (prevUpdatedAt) {
-        sessionStorage.setItem(`order_prevUpdatedAt_${orderId}`, prevUpdatedAt);
-      }
-
-      const netAmount = Number(master.netAmount ?? master.NetAmount ?? order?.netAmount ?? order?.NetAmount ?? 0);
-      const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? 0);
-
-      let detailsVatSum = 0;
-      let lineDiscountsSum = 0;
-      details.forEach((d: any) => {
-        detailsVatSum += Number(d.vatAmount ?? d.VatAmount ?? 0);
-        lineDiscountsSum += Number(d.discAmount ?? d.DiscAmount ?? 0);
-      });
-
-      let resolvedVatAmount = Number(master.vatAmount ?? master.VatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
-      if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
-        resolvedVatAmount = detailsVatSum;
-      }
-
-      let resolvedDiscount = Number(
-        master.discAmount ??
-        master.DiscAmount ??
-        master.discAmt ??
-        master.DiscAmt ??
-        master.discount ??
-        master.Discount ??
-        master.discountAmount ??
-        master.DiscountAmount ??
-        master.billDiscount ??
-        master.BillDiscount ??
-        master.billDiscountValue ??
-        0
-      );
-      if (resolvedDiscount <= 0 && lineDiscountsSum > 0) {
-        resolvedDiscount = roundCalc(lineDiscountsSum);
-      }
-
-      const isBillComplimentary = Boolean(
-        master.complimentaryStatus ||
-        master.ComplimentaryStatus ||
-        masterDiscPer === 100 ||
-        (details.length > 0 && details.every((d: any) =>
-          Boolean(d.complimentaryStatus || d.ComplimentaryStatus || Number(d.discPer ?? d.DiscPer ?? 0) === 100)
-        )) ||
-        (netAmount === 0 && resolvedDiscount > 0 && details.length > 0)
-      );
-
-      const masterDiscAmount = Number(
-        master.discAmount ??
-        master.DiscAmount ??
-        master.discAmt ??
-        master.DiscAmt ??
-        master.discount ??
-        master.Discount ??
-        master.discountAmount ??
-        master.DiscountAmount ??
-        master.billDiscount ??
-        master.BillDiscount ??
-        master.billDiscountValue ??
-        0
-      );
-
-      const isBillLevelDiscount = Boolean(
-        isBillComplimentary ||
-        masterDiscPer > 0 ||
-        masterDiscAmount > 0.001 ||
-        checkOrderHasBillDiscount(order) ||
-        checkOrderHasBillDiscount({ master, details })
-      );
-
-      const resolvedBillDiscType: 'percentage' | 'amount' =
-        (isBillComplimentary || masterDiscPer > 0)
-          ? 'percentage'
-          : 'amount';
-
-      const effectivePriceView = getPriceView();
-      const isTaxInclusive = effectivePriceView === "Inclusive";
-
-      const unifiedPricing = buildUnifiedOrderPricing(order, {
-        orderType: orderTypeName,
-        priceView: effectivePriceView,
+      // Shared saved-order loader (savedOrderToCart.ts) — same code as Settled → Edit.
+      const load = buildSavedOrderLoad(order, {
+        mode: "recallEdit",
+        orderId: Number(orderId),
+        products,
+        productCache,
         modifierTypes,
         allExtras,
-        isBillDiscount: isBillLevelDiscount,
-        products,
-        productCache,
+        orderTypeHints: [
+          order?.orderTypeName,
+          fallbackDetails?.orderTypeName,
+          orderDetailsStr?.match(/((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming))/i)?.[1],
+        ],
       });
-
-      const rawMappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
-        products,
-        productCache,
-        priceView: effectivePriceView,
-        masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
-        isOrderBillDiscount: isBillLevelDiscount,
-        orderType: orderTypeName,
-      });
-
-      const orderTypeBillingConfig = getBillingConfig(orderTypeName);
-      const isVatActive = getVatStatus();
-      const rawVatRate = orderTypeBillingConfig.vatRate > 0 ? (orderTypeBillingConfig.vatRate > 1 ? orderTypeBillingConfig.vatRate / 100 : orderTypeBillingConfig.vatRate) : 0.10;
-      const activeVat = isVatActive ? rawVatRate : 0;
-      const isDine = (orderTypeName || "").toLowerCase().includes("dine");
-      const scR = isDine ? (orderTypeBillingConfig.serviceChargeRate ?? 0) : 0;
-      const levyR = orderTypeBillingConfig.levyRate ?? 0;
-      const factor = (activeVat > 0 || levyR > 0 || scR > 0)
-        ? roundCalc((1 + activeVat) * (1 + levyR) * (1 + scR), 4)
-        : 1;
-
-      const mappedCartItems = rawMappedCartItems.map((cartItem, idx) => {
-        const uLine = unifiedPricing.lines[idx] || unifiedPricing.lines.find(
-          (l) => (l.mapId !== undefined && cartItem.mapId !== undefined && Number(l.mapId) === Number(cartItem.mapId)) ||
-                 (l.productId !== undefined && cartItem.productId !== undefined && Number(l.productId) === Number(cartItem.productId))
-        );
-
-        // Condition 1: Check price view is inclusive
-        const isPriceViewInclusive = effectivePriceView === "Inclusive";
-
-        // Condition 2: Check product is inclusive tag in Product Master
-        const matchedProd = (productCache && productCache[cartItem.productId]) ||
-          (products && products.find((p: any) => p.id === cartItem.productId)) ||
-          cartItem.product;
-
-        const isProductInclusiveTag = Boolean(
-          (matchedProd as any)?.isIncl === true ||
-          (matchedProd as any)?.priceIsIncl === true ||
-          (matchedProd as any)?.isInclusiveTax === true ||
-          (matchedProd as any)?.PriceIsIncl === true ||
-          (matchedProd as any)?.IsIncl === true ||
-          cartItem.isIncl === true ||
-          (cartItem as any).priceIsIncl === true ||
-          uLine?.isProductMasterInclusive === true ||
-          (uLine && uLine.inclusiveRate > 0 && Math.abs(uLine.inclusiveRate - Number(cartItem.price || 0)) < 0.05)
-        );
-
-        // If both conditions are correct: whatever the value in the product field in recall that must go to the cart,
-        // and behind the scenes exclusive.
-        if (isPriceViewInclusive && isProductInclusiveTag) {
-          const detailItem = details[idx] || details.find((d: any) => Number(d.productId || d.ProductId) === Number(cartItem.productId));
-          const rawDetailPrice = Number(detailItem?.price ?? detailItem?.Price ?? 0);
-          const rawDetailAmount = Number(detailItem?.amount ?? detailItem?.Amount ?? 0);
-          const rawDetailDisc = Number(detailItem?.discAmount ?? detailItem?.DiscAmount ?? cartItem.discountValue ?? 0);
-          
-          const recallPrice = rawDetailPrice > 0 
-            ? roundCalc(rawDetailPrice, 3) 
-            : (uLine ? uLine.getRate(true) : Number((cartItem as any).catalogPrice ?? cartItem.price ?? 0));
-          const combinedFactor = factor > 0 ? factor : 1;
-          const exclBasePrice = roundCalc(recallPrice / combinedFactor, 4);
-
-          const authOrigTotal = rawDetailAmount > 0 ? roundCalc(rawDetailAmount, 3) : (recallPrice * (cartItem.quantity || 1));
-          const authDiscount = roundCalc(rawDetailDisc, 3);
-          // Bill discount is shown in the footer only (same as the recall/settled screen rows).
-          const authLineTotal = isBillLevelDiscount ? authOrigTotal : roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
-
-          return {
-            ...cartItem,
-            isIncl: true,
-            priceIsIncl: true,
-            price: recallPrice,
-            basePrice: exclBasePrice,
-            exclusivePrice: exclBasePrice,
-            authoritativePrice: recallPrice,
-            authoritativeLineTotal: authLineTotal,
-            authoritativeOriginalLineTotal: authOrigTotal,
-            authoritativeDiscount: isBillLevelDiscount ? 0 : authDiscount,
-            authoritativeVatAmount: uLine?.vatAmount,
-            lineTotal: authLineTotal,
-            originalLineTotal: authOrigTotal,
-            product: {
-              ...(cartItem.product || {}),
-              id: cartItem.productId,
-              name: cartItem.product?.name || (cartItem as any).name || (cartItem as any).productName || `Product #${cartItem.productId}`,
-              categoryId: cartItem.product?.categoryId || 1,
-              price: recallPrice,
-              isIncl: true,
-              priceIsIncl: true,
-            },
-          };
-        }
-
-        if (uLine) {
-          const detailItem = details[idx] || details.find((d: any) => Number(d.productId || d.ProductId) === Number(cartItem.productId));
-          const rawDetailPrice = Number(detailItem?.price ?? detailItem?.Price ?? 0);
-          const rawDetailAmount = Number(detailItem?.amount ?? detailItem?.Amount ?? 0);
-          const rawDetailDisc = Number(detailItem?.discAmount ?? detailItem?.DiscAmount ?? cartItem.discountValue ?? 0);
-
-          const authRate = (isTaxInclusive && rawDetailPrice > 0)
-            ? roundCalc(rawDetailPrice, 3)
-            : uLine.getRate(isTaxInclusive);
-          const authOrigTotal = (isTaxInclusive && rawDetailAmount > 0)
-            ? roundCalc(rawDetailAmount, 3)
-            : (isTaxInclusive ? uLine.inclusiveGross : uLine.exclusiveGross);
-          const authDiscount = (isTaxInclusive && rawDetailDisc > 0)
-            ? roundCalc(rawDetailDisc, 3)
-            : uLine.getDiscount(isTaxInclusive);
-          // Bill discount is shown in the footer only (same as the recall/settled screen rows).
-          const authLineTotal = isBillLevelDiscount ? authOrigTotal : roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
-          const lineIsIncl = isTaxInclusive ? true : (uLine.isProductMasterInclusive !== undefined ? uLine.isProductMasterInclusive : cartItem.isIncl);
-          return {
-            ...cartItem,
-            price: authRate,
-            isIncl: lineIsIncl,
-            priceIsIncl: lineIsIncl,
-            authoritativePrice: authRate,
-            authoritativeLineTotal: authLineTotal,
-            authoritativeOriginalLineTotal: authOrigTotal,
-            authoritativeDiscount: isBillLevelDiscount ? 0 : authDiscount,
-            authoritativeVatAmount: uLine.vatAmount,
-            lineTotal: authLineTotal,
-            originalLineTotal: authOrigTotal,
-            product: {
-              ...(cartItem.product || {}),
-              id: cartItem.productId,
-              name: cartItem.product?.name || (cartItem as any).name || (cartItem as any).productName || `Product #${cartItem.productId}`,
-              categoryId: cartItem.product?.categoryId || 1,
-              price: authRate,
-              isIncl: lineIsIncl,
-              priceIsIncl: lineIsIncl,
-            },
-          };
-        }
-        return cartItem;
-      });
-      // Footer = THE stored-order footer — identical to what the recall screen shows.
-      const editFooter = storedOrderFooter(order, effectivePriceView);
-      const authCharges = editFooter.charges;
-      const authDiscount = editFooter.discount;
-      const authSubtotal = editFooter.subTotal;
-      const authTax = editFooter.vatAmount; // stored VAT (0 for complimentary)
-      const authNet = editFooter.netAmount; // stored total — a complimentary delivery order still charges its delivery charge
-      const authNetValue = editFooter.netValue;
-
-      let resolvedBillDiscVal = isBillComplimentary
-        ? 100
-        : masterDiscPer > 0
-        ? masterDiscPer
-        : masterDiscAmount > 0.001
-        ? masterDiscAmount
-        : 0;
-
-      dispatch(loadRecalledOrder({
-        editingOrderRates: deriveOrderChargeRatesFromMaster(order, effectivePriceView),
-        editingOrderId: orderId,
-        editingSaleId: saleId,
-        isSettledEdit: saleId !== null,
-        cartItems: applyStoredPricingToCartItems(order, mappedCartItems, { products, productCache, isBillDiscount: Boolean(isBillLevelDiscount), view: effectivePriceView }),
-        orderTypeId: orderTypeId,
-        orderTypeName: orderTypeName,
-        customerId: master.customerId || 1,
-        addressId: master.addressId || 0,
-        ...resolveRecalledBillDiscount(order, Number(resolvedBillDiscVal || 0), resolvedBillDiscType),
-        sectionId: master.sectionId || 0,
-        tableId: master.tableId || 0,
-        tableNo: master.tableNo || master.tableName || (master.tableId ? String(master.tableId) : ""),
-        guestNo: master.guestNo || master.guests || 0,
-        deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
-        contactNo: master.mobileNo || master.contactNo,
-        callBack: master.callBack || master.callback || master.callBackNo || master.callbackNo || master.callBackNumber || master.callbackNumber,
-        note: master.note,
-        change: master.change || master.keepChanges,
-        isComing: master.isComing,
-        comingTime: master.comingTime,
-        vehicleCustomerName: master.vehicleCustomerName,
-        vehicleNo: master.vehicleNo,
-        isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
-        authoritativeNetAmount: authNet,
-        authoritativeSubtotal: authSubtotal,
-        authoritativeDiscount: authDiscount,
-        authoritativeTax: authTax,
-        authoritativeCharges: authCharges,
-        authoritativeNetValue: authNetValue,
-        prevUpdatedAt,
-      }));
-
-      if (orderTypeName.toLowerCase().includes("delivery")) {
-        const resolvedChangeVal = master.change ?? master.keepChanges ?? (order as any)?.change ?? (order as any)?.keepChanges ?? "";
-        const resolvedCallBackVal = master.callBack || master.callback || master.callBackNo || master.callbackNo || master.callBackNumber || master.callbackNumber || "";
-        dispatch(setDeliveryDetails({
-          customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "",
-          contactNo: master.mobileNo || master.contactNo || "",
-          callBack: resolvedCallBackVal,
-          flatNo: master.flatNo || master.flat || master.flatNumber || "",
-          buildingNo: master.buildingNo || master.building || master.buildingNumber || "",
-          roadNo: master.roadNo || master.road || master.roadNumber || master.street || "",
-          blockNo: master.blockNo || master.block || master.blockNumber || "",
-          area: master.area || master.areaName || "",
-          note: master.note || "",
-          addressId: master.addressId || 0,
-          isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
-          isComing: Boolean(master.isComing),
-          change: resolvedChangeVal,
-        }));
-      }
-
+      dispatchSavedOrderLoad(load, dispatch, Number(orderId));
       onEditSuccess?.();
       onClose();
     } catch (e) {
@@ -900,330 +588,22 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
     }
     
     try {
-      const rawMaster = order.masterData || order.master || order;
-      const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
-
-      const rawTypeCandidate =
-        master.orderType ||
-        master.orderTypeName ||
-        (master.orderTypeId ? orderTypeIdToNameMap[Number(master.orderTypeId)] : "") ||
-        order?.orderTypeName ||
-        fallbackDetails?.orderTypeName ||
-        (orderDetailsStr?.match(/\((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming)\)/i)?.[1]) ||
-        "TakeOut";
-      const resolvedOrderTypeObj = fallbackOrderTypeByName(rawTypeCandidate);
-      const orderTypeName = resolvedOrderTypeObj.orderType;
-      const orderTypeId = master.orderTypeId ? Number(master.orderTypeId) : resolvedOrderTypeObj.orderTypeId;
-
-      const rawVoucher = master.voucherNo ? String(master.voucherNo).replace(/\D/g, '') : '';
-      const parsedVoucher = rawVoucher ? parseInt(rawVoucher, 10) : NaN;
-      const saleId = !isNaN(parsedVoucher) ? parsedVoucher : null;
-
-      const rawUpdatedAt = master.updatedAt || master.updated_at || master.prevUpdatedAt || master.createdAt || master.created_at || master.voucherDate;
-      const prevUpdatedAt = rawUpdatedAt ? String(rawUpdatedAt) : undefined;
-      if (prevUpdatedAt) {
-        sessionStorage.setItem(`order_prevUpdatedAt_${orderId}`, prevUpdatedAt);
-      }
-
-      const netAmount = Number(master.netAmount ?? master.NetAmount ?? order?.netAmount ?? order?.NetAmount ?? 0);
-      const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? 0);
-
-      let detailsVatSum = 0;
-      let lineDiscountsSum = 0;
-      details.forEach((d: any) => {
-        detailsVatSum += Number(d.vatAmount ?? d.VatAmount ?? 0);
-        lineDiscountsSum += Number(d.discAmount ?? d.DiscAmount ?? 0);
-      });
-
-      let resolvedVatAmount = Number(master.vatAmount ?? master.VatAmount ?? master.vatAmt ?? master.taxAmount ?? 0);
-      if (resolvedVatAmount <= 0 && detailsVatSum > 0) {
-        resolvedVatAmount = detailsVatSum;
-      }
-
-      let resolvedDiscount = Number(
-        master.discAmount ??
-        master.DiscAmount ??
-        master.discAmt ??
-        master.DiscAmt ??
-        master.discount ??
-        master.Discount ??
-        master.discountAmount ??
-        master.DiscountAmount ??
-        master.billDiscount ??
-        master.BillDiscount ??
-        master.billDiscountValue ??
-        0
-      );
-      if (resolvedDiscount <= 0 && lineDiscountsSum > 0) {
-        resolvedDiscount = roundCalc(lineDiscountsSum);
-      }
-
-      const isBillComplimentary = Boolean(
-        master.complimentaryStatus ||
-        master.ComplimentaryStatus ||
-        masterDiscPer === 100 ||
-        (details.length > 0 && details.every((d: any) =>
-          Boolean(d.complimentaryStatus || d.ComplimentaryStatus || Number(d.discPer ?? d.DiscPer ?? 0) === 100)
-        )) ||
-        (netAmount === 0 && resolvedDiscount > 0 && details.length > 0)
-      );
-
-      const masterDiscAmount = Number(
-        master.discAmount ??
-        master.DiscAmount ??
-        master.discAmt ??
-        master.DiscAmt ??
-        master.discount ??
-        master.Discount ??
-        master.discountAmount ??
-        master.DiscountAmount ??
-        master.billDiscount ??
-        master.BillDiscount ??
-        master.billDiscountValue ??
-        0
-      );
-
-      const hasLineItemDiscounts = lineDiscountsSum > 0.001;
-      const isBillLevelDiscount =
-        isBillComplimentary ||
-        masterDiscPer > 0 ||
-        (!hasLineItemDiscounts && masterDiscAmount > 0.001) ||
-        (hasLineItemDiscounts && masterDiscAmount > lineDiscountsSum + 0.05) ||
-        checkOrderHasBillDiscount(order) ||
-        checkOrderHasBillDiscount({ master, details });
-
-      const resolvedBillDiscType: 'percentage' | 'amount' =
-        (isBillComplimentary || masterDiscPer > 0)
-          ? 'percentage'
-          : 'amount';
-
-      const effectivePriceView = getPriceView();
-      const isTaxInclusive = effectivePriceView === "Inclusive";
-
-      const unifiedPricing = buildUnifiedOrderPricing(order, {
-        orderType: orderTypeName,
-        priceView: effectivePriceView,
+      // Shared saved-order loader (savedOrderToCart.ts) — same code as Settled → Edit.
+      const load = buildSavedOrderLoad(order, {
+        mode: "recallSettle",
+        orderId: Number(orderId),
+        products,
+        productCache,
         modifierTypes,
         allExtras,
-        isBillDiscount: isBillLevelDiscount,
-        products,
-        productCache,
+        orderTypeHints: [
+          order?.orderTypeName,
+          fallbackDetails?.orderTypeName,
+          orderDetailsStr?.match(/((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming))/i)?.[1],
+        ],
       });
-
-      const rawMappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
-        products,
-        productCache,
-        priceView: effectivePriceView,
-        masterDiscPer: isBillComplimentary ? 100 : masterDiscPer,
-        isOrderBillDiscount: isBillLevelDiscount,
-        orderType: orderTypeName,
-      });
-
-      const orderTypeBillingConfig = getBillingConfig(orderTypeName);
-      const isVatActive = getVatStatus();
-      const rawVatRate = orderTypeBillingConfig.vatRate > 0 ? (orderTypeBillingConfig.vatRate > 1 ? orderTypeBillingConfig.vatRate / 100 : orderTypeBillingConfig.vatRate) : 0.10;
-      const activeVat = isVatActive ? rawVatRate : 0;
-      const isDine = (orderTypeName || "").toLowerCase().includes("dine");
-      const scR = isDine ? (orderTypeBillingConfig.serviceChargeRate ?? 0) : 0;
-      const levyR = orderTypeBillingConfig.levyRate ?? 0;
-      const factor = (activeVat > 0 || levyR > 0 || scR > 0)
-        ? roundCalc((1 + activeVat) * (1 + levyR) * (1 + scR), 4)
-        : 1;
-
-      const mappedCartItems = rawMappedCartItems.map((cartItem, idx) => {
-        const uLine = unifiedPricing.lines[idx] || unifiedPricing.lines.find(
-          (l) => (l.mapId !== undefined && cartItem.mapId !== undefined && Number(l.mapId) === Number(cartItem.mapId)) ||
-                 (l.productId !== undefined && cartItem.productId !== undefined && Number(l.productId) === Number(cartItem.productId))
-        );
-
-        // Condition 1: Check price view is inclusive
-        const isPriceViewInclusive = effectivePriceView === "Inclusive";
-
-        // Condition 2: Check product is inclusive tag in Product Master
-        const matchedProd = (productCache && productCache[cartItem.productId]) ||
-          (products && products.find((p: any) => p.id === cartItem.productId)) ||
-          cartItem.product;
-
-        const isProductInclusiveTag = Boolean(
-          (matchedProd as any)?.isIncl === true ||
-          (matchedProd as any)?.priceIsIncl === true ||
-          (matchedProd as any)?.isInclusiveTax === true ||
-          (matchedProd as any)?.PriceIsIncl === true ||
-          (matchedProd as any)?.IsIncl === true ||
-          cartItem.isIncl === true ||
-          (cartItem as any).priceIsIncl === true ||
-          uLine?.isProductMasterInclusive === true ||
-          (uLine && uLine.inclusiveRate > 0 && Math.abs(uLine.inclusiveRate - Number(cartItem.price || 0)) < 0.05)
-        );
-
-        // If both conditions are correct: whatever the value in the product field in recall that must go to the cart,
-        // and behind the scenes exclusive.
-        if (isPriceViewInclusive && isProductInclusiveTag) {
-          const detailItem = details[idx] || details.find((d: any) => Number(d.productId || d.ProductId) === Number(cartItem.productId));
-          const rawDetailPrice = Number(detailItem?.price ?? detailItem?.Price ?? 0);
-          const rawDetailAmount = Number(detailItem?.amount ?? detailItem?.Amount ?? 0);
-          const rawDetailDisc = Number(detailItem?.discAmount ?? detailItem?.DiscAmount ?? cartItem.discountValue ?? 0);
-          
-          const recallPrice = rawDetailPrice > 0 
-            ? roundCalc(rawDetailPrice, 3) 
-            : (uLine ? uLine.getRate(true) : Number((cartItem as any).catalogPrice ?? cartItem.price ?? 0));
-          const combinedFactor = factor > 0 ? factor : 1;
-          const exclBasePrice = roundCalc(recallPrice / combinedFactor, 4);
-
-          const authOrigTotal = rawDetailAmount > 0 ? roundCalc(rawDetailAmount, 3) : (recallPrice * (cartItem.quantity || 1));
-          const authDiscount = roundCalc(rawDetailDisc, 3);
-          // Bill discount is shown in the footer only (same as the recall/settled screen rows).
-          const authLineTotal = isBillLevelDiscount ? authOrigTotal : roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
-
-          return {
-            ...cartItem,
-            isIncl: true,
-            priceIsIncl: true,
-            price: recallPrice,
-            basePrice: exclBasePrice,
-            exclusivePrice: exclBasePrice,
-            authoritativePrice: recallPrice,
-            authoritativeLineTotal: authLineTotal,
-            authoritativeOriginalLineTotal: authOrigTotal,
-            authoritativeDiscount: isBillLevelDiscount ? 0 : authDiscount,
-            authoritativeVatAmount: uLine?.vatAmount,
-            lineTotal: authLineTotal,
-            originalLineTotal: authOrigTotal,
-            product: {
-              ...(cartItem.product || {}),
-              id: cartItem.productId,
-              name: cartItem.product?.name || (cartItem as any).name || (cartItem as any).productName || `Product #${cartItem.productId}`,
-              categoryId: cartItem.product?.categoryId || 1,
-              price: recallPrice,
-              isIncl: true,
-              priceIsIncl: true,
-            },
-          };
-        }
-
-        if (uLine) {
-          const detailItem = details[idx] || details.find((d: any) => Number(d.productId || d.ProductId) === Number(cartItem.productId));
-          const rawDetailPrice = Number(detailItem?.price ?? detailItem?.Price ?? 0);
-          const rawDetailAmount = Number(detailItem?.amount ?? detailItem?.Amount ?? 0);
-          const rawDetailDisc = Number(detailItem?.discAmount ?? detailItem?.DiscAmount ?? cartItem.discountValue ?? 0);
-
-          const authRate = (isTaxInclusive && rawDetailPrice > 0)
-            ? roundCalc(rawDetailPrice, 3)
-            : uLine.getRate(isTaxInclusive);
-          const authOrigTotal = (isTaxInclusive && rawDetailAmount > 0)
-            ? roundCalc(rawDetailAmount, 3)
-            : (isTaxInclusive ? uLine.inclusiveGross : uLine.exclusiveGross);
-          const authDiscount = (isTaxInclusive && rawDetailDisc > 0)
-            ? roundCalc(rawDetailDisc, 3)
-            : uLine.getDiscount(isTaxInclusive);
-          // Bill discount is shown in the footer only (same as the recall/settled screen rows).
-          const authLineTotal = isBillLevelDiscount ? authOrigTotal : roundCalc(Math.max(0, authOrigTotal - authDiscount), 3);
-          const lineIsIncl = isTaxInclusive ? true : (uLine.isProductMasterInclusive !== undefined ? uLine.isProductMasterInclusive : cartItem.isIncl);
-          return {
-            ...cartItem,
-            price: authRate,
-            isIncl: lineIsIncl,
-            priceIsIncl: lineIsIncl,
-            authoritativePrice: authRate,
-            authoritativeLineTotal: authLineTotal,
-            authoritativeOriginalLineTotal: authOrigTotal,
-            authoritativeDiscount: isBillLevelDiscount ? 0 : authDiscount,
-            authoritativeVatAmount: uLine.vatAmount,
-            lineTotal: authLineTotal,
-            originalLineTotal: authOrigTotal,
-            product: {
-              ...(cartItem.product || {}),
-              id: cartItem.productId,
-              name: cartItem.product?.name || (cartItem as any).name || (cartItem as any).productName || `Product #${cartItem.productId}`,
-              categoryId: cartItem.product?.categoryId || 1,
-              price: authRate,
-              isIncl: lineIsIncl,
-              priceIsIncl: lineIsIncl,
-            },
-          };
-        }
-        return cartItem;
-      });
-      // Footer = THE stored-order footer — identical to what the recall screen shows.
-      const editFooter = storedOrderFooter(order, effectivePriceView);
-      const authDiscount = editFooter.discount;
-      const authSubtotal = editFooter.subTotal;
-      const authTax = editFooter.vatAmount; // stored VAT (0 for complimentary)
-      const authNet = editFooter.netAmount; // stored total — a complimentary delivery order still charges its delivery charge
-      const authNetValue = editFooter.netValue;
-
-      let resolvedBillDiscVal = isBillComplimentary
-        ? 100
-        : masterDiscPer > 0
-        ? masterDiscPer
-        : isBillLevelDiscount
-        // Amount bill discount: pass the saved value; resolveRecalledBillDiscount rebuilds the exact typed
-        // amount from the saved lines (restoreBillDiscount). The old "master − Σ line discounts" gave 0 here,
-        // because a bill discount IS stored on the lines (R5) — the discount was lost on settle / edit.
-        ? (masterDiscAmount > 0.001 ? masterDiscAmount : roundCalc(lineDiscountsSum))
-        : 0;
-
-      dispatch(loadRecalledOrder({
-        editingOrderRates: deriveOrderChargeRatesFromMaster(order, effectivePriceView),
-        editingOrderId: orderId,
-        editingSaleId: saleId,
-        isSettledEdit: saleId !== null,
-        cartItems: applyStoredPricingToCartItems(order, mappedCartItems, { products, productCache, isBillDiscount: Boolean(isBillLevelDiscount), view: effectivePriceView }),
-        orderTypeId: orderTypeId,
-        orderTypeName: orderTypeName,
-        customerId: master.customerId || 1,
-        addressId: master.addressId || 0,
-        ...resolveRecalledBillDiscount(order, Number(resolvedBillDiscVal || 0), resolvedBillDiscType),
-        sectionId: master.sectionId || 0,
-        tableId: master.tableId || 0,
-        tableNo: master.tableNo || master.tableName || (master.tableId ? String(master.tableId) : ""),
-        guestNo: master.guestNo || master.guests || 0,
-        deliveryCharge: master.deliveryCharge !== undefined ? Number(master.deliveryCharge) : undefined,
-        contactNo: master.mobileNo || master.contactNo,
-        callBack: master.callBack || master.callback || master.callBackNo || master.callbackNo || master.callBackNumber || master.callbackNumber,
-        note: master.note,
-        change: master.change || master.keepChanges,
-        isComing: master.isComing,
-        comingTime: master.comingTime,
-        vehicleCustomerName: master.vehicleCustomerName,
-        vehicleNo: master.vehicleNo,
-        deliveryCustomerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName,
-        flatNo: master.flatNo || master.flat || master.flatNumber || "",
-        buildingNo: master.buildingNo || master.building || master.buildingNumber || "",
-        blockNo: master.blockNo || master.block || master.blockNumber || "",
-        roadNo: master.roadNo || master.road || master.roadNumber || master.street || "",
-        area: master.area || master.areaName || "",
-        isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
-        isSettling: true,
-        authoritativeSubtotal: authSubtotal,
-        authoritativeDiscount: authDiscount,
-        authoritativeTax: authTax,
-        authoritativeNetAmount: authNet,
-        authoritativeNetValue: authNetValue,
-        prevUpdatedAt,
-      }));
-
-      if (orderTypeName.toLowerCase().includes("delivery")) {
-        const resolvedChangeVal = master.change ?? master.keepChanges ?? (order as any)?.change ?? (order as any)?.keepChanges ?? "";
-        const resolvedCallBackVal = master.callBack || master.callback || master.callBackNo || master.callbackNo || master.callBackNumber || master.callbackNumber || "";
-        dispatch(setDeliveryDetails({
-          customerName: master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "",
-          contactNo: master.mobileNo || master.contactNo || "",
-          callBack: resolvedCallBackVal,
-          flatNo: master.flatNo || master.flat || master.flatNumber || "",
-          buildingNo: master.buildingNo || master.building || master.buildingNumber || "",
-          roadNo: master.roadNo || master.road || master.roadNumber || master.street || "",
-          blockNo: master.blockNo || master.block || master.blockNumber || "",
-          area: master.area || master.areaName || "",
-          note: master.note || "",
-          addressId: master.addressId || 0,
-          isMissedCall: Boolean(master.missedCall ?? master.isMissedCall),
-          isComing: Boolean(master.isComing),
-          change: resolvedChangeVal,
-        }));
-      }
-
-      onSettleSuccess?.(authNet);
+      dispatchSavedOrderLoad(load, dispatch, Number(orderId));
+      onSettleSuccess?.(load.netAmount);
       onClose();
     } catch (e) {
       console.error(e);

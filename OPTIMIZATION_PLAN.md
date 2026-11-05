@@ -75,7 +75,7 @@ inside a feature, `ui` may import `model`/`lib`, `lib` imports nothing UI.
 ### 4.1 Structure / code
 | # | Change | Why | Effort |
 |---|---|---|---|
-| P1 | **One "saved order → cart" loader** (`pos/orders/lib/loadSavedOrder.ts`) used by Recall-Edit, Recall-Settle, Settled-Edit, Combine | 3 diverging copies today; 2 had the amount-bill-discount bug | 3–4 d |
+| P1 | **One "saved order → cart" loader** (`pos/orders/lib/loadSavedOrder.ts`) used by Recall-Edit, Recall-Settle, Settled-Edit, Combine | 3 diverging copies today; 2 had the amount-bill-discount bug | 3–4 d | **DONE 2026-11-05** (AGENT.md §11.6; Combine left as is) |
 | P2 | Split giant modals into screen + sections + hooks: `PosRecallDetailsModal`, `PosSettledDetailsModal` (shared `SavedOrderView`), `DineInTableOrdersModal`, `PosCashierSessionModal`, `PosTerminalPage` | 1,000–1,800-line files | 5–7 d |
 | P3 | `usePosCheckoutFlow` (1,304 lines) → `useSettle` (state machine: idle → paying → saving → printing → done) + pure `buildSettlement()` | Locks/refs scattered; state machine makes double-submit impossible by design | 3 d |
 | P4 | Retire legacy pricing: `orderPricing.ts` (names/extras only → small `lineLabels.ts`), `pos-calc.ts`, tolerance-based `getTaxExclusive*` | Last heuristics outside the engine | 2–3 d |

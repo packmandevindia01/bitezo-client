@@ -21,7 +21,7 @@ import { calculateOrder, getBillingConfigForOrder, toPricingSettings } from "../
 import { buildDirectSettleOrderPayload } from "../features/pos/terminal/mappers/orderPayloadMapper";
 import { buildSalesInvoicePayload } from "../features/pos/terminal/mappers/invoicePayloadMapper";
 import { applyStoredOrderView } from "../features/pos/services/storedOrderView";
-import { loadSettledOrderIntoCart } from "../features/pos/terminal/utils/loadSettledOrderIntoCart";
+import { buildSavedOrderLoad, dispatchSavedOrderLoad } from "../features/pos/terminal/utils/savedOrderToCart";
 import posReducer from "../features/pos/terminal/store/posSlice";
 import { selectCartCalculation } from "../features/pos/terminal/store/posSelectors";
 import { buildPrintPricing } from "../features/pos/utils/printPricing";
@@ -324,7 +324,7 @@ describe("POS cross-verification (200 random carts)", () => {
     expect(failures).toEqual([]);
   });
 
-  it("5. saved order → edit (load into cart, unchanged) = saved total", () => {
+  it("5. saved order → cart via the shared loader (Settled → Edit, Recall → Edit, Recall → Settle), unchanged = saved total", () => {
     const failures: string[] = [];
     for (const seed of SEEDS) {
       const s = makeScenario(seed);
@@ -333,17 +333,18 @@ describe("POS cross-verification (200 random carts)", () => {
       if (p.netAmount <= 0) continue; // fully discounted bills are covered by the complimentary tests
       const productCache = Object.fromEntries(s.products.map((x) => [x.id, x]));
       const data = applyStoredOrderView({ data: JSON.parse(JSON.stringify(storedFromPayload(s, p))) }, s.view).data;
-      const actions: any[] = [];
-      loadSettledOrderIntoCart({
-        orderId: 7000 + seed, orderData: data, dispatch: ((a: any) => { actions.push(a); return a; }) as any,
-        products: s.products, productCache, showToast: () => {},
-      });
-      let state = posReducer(undefined, { type: "@@init" } as any);
-      for (const a of actions) if (a?.type) state = posReducer(state, a);
-      state = { ...state, productCache } as any;
-      const total = selectCartCalculation({ pos: { ...state, isCartModified: true } } as any).summary.grandTotal;
-      if (!close(total, p.netAmount, 1e-4)) {
-        failures.push(`seed ${seed} (${s.orderType.name}, view ${s.view}, disc ${s.discCalc}, bill ${JSON.stringify(s.billDiscount)}): edit ${total} ≠ saved ${p.netAmount}`);
+      for (const mode of ["settledEdit", "recallEdit", "recallSettle"] as const) {
+        const actions: any[] = [];
+        const load = buildSavedOrderLoad(JSON.parse(JSON.stringify(data)), { mode, orderId: 7000 + seed, products: s.products, productCache });
+        dispatchSavedOrderLoad(load, ((a: any) => { actions.push(a); return a; }) as any, 7000 + seed);
+        let state = posReducer(undefined, { type: "@@init" } as any);
+        for (const a of actions) if (a?.type) state = posReducer(state, a);
+        state = { ...state, productCache } as any;
+        const total = selectCartCalculation({ pos: { ...state, isCartModified: true } } as any).summary.grandTotal;
+        if (!close(total, p.netAmount, 1e-4)) {
+          failures.push(`seed ${seed} ${mode} (${s.orderType.name}, view ${s.view}, disc ${s.discCalc}, bill ${JSON.stringify(s.billDiscount)}): cart ${total} ≠ saved ${p.netAmount}`);
+        }
+        if (!close(load.netAmount, p.netAmount, 1e-5)) failures.push(`seed ${seed} ${mode}: load.netAmount ${load.netAmount} ≠ saved ${p.netAmount}`);
       }
     }
     expect(failures).toEqual([]);
