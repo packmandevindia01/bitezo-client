@@ -3,6 +3,7 @@ import { formatModifierLabel, rememberModifierTypes } from "../../../../utils/mo
 import { menuApi } from "../../../../services/menuApi";
 import { useCurrency } from "../../../../../../hooks/useCurrency";
 import { useAppSelector } from "../../../../../../app/hooks";
+import { useModalLayer } from "@shared/hooks/useModalLayer";
 
 /**
  * Extras & Modifiers screen — one screen for the WHOLE bill.
@@ -267,10 +268,14 @@ export const PosExtrasModifierModal = ({
     onClose();
   };
 
+  // Popup layer (shared/lib/layers.ts): POS page shortcuts stay quiet while this screen is open.
+  const layer = useModalLayer(isOpen);
+
   // ── Keyboard: ↑ / ↓ move between cart lines, Esc closes ────────────────────
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
+      if (!layer.isTop()) return; // a popup opened on top of this screen owns the keys
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
       // Capture phase + stopImmediatePropagation: the terminal's global shortcuts (usePosShortcuts) treat

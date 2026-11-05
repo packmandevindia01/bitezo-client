@@ -664,8 +664,8 @@ npx cap sync android   # copy dist/ into the Android project
 
 Auth storage: POS tokens in `localStorage` (`accessToken`, `refreshToken`, `userId`, `isMaster`, `userRoles` …);
 back-office tokens in `sessionStorage` (`backoffice_*`). `systemType` / `tempSystemType` decide the mode
-(`isBackofficeMode`). POS settings are cached in `localStorage.posConfigs` (§3). The cart is persisted
-(`posSlice.loadCart`), so a reload keeps it.
+(`isBackofficeMode`). POS settings are cached in `localStorage.posConfigs` (§3). The cart is NOT persisted
+(`posSlice.loadCart` always starts empty — verified in the browser 2026-11-05): a page reload loses an order that was not placed yet.
 
 PWA: `vite-plugin-pwa` with `registerType: 'prompt'` (update banner in `src/app/AppStatusBanner.tsx`), precaches js/css/html/png/svg (not `config.json`).
 Android: `com.bitezo.admin`, `androidScheme: http`, cleartext allowed, `allowBackup=false`, versionCode 1, minify off.
@@ -772,7 +772,7 @@ Tests: `src/tests/productionHardening.test.ts` (local dates, `escapeHtml`, guest
    on a shared PC. `clearAuthStorage` does not clear `tenantId`, `systemType`, `posConfigs` or printer keys, so the
    next login on the same device can start with the previous tenant's settings.
 4. **PWA auto-update during a shift.** `registerType: 'autoUpdate'` reloads open tabs when a new build is
-   deployed. The cart survives (it is persisted), but an open modal or half-entered payment does not. Deploy outside
+   deployed. A reload loses the cart (not persisted) and any open popup — hence the update banner instead of auto-reload. Deploy outside
    service hours or switch to `prompt` mode. `devOptions.enabled: true` registers a service worker in dev and is
    why `dev-dist/` keeps changing.
 5. **Android release settings.** `usesCleartextTraffic="true"`, `androidScheme: 'http'`, `allowBackup="true"`
@@ -868,3 +868,22 @@ Settled → Edit (`loadSettledOrderIntoCart`, now a thin wrapper), Recall → Ed
 - Employee resolution for settlement (authorised → waiter → default employee → ask authorisation) is one helper
   `settleWithResolvedEmployee` (was duplicated in the cash/multi-pay and card/credit handlers).
 - Tests: `settleFlow.test.ts`. Real-terminal check: tap Settle again while the receipt prints → ignored; a print failure still clears the cart.
+
+### 10.8 Back Office keyboard: Enter → next field (2026-11-05)
+`hooks/useEnterToNextField.ts`, mounted once for every `/dashboard` screen by `app/routes/BackofficeEnterNavigation.tsx` (POS not affected).
+Enter moves to the next visible, enabled, editable field in screen order inside the same form / dialog / page; after the last field it moves
+to the submit (Save) button, where Enter saves. It steps aside when the field already handled Enter (calls `preventDefault` — dropdown
+option pick, grids, forms using `useEnterKeyNavigation`), in multi-line text boxes, on buttons / links, while a dropdown is open
+(`aria-expanded="true"`), with Shift/Ctrl/Alt, or inside an element with `data-enter="native"`. Mark extra Enter targets with
+`data-enter-target`; limit the scope with `data-enter-scope`. New screens get this for free — no `nextFieldId` wiring needed.
+
+### 11.9 Phase 2d — popup layers / Esc (2026-11-05)
+- `shared/lib/layers.ts` (stack) + `shared/hooks/useModalLayer.ts`. The shared `components/common/Modal.tsx` registers a layer while open
+  (owner approved editing it), so all 123 Modal users and `ConfirmDialog` take part. **Esc closes the TOP popup** only — and only if it
+  shows the X button (`showClose`); mandatory popups (`showClose={false}`) ignore Esc. If a field inside handled Esc (preventDefault),
+  the popup stays open.
+- `usePosShortcuts` (Esc = clear-cart confirmation, F2, Space) does nothing while any popup is open.
+- Custom POS popups registered: `PosDeliveryChargeModal` (Esc closes), `PosExtrasModifierModal` (its ↑ / ↓ / Esc only act when it is the
+  top popup). Not registered on purpose: the small-screen cart overlay in `PosCartPanel` (its flag can stay true on desktop).
+  Report print previews are custom overlays — they move to the report framework in Phase 4.
+- Tests: `layers.test.ts`.

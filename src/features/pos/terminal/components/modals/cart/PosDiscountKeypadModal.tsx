@@ -39,6 +39,7 @@ export const PosDiscountKeypadModal: React.FC<PosDiscountKeypadModalProps> = ({
       onClose={onClose}
       noPadding
       showClose={false}
+      closeOnEscape
       className="max-w-[360px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
     >
       <div className="bg-[#49293e] text-white py-3 px-4 flex justify-between items-center">

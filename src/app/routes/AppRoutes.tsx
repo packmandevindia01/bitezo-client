@@ -7,6 +7,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import SystemRegistrationGuard from "./SystemRegistrationGuard";
 import { Navigate } from "react-router-dom";
 import RoleGuard from "./RoleGuard";
+import BackofficeEnterNavigation from "./BackofficeEnterNavigation";
 import ShiftGuard from "./ShiftGuard";
 
 const MainLayout = lazy(() => import("../../components/layout/MainLayout"));
@@ -200,6 +201,7 @@ const AppRoutes = () => {
                   path="/dashboard"
                   element={
                     <BackofficeSubscriptionWrapper>
+                      <BackofficeEnterNavigation />
                       <MainLayout />
                     </BackofficeSubscriptionWrapper>
                   }

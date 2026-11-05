@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { useModalLayer } from "../../shared/hooks/useModalLayer";
 
 interface ModalProps {
   isOpen: boolean;
@@ -13,6 +14,8 @@ interface ModalProps {
   noPadding?: boolean;
   noScroll?: boolean;
   hideScrollbar?: boolean;
+  /** Esc closes the popup even though it draws its own close button (showClose={false}). */
+  closeOnEscape?: boolean;
 }
 
 const Modal = ({
@@ -27,7 +30,12 @@ const Modal = ({
   noPadding = false,
   noScroll = false,
   hideScrollbar = false,
+  closeOnEscape,
 }: ModalProps) => {
+  // Popup layer (Phase 2d): only the top-most popup reacts to Esc; page shortcuts stay quiet while open.
+  // Esc closes the popup only when the user may close it: it shows the X button, or opts in with closeOnEscape
+  // (popups that draw their own Cancel). Mandatory popups (showClose={false}, no opt-in) ignore Esc.
+  useModalLayer(isOpen, (closeOnEscape ?? showClose) ? onClose : undefined);
 
   // Scroll lock only
   useEffect(() => {

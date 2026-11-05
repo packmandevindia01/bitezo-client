@@ -207,6 +207,7 @@ export const PosMessageModal: React.FC<PosMessageModalProps> = ({
       size="xl"
       noPadding
       showClose={false}
+      closeOnEscape
       className="border-2 border-[#1a233a] shadow-2xl rounded-none overflow-hidden max-w-[1020px] w-[98%]"
     >
       <div className="bg-[#eef1f6] select-none flex flex-col md:flex-row" style={{ maxHeight: "92vh" }}>

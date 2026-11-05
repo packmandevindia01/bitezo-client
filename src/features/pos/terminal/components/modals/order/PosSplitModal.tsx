@@ -679,6 +679,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         onClose={onClose} 
         size="2xl"
         showClose={false}
+      closeOnEscape
         className="!max-w-[98vw] !w-[98vw] h-[95vh] bg-slate-50 p-0 overflow-hidden flex flex-col"
       >
         <div className="flex-1 flex overflow-hidden">

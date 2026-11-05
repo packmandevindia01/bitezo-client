@@ -372,6 +372,7 @@ const MultiPayAmountModal: React.FC<MultiPayAmountModalProps> = ({
       onClose={onClose}
       noPadding
       showClose={false}
+      closeOnEscape
       className="max-w-[360px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
     >
       <div className={`py-4 px-5 flex justify-between items-center text-white shrink-0 ${cfg.headerGradient}`}>

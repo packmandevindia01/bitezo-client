@@ -26,6 +26,7 @@ export const PosDiscountChoiceModal: React.FC<PosDiscountChoiceModalProps> = ({
       onClose={onClose}
       noPadding
       showClose={false}
+      closeOnEscape
       className="max-w-[400px] border-none shadow-2xl rounded-2xl overflow-hidden"
     >
       <div className="bg-[#49293e] text-white py-4 px-6 flex justify-between items-center">

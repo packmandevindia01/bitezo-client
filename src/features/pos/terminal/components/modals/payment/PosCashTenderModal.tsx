@@ -115,6 +115,7 @@ export const PosCashTenderModal: React.FC<PosCashTenderModalProps> = ({
       onClose={onClose}
       noPadding
       showClose={false}
+      closeOnEscape
       className="max-w-[380px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl"
     >
       <div className="py-4 px-5 flex justify-between items-center text-white shrink-0 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700">

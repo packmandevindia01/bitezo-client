@@ -87,6 +87,7 @@ export const GuestCountModal: React.FC<GuestCountModalProps> = ({
       noPadding
       hideScrollbar
       showClose={false}
+      closeOnEscape
       className="w-full max-w-[95vw] md:max-w-sm overflow-hidden rounded-3xl"
     >
       {/* Header */}

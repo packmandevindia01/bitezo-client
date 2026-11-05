@@ -1,3 +1,4 @@
+import { hasOpenLayers } from "@shared/lib/layers";
 import { useEffect } from "react";
 
 export const usePosShortcuts = (actions: {
@@ -7,6 +8,9 @@ export const usePosShortcuts = (actions: {
 }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // A popup is open (shared/lib/layers.ts): keys belong to the popup, never to the page shortcuts.
+      if (hasOpenLayers() || e.defaultPrevented) return;
+
       // Ignore if typing in an input field (like the search bar)
       if (
         e.target instanceof HTMLInputElement ||

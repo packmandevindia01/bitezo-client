@@ -1199,6 +1199,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         noPadding
         noScroll
         showClose={false}
+      closeOnEscape
         className="bg-[#f8f9fa] border-none shadow-2xl h-[85vh] max-h-[900px] flex flex-col"
       >
         {/* HEADER */}

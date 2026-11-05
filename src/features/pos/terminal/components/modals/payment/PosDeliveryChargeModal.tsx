@@ -1,3 +1,4 @@
+import { useModalLayer } from "@shared/hooks/useModalLayer";
 import { useState } from "react";
 import { Truck, X, Check, MapPin } from "lucide-react";
 import { useCurrency } from "../../../../../../hooks/useCurrency";
@@ -49,6 +50,8 @@ export const PosDeliveryChargeModal = ({
 }: PosDeliveryChargeModalProps) => {
   const { formatAmount } = useCurrency();
   const [selected, setSelected] = useState<string | null>(null);
+  // Popup layer: Esc closes this popup; POS page shortcuts stay quiet while it is open.
+  useModalLayer(isOpen, onClose);
 
   const configuredZones = readConfiguredZones();
   const defaultCharge = getStoredDefaultDeliveryCharge();
