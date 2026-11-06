@@ -913,10 +913,14 @@ visible error banner (403 / network — was "No records found"), live refresh on
 (dd/MM/yyyy), money, number, qty.
 - Definitions in `src/features/reports/definitions/`; each route points at a `*FrameworkPage.tsx`. Old module folders stay until the
   owner has checked the new page with real data, then they are deleted.
-- **Migrated (8 / 31):** Monthly Sales (`monthlySales.ts`); Daily / Hourly / Order-Type / Menu Session Sales (`salesByPeriod.ts` →
+- **Migrated (10 / 31):** Monthly Sales (`monthlySales.ts`); Daily / Hourly / Order-Type / Menu Session Sales (`salesByPeriod.ts` →
   `periodTable`, row Total modes compute / columnOnly / computeIfMissing); Category / Group / Employee Sales (`itemSales.ts`: field
   fallbacks, Category name resolved against the category master, money totals from backend `totalData` via `totalsOverride`).
   Framework additions: `lookup` filter (options loaded from the server, "All" = 0), `totalsOverride` on `ReportTable`.
+  Purchase / Purchase Return (`purchase.ts`, one factory for the twins): supplier / paymode / series client fallbacks, Group by
+  Supplier / Paymode / Series (exact sums), Cash / Credit summary; the old branch fallback dropped other branches' rows for "All" — now
+  only applied for a real branch. Framework additions: `datetime` column (dd/MM/yyyy HH:mm), `summary` on `ReportTable`,
+  `lookup.dependsOn` (Series reloads and resets when the branch changes), select filters printed in the report header.
   Fixed on the way: Order-Type / Category / Group defaulted the branch to 0 and Order-Type double-counted a backend "Total"; float totals.
-- Tests: `reportFramework.test.ts`, `reportBatch1.test.ts` — maths, defaults, errors and old-vs-new comparisons (cells, totals to the fil).
+- Tests: `reportFramework.test.ts`, `reportBatch1.test.ts`, `reportBatch2.test.ts` — maths, defaults, errors and old-vs-new comparisons (cells, totals to the fil).
 - Adding a report: write a definition (fetch + table mapping), a comparison test against the old page logic, a 3-line page, switch the route.

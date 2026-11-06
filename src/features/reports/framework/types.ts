@@ -3,7 +3,8 @@
  * error state, table, exact totals, print and Excel / PDF export.
  */
 
-export type ColumnKind = "text" | "money" | "number" | "qty" | "date";
+/** "datetime" = dd/MM/yyyy HH:mm. */
+export type ColumnKind = "text" | "money" | "number" | "qty" | "date" | "datetime";
 
 export interface ReportColumn {
   key: string;
@@ -21,6 +22,8 @@ export interface ReportTable {
   rows: ReportRow[];
   /** Totals sent by the backend (e.g. totalData) — they win over the computed sum, like the old pages. */
   totalsOverride?: Record<string, number>;
+  /** Extra money figures shown next to the record count (e.g. Cash / Credit). */
+  summary?: { label: string; value: number }[];
 }
 
 /** Filter values are kept as strings (form inputs); definitions convert them in `fetch`. */
@@ -32,7 +35,11 @@ export type FilterDef =
   | { kind: "month"; key: string; label: string; default: "januaryThisYear" | "decemberThisYear" | "thisMonth" }
   | { kind: "select"; key: string; label: string; options: { label: string; value: string }[]; default?: string }
   /** Options loaded from the server; an "All" option (value "0") is added first. */
-  | { kind: "lookup"; key: string; label: string; queryKey: string; load: () => Promise<{ label: string; value: string }[]>; allLabel?: string };
+  /**
+   * `dependsOn`: filter keys the options depend on (e.g. Series by branch) — `load` receives the current
+   * filters, the options reload when those change and this filter goes back to "All".
+   */
+  | { kind: "lookup"; key: string; label: string; queryKey: string; load: (filters: FilterValues) => Promise<{ label: string; value: string }[]>; allLabel?: string; dependsOn?: string[] };
 
 export interface ReportDefinition {
   /** Unique id — also the React Query key. */

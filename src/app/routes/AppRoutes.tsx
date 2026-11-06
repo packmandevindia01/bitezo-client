@@ -87,8 +87,10 @@ const DineInSelectionPage = lazy(() => import("../../features/pos/terminal/pages
 const PosDeliveryPage = lazy(() => import("../../features/pos/customer/pages/PosDeliveryPage"));
 const PayInOutPage = lazy(() => import("../../features/pos/payInOut/pages/PayInOutPage"));
 const SalesReportPage = lazy(() => import("../../features/reports/salesReport/pages/SalesReportPage"));
-const PurchaseReportPage = lazy(() => import("../../features/reports/purchaseReport/pages/PurchaseReportPage"));
-const PurchaseReturnReportPage = lazy(() => import("../../features/reports/purchaseReturnReport/pages/PurchaseReturnReportPage"));
+// Phase 4: report framework (old page: purchaseReport/pages/PurchaseReportPage)
+const PurchaseReportPage = lazy(() => import("../../features/reports/definitions/PurchaseReportFrameworkPage"));
+// Phase 4: report framework (old page: purchaseReturnReport/pages/PurchaseReturnReportPage)
+const PurchaseReturnReportPage = lazy(() => import("../../features/reports/definitions/PurchaseReturnReportFrameworkPage"));
 const ProductWisePurchaseReportPage = lazy(() => import("../../features/reports/productWisePurchaseReport/pages/ProductWisePurchaseReportPage"));
 const StockRegisterReportPage = lazy(() => import("../../features/reports/stockRegisterReport/pages/StockRegisterReportPage"));
 const StockAdjustmentReportPage = lazy(() => import("../../features/reports/stockAdjustmentReport/pages/StockAdjustmentReportPage"));

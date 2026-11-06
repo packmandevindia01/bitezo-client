@@ -41,7 +41,9 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
       const v = r.filters[f.key];
       if (f.kind === "branch") lines.push([f.label ?? "Location", branchOptions.find((o) => o.value === v)?.label || "All"]);
       if (f.kind === "lookup") lines.push([f.label, r.lookups[f.key]?.find((o) => o.value === v)?.label || "All"]);
+      if (f.kind === "select") lines.push([f.label, f.options.find((o) => o.value === v)?.label || v]);
     });
+    table.summary?.forEach((x) => lines.push([x.label, formatAmount(x.value)]));
     return { title: definition.title, subtitle, lines };
   };
 
@@ -175,6 +177,11 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
 
         {/* Actions */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-2 shrink-0 flex items-center justify-end gap-3">
+          {hasRows && table.summary?.map((x) => (
+            <span key={x.label} className="text-xs text-gray-500">
+              {x.label}: <span className="font-bold text-[#49293e] tabular-nums ml-1">{formatAmount(x.value)}</span>
+            </span>
+          ))}
           {hasRows && <span className="text-xs text-gray-400">{table.rows.length} record{table.rows.length !== 1 ? "s" : ""}</span>}
           <div className="h-4 w-px bg-gray-200" />
           <Button size="sm" icon={<Printer size={15} />} onClick={() => printReport(matrix, meta())} disabled={r.isLoading || !hasRows}>Print</Button>

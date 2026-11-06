@@ -62,6 +62,7 @@ export const formatCell = (col: ReportColumn, value: unknown, fmt: Formatter): s
   if (col.kind === "money") return fmt.money(cellNumber(value));
   if (col.kind === "number" || col.kind === "qty") return fmt.number(cellNumber(value));
   if (col.kind === "date") return formatReportDate(value);
+  if (col.kind === "datetime") return formatReportDateTime(value);
   const s = value === null || value === undefined ? "" : String(value);
   return s.trim() === "" ? "-" : s;
 };
@@ -75,6 +76,22 @@ export const formatReportDate = (value: unknown): string => {
   const d = new Date(s);
   if (isNaN(d.getTime())) return s;
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+};
+
+/**
+ * dd/MM/yyyy HH:mm (the old purchase pages). A wall-clock value ("2026-11-05T14:30:00") is read by parts;
+ * one with a zone (Z / +03:00) is shown in local time, as `new Date()` did.
+ */
+export const formatReportDateTime = (value: unknown): string => {
+  const s = value === null || value === undefined ? "" : String(value).trim();
+  if (!s) return "-";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  const zoned = /(Z|[+-]\d{2}:?\d{2})$/i.test(s);
+  if (m && !zoned) return `${m[3]}/${m[2]}/${m[1]} ${m[4] ?? "00"}:${m[5] ?? "00"}`;
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
 /**

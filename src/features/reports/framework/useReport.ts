@@ -24,7 +24,12 @@ export const useReport = (def: ReportDefinition) => {
   const initial = useMemo(() => defaultFilters(def.filters, new Date(), initialBranchId), [def.filters, initialBranchId]);
   const [filters, setFilters] = useState<FilterValues>(initial);
 
-  const setFilter = useCallback((key: string, value: string) => setFilters((f) => ({ ...f, [key]: value })), []);
+  // Changing a filter resets the lookups that depend on it (e.g. Series when the branch changes).
+  const setFilter = useCallback((key: string, value: string) => setFilters((f) => {
+    const next = { ...f, [key]: value };
+    def.filters.forEach((d) => { if (d.kind === "lookup" && d.dependsOn?.includes(key) && f[key] !== value) next[d.key] = "0"; });
+    return next;
+  }), [def.filters]);
 
   const hasBranch = def.filters.some((f) => f.kind === "branch");
   const { data: branches = [] } = useQuery({
@@ -39,8 +44,8 @@ export const useReport = (def: ReportDefinition) => {
   const lookupDefs = def.filters.filter((f): f is Extract<typeof f, { kind: "lookup" }> => f.kind === "lookup");
   const lookupResults = useQueries({
     queries: lookupDefs.map((f) => ({
-      queryKey: ["reportLookup", f.queryKey],
-      queryFn: f.load,
+      queryKey: ["reportLookup", f.queryKey, ...(f.dependsOn ?? []).map((k) => filters[k])],
+      queryFn: () => f.load(filters),
       staleTime: 5 * 60 * 1000,
       meta: { silentError: true },
     })),
