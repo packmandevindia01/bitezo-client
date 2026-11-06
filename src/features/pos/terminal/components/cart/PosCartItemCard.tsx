@@ -3,6 +3,7 @@ import { modifierLabelOf } from "../../../utils/modifierLabel";
 import { useCurrency } from "../../../../../hooks/useCurrency";
 import { getLocalizedName } from "../../../utils/posLocalization";
 import { cleanProductName } from "../../../utils/alternativeHelpers";
+import { getCartLineDisplay } from "../../utils/cartLineDisplay";
 
 export interface CartRow {
   uniqueId: string;
@@ -51,22 +52,7 @@ const PosCartItemCardBase = ({ item, isSelected, onSelectRow }: PosCartItemCardP
   const localized = getLocalizedName(cleanProdName, cleanProdArabic);
   const variantLocalized = item.variantName ? getLocalizedName(item.variantName, item.variantArabic) : null;
 
-  const hasExtras = Boolean(item.extras && item.extras.length > 0);
-  const qty = item.quantity || 1;
-  const itemDiscountAmt = Number(
-    item.itemDiscount ??
-    (item as any).discountValue ??
-    (item.originalLineTotal !== undefined && item.lineTotal !== undefined && item.originalLineTotal > item.lineTotal
-      ? item.originalLineTotal - item.lineTotal
-      : 0)
-  );
-  const rawOriginalTotal = item.originalLineTotal ?? ((item.lineTotal || 0) + itemDiscountAmt);
-  const effectiveUnitPrice = hasExtras
-    ? (rawOriginalTotal > 0
-        ? rawOriginalTotal / qty
-        : (item.price || item.product?.price || 0) + (item.extras || []).reduce((sum, ex) => sum + (Number(ex.price) || 0) * (Number(ex.qty) || 1), 0) / qty
-      )
-    : (item.price || item.product?.price || 0);
+  const { unitPrice: effectiveUnitPrice, originalTotal: rawOriginalTotal, itemDiscount: itemDiscountAmt } = getCartLineDisplay(item);
 
   return (
     <div

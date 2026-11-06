@@ -4,6 +4,7 @@ import { menuApi } from "../../../../services/menuApi";
 import { useCurrency } from "../../../../../../hooks/useCurrency";
 import { useAppSelector } from "../../../../../../app/hooks";
 import { useModalLayer } from "@shared/hooks/useModalLayer";
+import { getCartLineDisplay } from "../../../utils/cartLineDisplay";
 
 /**
  * Extras & Modifiers screen — one screen for the WHOLE bill.
@@ -20,8 +21,11 @@ interface CartLine {
   variantName?: string;
   quantity?: number;
   price?: number;
+  lineTotal?: number;
+  originalLineTotal?: number;
+  itemDiscount?: number;
   categoryId?: number;
-  product?: { name: string; categoryId?: number };
+  product?: { name: string; categoryId?: number; price?: number };
   extras?: ExtrasItem[];
   modifiers?: ModifierItem[];
   messages?: MessageItem[];
@@ -463,7 +467,7 @@ export const PosExtrasModifierModal = ({
                 const d = drafts[key];
                 const isActive = key === activeKey;
                 const qty = line.quantity ?? 1;
-                const price = Number(line.price ?? 0);
+                const { unitPrice, lineTotal } = getCartLineDisplay(line);
                 const hasCustom = !!d && (d.extras.length + d.modifiers.length + d.messages.length) > 0;
                 return (
                   <div
@@ -484,8 +488,8 @@ export const PosExtrasModifierModal = ({
                           <span className="shrink-0 w-2 h-2 rounded-full bg-[#ff9500]" title="Changed (not saved yet)" />
                         )}
                       </span>
-                      <span className="text-[10px] font-bold text-slate-500 text-right">{formatAmount(price)}</span>
-                      <span className="text-[10px] font-black text-slate-700 text-right">{formatAmount(price * qty)}</span>
+                      <span className="text-[10px] font-bold text-slate-500 text-right">{formatAmount(unitPrice)}</span>
+                      <span className="text-[10px] font-black text-slate-700 text-right">{formatAmount(lineTotal)}</span>
                     </div>
 
                     {d && hasCustom && (
