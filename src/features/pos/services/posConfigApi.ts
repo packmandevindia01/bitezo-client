@@ -144,6 +144,16 @@ const checkDayEndFlag = (val: any, fallback: boolean): boolean => {
   return fallback;
 };
 
+/** POS config "Cash Drawer". Off unless saved as Enable (the old Default / Normal values did nothing). */
+export const isCashDrawerEnabled = (): boolean => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(POS_CONFIGS_STORAGE_KEY) || "{}");
+    return (parsed?.configs ?? parsed)?.cashdrawer === "Enable";
+  } catch {
+    return false;
+  }
+};
+
 export const getDayEndReportConfig = (): DayEndReportConfig => {
   try {
     const raw = localStorage.getItem(POS_CONFIGS_STORAGE_KEY) || localStorage.getItem("posConfig");

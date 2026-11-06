@@ -29,7 +29,7 @@ export const mapApiToState = (data: PosConfigResponseData): ConfigurationState =
     packagerPrint: configs.packagerPrint === "Enable",
     callerIdPort: configs.callerIdPort || "",
     priceView: (localStorage.getItem("priceView") as any) || (configs.priceView as any) || "Exclusive",
-    cashdrawer: (configs.cashdrawer as any) || "Default",
+    cashdrawer: configs.cashdrawer === "Enable",
     recipe: configs.recipe === "Enable",
     dayDate: (configs.dayDate ?? configs.DayDate) === "Enable",
     itemSeperation: configs.itemSeperation === true || String(configs.itemSeperation).trim().toLowerCase() === "enable" || String(configs.itemSeperation).trim().toLowerCase() === "true" || (configs.itemSeperation as any) === 1,
@@ -102,7 +102,7 @@ export const mapStateToApi = (state: ConfigurationState, branchId: number): PosC
     packagerPrint: state.packagerPrint ? "Enable" : "Disable",
     callerIdPort: state.callerIdPort,
     priceView: state.priceView,
-    cashdrawer: state.cashdrawer,
+    cashdrawer: state.cashdrawer ? "Enable" : "Disable",
     recipe: state.recipe ? "Enable" : "Disable",
     dayDate: state.dayDate ? "Enable" : "Disable",
     itemSeperation: Boolean(state.itemSeperation),
@@ -446,6 +446,7 @@ export const usePosConfiguration = () => {
         const parsed = saved ? JSON.parse(saved) : {};
         if (parsed.configs) {
           parsed.configs.kotHeader = payload.kotHeader;
+          parsed.configs.cashdrawer = payload.cashdrawer;
           parsed.configs.kotPrint = payload.kotPrint;
           parsed.configs.kotArabic = payload.kotArabic;
           parsed.configs.billArabic = payload.billArabic;

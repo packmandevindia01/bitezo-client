@@ -32,7 +32,7 @@ export const INITIAL_CONFIG: ConfigurationState = {
   callerIdPort: "",
   displayPort: "",
   priceView: "Exclusive",
-  cashdrawer: "Default",
+  cashdrawer: false,
   recipe: false,
   dayDate: false,
   multiEmployeeTable: false,

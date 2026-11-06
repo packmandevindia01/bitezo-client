@@ -39,7 +39,7 @@ export interface ConfigurationState {
   callerIdPort: string;
   displayPort: string;
   priceView: "Inclusive" | "Exclusive";
-  cashdrawer: "Default" | "Normal";
+  cashdrawer: boolean;
   recipe: boolean;
   dayDate: boolean;
   multiEmployeeTable: boolean;

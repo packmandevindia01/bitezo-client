@@ -6,6 +6,7 @@ import { useEvent } from '../../../../hooks/useEvent';
 import { useAppDispatch } from '../../../../app/hooks';
 import { setIsSettling, setWaiter } from '../store/posSlice';
 import { salesInvoiceApi } from '../../services/salesInvoiceApi';
+import { openDrawerIfCash } from '../../utils/cashDrawer';
 import { orderApi } from '../../services/orderApi';
 import { settledOrdersApi } from '../../services/settledOrdersApi';
 import { getVatStatus, roundCalc, getPrintPrice, getPriceView } from '../utils/billing';
@@ -335,7 +336,14 @@ export const usePosCheckoutFlow = ({
       if (success) {
         setIsCashModalOpen(false);
         setIsMultiPayModalOpen(false);
-        
+
+        // New settlements only: editing a settled bill takes no new sale, so the drawer stays shut.
+        if (!editingSaleId) {
+          await openDrawerIfCash(validPayments, tenderOptions || [], (reason) =>
+            showToast(`Order settled, but the cash drawer did not open: ${reason}`, "warning")
+          );
+        }
+
         const finalSaleId = newSaleId || editingSaleId || 0;
         const now = new Date();
         const paymentNames: Record<number, string> = { 1: "Cash", 2: "Card", 3: "Credit" };

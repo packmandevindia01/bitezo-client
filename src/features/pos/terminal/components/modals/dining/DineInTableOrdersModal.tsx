@@ -20,6 +20,7 @@ import { GuestCountModal } from "./GuestCountModal";
 import { generateGuestPrintHtml, isEnableVatGuestPrint } from '../../../../utils/guestPrintTemplate';
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from '../../../../utils/printHeadingUtils';
 import { printHtmlReceipt } from '../../../../services/qzService';
+import { openDrawerIfCash } from '../../../../utils/cashDrawer';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
 import {
   roundCalc,
@@ -640,6 +641,10 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         const vNo = createRes.voucherNo ?? createRes.invoiceNo ?? createRes.voucherNumber ?? createRes.saleNo;
         if (vNo) invoiceNoStr = String(vNo);
       }
+
+      await openDrawerIfCash(mappedPayments, tenderOptions, (reason) =>
+        showToast(`Order settled, but the cash drawer did not open: ${reason}`, "warning")
+      );
 
       // Try printing settled receipt
       try {

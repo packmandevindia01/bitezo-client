@@ -14,6 +14,7 @@ import {
 } from "../../utils/deliverySettlePrintTemplate";
 import type { MultiPaymentLine, TenderOption } from "../../terminal/components/modals/payment/PosMultiPayModal";
 import { allocateBulkPayments, bulkAmountDue } from "../utils/allocatePayments";
+import { openDrawerIfCash } from "../../utils/cashDrawer";
 
 export const useBulkSettlement = () => {
   const { showToast } = useToast();
@@ -308,7 +309,7 @@ export const useBulkSettlement = () => {
           })),
         });
 
-        return { res, printPayload, isDriver: true };
+        return { res, printPayload, isDriver: true, payments };
       } else {
         const res = await bulkSettlementApi.submitProviderSettlement({
           seriesId: systemSeriesId,
@@ -328,6 +329,13 @@ export const useBulkSettlement = () => {
     onSuccess: async (result) => {
       const res = result?.res || result;
       showToast(res?.message || "Bulk settlement submitted successfully!", "success");
+
+      // Delivery: the driver hands in the cash. Provider settlements take no cash.
+      if (result?.isDriver && result?.payments) {
+        await openDrawerIfCash(result.payments, [], (reason) =>
+          showToast(`Settlement saved, but the cash drawer did not open: ${reason}`, "warning")
+        );
+      }
 
       if (result?.isDriver && result?.printPayload) {
         setLastSettledPrintData(result.printPayload);

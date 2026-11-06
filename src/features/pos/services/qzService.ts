@@ -759,46 +759,8 @@ export const renderHtmlToCanvas = async (htmlContent: string): Promise<HTMLCanva
   }
 };
 
-/**
- * Prints HTML content via Printer Agent (Web / Desktop) OR native BitezoPrinter (Mobile / Tablet).
- * On mobile/tablet: renders HTML to 576-dot canvas (with Cairo font, RTL Arabic, and crisp formatting)
- * and dispatches it directly to the printer over TCP port 9100.
- */
-export const printHtmlReceipt = async (htmlContent: string, printerName?: string): Promise<void> => {
-  if (!hasPrinterHeadings()) {
-    notifyPrinterHeadingWarning();
-  }
-
-  if (Capacitor.isNativePlatform()) {
-    console.log(`[Native Print] Rendering HTML receipt to 1:1 ESC/POS raster for "${printerName || 'default'}"`);
-    const targetIp = await resolveTargetIp(printerName);
-    const canvas = await renderHtmlToCanvas(htmlContent);
-    const rasterBytes = canvasToEscPosRaster(canvas);
-    const base64Data = uint8ArrayToBase64(rasterBytes);
-
-    try {
-      await BitezoPrinter.printRaw({
-        data: base64Data,
-        type: "tcp",
-        address: targetIp,
-        port: 9100,
-      });
-      console.log(`[Native Print] 1:1 ESC/POS raster job sent to ${targetIp}:9100 successfully.`);
-      return;
-    } catch (rawErr: any) {
-      console.warn("[Native Print] printRaw failed, falling back to printImage:", rawErr);
-      const dataUrl = canvas.toDataURL("image/png");
-      await BitezoPrinter.printImage({
-        base64: dataUrl,
-        type: "tcp",
-        address: targetIp,
-        port: 9100,
-      });
-      return;
-    }
-  }
-
-  console.log("[Web Browser] Routing print job to Printer Agent...");
+/** The agent printer for a job: the requested name, then the cached bill printer, a POS thermal printer, the default. */
+const resolveAgentPrinter = async (printerName?: string): Promise<string> => {
   await printAgent.connect();
 
   let targetPrinter: string | null = null;
@@ -843,6 +805,66 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
   if (!targetPrinter) {
     throw new Error("No printer available on this system. Please check PrinterAgent.exe.");
   }
+
+  return targetPrinter;
+};
+
+/** ESC p 0 25 250 (1B 70 00 19 FA): pulses drawer pin 2 through the printer's drawer socket. Nothing prints. */
+const CASH_DRAWER_KICK_BASE64 = "G3AAGfo=";
+
+/** Opens the cash drawer cabled to the printer. */
+export const openCashDrawer = async (printerName?: string): Promise<void> => {
+  if (Capacitor.isNativePlatform()) {
+    const address = await resolveTargetIp(printerName);
+    await BitezoPrinter.printRaw({ data: CASH_DRAWER_KICK_BASE64, type: "tcp", address, port: 9100 });
+    return;
+  }
+  const printer = await resolveAgentPrinter(printerName);
+  if (!isThermalPosPrinter(printer)) throw new Error(`"${printer}" is not a receipt printer`);
+  await printAgent.printRaw(printer, CASH_DRAWER_KICK_BASE64);
+};
+
+/**
+ * Prints HTML content via Printer Agent (Web / Desktop) OR native BitezoPrinter (Mobile / Tablet).
+ * On mobile/tablet: renders HTML to 576-dot canvas (with Cairo font, RTL Arabic, and crisp formatting)
+ * and dispatches it directly to the printer over TCP port 9100.
+ */
+export const printHtmlReceipt = async (htmlContent: string, printerName?: string): Promise<void> => {
+  if (!hasPrinterHeadings()) {
+    notifyPrinterHeadingWarning();
+  }
+
+  if (Capacitor.isNativePlatform()) {
+    console.log(`[Native Print] Rendering HTML receipt to 1:1 ESC/POS raster for "${printerName || 'default'}"`);
+    const targetIp = await resolveTargetIp(printerName);
+    const canvas = await renderHtmlToCanvas(htmlContent);
+    const rasterBytes = canvasToEscPosRaster(canvas);
+    const base64Data = uint8ArrayToBase64(rasterBytes);
+
+    try {
+      await BitezoPrinter.printRaw({
+        data: base64Data,
+        type: "tcp",
+        address: targetIp,
+        port: 9100,
+      });
+      console.log(`[Native Print] 1:1 ESC/POS raster job sent to ${targetIp}:9100 successfully.`);
+      return;
+    } catch (rawErr: any) {
+      console.warn("[Native Print] printRaw failed, falling back to printImage:", rawErr);
+      const dataUrl = canvas.toDataURL("image/png");
+      await BitezoPrinter.printImage({
+        base64: dataUrl,
+        type: "tcp",
+        address: targetIp,
+        port: 9100,
+      });
+      return;
+    }
+  }
+
+  console.log("[Web Browser] Routing print job to Printer Agent...");
+  const targetPrinter = await resolveAgentPrinter(printerName);
 
   console.log(`[PrintAgent] Rendering HTML receipt for target printer "${targetPrinter}"`);
 

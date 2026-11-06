@@ -165,7 +165,7 @@ const PosSettingsTab = ({ form, employeeOptions, orderTypeOptions = [], onChange
               localStorage.setItem("productView", newView);
               window.dispatchEvent(new Event("storage"));
             }}
-            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, "conf-pos-cashdrawer")}
+            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, "conf-pos-print")}
             options={[
               { value: "English", label: t("English", form.posLanguage) },
               { value: "Arabic", label: t("Arabic", form.posLanguage) },
@@ -174,27 +174,23 @@ const PosSettingsTab = ({ form, employeeOptions, orderTypeOptions = [], onChange
           />
 
           <SelectInput
-            id="conf-pos-cashdrawer"
-            label={t("Cashdrawer Type", form.posLanguage)}
-            value={form.cashdrawer}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange("cashdrawer", e.target.value as any)}
-            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, "conf-pos-print")}
-            options={[
-              { value: "Default", label: t("Default", form.posLanguage) },
-              { value: "Normal", label: t("Normal", form.posLanguage) },
-            ]}
-          />
-
-          <SelectInput
             id="conf-pos-print"
             label={t("Print Price", form.posLanguage)}
             value={form.printPrice}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChange("printPrice", e.target.value as any)}
-            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, "conf-pos-item-seperation")}
+            onKeyDown={(e: React.KeyboardEvent<HTMLSelectElement>) => handleKeyDown(e, "conf-pos-cashdrawer")}
             options={[
               { value: "Inclusive", label: t("Inclusive", form.posLanguage) },
               { value: "Exclusive", label: t("Exclusive", form.posLanguage) },
             ]}
+          />
+
+          <Checkbox
+            id="conf-pos-cashdrawer"
+            label={t("Cash Drawer", form.posLanguage)}
+            checked={!!form.cashdrawer}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("cashdrawer", e.target.checked)}
+            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => handleKeyDown(e, "conf-pos-item-seperation")}
           />
 
           <Checkbox 

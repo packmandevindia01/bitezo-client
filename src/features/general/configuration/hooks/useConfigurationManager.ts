@@ -330,6 +330,7 @@ export const useConfigurationManager = () => {
         const parsed = saved ? JSON.parse(saved) : {};
         if (parsed.configs) {
           parsed.configs.kotHeader = payload.kotHeader;
+          parsed.configs.cashdrawer = payload.cashdrawer;
           parsed.configs.kotPrint = payload.kotPrint;
           parsed.configs.kotArabic = payload.kotArabic;
           parsed.configs.billArabic = payload.billArabic;
