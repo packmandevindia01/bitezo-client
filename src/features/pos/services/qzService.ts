@@ -850,7 +850,7 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
       });
       console.log(`[Native Print] 1:1 ESC/POS raster job sent to ${targetIp}:9100 successfully.`);
       return;
-    } catch (rawErr: any) {
+    } catch (rawErr) {
       console.warn("[Native Print] printRaw failed, falling back to printImage:", rawErr);
       const dataUrl = canvas.toDataURL("image/png");
       await BitezoPrinter.printImage({

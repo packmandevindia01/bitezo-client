@@ -103,11 +103,24 @@ export const getModifierTypeNameById = (typeId?: number): string => {
   return found?.typeName || "";
 };
 
+/** An extra as the server may send it: field names differ between API versions. */
+interface RawExtra {
+  extrasId?: number;
+  extraId?: number;
+  id?: number;
+  ID?: number;
+  extraName?: string;
+  name?: string;
+  Name?: string;
+  price?: number;
+}
+type RawExtrasBody = RawExtra[] | { extras?: RawExtra[] | null; data?: RawExtra[] | null } | null;
+
 /** Loads every extra from the server and replaces the session cache. Throws if the request fails. */
 const fetchAllExtras = async (): Promise<{ id: number; name: string; price: number; typeId: number }[]> => {
-  const res = await unwrap(axiosInstance.get<ApiResponse<{ extras: any[] | null }>>("/menu/extras", { params: { clientDb: localStorage.getItem("tenantId") || "" } }));
-  const list = Array.isArray(res) ? res : ((res as any)?.extras || (res as any)?.data || []);
-  const normalized = list.map((e: any) => ({
+  const res = await unwrap(axiosInstance.get<ApiResponse<RawExtrasBody>>("/menu/extras", { params: { clientDb: localStorage.getItem("tenantId") || "" } }));
+  const list = Array.isArray(res) ? res : (res?.extras || res?.data || []);
+  const normalized = list.map((e) => ({
     id: Number(e.extrasId ?? e.extraId ?? e.id ?? e.ID ?? 0),
     name: String(e.extraName ?? e.name ?? e.Name ?? "").trim(),
     price: Number(e.price ?? 0),

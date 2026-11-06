@@ -20,7 +20,7 @@ import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/bran
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 import { stockLineAmount, stockNetAmount } from "../../shared/stockCalc";
-import { getLineUnitValue } from "../../shared/lineUnits";
+import { getLineUnitValue, type RawUnit } from "../../shared/lineUnits";
 
 const toNumber = (val: any): number => {
   if (typeof val === "number") return val;
@@ -61,7 +61,7 @@ export const useInternalStockTransfer = (id?: string) => {
       internalStockTransferApi.getUnits(unitCategory).then(res => {
         setCategoryUnits(current => ({
           ...current,
-          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId ?? u.id), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
+          [unitCategory]: (res || []).map((u: RawUnit) => ({ label: u.name || u.unitName || "", value: String(u.unitId ?? u.id), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
         }));
       }).catch(err => {
         console.error("Failed to load units for category", unitCategory, err);
@@ -203,11 +203,11 @@ export const useInternalStockTransfer = (id?: string) => {
       return {
         products: prodRes,
         productOptions: (prodRes || []).map((p: any) => ({ label: p.productName, value: String(p.productId ?? p.id) })),
-        units: unitsRes.map((u: any) => ({
+        units: unitsRes.map((u: RawUnit) => ({
           label: u.name || u.unitName || "",
           value: String(u.id || u.unitId),
           currentValue: Number(u.currentvalue ?? u.currentValue ?? 1),
-          category: u.category as string | undefined,
+          category: u.category,
         })),
       };
     },

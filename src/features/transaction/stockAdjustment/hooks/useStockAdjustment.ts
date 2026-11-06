@@ -28,7 +28,7 @@ import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 import axiosInstance from "../../../../api/axiosInstance";
 import { stockLineAmount, stockBaseQty, stockNetAmount } from "../../shared/stockCalc";
-import { getLineUnitValue } from "../../shared/lineUnits";
+import { getLineUnitValue, type RawUnit } from "../../shared/lineUnits";
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -60,7 +60,7 @@ export const useStockAdjustment = (id?: string | null) => {
       stockAdjustmentApi.getUnitList(unitCategory).then(res => {
         setCategoryUnits(current => ({
           ...current,
-          [unitCategory]: res.map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId ?? u.id), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
+          [unitCategory]: res.map((u: RawUnit) => ({ label: u.name || u.unitName || "", value: String(u.unitId ?? u.id), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
         }));
       }).catch(err => {
         console.error("Failed to load units for category", unitCategory, err);
@@ -240,11 +240,11 @@ export const useStockAdjustment = (id?: string | null) => {
         return {
           options: typeRes.map((t: any) => ({ label: t.typeName, value: String(t.typeId) })),
           raw: typeRes,
-          units: unitsRes.map((u: any) => ({
+          units: unitsRes.map((u: RawUnit) => ({
             label: u.name || u.unitName || "",
             value: String(u.id || u.unitId),
             currentValue: Number(u.currentValue ?? u.currentvalue ?? 1),
-            category: u.category as string | undefined,
+            category: u.category,
           })),
         };
       } catch (err: any) {

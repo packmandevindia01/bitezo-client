@@ -7,6 +7,17 @@ export interface LineUnitOption {
 
 export type CategoryUnits = Record<string, LineUnitOption[]>;
 
+/** A unit as the server sends it: the unit list and the product master use different field names. */
+export interface RawUnit {
+  id?: number | string;
+  unitId?: number | string;
+  name?: string;
+  unitName?: string;
+  currentValue?: number | string;
+  currentvalue?: number | string;
+  category?: string;
+}
+
 const sameCategory = (a: string, b: string) => a.toLowerCase().trim() === b.toLowerCase().trim();
 
 const validValue = (unit: LineUnitOption | undefined): number | null => {
