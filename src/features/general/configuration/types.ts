@@ -24,6 +24,9 @@ export interface ConfigurationState {
   kotArabic: boolean;
   billArabic: boolean;
   kotPrintSettle: boolean;
+  /** Saved on this device only (settlePrintConfig.ts), never sent to the server. */
+  settlePrint: boolean;
+  settlePrintAsk: boolean;
   billCopies: number | string;
   packagerPrint: boolean;
   kotPrint: boolean;

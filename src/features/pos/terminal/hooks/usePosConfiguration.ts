@@ -10,6 +10,7 @@ import type { PosConfigResponseData, PosConfigUpdatePayload } from "../../servic
 import { branchApi } from "../../../inventory/branches/services/branchApi";
 import { clearAllPosCache } from "./usePosProducts";
 import { disableDefaultEmployeeConfig } from "../../utils/defaultEmployee";
+import { getSettlePrintConfig, saveSettlePrintConfig } from "../../utils/settlePrintConfig";
 
 export interface ConfigurationEmployeeOption {
   label: string;
@@ -18,8 +19,11 @@ export interface ConfigurationEmployeeOption {
 
 export const mapApiToState = (data: PosConfigResponseData): ConfigurationState => {
   const configs = data?.configs || {};
+  const settlePrint = getSettlePrintConfig();
   return {
     ...INITIAL_CONFIG,
+    settlePrint: settlePrint.enabled,
+    settlePrintAsk: settlePrint.askBeforePrint,
     discCalc: (localStorage.getItem("discCalc") as any) || (configs.discCalc as any) || (configs.discountCalc as any) || "Exclusive",
     kotHeader: (configs.kotHeader as any) || "QTY,DESCRIPTION,AMT",
     kotArabic: configs.kotArabic === "Enable",
@@ -392,6 +396,7 @@ export const usePosConfiguration = () => {
       const payload = mapStateToApi(form, branchId);
       
       const res = await posConfigApi.updatePosConfig(payload);
+      saveSettlePrintConfig({ enabled: form.settlePrint, askBeforePrint: form.settlePrintAsk });
       
       if (payload.kotHeader) {
         localStorage.setItem("kotHeader", payload.kotHeader);

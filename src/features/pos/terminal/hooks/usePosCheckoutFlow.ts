@@ -7,6 +7,7 @@ import { useAppDispatch } from '../../../../app/hooks';
 import { setIsSettling, setWaiter } from '../store/posSlice';
 import { salesInvoiceApi } from '../../services/salesInvoiceApi';
 import { openDrawerIfCash } from '../../utils/cashDrawer';
+import { useSettlePrintPrompt } from './useSettlePrintPrompt';
 import { orderApi } from '../../services/orderApi';
 import { settledOrdersApi } from '../../services/settledOrdersApi';
 import { getVatStatus, roundCalc, getPrintPrice, getPriceView } from '../utils/billing';
@@ -99,6 +100,7 @@ export const usePosCheckoutFlow = ({
   }
   const settleFlow = settleFlowRef.current;
   const settleShouldPrintRef = useRef<boolean>(false);
+  const settlePrint = useSettlePrintPrompt();
   const settlementCashChangeRef = useRef<number>(0);
   const settlementEmployeeIdRef = useRef<number | null>(null);
   const isOrderSubmittingRef = useRef<boolean>(false);
@@ -143,7 +145,8 @@ export const usePosCheckoutFlow = ({
 
   const finalizeSettlement = useEvent(async (shouldPrint: boolean, payloadToPrint?: any) => {
     try {
-      await printAndClearAfterSettle(shouldPrint, payloadToPrint);
+      // POS config "Settle Print": print, skip or ask. The sale is already saved; the settle lock holds meanwhile.
+      await printAndClearAfterSettle(shouldPrint && (await settlePrint.decide()), payloadToPrint);
     } finally {
       // Release the settle lock only now: receipt printed (or failed) and the cart is cleared.
       settleFlow.finish();
@@ -1272,6 +1275,7 @@ export const usePosCheckoutFlow = ({
   });
 
   return {
+    settlePrintPromptProps: settlePrint.promptProps,
     submitOrderForEmployee,
     submitSettlementForEmployee,
     finalizeSettlement,

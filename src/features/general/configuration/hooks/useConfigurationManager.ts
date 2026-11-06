@@ -6,6 +6,7 @@ import { employeeService, subscribeToEmployeeUpdates } from "../../employee";
 import { backofficeConfigApi } from "../services/backofficeConfigApi";
 import { posConfigApi } from "../../../pos/services/posConfigApi";
 import { mapApiToState, mapStateToApi } from "../../../pos/terminal/hooks/usePosConfiguration";
+import { saveSettlePrintConfig } from "../../../pos/utils/settlePrintConfig";
 import axiosInstance from "../../../../api/axiosInstance";
 import { useToast } from "../../../../app/providers/useToast";
 
@@ -277,6 +278,7 @@ export const useConfigurationManager = () => {
       const branchId = Number(selectedBranch) || Number(localStorage.getItem("systemBranchId")) || Number(localStorage.getItem("activeBranchId")) || Number(localStorage.getItem("branchId")) || 0;
       const payload = mapStateToApi(form, branchId);
       await posConfigApi.updatePosConfig(payload);
+      saveSettlePrintConfig({ enabled: form.settlePrint, askBeforePrint: form.settlePrintAsk });
 
       if (payload.kotHeader) {
         localStorage.setItem("kotHeader", payload.kotHeader);

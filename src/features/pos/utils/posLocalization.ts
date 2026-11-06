@@ -141,10 +141,8 @@ export const POS_TRANSLATIONS: Record<string, string> = {
   // Cart Action Buttons
   "COM": "مجاني",
   "Settle": "سداد",
-  "Settle &": "سداد و",
   "Print": "طباعة",
   "Order": "طلب",
-  "Order &": "طلب و",
   "Wait...": "انتظر...",
 
   // Payment Modes
@@ -373,6 +371,12 @@ export const POS_TRANSLATIONS: Record<string, string> = {
   "POS Language": "لغة نقطة البيع",
   "Product View": "عرض الأصناف",
   "Cash Drawer": "درج النقد",
+  "Settle Print": "طباعة السداد",
+  "Ask Before Printing": "السؤال قبل الطباعة",
+  "Print Receipt": "طباعة الإيصال",
+  "Do you want to print the receipt?": "هل تريد طباعة الإيصال؟",
+  "Yes": "نعم",
+  "No": "لا",
   "Print Price": "طباعة السعر",
   "Item Separation": "فصل الأصناف",
   "Enable Recipe": "تفعيل الوصفات",
@@ -504,10 +508,8 @@ export const POS_THAI_TRANSLATIONS: Record<string, string> = {
   // Cart Action Buttons
   "COM": "ฟรี",
   "Settle": "ชำระเงิน",
-  "Settle &": "ชำระและ",
   "Print": "พิมพ์",
   "Order": "สั่งซื้อ",
-  "Order &": "สั่งซื้อและ",
   "Wait...": "กรุณารอสักครู่...",
 
   // Payment Modes
@@ -736,6 +738,12 @@ export const POS_THAI_TRANSLATIONS: Record<string, string> = {
   "POS Language": "ภาษาของ POS",
   "Product View": "การแสดงสินค้า",
   "Cash Drawer": "ลิ้นชักเก็บเงิน",
+  "Settle Print": "พิมพ์เมื่อชำระเงิน",
+  "Ask Before Printing": "ถามก่อนพิมพ์",
+  "Print Receipt": "พิมพ์ใบเสร็จ",
+  "Do you want to print the receipt?": "ต้องการพิมพ์ใบเสร็จหรือไม่?",
+  "Yes": "ใช่",
+  "No": "ไม่",
   "Print Price": "พิมพ์ราคา",
   "Item Separation": "แยกรายการสินค้า",
   "Enable Recipe": "เปิดใช้สูตรอาหาร",

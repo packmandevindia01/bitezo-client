@@ -18,6 +18,8 @@ export const INITIAL_CONFIG: ConfigurationState = {
   kotArabic: false,
   billArabic: false,
   kotPrintSettle: false,
+  settlePrint: true,
+  settlePrintAsk: false,
   billCopies: 1,
   packagerPrint: false,
   kotPrint: true,

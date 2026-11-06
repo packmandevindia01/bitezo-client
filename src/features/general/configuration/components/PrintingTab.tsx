@@ -104,8 +104,26 @@ const PrintingTab = ({ form, onChange, onInputFocus }: Props) => {
             label={t("Bill Arabic", form.posLanguage)} 
             checked={form.billArabic} 
             onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("billArabic", e.target.checked)} 
-            onKeyDown={(e) => handleKeyDown(e, "conf-print-packagerheader")}
+            onKeyDown={(e) => handleKeyDown(e, "conf-print-settleprint")}
           />
+          <Checkbox
+            id="conf-print-settleprint"
+            label={t("Settle Print", form.posLanguage)}
+            checked={form.settlePrint}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("settlePrint", e.target.checked)}
+            onKeyDown={(e) => handleKeyDown(e, form.settlePrint ? "conf-print-settleask" : "conf-print-packagerheader")}
+          />
+          {form.settlePrint && (
+            <div className="ml-6">
+              <Checkbox
+                id="conf-print-settleask"
+                label={t("Ask Before Printing", form.posLanguage)}
+                checked={form.settlePrintAsk}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange("settlePrintAsk", e.target.checked)}
+                onKeyDown={(e) => handleKeyDown(e, "conf-print-packagerheader")}
+              />
+            </div>
+          )}
           <Checkbox 
             id="conf-print-packagerheader"
             label={t("Packager Header", form.posLanguage)} 

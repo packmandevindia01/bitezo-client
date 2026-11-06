@@ -16,6 +16,7 @@ import { usePosVoidFlow } from "../hooks/usePosVoidFlow";
 import { PosActionButtons } from "../components/layout/PosActionButtons";
 import { PosTerminalModals } from "../components/modals/PosTerminalModals";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
+import { SettlePrintPrompt } from "../components/modals/payment/SettlePrintPrompt";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
 import { clearAllItemDiscounts, setCustomerId, setCustomDeliveryCharge, setWaiter } from "../store/posSlice";
 import { selectDeliveryCharge } from "../store/posSelectors";
@@ -1080,6 +1081,8 @@ export const PosTerminalPage = () => {
           checkoutFlow.settleShouldPrintRef.current = false;
         }}
       />
+
+      <SettlePrintPrompt {...checkoutFlow.settlePrintPromptProps} />
 
       <EmployeePasswordModal
         key={authorizationModalKey}

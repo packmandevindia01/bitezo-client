@@ -165,75 +165,32 @@ export const PosOrderSummary = ({ subtotal, discount, tax, charges, total, deliv
 
       {/* Bottom Actions */}
       <div className="grid grid-cols-2 gap-1.5 lg:gap-2 pt-1 [@media(max-height:800px)]:pt-0.5">
-        <div className="grid grid-cols-2 gap-1 lg:gap-1.5">
-          <button
-            onClick={() => onSettle && onSettle(false)}
-            disabled={orderLoading || isSettling || subtotal <= 0}
-            className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2b9e5a] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
-          >
-            {isSettling ? (
-              <span className="flex items-center gap-1.5">
-                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                <span>{t("Processing...")}</span>
-              </span>
-            ) : isSettledEdit ? t("Update") : t("Settle")}
-          </button>
-          <button
-            onClick={() => onSettle && onSettle(true)}
-            disabled={orderLoading || isSettling || subtotal <= 0}
-            className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2b9e5a] text-white font-extrabold text-[10px] md:text-[11px] xl:text-[13px] [@media(max-height:800px)]:text-[8px] leading-tight px-0.5 uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center"
-          >
-            {isSettling ? (
-              <span className="flex flex-col items-center justify-center gap-0.5">
-                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                <span className="text-[9px]">{t("Processing...")}</span>
-              </span>
-            ) : isSettledEdit ? (
-              <>
-                <span>{t("Update &")}</span>
-                <span>{t("Print")}</span>
-              </>
-            ) : (
-              <>
-                <span>{t("Settle &")}</span>
-                <span>{t("Print")}</span>
-              </>
-            )}
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-1 lg:gap-1.5">
-          <button
-            onClick={() => onOrder && onOrder(false)}
-            disabled={orderLoading || isSettling || isSettledEdit || subtotal <= 0}
-            className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2e70e0] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
-          >
-            {orderLoading ? (
-              <span className="flex items-center gap-1.5">
-                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                <span>{t("Processing...")}</span>
-              </span>
-            ) : (
-              t("Order")
-            )}
-          </button>
-          <button
-            onClick={() => onOrder && onOrder(true)}
-            disabled={orderLoading || isSettling || isSettledEdit || subtotal <= 0}
-            className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2e70e0] text-white font-extrabold text-[10px] md:text-[11px] xl:text-[13px] [@media(max-height:800px)]:text-[8px] leading-tight px-0.5 uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center text-center"
-          >
-            {orderLoading ? (
-              <span className="flex flex-col items-center justify-center gap-0.5">
-                <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                <span className="text-[9px]">{t("Processing...")}</span>
-              </span>
-            ) : (
-              <>
-                <span>{t("Order &")}</span>
-                <span>{t("Print")}</span>
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={() => onSettle && onSettle(true)}
+          disabled={orderLoading || isSettling || subtotal <= 0}
+          className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2b9e5a] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#228049] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
+        >
+          {isSettling ? (
+            <span className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              <span>{t("Processing...")}</span>
+            </span>
+          ) : isSettledEdit ? t("Update") : t("Settle")}
+        </button>
+        <button
+          onClick={() => onOrder && onOrder(true)}
+          disabled={orderLoading || isSettling || isSettledEdit || subtotal <= 0}
+          className="h-10 md:h-11 lg:h-12 [@media(max-height:800px)]:h-9 rounded-xl bg-[#2e70e0] text-white font-extrabold text-[11px] md:text-[12px] xl:text-[14px] [@media(max-height:800px)]:text-[9px] uppercase shadow-premium hover:bg-[#255bb3] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-center px-1"
+        >
+          {orderLoading ? (
+            <span className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              <span>{t("Processing...")}</span>
+            </span>
+          ) : (
+            t("Order")
+          )}
+        </button>
       </div>
     </div>
   );

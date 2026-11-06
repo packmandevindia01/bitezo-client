@@ -21,6 +21,8 @@ import { generateGuestPrintHtml, isEnableVatGuestPrint } from '../../../../utils
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from '../../../../utils/printHeadingUtils';
 import { printHtmlReceipt } from '../../../../services/qzService';
 import { openDrawerIfCash } from '../../../../utils/cashDrawer';
+import { useSettlePrintPrompt } from '../../../hooks/useSettlePrintPrompt';
+import { SettlePrintPrompt } from '../payment/SettlePrintPrompt';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
 import {
   roundCalc,
@@ -77,6 +79,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
   const editingOrderId = useAppSelector((state) => state.pos.editingOrderId);
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const settlePrint = useSettlePrintPrompt();
 
   const { status } = useCashierLog();
   const { data: posMasterData } = usePosMasterData();
@@ -646,6 +649,10 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         showToast(`Order settled, but the cash drawer did not open: ${reason}`, "warning")
       );
 
+      // POS config "Settle Print": print, skip or ask. The sale is saved, so the payment popup can close first.
+      setIsMultiPayOpen(false);
+      const printReceipt = await settlePrint.decide();
+
       // Try printing settled receipt
       try {
         const enableVat = isEnableVatGuestPrint();
@@ -781,7 +788,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
             undefined;
         }
 
-        if (billPrinter) {
+        if (billPrinter && printReceipt) {
           await printHtmlReceipt(htmlContent, billPrinter);
         }
       } catch (printErr: any) {
@@ -1375,6 +1382,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           onSubmit={handleMultiPaySubmit}
         />
       )}
+
+      <SettlePrintPrompt {...settlePrint.promptProps} />
 
       {/* ── Employee Authorization Modal ── */}
       <EmployeePasswordModal
