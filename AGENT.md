@@ -327,6 +327,7 @@ session/day/shift (`cashier/`) must be open before orders.
 ### 6.3 Place order (KOT)
 `usePosCartActions.submitOrder` → `buildNewOrderPayload` → `POST /menu/order` (retries on ticket conflict)
 → KOT print per printer routing (category / product / section / order type) → clear cart.
+The footer has one Order and one Settle button (`PosOrderSummary`; Order & Print / Settle & Print were removed). Order follows Standard KOT Print, Settle and Update follow Settle Print (§6.8).
 Order / ticket numbers are assigned by the backend: read the save reply with `readCreatedOrder`
 (`services/orderResponse.ts`, accepts any reply shape), then the saved order (`getOrderDetails`).
 Never print a guessed number; templates use `toDisplayNo` so a missing value prints blank, not "undefined".
@@ -377,6 +378,9 @@ Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set
   follows **Print Price**, independent of Price View).
 - Live cart print → `applyCartPricingToUnified` (numbers taken from the cart engine's `pricedLine`).
 - KOT shows no prices.
+- Settle Print (POS config, Printing tab): saved in this device's localStorage only (`settlePrintConfig`, `utils/settlePrintConfig.ts`), default print directly. Off = no receipt; on + Ask Before Printing = Yes / No after the sale is saved (`useSettlePrintPrompt`, `SettlePrintPrompt`, Enter = Yes, Esc = No). Applies to checkout Settle / Update and dine-in settle. Not to bulk delivery settlement or manual reprints. The drawer opens regardless.
+- Order on an edited order always gives the kitchen a KOT (with Standard KOT on): added lines = RE-ORDER (added only); voids = VOID ITEMS; neither (extras, modifier or note changed, or nothing) = UPDATE KOT with the whole order.
+- Standard KOT Print (POS config `kotPrint`) decides station KOTs on every order, re-order and VOID ITEMS print: off = none. Only the manual KOT button in Recall is forced (`forcedPrint`). Master KOT and the packager print follow their own settings.
 - Master KOT (`executeKotRouting`, `isMaster: true`): same KOT template (items, modifiers, delivery block) with
   no totals / VAT; printed once per order or re-order on the master printer (and/or bill printer); never for
   void prints (by design).
@@ -459,7 +463,7 @@ cart keep the price and name they were added with.
 | Golden orders | `pricingGoldenOrders`, `order288RoundedVat`, `order297DineIn`, `order301StaleMaster`, `userScreenshotScenarios` |
 | Payloads / API | `orderPayloadMapper`, `orderApi`, `delivery` |
 | Split / combine | `split`, `combine`, `splitAndCombineDiscount`, `combinedProductExtrasPricing` |
-| Prints | `printPricing`, `printTaxMatrix`, `printTemplates`, `settledPrint`, `cartPrint`, `printBarcode` |
+| Prints | `printPricing`, `printTaxMatrix`, `printTemplates`, `settledPrint`, `cartPrint`, `printBarcode`, `printScenarios` (every KOT and settle print against POS config, real hooks and store, fake server and printer), `dineInSettlePrint` (same, rendered dine-in screen, jsdom) |
 | **Cross-verification** | `posCrossVerification` — 200 seeded random carts (incl/excl, VAT 0/5/10/15, extras, item or bill discount % / amount, discount calc Incl/Excl, Dine-In / Take-Out / Delivery, VAT on/off, SC, levy): engine vs an independent reference model, engine identities, screen = payload = invoice, saved → recall footer, saved → edit, saved → print, saved → split (2 bills = saved total). A failure prints the seed. |
 | Regressions | `posRegressions` (bulk settlement allocation, amount bill discount on settled edit), `productionHardening` |
 | **Safety net (golden master)** | `posFlowSafetyNet` + `__snapshots__/posFlowSafetyNet.test.ts.snap` — 7 store-driven flows (Take-Out with extras/modifier/message + item discounts, Dine-In SC+levy + amount bill discount, Delivery + custom charge + % bill discount, complimentary, manual price / qty / remove in Exclusive view, VAT off, saved → settled edit → update payload). Snapshots the screen totals + lines, new-order / direct-settle / invoice payloads, update payload and bill + KOT text. Run `npm run test:pos-safety` before and after every refactor step. **Update snapshots (`npx vitest run -u src/tests/posFlowSafetyNet.test.ts`) only for an intended, reviewed change** — show the diff in the PR. |
