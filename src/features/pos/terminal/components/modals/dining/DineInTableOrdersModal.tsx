@@ -634,7 +634,9 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
 
       const createRes = await salesInvoiceApi.createSalesInvoice(salesPayload);
       let invoiceNoStr: string | undefined = undefined;
+      let settledSaleId: number | undefined = typeof createRes === 'number' ? createRes : undefined;
       if (createRes && typeof createRes === 'object') {
+        settledSaleId = createRes.id ?? createRes.saleId ?? undefined;
         const vNo = createRes.voucherNo ?? createRes.invoiceNo ?? createRes.voucherNumber ?? createRes.saleNo;
         if (vNo) invoiceNoStr = String(vNo);
       }
@@ -716,6 +718,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
           orderNo: master.orderNo ?? String(master.orderId),
           ticketNo: toDisplayNo(master.ticketNo) ?? "",
           invoiceNo: invoiceNoStr,
+          saleId: settledSaleId,
           waiter: settleWaiter,
           counter: "Main",
           section: master.sectionName || "DINE IN",

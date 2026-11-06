@@ -1052,6 +1052,7 @@ export const usePosCheckoutFlow = ({
             orderNo: orderNoStr,
             ticketNo: ticketNoStr,
             invoiceNo: invoiceNoStr || (finalSaleId > 0 ? String(finalSaleId) : undefined),
+            saleId: finalSaleId > 0 ? finalSaleId : undefined,
             waiter: waiterStr,
             counter: "Main",
             section: sectionStr,

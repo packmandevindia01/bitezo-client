@@ -967,6 +967,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: toDisplayNo(master.ticketNo) ?? "",
         invoiceNo,
+        // The real id only (list row, then saved order). The voucher number is not a sale id.
+        saleId: Number(orderSummary?.saleId ?? orderSummary?.SaleId ?? master.saleId ?? 0) || undefined,
         waiter: resolvedWaiter,
         counter: "Main",
         section: master.sectionName || "DINE IN",

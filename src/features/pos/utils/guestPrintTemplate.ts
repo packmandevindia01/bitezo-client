@@ -1,6 +1,7 @@
 import { escapeHtml } from "../../../utils/html";
 import type { PosCartItem } from "../types";
 import { modifierLabelOf } from "./modifierLabel";
+import { barcodeHtml } from "./printBarcode";
 import { toDisplayNo } from "../services/orderResponse";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
@@ -16,6 +17,8 @@ export interface GuestPrintData {
   orderNo: string;
   ticketNo: string;
   invoiceNo?: string;
+  /** Sales invoice id: the barcode on a settle print. No id, no barcode (never a guessed number). */
+  saleId?: number;
   waiter: string;
   counter: string;
   section?: string;
@@ -298,6 +301,10 @@ export const generateGuestPrintHtml = async (
   ) : "");
 
   const isGuestPrint = !data.isSettlement && !data.invoiceNo && !data.isPackager;
+  // Guest and packager prints: the order number (the first one on a combined order). Settle prints: the sale id.
+  const barcodeValue = isGuestPrint || data.isPackager
+    ? toDisplayNo(String(data.orderNo ?? '').split(',')[0].trim().replace(/^#/, ''))
+    : toDisplayNo(data.saleId);
 
   const isBillArabic = data.billArabic ?? isBillArabicEnabled();
 
@@ -738,7 +745,7 @@ export const generateGuestPrintHtml = async (
           .vat-table th { text-align: left; padding-bottom: 5px; font-weight: 700; color: #000000; border-bottom: 1px dashed #000000; }
           .vat-table td { padding: 4px 0 2px 0; font-weight: 600; color: #000000; }
           
-          .barcode-container { text-align: center; margin-top: 15px; margin-bottom: 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 32px; font-weight: bold; letter-spacing: 2px; color: #000000; }
+          .barcode-container { margin-top: 15px; margin-bottom: 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000000; }
         </style>
       </head>
       <body>
@@ -969,7 +976,7 @@ export const generateGuestPrintHtml = async (
         `;
         })()}
 
-        <div class="barcode-container">*${String(data.orderNo || '').split(',')[0].trim()}*</div>
+        ${barcodeValue ? `<div class="barcode-container">${barcodeHtml(barcodeValue)}</div>` : ''}
         
         <div style="font-size: 11px; margin-top: 5px; white-space: nowrap;">Print Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:normal;">(وقت الطباعة)</bdi>' : ''} : ${dateStr} ${formattedTimeStr}</div>
 
