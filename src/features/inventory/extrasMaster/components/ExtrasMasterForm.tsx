@@ -12,7 +12,8 @@ interface ExtrasMasterFormProps {
   saving: boolean;
   loading: boolean;
   branches: { id: number; name: string }[];
-  categories: CategoryListItem[];
+  categories: Pick<CategoryListItem, "id" | "name">[];
+  hideBranchTab?: boolean;
   activeTab?: "general" | "categories" | "branches";
   onTabChange?: (tab: "general" | "categories" | "branches") => void;
   onSave?: () => void;
@@ -25,6 +26,7 @@ const ExtrasMasterForm = ({
   loading,
   branches,
   categories,
+  hideBranchTab = false,
   activeTab: controlledActiveTab,
   onTabChange,
   onSave,
@@ -118,6 +120,7 @@ const ExtrasMasterForm = ({
             <ListTree size={14} />
             Category Allocation
           </button>
+          {!hideBranchTab && (
           <button
             type="button"
             onClick={() => setActiveTab("branches")}
@@ -130,6 +133,7 @@ const ExtrasMasterForm = ({
             <Building2 size={14} />
             Branch Allocation
           </button>
+          )}
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useContext, useState, useEffect } from "react";
 import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,6 +15,7 @@ import { usePermissions } from "../../../../hooks/usePermissions";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import type { RootState } from "../../../../app/store";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
+import { PosAllocationScopeContext, posBranchIds } from "../../shared/posAllocationScope";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { categoryApi } from "../../category";
 import { fetchBranchNames } from "../../branches/services/branchApi";
@@ -33,6 +34,9 @@ import { modifierFormSchema, type ModifierForm as ModifierFormType, type Modifie
 
 const ModifierPage = () => {
   const { hasPermission } = usePermissions();
+  const posScope = useContext(PosAllocationScopeContext);
+  const posBranchId = posScope?.branchId;
+  const defaultBranchIds = posBranchId ? [posBranchId] : [];
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   
@@ -63,17 +67,26 @@ const ModifierPage = () => {
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
+    enabled: !posScope,
   });
 
   const branches = branchList.length > 0 ? branchList : reduxBranches;
 
-  const { data: categories = [], refetch: refetchCategories } = useQuery({
+  const { data: backOfficeCategories = [], refetch: refetchCategories } = useQuery({
     queryKey: ["categories"],
     queryFn: () => categoryApi.getCategories(),
     staleTime: 0,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
+    enabled: !posScope,
   });
+  const categories = posScope?.categories ?? backOfficeCategories;
+
+  const refreshBackOfficeLists = () => {
+    if (posScope) return;
+    void refetchBranches();
+    void refetchCategories();
+  };
 
   // Real-time synchronization for branch updates
   useEffect(() => {
@@ -98,11 +111,11 @@ const ModifierPage = () => {
 
   // Refetch branches whenever modal opens
   useEffect(() => {
-    if (open) {
+    if (open && !posScope) {
       void refetchBranches();
       dispatch(fetchGlobalMasterData());
     }
-  }, [open, refetchBranches, dispatch]);
+  }, [open, refetchBranches, dispatch, posScope]);
 
   const { data: records = [], isLoading } = useModifiers(search || undefined);
   const { data: detailRecord, isLoading: isDetailLoading } = useModifierDetail(editingId || undefined);
@@ -128,7 +141,8 @@ const ModifierPage = () => {
   useEffect(() => {
     if (editingId && detailRecord) {
       const mod = detailRecord.modifier?.[0];
-      const branchIds = (detailRecord.branchIds || []).map((b) => b.id);
+      const savedBranchIds = (detailRecord.branchIds || []).map((b) => b.id);
+      const branchIds = posBranchId ? posBranchIds(posBranchId, savedBranchIds) : savedBranchIds;
       const categoryIds = (detailRecord.categoryIds || []).map((c) => c.id);
       
       if (mod) {
@@ -142,7 +156,7 @@ const ModifierPage = () => {
         });
       }
     }
-  }, [editingId, detailRecord, form]);
+  }, [editingId, detailRecord, form, posBranchId]);
 
   const closeModal = () => {
     setOpen(false);
@@ -150,25 +164,23 @@ const ModifierPage = () => {
     setActiveTab("general");
     form.clearErrors();
     form.reset({
-      name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: [], categoryIds: []
+      name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: defaultBranchIds, categoryIds: []
     });
   };
 
   const openCreateModal = () => {
-    void refetchBranches();
-    void refetchCategories();
+    refreshBackOfficeLists();
     setEditingId(null);
     setActiveTab("general");
     form.clearErrors();
     form.reset({
-      name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: [], categoryIds: []
+      name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: defaultBranchIds, categoryIds: []
     });
     setOpen(true);
   };
 
   const handleEdit = (record: ModifierRecord) => {
-    void refetchBranches();
-    void refetchCategories();
+    refreshBackOfficeLists();
     setEditingId(record.id);
     setActiveTab("general");
     form.clearErrors();
@@ -286,7 +298,7 @@ const ModifierPage = () => {
               variant="secondary" 
               onClick={() => {
                 form.reset({
-                  name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: [], categoryIds: []
+                  name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: defaultBranchIds, categoryIds: []
                 });
                 form.clearErrors();
                 setActiveTab("general");
@@ -337,6 +349,7 @@ const ModifierPage = () => {
           saving={isSaving}
           branches={branches}
           categories={categories}
+          hideBranchTab={Boolean(posScope)}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           onSave={handleSave}

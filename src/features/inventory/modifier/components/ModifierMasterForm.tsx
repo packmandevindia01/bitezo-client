@@ -11,7 +11,8 @@ interface ModifierMasterFormProps {
   loading?: boolean;
   saving?: boolean;
   branches: { id: number; name: string }[];
-  categories: CategoryListItem[];
+  categories: Pick<CategoryListItem, "id" | "name">[];
+  hideBranchTab?: boolean;
   activeTab?: "general" | "categories" | "branches";
   onTabChange?: (tab: "general" | "categories" | "branches") => void;
   onSave?: () => void;
@@ -24,6 +25,7 @@ const ModifierMasterForm = ({
   saving = false,
   branches,
   categories,
+  hideBranchTab = false,
   activeTab: controlledActiveTab,
   onTabChange,
   onSave,
@@ -118,6 +120,7 @@ const ModifierMasterForm = ({
             <ListTree size={14} />
             Category Allocation
           </button>
+          {!hideBranchTab && (
           <button
             type="button"
             onClick={() => setActiveTab("branches")}
@@ -135,6 +138,7 @@ const ModifierMasterForm = ({
               <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
             )}
           </button>
+          )}
         </div>
       </div>
 

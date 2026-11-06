@@ -103,6 +103,20 @@ export const getModifierTypeNameById = (typeId?: number): string => {
   return found?.typeName || "";
 };
 
+/** Loads every extra from the server and replaces the session cache. Throws if the request fails. */
+const fetchAllExtras = async (): Promise<{ id: number; name: string; price: number; typeId: number }[]> => {
+  const res = await unwrap(axiosInstance.get<ApiResponse<{ extras: any[] | null }>>("/menu/extras", { params: { clientDb: localStorage.getItem("tenantId") || "" } }));
+  const list = Array.isArray(res) ? res : ((res as any)?.extras || (res as any)?.data || []);
+  const normalized = list.map((e: any) => ({
+    id: Number(e.extrasId ?? e.extraId ?? e.id ?? e.ID ?? 0),
+    name: String(e.extraName ?? e.name ?? e.Name ?? "").trim(),
+    price: Number(e.price ?? 0),
+    typeId: 2,
+  }));
+  setCachedExtras(normalized);
+  return normalized;
+};
+
 export const menuApi = {
   /** GET /api/menu/master-data */
   getMasterData: async () => {
@@ -385,19 +399,19 @@ export const menuApi = {
     const cached = getCachedExtras();
     if (cached.length > 0) return cached;
     try {
-      const res = await unwrap(axiosInstance.get<ApiResponse<{ extras: any[] | null }>>("/menu/extras", { params: { clientDb: localStorage.getItem("tenantId") || "" } }));
-      const list = Array.isArray(res) ? res : ((res as any)?.extras || (res as any)?.data || []);
-      const normalized = list.map((e: any) => ({
-        id: Number(e.extrasId ?? e.extraId ?? e.id ?? e.ID ?? 0),
-        name: String(e.extraName ?? e.name ?? e.Name ?? "").trim(),
-        price: Number(e.price ?? 0),
-        typeId: 2,
-      }));
-      setCachedExtras(normalized);
-      return normalized;
+      return await fetchAllExtras();
     } catch (e) {
       console.warn("[menuApi] getAllExtras error:", e);
       return cached;
+    }
+  },
+
+  /** After extras are edited in this tab. A failed request keeps the old list: saved orders use it to recognise extras. */
+  refreshAllExtras: async (): Promise<void> => {
+    try {
+      await fetchAllExtras();
+    } catch (e) {
+      console.warn("[menuApi] refreshAllExtras error:", e);
     }
   },
 

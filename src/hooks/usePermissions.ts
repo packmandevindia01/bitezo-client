@@ -1,4 +1,8 @@
+import { createContext, useContext } from 'react';
 import { useAppSelector } from '../app/hooks';
+
+/** True = every permission check below this provider passes. Used by POS screens that reuse Back Office pages. */
+export const SkipPermissionsContext = createContext(false);
 
 // Alias mapping for modules that may have different display or DB names across backend / frontend
 const MODULE_ALIASES: Record<string, string[]> = {
@@ -11,8 +15,13 @@ const MODULE_ALIASES: Record<string, string[]> = {
 export const usePermissions = () => {
   const isMaster = useAppSelector((state) => state.auth.isMaster);
   const userRoles = useAppSelector((state) => state.auth.userRoles);
+  const skipPermissions = useContext(SkipPermissionsContext);
 
   const hasPermission = (moduleName: string | string[], action: string) => {
+    if (skipPermissions) {
+      return true;
+    }
+
     // Global bypass: allow all permissions if flag is set in .env (works in dev and production)
     if (import.meta.env.VITE_BYPASS_PERMISSIONS === 'true') {
       return true;

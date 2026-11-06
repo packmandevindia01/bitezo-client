@@ -1,5 +1,5 @@
 import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,6 +25,7 @@ import {
 
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalMasterData } from "../../shared/store/masterDataSlice";
+import { PosAllocationScopeContext, posBranchIds } from "../../shared/posAllocationScope";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { categoryApi } from "../../category";
 import { useToast } from "../../../../app/providers/useToast";
@@ -33,6 +34,8 @@ import { useToast } from "../../../../app/providers/useToast";
 const ExtrasMasterPage = () => {
 
   const { hasPermission } = usePermissions();
+  const posScope = useContext(PosAllocationScopeContext);
+  const posBranchId = posScope?.branchId;
   const { showToast } = useToast();
   
   const [search, setSearch] = useState("");
@@ -49,15 +52,17 @@ const ExtrasMasterPage = () => {
   const { branches } = useAppSelector((state) => state.masterData);
 
   useEffect(() => {
-    if (branches.length === 0) {
+    if (branches.length === 0 && !posScope) {
       dispatch(fetchGlobalMasterData());
     }
-  }, [dispatch, branches.length]);
+  }, [dispatch, branches.length, posScope]);
 
-  const { data: categories = [] } = useQuery({
+  const { data: backOfficeCategories = [] } = useQuery({
     queryKey: ["categories-list"],
     queryFn: () => categoryApi.getCategories(),
+    enabled: !posScope,
   });
+  const categories = posScope?.categories ?? backOfficeCategories;
 
   const { data: records = [], isLoading } = useExtrasMaster(search || undefined);
   const { data: detailRecord, isLoading: isDetailLoading } = useExtrasMasterDetail(editingId || undefined);
@@ -86,10 +91,13 @@ const ExtrasMasterPage = () => {
   useEffect(() => {
     if (editingId && detailRecord) {
       const mod = detailRecord.modifier?.[0];
-      const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
+      const activeBranchId = posBranchId || Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
       let branchIds = (detailRecord.branchIds || []).map((b) => b.id);
       if (branchIds.length === 0) {
         branchIds = [activeBranchId];
+      }
+      if (posBranchId) {
+        branchIds = posBranchIds(posBranchId, branchIds);
       }
       const categoryIds = (detailRecord.categoryIds || []).map((c) => c.id);
       
@@ -105,10 +113,10 @@ const ExtrasMasterPage = () => {
         });
       }
     }
-  }, [editingId, detailRecord, form, branches]);
+  }, [editingId, detailRecord, form, branches, posBranchId]);
 
   const closeModal = () => {
-    const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
+    const activeBranchId = posBranchId || Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
     const defaultBranchIds = [activeBranchId];
     setOpen(false);
     setEditingId(null);
@@ -126,7 +134,7 @@ const ExtrasMasterPage = () => {
   };
 
   const openCreateModal = () => {
-    const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
+    const activeBranchId = posBranchId || Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
     const defaultBranchIds = [activeBranchId];
     setEditingId(null);
     setActiveTab("general");
@@ -277,7 +285,7 @@ const ExtrasMasterPage = () => {
             <Button 
               variant="secondary" 
               onClick={() => {
-                const activeBranchId = Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
+                const activeBranchId = posBranchId || Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
                 form.reset({
                   name: "", arabic: "", typeId: 0, price: 0, color: "#cccccc", branchIds: [activeBranchId], categoryIds: []
                 });
@@ -330,6 +338,7 @@ const ExtrasMasterPage = () => {
           loading={isDetailLoading}
           branches={branches}
           categories={categories}
+          hideBranchTab={Boolean(posScope)}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           onSave={handleSave}

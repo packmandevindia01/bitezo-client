@@ -15,7 +15,8 @@ import {
   Shield,
   LayoutGrid,
   ExternalLink,
-  Trash2
+  Trash2,
+  ListPlus
 } from 'lucide-react';
 import { Modal } from '../../../../../../components/common';
 import { t } from '../../../../utils/posLocalization';
@@ -131,11 +132,20 @@ const DISCOUNT_ITEMS: ActionItem[] = [
   },
   { 
     label: 'LOCK PRODUCTS', 
-    description: 'Temporarily 86 out-of-stock menu items', 
+    description: 'Temporarily lock out-of-stock menu items', 
     icon: Lock, 
     action: 'lock',
     iconBg: 'bg-slate-100',
     iconColor: 'text-slate-700',
+    requiresAuth: true
+  },
+  {
+    label: 'EXTRAS & MODIFIERS',
+    description: 'Add or edit extras, modifiers and their types',
+    icon: ListPlus,
+    action: 'menuMasters',
+    iconBg: 'bg-pink-50',
+    iconColor: 'text-pink-600',
     requiresAuth: true
   },
 ];
@@ -285,6 +295,22 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
       });
       return;
     }
+    if (item.action === 'menuMasters') {
+      if (isDefaultEmployee) {
+        onClose();
+        navigate('/pos/menu-masters');
+        return;
+      }
+      requestAuthorization({
+        actionLabel: "Extras & Modifiers",
+        // TODO: add permissionId when the backend team adds this privilege. Until then any valid employee PIN opens it.
+        onAuthorized: () => {
+          onClose();
+          navigate('/pos/menu-masters');
+        }
+      });
+      return;
+    }
     if (item.action === 'bulkSettlement') {
       if (isDefaultEmployee) {
         onClose();
@@ -401,7 +427,7 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
         {/* Bottom Left: Discounts & Perks */}
         <SectionCard
           title="Discounts & Inventory"
-          badge="Offers & 86"
+          badge="Offers & Menu"
           badgeColor="bg-emerald-500"
           items={DISCOUNT_ITEMS}
           isDefaultEmployee={isDefaultEmployee}
