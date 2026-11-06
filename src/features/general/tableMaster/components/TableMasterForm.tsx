@@ -1,4 +1,4 @@
-import { Trash2, Minus, Plus, Save, RotateCcw, X } from "lucide-react";
+import { Trash2, ListPlus, Minus, Plus, Save, RotateCcw, X } from "lucide-react";
 import { Button, FormInput, Checkbox } from "../../../../components/common";
 import type { UseFormReturn } from "react-hook-form";
 import type { TableMasterForm as TableMasterFormType } from "../schemas";
@@ -10,6 +10,7 @@ interface TableMasterFormProps {
   loading: boolean;
   onClear: () => void;
   onSave: () => void;
+  onSaveAndAddNext?: () => void;
   onClose?: () => void;
   onDeleteRequest?: () => void;
 }
@@ -20,6 +21,7 @@ const TableMasterForm = ({
   loading,
   onClear,
   onSave,
+  onSaveAndAddNext,
   onClose,
   onDeleteRequest
 }: TableMasterFormProps) => {
@@ -74,7 +76,12 @@ const TableMasterForm = ({
     >
       <div className="mb-3 flex items-center justify-between border-b border-gray-50 pb-2">
         <h2 className="text-sm font-bold uppercase tracking-[0.1em] text-[#49293e]">
-          {mode === "edit" ? "Edit Table" : "Register New Table"}
+          {mode === "edit" ? "Edit Table" : "Add Table"}
+          {mode === "create" && watch("position") > 0 && (
+            <span className="ml-2 font-semibold normal-case tracking-normal text-gray-500">
+              at position {watch("position")}
+            </span>
+          )}
         </h2>
         {onClose && (
           <button
@@ -244,9 +251,21 @@ const TableMasterForm = ({
         >
           Clear
         </Button>
-        <Button 
+        {mode === "create" && onSaveAndAddNext && (
+          <Button
+            id="table-save-next-btn"
+            variant="secondary"
+            onClick={onSaveAndAddNext}
+            disabled={loading}
+            type="button"
+            isAction
+            icon={<ListPlus size={18} />}
+          >
+            Save & Add Next
+          </Button>
+        )}
+        <Button
           id="table-save-btn"
-          onClick={onSave} 
           disabled={loading}
           type="submit"
           isAction

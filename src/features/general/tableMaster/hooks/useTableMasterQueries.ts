@@ -85,13 +85,25 @@ export const useReorderTables = () => {
         });
       }
     },
-    onSuccess: (_, { sectionId }) => {
-      showToast("Order saved successfully", "success");
+    // The table stays where it was dropped while the save runs.
+    onMutate: async ({ sectionId, changedTables }) => {
+      const queryKey = ["tableMaster", sectionId];
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<TableRecord[]>(queryKey);
+      const moved = new Map(changedTables.map((table) => [table.tableId, table.position]));
+      queryClient.setQueryData<TableRecord[]>(queryKey, (tables) =>
+        tables?.map((table) => (moved.has(table.tableId) ? { ...table, position: moved.get(table.tableId)! } : table)),
+      );
+      return { previous };
+    },
+    onError: (error: Error, { sectionId }, context) => {
+      console.error("[Reorder] Persistence failed:", error);
+      if (context?.previous) queryClient.setQueryData(["tableMaster", sectionId], context.previous);
+      showToast(error.message ? `Layout not saved: ${error.message}` : "Layout not saved. Please try again.", "error");
+    },
+    // Always reload: if a save fails part way, the screen must show what the server actually holds.
+    onSettled: (_, __, { sectionId }) => {
       queryClient.invalidateQueries({ queryKey: ["tableMaster", sectionId] });
     },
-    onError: (error: Error) => {
-      console.error("[Reorder] Persistence failed:", error);
-      showToast("Failed to persist new order", "error");
-    }
   });
 };

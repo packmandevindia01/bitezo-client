@@ -16,7 +16,8 @@ import {
   useReorderTables
 } from "../hooks/useTableMasterQueries";
 import TableSectionSelector from "../components/TableSectionSelector";
-import TableCardGrid from "../components/TableCardGrid";
+import TableCardGrid, { type LayoutSaveStatus } from "../components/TableCardGrid";
+import { nextFreePosition, suggestNextTableName } from "../utils/tableLayout";
 import TableMasterForm from "../components/TableMasterForm";
 import { useQuery } from "@tanstack/react-query";
 import { sectionService } from "../../section/services/sectionService";
@@ -114,13 +115,32 @@ const TableMasterPage = () => {
     setOpen(true);
   };
 
-  const handleSave = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
+  // Ready for the next table: same chairs, next free spot, next name selected so typing replaces it.
+  const prepareNextTable = (saved: TableMasterFormType) => {
+    form.reset({
+      sectionId: saved.sectionId,
+      tableName: suggestNextTableName(saved.tableName, [...tables.map(t => t.tableName), saved.tableName]),
+      chairs: saved.chairs,
+      isActive: true,
+      position: nextFreePosition(tables, saved.position),
+    });
+    setTimeout(() => {
+      const el = document.getElementById("table-name");
+      el?.focus();
+      if (el instanceof HTMLInputElement) el.select();
+    }, 30);
+  };
+
+  const handleSave = (addNext = false) => {
     form.handleSubmit(
       (data) => {
         if (mode === "create") {
           createMutation.mutate(data, {
             onSuccess: () => {
+              if (addNext) {
+                prepareNextTable(data);
+                return;
+              }
               setOpen(false);
               setSelectedId(null);
             }
@@ -183,18 +203,18 @@ const TableMasterPage = () => {
     }
   };
 
-  const handleReorder = (newTables: TableRecord[]) => {
-    if (!canEdit || !selectedSectionId) return;
-    
-    // Find only tables whose positions have actually changed
-    const changedTables = newTables.filter((table, index) => {
-      return table.position !== index + 1;
-    }).map((table, index) => ({ ...table, position: index + 1 }));
-
-    if (changedTables.length > 0) {
-      reorderMutation.mutate({ sectionId: selectedSectionId, changedTables });
-    }
+  const handleLayoutChange = (changedTables: TableRecord[]) => {
+    if (!canEdit || !selectedSectionId || changedTables.length === 0) return;
+    reorderMutation.mutate({ sectionId: selectedSectionId, changedTables });
   };
+
+  const layoutSaveStatus: LayoutSaveStatus = reorderMutation.variables?.sectionId !== selectedSectionId
+    ? "idle"
+    : reorderMutation.isPending
+      ? "saving"
+      : reorderMutation.isSuccess
+        ? "saved"
+        : "idle";
 
   const handleCloseModal = () => {
     setOpen(false);
@@ -227,9 +247,10 @@ const TableMasterPage = () => {
               tables={sortedTables}
               selectedId={selectedId}
               loading={isTablesLoading}
+              saveStatus={layoutSaveStatus}
               onEdit={canEdit ? handleEdit : undefined}
               onDeleteRequest={canDelete ? setDeleteRecord : undefined}
-              onReorder={canEdit ? handleReorder : undefined}
+              onLayoutChange={canEdit ? handleLayoutChange : undefined}
               onEmptySlotClick={canAdd ? (pos) => handleOpenAdd(pos) : undefined}
             />
           </div>
@@ -241,7 +262,8 @@ const TableMasterPage = () => {
             mode={mode}
             loading={isSaving}
             onClear={handleClear}
-            onSave={handleSave}
+            onSave={() => handleSave()}
+            onSaveAndAddNext={() => handleSave(true)}
             onClose={handleCloseModal}
             onDeleteRequest={(mode === "edit" && canDelete) ? () => {
               const record = tables.find(t => t.tableId === selectedId);
