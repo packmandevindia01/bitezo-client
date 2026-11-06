@@ -2,7 +2,7 @@ import { getConfig } from "../config";
 
 /**
  * Extracts the backend origin (protocol + host + port) from runtime config.
- * E.g., "http://192.168.1.34:8068/api/v1" -> "http://192.168.1.34:8068"
+ * E.g., "http://192.168.1.53:8060/api/v1" -> "http://192.168.1.53:8060"
  */
 const getBackendOrigin = (): string => {
   try {
