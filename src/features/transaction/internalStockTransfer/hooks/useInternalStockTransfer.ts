@@ -20,6 +20,7 @@ import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/bran
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 import { stockLineAmount, stockNetAmount } from "../../shared/stockCalc";
+import { getLineUnitValue } from "../../shared/lineUnits";
 
 const toNumber = (val: any): number => {
   if (typeof val === "number") return val;
@@ -60,7 +61,7 @@ export const useInternalStockTransfer = (id?: string) => {
       internalStockTransferApi.getUnits(unitCategory).then(res => {
         setCategoryUnits(current => ({
           ...current,
-          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
+          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId ?? u.id), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
         }));
       }).catch(err => {
         console.error("Failed to load units for category", unitCategory, err);
@@ -202,7 +203,12 @@ export const useInternalStockTransfer = (id?: string) => {
       return {
         products: prodRes,
         productOptions: (prodRes || []).map((p: any) => ({ label: p.productName, value: String(p.productId ?? p.id) })),
-        units: unitsRes.map((u: any) => ({ label: u.name || u.unitName || "", value: String(u.id || u.unitId) })),
+        units: unitsRes.map((u: any) => ({
+          label: u.name || u.unitName || "",
+          value: String(u.id || u.unitId),
+          currentValue: Number(u.currentvalue ?? u.currentValue ?? 1),
+          category: u.category as string | undefined,
+        })),
       };
     },
     staleTime: 0,
@@ -411,14 +417,21 @@ export const useInternalStockTransfer = (id?: string) => {
   const handleUnitChange = useCallback(async (index: number, unitId: string) => {
     setValue(`items.${index}.unit`, unitId);
     setValue(`items.${index}.unitId`, Number(unitId));
+    const rowId = getValues(`items.${index}.id`);
     const productId = getValues(`items.${index}.product`);
     if (!productId || !unitId) return;
+
+    // A slow response must not change a line whose row, product or unit has changed since.
+    const isSameLine = () =>
+      getValues(`items.${index}.id`) === rowId &&
+      getValues(`items.${index}.product`) === productId &&
+      getValues(`items.${index}.unit`) === unitId;
+
     try {
       const cost = await internalStockTransferApi.getUnitCost(Number(productId), Number(unitId));
-      if (cost !== undefined && cost !== null) {
-        setValue(`items.${index}.cost`, formatAmount(cost));
-      }
-      
+      if (!isSameLine()) return;
+      setValue(`items.${index}.cost`, formatAmount(cost));
+
       const branchIdStr = getValues("fromBranch");
       if (branchIdStr && productId) {
         productService.getClosingStock(Number(productId), Number(branchIdStr))
@@ -427,8 +440,11 @@ export const useInternalStockTransfer = (id?: string) => {
       }
     } catch (error) {
       console.error("Failed to fetch unit cost", error);
+      if (isSameLine()) {
+        showToast("Could not load the cost for this unit. Please check the Cost before saving.", "warning");
+      }
     }
-  }, [setValue, getValues]);
+  }, [setValue, getValues, showToast]);
 
   const handleReset = () => {
     reset(initialTransferForm);
@@ -448,13 +464,7 @@ export const useInternalStockTransfer = (id?: string) => {
       const vDate = formatDateOnly(data.date);
       const details = validItems.map(item => {
         const unitId = item.unitId || parseInt(item.unit || "1", 10) || 1;
-        const unitCurrentValue = (() => {
-          for (const units of Object.values(categoryUnits)) {
-            const found = units.find(u => String(u.value) === String(unitId));
-            if (found && !isNaN(found.currentValue)) return found.currentValue;
-          }
-          return 1;
-        })();
+        const unitCurrentValue = getLineUnitValue(unitId, categoryUnits, masterLookupData?.units);
         return {
           productId: parseInt(item.product, 10) || 0,
           unitId,

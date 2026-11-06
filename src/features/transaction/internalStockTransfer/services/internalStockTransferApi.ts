@@ -6,6 +6,7 @@ import type {
 } from "../types";
 
 import { toLocalDateString } from "../../../../utils/date";
+import { parseUnitCost } from "../../shared/lineUnits";
 export interface ApiResponse<T = any> {
   message?: string;
   data: T;
@@ -128,7 +129,7 @@ export const internalStockTransferApi = {
   // 9. Get Unit Cost
   getUnitCost: async (productId: number, unitId: number): Promise<number> => {
     const data = await unwrap<any>(axiosInstance.get(`/stock-transfer/${productId}/unit-cost/${unitId}`));
-    return Number(data?.cost ?? data ?? 0);
+    return parseUnitCost(data);
   },
 
   // 10. Save / Create Transfer

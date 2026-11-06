@@ -13,6 +13,7 @@ import InternalStockTransferPrintModal from "../components/InternalStockTransfer
 import { formatAmount } from "../../../../utils/currency";
 import { internalStockTransferApi, formatDateOnly } from "../services/internalStockTransferApi";
 import type { InternalStockTransferLineItem } from "../types";
+import { getLineUnitOptions } from "../../shared/lineUnits";
 import { generateUUID } from "../../../../utils/uuid";
 import { useToast } from "../../../../app/providers/useToast";
 
@@ -428,12 +429,28 @@ const InternalStockTransferPage = () => {
                               control={control}
                               render={({ field: selectField }) => (
                                 <SearchableSelect
-                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded cursor-not-allowed bg-gray-50"
+                                  id={`unit-select-${index}`}
+                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
-                                  options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
-                                  onChange={(val) => handleUnitChange(index, val)}
-                                  disabled={true}
-                                  tabIndex={-1}
+                                  options={getLineUnitOptions(itemWatch, categoryUnits, masterData?.units)}
+                                  onChange={(val) => {
+                                    handleUnitChange(index, val);
+                                    setTimeout(() => {
+                                      const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                      qtyInputs[0]?.focus();
+                                    }, 100);
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                      e.preventDefault();
+                                      setTimeout(() => {
+                                        const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+                                        qtyInputs[0]?.focus();
+                                      }, 50);
+                                    }
+                                  }}
+                                  disabled={!canSave || !itemWatch.product}
+                                  clearable={false}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}
                                 />

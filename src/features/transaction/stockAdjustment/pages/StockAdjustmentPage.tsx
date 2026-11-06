@@ -4,6 +4,7 @@ import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox } fr
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import StockAdjustmentPrintModal from "../components/StockAdjustmentPrintModal";
 import type { StockAdjustmentLineItem } from "../types";
+import { getLineUnitOptions } from "../../shared/lineUnits";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useStockAdjustment, formatDateOnly } from "../hooks/useStockAdjustment";
 import { useSearchParams, useNavigate } from "react-router-dom";
@@ -343,9 +344,10 @@ const StockAdjustmentPage = () => {
                               control={control}
                               render={({ field: selectField }) => (
                                 <SearchableSelect
-                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded cursor-not-allowed bg-gray-50"
+                                  id={`unit-select-${index}`}
+                                  className="h-7 !px-2 text-xs border-transparent hover:border-gray-300 focus:border-blue-500 rounded"
                                   value={selectField.value}
-                                  options={(itemWatch.unitCategory && categoryUnits[itemWatch.unitCategory]) ? categoryUnits[itemWatch.unitCategory] : (masterData?.units || [])}
+                                  options={getLineUnitOptions(itemWatch, categoryUnits, masterData?.units)}
                                   onChange={(val) => {
                                     handleUnitChange(index, val);
                                     setTimeout(() => {
@@ -360,8 +362,8 @@ const StockAdjustmentPage = () => {
                                       qtyInputs[0]?.focus();
                                     }
                                   }}
-                                  disabled={true}
-                                  tabIndex={-1}
+                                  disabled={!canSave || !itemWatch.product}
+                                  clearable={false}
                                   placeholder="Unit"
                                   disableAutoOpenOnFocus={true}
                                 />

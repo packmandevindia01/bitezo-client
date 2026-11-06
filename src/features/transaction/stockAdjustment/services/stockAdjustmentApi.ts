@@ -6,6 +6,7 @@ import type {
 } from "../types";
 
 import { toLocalDateString } from "../../../../utils/date";
+import { parseUnitCost } from "../../shared/lineUnits";
 export interface ApiResponse<T = any> {
   message?: string;
   data: T;
@@ -102,10 +103,11 @@ export const stockAdjustmentApi = {
     );
   },
 
-  getUnitCost: async (productId: number, unitId: number): Promise<{ cost: number }> => {
-    return unwrap<{ cost: number }>(
-      axiosInstance.get<ApiResponse<{ cost: number }>>(`${BASE_URL}/${productId}/unit-cost/${unitId}`)
+  getUnitCost: async (productId: number, unitId: number): Promise<number> => {
+    const data = await unwrap<unknown>(
+      axiosInstance.get<ApiResponse<unknown>>(`${BASE_URL}/${productId}/unit-cost/${unitId}`)
     );
+    return parseUnitCost(data);
   },
 
   getUnitList: async (unitCategory: string): Promise<{ unitId: number; unitName: string }[]> => {

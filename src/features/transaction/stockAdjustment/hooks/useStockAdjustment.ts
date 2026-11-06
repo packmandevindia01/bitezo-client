@@ -28,6 +28,7 @@ import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 import axiosInstance from "../../../../api/axiosInstance";
 import { stockLineAmount, stockBaseQty, stockNetAmount } from "../../shared/stockCalc";
+import { getLineUnitValue } from "../../shared/lineUnits";
 
 const toNumber = (value: string | number | undefined) => {
   const parsed = Number(value);
@@ -59,7 +60,7 @@ export const useStockAdjustment = (id?: string | null) => {
       stockAdjustmentApi.getUnitList(unitCategory).then(res => {
         setCategoryUnits(current => ({
           ...current,
-          [unitCategory]: res.map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
+          [unitCategory]: res.map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId ?? u.id), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
         }));
       }).catch(err => {
         console.error("Failed to load units for category", unitCategory, err);
@@ -239,7 +240,12 @@ export const useStockAdjustment = (id?: string | null) => {
         return {
           options: typeRes.map((t: any) => ({ label: t.typeName, value: String(t.typeId) })),
           raw: typeRes,
-          units: unitsRes.map((u: any) => ({ label: u.name || u.unitName || "", value: String(u.id || u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) })),
+          units: unitsRes.map((u: any) => ({
+            label: u.name || u.unitName || "",
+            value: String(u.id || u.unitId),
+            currentValue: Number(u.currentValue ?? u.currentvalue ?? 1),
+            category: u.category as string | undefined,
+          })),
         };
       } catch (err: any) {
         showToast("Error loading Types: " + (err.message || "Unknown error"), "error");
@@ -721,13 +727,20 @@ export const useStockAdjustment = (id?: string | null) => {
   const handleUnitChange = useCallback(async (index: number, unitId: string) => {
     setValue(`items.${index}.unit`, unitId);
     setValue(`items.${index}.unitId`, Number(unitId));
+    const rowId = getValues(`items.${index}.id`);
     const productId = getValues(`items.${index}.product`);
     if (!productId || !unitId) return;
+
+    // A slow response must not change a line whose row, product or unit has changed since.
+    const isSameLine = () =>
+      getValues(`items.${index}.id`) === rowId &&
+      getValues(`items.${index}.product`) === productId &&
+      getValues(`items.${index}.unit`) === unitId;
+
     try {
-      const result = await stockAdjustmentApi.getUnitCost(Number(productId), Number(unitId));
-      if (result.cost !== undefined && result.cost !== null) {
-        setValue(`items.${index}.cost`, formatAmount(result.cost));
-      }
+      const cost = await stockAdjustmentApi.getUnitCost(Number(productId), Number(unitId));
+      if (!isSameLine()) return;
+      setValue(`items.${index}.cost`, formatAmount(cost));
 
       const branchIdStr = getValues("branch");
       if (branchIdStr && productId) {
@@ -737,8 +750,11 @@ export const useStockAdjustment = (id?: string | null) => {
       }
     } catch (error) {
       console.error("Failed to fetch unit cost", error);
+      if (isSameLine()) {
+        showToast("Could not load the cost for this unit. Please check the Cost before saving.", "warning");
+      }
     }
-  }, [setValue, getValues, formatAmount]);
+  }, [setValue, getValues, formatAmount, showToast]);
 
   const handleReset = useCallback(() => {
     if (id && recordData) {
@@ -782,15 +798,7 @@ export const useStockAdjustment = (id?: string | null) => {
       const vDate = formatDateOnly(data.date);
       const detailsPayload = validItems.map(item => {
         const unitId = item.unitId || parseInt(item.unit || "1", 10) || 1;
-        const unitCurrentValue = (() => {
-          for (const units of Object.values(categoryUnits)) {
-            const found = units.find(u => String(u.value) === String(unitId));
-            if (found && !isNaN(found.currentValue)) return found.currentValue;
-          }
-          const foundMaster = typesData.units?.find((u: any) => String(u.value) === String(unitId));
-          if (foundMaster && !isNaN(foundMaster.currentValue)) return foundMaster.currentValue;
-          return 1;
-        })();
+        const unitCurrentValue = getLineUnitValue(unitId, categoryUnits, typesData.units);
         return {
           productId: parseInt(item.product, 10) || 0,
           unitId,
