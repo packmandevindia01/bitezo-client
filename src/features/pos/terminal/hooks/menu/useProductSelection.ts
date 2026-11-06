@@ -98,6 +98,9 @@ export const useProductSelection = ({
     }
 
     if (!product.hasAlternatives) {
+      // The price may come from the network (the cache is emptied on New Order). Nothing may stay
+      // selected meanwhile, or + / qty / extras pressed during the wait would change the previous line.
+      setSelectedKey(null);
       const { targetPrice, isIncl, discountValue, discountType } =
         await resolveProductPricing(product);
 
@@ -117,6 +120,7 @@ export const useProductSelection = ({
       setAlternatives(cachedAlts);
       setSelectedProduct(product);
     } else {
+      setSelectedKey(null); // a line may be added after this wait (see above)
       setFetchingAlts(true);
       try {
         const alts = await menuApi.getAlternatives(productId, safeOrderTypeId);
@@ -208,6 +212,7 @@ export const useProductSelection = ({
       zeroPriceLockRef.current = now;
     }
 
+    setSelectedKey(null); // nothing selected during the wait (see handleProductSelect)
     const { targetPrice, isIncl, discountValue, discountType } =
       await resolveProductPricing({
         id: productId,

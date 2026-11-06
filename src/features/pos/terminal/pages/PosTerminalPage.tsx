@@ -755,6 +755,7 @@ export const PosTerminalPage = () => {
     if (product.hasAlternatives) {
       await productSelection.handleProductSelect(product.id);
     } else {
+      setSelectedKey(null); // nothing selected during the wait (see useProductSelection)
       const newKey = await terminal.addProductBySku(barcode, terminal.selectedOrderTypeId || 1);
       if (newKey) {
         setSelectedKey(newKey);
