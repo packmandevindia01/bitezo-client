@@ -609,7 +609,13 @@ const PurchaseReturnFormPage = () => {
                   type="number"
                   step="any"
                   maxLength={12}
-                  {...register("discAmount")}
+                  {...register("discAmount", {
+                    onChange: (e) => {
+                      const val = e.target.value;
+                      methods.setValue("globalDiscPercent", "");
+                      methods.setValue("discAmount", val);
+                    }
+                  })}
                   min="0"
                   onFocus={(e) => e.target.select()}
                   onKeyDown={(e) => hk(e, "pr-other-chg")}
