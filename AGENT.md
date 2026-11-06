@@ -310,6 +310,7 @@ session/day/shift (`cashier/`) must be open before orders.
 - Line actions: qty (`updateItemQty`), price edit (`updateItemPrice`, sets `isIncl` from the keypad or Price View),
   item discount (`setItemDiscount`, `setAllItemsDiscount`), extras/modifiers/messages (`setItemCustomizations`).
 - **Extras / modifiers screen** (`PosExtrasModifierModal`, redesigned 2026-11-05): ONE screen for the whole bill.
+  Line prices come from `utils/cartLineDisplay.ts` (`getCartLineDisplay`), the same as the cart rows. Never show `line.price` directly: on a saved order it includes extras only until the cart is first changed.
   Header tabs Extras ↔ Modifiers; right panel lists every cart line (qty / description / price / amount) with its
   extras, modifiers and messages; tap a line to target it ("Adding to #n" bar), tap a grid item to add it, tap again
   to remove; ↑ ↓ change line; Esc closes (captured so the global Esc = clear-cart shortcut never fires). Drafts for all
@@ -385,6 +386,8 @@ Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set
   when POS config `packagerPrint` is on; whole order; balanced footer; `packagerHeader` setting controls the
   company header (`showCompanyHeader`). Not printed on direct settle (no order placed first).
 - Templates: `guestPrintTemplate.ts`, `kotTemplate.ts`, `escPosGenerator.ts` (Android), Bitezo Printer Agent over WebSocket (desktop, `qzService.ts`).
+- Barcode at the bottom of the guest template (`printBarcode.ts`, Code 128 with the number under it): guest and packager prints encode the order number (first one on a combined order), settle prints encode the **sale id** (`saleId`, not the voucher number; no real id = no barcode). Bars are `<div>`s on whole printer dots, 3 dots wide: tested through html2canvas + the 1-bit threshold, SVG / PNG images and 2-dot bars were less reliable. Scanning a bill on the terminal still goes to the product SKU lookup (`useBarcodeScanner`), so a number equal to a SKU adds that product.
+- Cash drawer: cabled to the bill printer, opened by a raw ESC p job (`openCashDrawer` in `qzService.ts`, agent and Android). POS config "Cash Drawer" is saved as `cashdrawer: Enable / Disable` (the field used to be an unused Default / Normal type; old values mean off). `openDrawerIfCash` (`utils/cashDrawer.ts`) runs after the sale is saved, before the receipt, whether or not a receipt prints, when a Cash payment is above 0: checkout, dine-in settle and bulk delivery settlement. Not on an edit of a settled bill, reprints or provider settlements. It waits at most 3 s and only warns on failure.
 - Bill discount is printed once in the footer; rows show no per-line discount.
 - Delivery orders taken from a missed call (`missedCall`) print "Missed Call : YES" in the DELIVERY DETAILS block
   of the KOT and guest bill; every print-data builder passes `missedCall` (saved order value, else cart state).
@@ -395,6 +398,16 @@ Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set
 ### 6.9 Other modules
 Bulk settlement (driver/provider unsettled orders), cashier in/out, pay in/out, lock item, delivery
 customers, provider orders (`orderTypeId 5`, customer = provider post account).
+
+**Extras & Modifiers** (More → EXTRAS & MODIFIERS, route `/pos/menu-masters`, `pos/menuMasters/`): tabs for Extras, Extras Type,
+Modifier and Modifier Type. Each tab renders the Back Office page (`inventory/extrasMaster`, `extrasType`, `modifier`, `modifierType`),
+so change forms and rules there. The More tile asks for an employee PIN; any valid PIN passes until the backend team adds the privilege, then set
+`permissionId` in `PosMoreModal`. No user role checks in the POS: the page wraps the tabs in
+`SkipPermissionsContext` (`hooks/usePermissions.ts`), and the same pages in the Back Office still follow user roles. Inside the POS, `PosAllocationScopeContext` gives the Extras and Modifier forms
+categories from POS master data (`/category/category-list` can return 403 for a POS login, and `getCategories` turns that into an empty list),
+hides Branch Allocation and sets the branch to `getTerminalBranchId()`; an edit keeps the record's other branches (`posBranchIds`), so a name or price change applies to every branch that has the record (user decision 2026-11-06). Leaving the screen calls
+`menuApi.refreshAllExtras()`: never clear that cache, `orderPricing` uses it to recognise extras on saved orders. Lines already in the
+cart keep the price and name they were added with.
 
 ---
 
@@ -446,11 +459,11 @@ customers, provider orders (`orderTypeId 5`, customer = provider post account).
 | Golden orders | `pricingGoldenOrders`, `order288RoundedVat`, `order297DineIn`, `order301StaleMaster`, `userScreenshotScenarios` |
 | Payloads / API | `orderPayloadMapper`, `orderApi`, `delivery` |
 | Split / combine | `split`, `combine`, `splitAndCombineDiscount`, `combinedProductExtrasPricing` |
-| Prints | `printPricing`, `printTaxMatrix`, `printTemplates`, `settledPrint`, `cartPrint` |
+| Prints | `printPricing`, `printTaxMatrix`, `printTemplates`, `settledPrint`, `cartPrint`, `printBarcode` |
 | **Cross-verification** | `posCrossVerification` — 200 seeded random carts (incl/excl, VAT 0/5/10/15, extras, item or bill discount % / amount, discount calc Incl/Excl, Dine-In / Take-Out / Delivery, VAT on/off, SC, levy): engine vs an independent reference model, engine identities, screen = payload = invoice, saved → recall footer, saved → edit, saved → print, saved → split (2 bills = saved total). A failure prints the seed. |
 | Regressions | `posRegressions` (bulk settlement allocation, amount bill discount on settled edit), `productionHardening` |
 | **Safety net (golden master)** | `posFlowSafetyNet` + `__snapshots__/posFlowSafetyNet.test.ts.snap` — 7 store-driven flows (Take-Out with extras/modifier/message + item discounts, Dine-In SC+levy + amount bill discount, Delivery + custom charge + % bill discount, complimentary, manual price / qty / remove in Exclusive view, VAT off, saved → settled edit → update payload). Snapshots the screen totals + lines, new-order / direct-settle / invoice payloads, update payload and bill + KOT text. Run `npm run test:pos-safety` before and after every refactor step. **Update snapshots (`npx vitest run -u src/tests/posFlowSafetyNet.test.ts`) only for an intended, reviewed change** — show the diff in the PR. |
-| Back office | `backofficeCalc` (currency decimals, no invented country/currency IDs, happy hour %/discount/promo incl. 500 random cases, vouchers: half-up, header = Σ lines, balance ≥ 0, multi-pay by name, production / stock exact amounts, purchase bill-discount cap + 300 random invoices), `purchaseCalc`, `unitParent`, `productTransactionLog` |
+| Back office | `backofficeCalc` (currency decimals, no invented country/currency IDs, happy hour %/discount/promo incl. 500 random cases, vouchers: half-up, header = Σ lines, balance ≥ 0, multi-pay by name, production / stock exact amounts, purchase bill-discount cap + 300 random invoices), `purchaseCalc`, `unitParent`, `productTransactionLog`, `openingStockCost`, `lineUnits`, `tableLayout`, `cartLineDisplay` |
 | Legacy | `orderPricing`, `pos-calc` |
 
 ---
@@ -504,6 +517,7 @@ All routes are under `/dashboard/…` (`app/routes/AppRoutes.tsx`). Sidebar grou
 | Employees, employee roles | `general/employee`, `general/employeeRole` | `/employee`, `/EmployeeRole` |
 | Branches (`branches`, `/add`, `/edit/:id`) | `inventory/branches` | `/Branch`, print design `/Branch/branches/{id}/print-design-data` |
 | Paymodes, counters, sections, tables | `general/paymode`, `counter`, `section`, `tableMaster` | `/paymode`, `/counter`, `/section` … |
+| Table Master floor layout | `general/tableMaster/utils/tableLayout.ts` | `position` = 1-based slot, gaps are real empty spots; drop on empty = move, drop on table = swap, only changed tables are saved (`PUT /dinein-tables/{id}`, no bulk endpoint). POS `buildGrid` shows a plain list on duplicate positions, so never save duplicates. Grid columns must match the POS floor plan. |
 | Menu settings (sessions / times) | `general/menuSettings` | `/menu-time-settings` |
 | Providers (delivery apps), provider settings | `general/provider`, `general/providerSettings` | `/provider`, `/provider-settings` |
 | Suppliers | `general/supplier` | `/supplier` |
@@ -526,8 +540,8 @@ All routes are under `/dashboard/…` (`app/routes/AppRoutes.tsx`). Sidebar grou
 | Purchase return | `/purchase-return-invoice`; loads the source invoice via `/purchase-invoice/data/{id}` |
 | Production | `/production`; unit cost from `/purchase-invoice/{product}/unit-cost/{unit}` |
 | Physical entry (stock count) | `/physical-entry`, `/product/as-on-date-stock/{…}` |
-| Stock adjustment | `/stock-adjustment` |
-| Internal stock transfer | `/stock-transfer` |
+| Stock adjustment | `/stock-adjustment`; line unit can be changed, cost from `/stock-adjustment/{product}/unit-cost/{unit}`, baseQty = qty x unit value (helpers: `transaction/shared/lineUnits.ts`) |
+| Internal stock transfer | `/stock-transfer`; line unit can be changed, cost from `/stock-transfer/{product}/unit-cost/{unit}`, baseQty = qty x unit value |
 | Payment / receipt voucher | `/payment`, `/receipt` |
 | Payment / receipt against voucher (settle supplier / customer bills) | `/payment-against`, `/receipt-against` |
 
@@ -597,6 +611,8 @@ warning is shown if the server stored a different parent than the one sent — t
 5. **Branch ids (backend):** `1` = **All** (every branch), `2+` = real branches (`2` = Main). Helpers in
    `hooks/useBranchScope.ts`: `ALL_BRANCH_ID`, `isAllBranch`, `toReportBranchId` (empty / 0 → 1, never send 0).
    Opening stock (product master) always belongs to a real branch, never All.
+   Selecting a unit in its grid sets Cost = product Cost x unit value / main unit value (`calcOpeningStockCost`,
+   still editable; with no product Cost, the row's own cost is converted from its previous unit).
 6. **Reports must show request errors.** A 403 (POS login, or a role without the report permission) used to show
    as "No records found". Product Transaction Log now shows the reason; do the same in other reports. Test:
    `productTransactionLog.test.ts`. Report default dates use the LOCAL day (`localDateString`), not
@@ -722,7 +738,7 @@ Tests: `src/tests/productionHardening.test.ts` (local dates, `escapeHtml`, guest
 
 ### 12.1 P0 — before go-live
 1. **Production API is plain HTTP on a private LAN IP.** `public/config.json`, `.env` and `.env.android` point to
-   `http://192.168.x.x:8068/api/v1`. Tokens, passwords and sales data travel unencrypted, and the app only works
+   `http://192.168.x.x:8060/api/v1`. Tokens, passwords and sales data travel unencrypted, and the app only works
    inside that LAN. Put the real production host over **HTTPS** in `config.json` (and `.env.android`) for each
    deployment. If the web app is served over HTTPS, an http API is also blocked as mixed content.
 2. **Secrets and junk committed to git (`.git` = 437 MB).** Tracked: bearer JWTs in `test.js`,
