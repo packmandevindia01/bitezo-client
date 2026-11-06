@@ -8,6 +8,7 @@ import { useToast } from "../../../../app/providers/useToast";
 import type { ProductMasterData, MasterItem } from "../types";
 import { isAllBranch } from "../../../../hooks/useBranchScope";
 import type { OpeningStockDraft } from "../schema/productSchema";
+import { calcOpeningStockCost } from "../utils/openingStockCost";
 
 interface OpeningStockGridProps {
   openingStocks: OpeningStockDraft[];
@@ -101,6 +102,19 @@ export const OpeningStockGrid = ({
     // Automatically keep baseQty in sync when qty changes unless user manually altered baseQty
     if (key === "qty" && (!next[idx].baseQty || next[idx].baseQty === next[idx].qty)) {
       updated.baseQty = String(value);
+    }
+
+    // Show the cost of the newly selected unit (the field stays editable)
+    if (key === "unitId" && String(value) !== String(next[idx].unitId)) {
+      const unitCost = calcOpeningStockCost({
+        units: masterData?.unit,
+        mainUnitId,
+        productCost: defaultCost,
+        unitId: String(value),
+        previousUnitId: String(next[idx].unitId),
+        previousCost: next[idx].cost,
+      });
+      if (unitCost !== null) updated.cost = formatAmount(unitCost, decimalPart);
     }
 
     next[idx] = updated;
