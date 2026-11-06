@@ -328,7 +328,7 @@ export const usePosCartActions = () => {
 
           const shouldPrintKot = Boolean(shouldPrint);
           if (shouldPrintKot) {
-            await handleOrderPrinting(updatedOrderId, session, true, shouldPrint, updatedRef);
+            await handleOrderPrinting(updatedOrderId, session, true, updatedRef);
           }
 
           dispatch(clearCart());
@@ -365,7 +365,7 @@ export const usePosCartActions = () => {
 
         const shouldPrintKot = Boolean(shouldPrint);
         if (shouldPrintKot) {
-          await handleOrderPrinting(targetId, session, false, shouldPrint, createdRef);
+          await handleOrderPrinting(targetId, session, false, createdRef);
         }
 
         dispatch(clearCart());
@@ -428,7 +428,6 @@ export const usePosCartActions = () => {
     orderId: number | null,
     session: OrderSessionParams,
     isUpdate: boolean,
-    forcedPrint: boolean = false,
     replyRef?: CreatedOrderRef
   ) => {
     try {
@@ -632,7 +631,6 @@ export const usePosCartActions = () => {
         providerNo: (masterData as any)?.providerOrderNo || session.providerOrderNo || "",
         kotArabic: isKotArabicEnabled(),
         billArabic: isBillArabicEnabled(),
-        forcedPrint,
         priceView: getPriceView(),
         printPrice: getPrintPrice(),
         kotHeader: (localStorage.getItem("kotHeader") as any) || undefined,
@@ -642,11 +640,24 @@ export const usePosCartActions = () => {
       if (isUpdate) {
         // Only what was added (terminal/utils/reorderItems.ts) — modifiers / extras printed as attached.
         const reorderItems = buildReorderItems(cartDetails);
+        console.log(`[KOT] Re-order: ${reorderItems.length} of ${cartDetails.length} lines to print, ${voidProducts.length} voided.`);
 
         if (reorderItems.length > 0) {
           await executeKotRouting(
             reorderItems,
             { ...commonPrintData, headerTitle: "RE-ORDER" },
+            selectedSectionId,
+            printerSettingsApi,
+            printHtmlReceipt,
+            generateKotHtml,
+            true
+          );
+        } else if (voidProducts.length === 0) {
+          // Order clicked on an edit with no added line or void (extras, modifier or note changed, or nothing):
+          // the kitchen still gets a KOT, the whole order under UPDATE KOT.
+          await executeKotRouting(
+            cartDetails,
+            commonPrintData,
             selectedSectionId,
             printerSettingsApi,
             printHtmlReceipt,

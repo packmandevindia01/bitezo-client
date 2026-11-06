@@ -202,8 +202,9 @@ export const executeKotRouting = async (
     }
   }
 
-  // 1. Dispatch Standard KOT for each station printer
-  const shouldDispatchStandard = isStandardKotEnabled || Boolean(basePrintOptions?.forcedPrint) || isUpdate;
+  // 1. Dispatch Standard KOT for each station printer. POS config "Standard KOT Print" decides for every order,
+  // re-order and void print; only a manual KOT reprint from Recall is forced.
+  const shouldDispatchStandard = isStandardKotEnabled || Boolean(basePrintOptions?.forcedPrint);
   console.log(`[Printer Routing] Standard KOT: groups=${printerGroups.size}, items=${items.length}, shouldDispatch=${shouldDispatchStandard}, otherKitchenItem=${otherKitchenItemActive}`);
 
   const printedStationPrinters = new Map<string, number>();
