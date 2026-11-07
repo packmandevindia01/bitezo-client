@@ -2,7 +2,9 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCurrency } from "../../../../hooks/useCurrency";
-import { calculatePurchaseLine, sumPurchaseLines } from "../../shared/purchaseCalc";
+import { calculatePurchaseLine } from "../../shared/purchaseCalc";
+import { formatDateOnly, mapStoredPayments, parseStockValue as readStock, paymodesForSave, toNumber } from "../../shared/purchaseDocument";
+import { usePurchaseFormCommon } from "../../shared/usePurchaseFormCommon";
 import { createEmptyPurchaseReturnForm } from "../constants";
 import { getPurchaseReturnSchema } from "../types";
 import type { PurchaseReturnLineItem } from "../types";
@@ -12,37 +14,7 @@ import { productService } from "../../../inventory/product/services/productServi
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 import { useBranchScope } from "../../../../hooks/useBranchScope";
-import { backofficeConfigApi } from "../../../general/configuration/services/backofficeConfigApi";
-import { subscribeToSupplierUpdates } from "../../../general/supplier/utils/supplierSync";
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
-
-import { toLocalDateString } from "../../../../utils/date";
-export const formatDateOnly = (dateVal: string | Date | undefined | null): string => {
-  if (!dateVal) return toLocalDateString();
-  if (typeof dateVal === "string") {
-    const trimmed = dateVal.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-    if (trimmed.includes("T")) return trimmed.split("T")[0];
-    const d = new Date(trimmed);
-    if (!isNaN(d.getTime())) {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    }
-    return trimmed;
-  }
-  const d = dateVal;
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
-
-const toNumber = (value: string | number | undefined) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-};
 
 /**
  * Line maths shared with purchase invoice — exact decimal, 14 dp half-up (transaction/shared/purchaseCalc.ts).
@@ -68,16 +40,12 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   const [selectedInvoiceItems, setSelectedInvoiceItems] = useState<any[]>([]);
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const [isMultiPayOpen, setIsMultiPayOpen] = useState(false);
-  const [selectedPaymodeId, setSelectedPaymodeId] = useState<number>(0);
   const [paymodeError, setPaymodeError] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
   // Search States
   const [productOptions, setProductOptions] = useState<{label: string, value: string, code: string, barcode: string}[]>([]);
   const [searchingProducts, setSearchingProducts] = useState(false);
-  const [supplierOptions, setSupplierOptions] = useState<{label: string, value: string}[]>([]);
-  const [searchingSuppliers, setSearchingSuppliers] = useState(false);
   const [searchingInvoices, setSearchingInvoices] = useState(false);
   const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
   const [masterUnits, setMasterUnits] = useState<{ label: string; value: string; category?: string; currentValue: number }[]>([]);
@@ -195,14 +163,16 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     name: "payments",
   });
 
-  // Watchers for reactive totals
-  const watchedItems = useWatch({ control, name: "items" }) || [];
-  const watchedDiscAmount = useWatch({ control, name: "discAmount" });
-  const watchedOtherCharge = useWatch({ control, name: "otherCharge" });
-  const watchedRoundOff = useWatch({ control, name: "roundOff" });
-  const watchedPayments = useWatch({ control, name: "payments" }) || [];
-  const watchedGlobalDiscPercent = useWatch({ control, name: "globalDiscPercent" });
-  const watchedBranch = useWatch({ control, name: "branch" });
+  const common = usePurchaseFormCommon({
+    methods, invoiceId, paymodes: masterData?.paymodes, decimalPart, formatAmount,
+    searchSuppliers: purchaseReturnApi.searchSuppliers, setPayments: setPayments as never,
+  });
+  const {
+    watchedItems, watchedDiscAmount, watchedPayments, watchedBranch,
+    grossTotal, totals,
+    paymodeList, multiPayId, selectedPaymodeId, setSelectedPaymodeId, isMultiPayOpen, setIsMultiPayOpen,
+    supplierOptions, setSupplierOptions, searchingSuppliers, handleSupplierSearch, handleSupplierCreated,
+  } = common;
   const watchedSupplier = useWatch({ control, name: "supplier" });
   const watchedInvoiceNo = useWatch({ control, name: "invoiceNo" });
   const watchedSeries = useWatch({ control, name: "series" });
@@ -251,80 +221,6 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   }, [watchedInvoiceNo, watchedBranch, replaceItems, updateLoadedInvoiceText]);
   
-  // Calculate totals
-  const grossTotal = useMemo(() => {
-    return watchedItems.reduce((acc: number, item: any) => acc + (toNumber(item.qty) * toNumber(item.price)), 0);
-  }, [watchedItems]);
-
-  const totals = useMemo(() => {
-    const globalDiscAmount = toNumber(watchedDiscAmount);
-
-    // Exact Σ of the 14-dp lines (header always equals Σ lines); discount is already inside netAmount.
-    const lines = watchedItems.map((item: any) => calculateLine(item as PurchaseReturnLineItem, decimalPart, grossTotal, globalDiscAmount));
-    return sumPurchaseLines(lines, toNumber(watchedOtherCharge), toNumber(watchedRoundOff));
-  }, [watchedDiscAmount, watchedOtherCharge, watchedRoundOff, watchedItems, decimalPart, grossTotal]);
-
-    const paymodeList = useMemo(() => {
-      if (!masterData?.paymodes) return [];
-      return masterData.paymodes as { paymodeId: number; paymodeName: string }[];
-    }, [masterData]);
-  
-    const multiPayId = useMemo(() => {
-      const multi = paymodeList.find(p => p.paymodeName.toLowerCase().includes("multi"));
-      return multi ? multi.paymodeId : 0;
-    }, [paymodeList]);
-
-    // Auto-sync single payment amount when grand total changes
-    useEffect(() => {
-      const currentPayments = methods.getValues("payments");
-      if (currentPayments.length === 1 && selectedPaymodeId > 0 && selectedPaymodeId !== multiPayId) {
-        const currentAmount = Number(currentPayments[0].amount);
-        const newAmount = Number(totals.grandTotal.toFixed(decimalPart));
-        if (currentAmount !== newAmount) {
-          methods.setValue("payments.0.amount", newAmount.toFixed(decimalPart));
-        }
-      }
-    }, [totals.grandTotal, selectedPaymodeId, multiPayId, decimalPart, methods]);
-
-    // Auto-select default paymode from branch backoffice config when creating new purchase return
-    useEffect(() => {
-      if (invoiceId || !watchedBranch || !masterData?.paymodes) return;
-
-      let active = true;
-      backofficeConfigApi.getConfigData(Number(watchedBranch))
-        .then(configArray => {
-          if (!active) return;
-          if (configArray && configArray.length > 0 && configArray[0].paymodeId) {
-            const defaultPid = Number(configArray[0].paymodeId);
-            const foundPaymode = (masterData.paymodes as any[]).find(p => p.paymodeId === defaultPid);
-            if (foundPaymode && defaultPid > 0) {
-              setSelectedPaymodeId(defaultPid);
-              setPayments([{
-                mode: foundPaymode.paymodeName.toLowerCase(),
-                amount: totals.grandTotal.toFixed(decimalPart),
-                paymodeId: defaultPid,
-              } as any]);
-            }
-          }
-        })
-        .catch(err => {
-          console.error("Failed to load branch backoffice config for default paymode", err);
-        });
-
-      return () => { active = false; };
-    }, [invoiceId, watchedBranch, masterData?.paymodes, setPayments, totals.grandTotal, decimalPart]);
-
-  // Recalculate global discount amount when items change, if a percentage was set
-  useEffect(() => {
-    const discPct = toNumber(watchedGlobalDiscPercent);
-    if (discPct > 0 && watchedItems.length > 0 && grossTotal > 0) {
-      const newDiscAmt = formatAmount(grossTotal * (discPct / 100));
-      if (newDiscAmt !== watchedDiscAmount) {
-        setValue("discAmount", newDiscAmt);
-      }
-    }
-  }, [watchedItems, watchedGlobalDiscPercent, setValue, formatAmount, watchedDiscAmount, grossTotal]);
-
   const fetchMasterData = useCallback(async () => {
     try {
       setMasterError(null);
@@ -458,44 +354,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       }));
       formPayload.items = mappedItems;
 
-      // Helper to map a paymodeId to a mode name using master paymodes list
-      const paymodeIdToMode = (pid: number): string => {
-        const found = masterData?.paymodes?.find((pm: any) => pm.paymodeId === pid);
-        if (found) return found.paymodeName.toLowerCase();
-        return pid === 1 ? 'cash' : pid === 2 ? 'card' : 'credit';
-      };
-
-      if (rootPaymodeId === (multiPayId || 3) && res.paymodesData && res.paymodesData.length > 0) {
-        const storedTotal = res.paymodesData.reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-        const remainder = Number(((res.masterData.netAmount || 0) - storedTotal).toFixed(decimalPart));
-
-        formPayload.payments = res.paymodesData.map((p: any) => ({
-          mode: paymodeIdToMode(p.paymodeId),
-          amount: p.amount?.toString() || "0",
-          paymodeId: p.paymodeId,
-        }));
-
-        if (remainder > 0) {
-          formPayload.payments = [
-            { mode: 'cash', amount: remainder.toString(), paymodeId: 1 },
-            ...formPayload.payments,
-          ];
-        }
-      } else if (res.paymodesData && res.paymodesData.length > 0) {
-        formPayload.payments = res.paymodesData.map((p: any) => ({
-          mode: paymodeIdToMode(p.paymodeId),
-          amount: p.amount?.toString() || "0",
-          paymodeId: p.paymodeId,
-        }));
-      } else if (rootPaymodeId && rootPaymodeId !== (multiPayId || 3)) {
-        formPayload.payments = [{
-          mode: paymodeIdToMode(rootPaymodeId),
-          amount: (res.masterData.netAmount || 0).toString(),
-          paymodeId: rootPaymodeId,
-        }];
-      } else {
-        formPayload.payments = [];
-      }
+      formPayload.payments = mapStoredPayments({
+        rootPaymodeId, multiPayId, netAmount: res.masterData.netAmount, stored: res.paymodesData,
+        paymodes: masterData?.paymodes, decimalPart,
+      });
 
       setSelectedPaymodeId(rootPaymodeId || 1);
 
@@ -565,35 +427,6 @@ export const usePurchaseReturn = (invoiceId?: string) => {
       .catch(e => console.error("Failed to load products", e))
       .finally(() => setSearchingProducts(false));
   }, [watchedBranch]);
-
-  const handleSupplierSearch = useCallback(async (query: string) => {
-    setSearchingSuppliers(true);
-    try {
-      const results = await purchaseReturnApi.searchSuppliers(query || "");
-      setSupplierOptions(
-        results.map((r) => ({
-          label: r.supplierName,
-          value: r.supplierId.toString(),
-        }))
-      );
-    } catch (error) {
-      console.error("Failed to search suppliers", error);
-    } finally {
-      setSearchingSuppliers(false);
-    }
-  }, []);
-
-  // Fetch initial suppliers on mount
-  useEffect(() => {
-    void handleSupplierSearch("");
-  }, [handleSupplierSearch]);
-
-  // Real-time synchronization: update supplier options whenever suppliers are created/updated
-  useEffect(() => {
-    return subscribeToSupplierUpdates(() => {
-      void handleSupplierSearch("");
-    });
-  }, [handleSupplierSearch]);
 
   const handleInvoiceSearch = useCallback(async (query: string = "") => {
     if (!watchedBranch || !watchedSupplier) {
@@ -691,22 +524,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   };
 
-  const parseStockValue = useCallback((res: any): string => {
-    if (res === null || res === undefined) return "0.000";
-    if (typeof res === "number") return formatAmount(res);
-    if (typeof res === "string") {
-      const num = Number(res);
-      return isNaN(num) ? res : formatAmount(num);
-    }
-    if (typeof res === "object") {
-      const val = res.stock ?? res.closingStock ?? res.currentStock ?? res.balance ?? res.availableStock ?? res.qty;
-      if (val !== undefined && val !== null) {
-        const num = Number(val);
-        return isNaN(num) ? String(val) : formatAmount(num);
-      }
-    }
-    return "0.000";
-  }, [formatAmount]);
+  const parseStockValue = useCallback((res: unknown) => readStock(res, formatAmount), [formatAmount]);
 
   const handleProductSelect = async (index: number, productId: string, _code: string) => {
     const opt = productOptions.find(o => o.value === productId);
@@ -966,15 +784,10 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     }
   };
   // Set a single paymode as the full payment â€” no modal needed
-  const handleSinglePayment = useCallback((paymodeId: number, paymodeName: string, grandTotal: number) => {
-    setPayments([{
-      mode: paymodeName.toLowerCase(),
-      amount: grandTotal.toFixed(decimalPart),
-      paymodeId,
-    } as any]);
-    setSelectedPaymodeId(paymodeId);
+  const handleSinglePayment = (paymodeId: number, paymodeName: string, grandTotal: number) => {
+    common.handleSinglePayment(paymodeId, paymodeName, grandTotal);
     setPaymodeError("");
-  }, [setPayments, decimalPart]);
+  };
 
   const onSubmit = async (data: any): Promise<boolean> => {
     const validItems = data.items.filter((i: any) => i.product && i.product.trim() !== "");
@@ -1065,21 +878,9 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         ? (multiPayId || 3)
         : (selectedPaymodeId || (paymentsList?.[0]?.paymodeId ? Number(paymentsList[0].paymodeId) : 1));
 
-      const computedPaymodes = (() => {
-        if (rootPaymodeId === (multiPayId || 3) && paymentsList && paymentsList.length > 0) {
-          const map = new Map<number, number>();
-          for (const p of paymentsList as any[]) {
-            const pid = Number(p.paymodeId) || selectedPaymodeId || 1;
-            map.set(pid, (map.get(pid) || 0) + toNumber(p.amount));
-          }
-          const list = Array.from(map.entries()).map(([paymodeId, amount]) => ({
-            paymodeId,
-            amount: Number(amount.toFixed(decimalPart))
-          }));
-          if (list.length > 0) return list;
-        }
-        return [];
-      })();
+      const computedPaymodes = paymodesForSave({
+        rootPaymodeId, multiPayId, payments: paymentsList as never, fallbackPaymodeId: selectedPaymodeId || 1, decimalPart,
+      });
 
       const payload: any = {
         supplierId: parseInt(data.supplier) || 0,
@@ -1154,10 +955,8 @@ export const usePurchaseReturn = (invoiceId?: string) => {
   };
 
   const handleSettlementSubmit = (newPayments: { mode: string; paymodeId: number; amount: number }[]) => {
-    setPayments(newPayments.map(p => ({ mode: p.mode as any, amount: p.amount.toString(), paymodeId: p.paymodeId })));
-    setSelectedPaymodeId(multiPayId || 3);
+    common.handleSettlementSubmit(newPayments);
     setPaymodeError("");
-    setIsMultiPayOpen(false);
   };
 
   return {
@@ -1197,10 +996,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
     supplierOptions,
     searchingSuppliers,
     handleSupplierSearch,
-    handleSupplierCreated: useCallback((id: number, name: string) => {
-      setSupplierOptions(prev => [...prev, { label: name, value: String(id) }]);
-      methods.setValue("supplier", String(id), { shouldValidate: true });
-    }, [methods]),
+    handleSupplierCreated,
     invoiceOptions,
     searchingInvoices,
     handleInvoiceSearch,

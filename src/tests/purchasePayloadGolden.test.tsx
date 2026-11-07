@@ -16,7 +16,7 @@ import { purchaseReturnApi } from "../features/transaction/purchaseReturn/servic
 const masters = {
   series: [{ seriesId: 3, seriesName: "Main", prefix: "", startNo: 1, branchId: 2 }],
   branches: [{ branchId: 2, branchName: "Main" }],
-  paymodes: [{ paymodeId: 1, paymodeName: "Cash" }],
+  paymodes: [{ paymodeId: 1, paymodeName: "Cash" }, { paymodeId: 2, paymodeName: "Card" }, { paymodeId: 3, paymodeName: "MultiPay" }],
   employees: [{ employeeId: 1, employeeName: "Ali" }],
   salesman: [{ employeeId: 1, employeeName: "Ali" }],
   vats: [{ vatId: 1, vatName: "10%", vatValue: 10 }],
@@ -52,6 +52,10 @@ const withoutClock = (p: Record<string, unknown>) =>
 const lines = [
   { productName: "Rice", barcode: "1", unitName: "Box", qty: 3, foc: 1, price: 7.125, discPer: 0, discAmount: 0, vatName: "10%", vatAmount: 0, netAmount: 0, productId: 5, unitId: 2, vatId: 1, vatValue: 10 },
   { productName: "Oil", barcode: "2", unitName: "Nos", qty: 0.5, foc: 0, price: 19.99, discPer: 12.5, discAmount: 0, vatName: "10%", vatAmount: 0, netAmount: 0, productId: 6, unitId: 1, vatId: 1, vatValue: 10 },
+];
+const newItems = [
+  { id: "a", product: "5", code: "5", unit: "2", qty: "3", foc: "1", price: "7.125", discPercent: "0", vatId: "1", vatPercent: "10", stock: "0", avgCost: "0" },
+  { id: "b", product: "6", code: "6", unit: "1", qty: "0.5", foc: "0", price: "19.99", discPercent: "12.5", vatId: "1", vatPercent: "10", stock: "0", avgCost: "0" },
 ];
 const header = { seriesId: 3, branchId: 2, employeeId: 1, supplierId: 2, supplierName: "Supplier", refNo: "R-1", narration: "note", paymodeId: 1, discAmount: 1.5, discPer: 0, roundOff: 0.25, netAmount: 40, isCancelled: false };
 
@@ -113,5 +117,54 @@ describe("payloads sent today", () => {
     });
     await save(result as never);
     expect(withoutClock(mock(purchaseReturnApi.savePurchaseReturn).mock.calls[0][0])).toMatchSnapshot();
+  });
+
+  it("Purchase Invoice, new", async () => {
+    const { result } = renderHook(() => usePurchaseInvoice(), { wrapper });
+    await waitFor(() => expect(result.current.loadingMaster).toBe(false));
+    act(() => {
+      result.current.setSelectedPaymodeId(1);
+      result.current.methods.reset({
+        ...result.current.methods.getValues(),
+        series: "3", purchaseNo: "2", purchaseDate: "2026-11-07", invoiceNo: "INV2", invoiceDate: "2026-11-06", supplier: "2", branch: "2", salesman: "1", refNo: "R-1", narration: "note", discAmount: "1.5", roundOff: "0.25",
+        items: newItems,
+        payments: [{ mode: "cash", amount: "99", paymodeId: 1 }],
+      });
+    });
+    await save(result as never);
+    expect(withoutClock(mock(purchaseInvoiceApi.savePurchaseInvoice).mock.calls[0][0])).toMatchSnapshot();
+  });
+
+  it("multi-payment documents keep each paymode, on both forms", async () => {
+    const paid = { paymodeId: 3, netAmount: 40 };
+    const paymodesData = [{ paymodeId: 1, amount: 25 }, { paymodeId: 2, amount: 15 }];
+    mock(purchaseInvoiceApi.getPurchaseInvoiceById).mockResolvedValue({
+      masterData: { ...header, ...paid, purchaseNo: "1", purchaseDate: "2026-11-07T00:00:00", invoiceNo: "INV1", invoiceDate: "2026-11-06T00:00:00" }, detailsData: lines, paymodesData,
+    });
+    const invoice = renderHook(() => usePurchaseInvoice("1"), { wrapper }).result;
+    await waitFor(() => expect(invoice.current.methods.getValues("invoiceNo")).toBe("INV1"));
+    await waitFor(() => expect(invoice.current.multiPayId).toBe(3));
+    await save(invoice as never);
+    expect({ form: invoice.current.methods.getValues("payments"), payload: mock(purchaseInvoiceApi.updatePurchaseInvoice).mock.calls[0][1].paymodes, root: mock(purchaseInvoiceApi.updatePurchaseInvoice).mock.calls[0][1].paymodeId }).toMatchSnapshot();
+
+    mock(purchaseReturnApi.getPurchaseReturnById).mockResolvedValue({
+      masterData: { ...header, ...paid, purchaseId: 0, purchaseReturnNo: "1", purchaseReturnDate: "2026-11-07T00:00:00" }, detailsData: lines, paymodesData,
+    });
+    const ret = renderHook(() => usePurchaseReturn("1"), { wrapper }).result;
+    await waitFor(() => expect(ret.current.methods.getValues("refNo")).toBe("R-1"));
+    await waitFor(() => expect(ret.current.multiPayId).toBe(3));
+    await save(ret as never);
+    expect({ form: ret.current.methods.getValues("payments"), payload: mock(purchaseReturnApi.updatePurchaseReturn).mock.calls[0][1].paymodes, root: mock(purchaseReturnApi.updatePurchaseReturn).mock.calls[0][1].paymodeId }).toMatchSnapshot();
+  });
+
+  it("the percent discount recalculates the amount, on both forms", async () => {
+    mock(purchaseReturnApi.getPurchaseReturnById).mockResolvedValue({
+      masterData: { ...header, discPer: 10, discAmount: 0, purchaseId: 0, purchaseReturnNo: "1", purchaseReturnDate: "2026-11-07T00:00:00" }, detailsData: lines, paymodesData: null,
+    });
+    const ret = renderHook(() => usePurchaseReturn("1"), { wrapper }).result;
+    await waitFor(() => expect(ret.current.methods.getValues("refNo")).toBe("R-1"));
+    await waitFor(() => expect(Number(ret.current.methods.getValues("discAmount"))).toBeGreaterThan(0));
+    expect(ret.current.methods.getValues("discAmount")).toMatchSnapshot();
+    expect(ret.current.totals).toMatchSnapshot();
   });
 });
