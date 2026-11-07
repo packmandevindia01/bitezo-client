@@ -16,10 +16,13 @@ import {
   LayoutGrid,
   ExternalLink,
   Trash2,
-  ListPlus
+  ListPlus,
+  Inbox
 } from 'lucide-react';
 import { Modal } from '../../../../../../components/common';
 import { t } from '../../../../utils/posLocalization';
+import { useToast } from '../../../../../../app/providers/useToast';
+import { openDrawerManually } from '../../../../utils/cashDrawer';
 
 interface PosMoreModalProps {
   isOpen: boolean;
@@ -110,6 +113,16 @@ const CASHIER_ITEMS: ActionItem[] = [
     requiresAuth: true
   },
 ];
+
+const DRAWER_ITEM: ActionItem = {
+  label: 'OPEN CASH DRAWER',
+  description: 'Open the drawer without a sale',
+  icon: Inbox,
+  action: 'openDrawer',
+  iconBg: 'bg-emerald-100',
+  iconColor: 'text-emerald-600',
+  requiresAuth: true
+};
 
 const DISCOUNT_ITEMS: ActionItem[] = [
   { 
@@ -253,11 +266,32 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
   requestAuthorization
 }) => {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const isDefaultEmployee = isDefaultEmployeeActive();
 
   if (!isOpen) return null;
 
+  const openDrawer = async () => {
+    onClose();
+    const result = await openDrawerManually();
+    if (result.status === "sent") showToast("Cash drawer open command sent", "success");
+    else if (result.status === "disabled") showToast("Cash Drawer is turned off in POS config", "warning");
+    else showToast(`The cash drawer did not open: ${result.reason}`, "error");
+  };
+
   const handleItemClick = (item: ActionItem) => {
+    if (item.action === 'openDrawer') {
+      if (isDefaultEmployee) {
+        void openDrawer();
+        return;
+      }
+      requestAuthorization({
+        actionLabel: "Open Cash Drawer",
+        // TODO: add permissionId when the backend team adds this privilege. Until then any valid employee PIN passes.
+        onAuthorized: () => void openDrawer()
+      });
+      return;
+    }
     if (item.action === 'printer') {
       if (isDefaultEmployee) {
         onClose();
@@ -419,7 +453,7 @@ export const PosMoreModal: React.FC<PosMoreModalProps> = ({
           title="Cashier & Register"
           badge="Shift Services"
           badgeColor="bg-amber-500"
-          items={CASHIER_ITEMS}
+          items={[...CASHIER_ITEMS, DRAWER_ITEM]}
           isDefaultEmployee={isDefaultEmployee}
           onItemClick={handleItemClick}
         />

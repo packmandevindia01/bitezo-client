@@ -35,6 +35,22 @@ const billPrinter = (): string | undefined => {
   );
 };
 
+/** Sends the open command to the bill printer. Waits at most CASH_DRAWER_WAIT_MS. Throws on failure. */
+const sendOpenCommand = async (): Promise<void> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const { openCashDrawer } = await import("../services/qzService");
+    await Promise.race([
+      openCashDrawer(billPrinter()),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("no response from the printer")), CASH_DRAWER_WAIT_MS);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 /**
  * Opens the drawer after a settlement is saved, when POS config has it enabled and cash was taken. Awaited before
  * the receipt so the two jobs do not reach the printer together. Never throws: the sale is already saved, so a
@@ -46,20 +62,24 @@ export const openDrawerIfCash = async (
   onFailed: (message: string) => void
 ): Promise<void> => {
   if (!isCashDrawerEnabled() || !hasCashPayment(payments, tenderOptions)) return;
-
-  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const { openCashDrawer } = await import("../services/qzService");
-    await Promise.race([
-      openCashDrawer(billPrinter()),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error("no response from the printer")), CASH_DRAWER_WAIT_MS);
-      }),
-    ]);
+    await sendOpenCommand();
   } catch (err) {
     console.warn("[CashDrawer] Could not open the drawer:", err);
     onFailed(err instanceof Error ? err.message : String(err));
-  } finally {
-    clearTimeout(timer);
+  }
+};
+
+export type ManualDrawerResult = { status: "sent" } | { status: "disabled" } | { status: "failed"; reason: string };
+
+/** More → Open Cash Drawer: no sale needed, still follows POS config "Cash Drawer". */
+export const openDrawerManually = async (): Promise<ManualDrawerResult> => {
+  if (!isCashDrawerEnabled()) return { status: "disabled" };
+  try {
+    await sendOpenCommand();
+    return { status: "sent" };
+  } catch (err) {
+    console.warn("[CashDrawer] Could not open the drawer:", err);
+    return { status: "failed", reason: err instanceof Error ? err.message : String(err) };
   }
 };
