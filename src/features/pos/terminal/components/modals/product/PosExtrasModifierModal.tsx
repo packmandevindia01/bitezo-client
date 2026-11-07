@@ -5,14 +5,16 @@ import { useCurrency } from "../../../../../../hooks/useCurrency";
 import { useAppSelector } from "../../../../../../app/hooks";
 import { useModalLayer } from "@shared/hooks/useModalLayer";
 import { getCartLineDisplay } from "../../../utils/cartLineDisplay";
+import { addCustomization, changeCustomizationQty, customizationQty, removeCustomization } from "../../../utils/lineCustomization";
 
 /**
  * Extras & Modifiers screen — one screen for the WHOLE bill.
  *
  * The right panel lists every cart line (qty / name / price / amount) with its extras, modifiers and
- * messages underneath. Tap a line to make it the target, tap an item in the grid to add it to that
- * line (tap again to remove). Extras ↔ Modifiers is a tab in the header. Changes for all lines are
- * kept as drafts and saved together with "Done" (only lines that changed are dispatched).
+ * messages underneath. Tap a line to make it the target, tap an item in the grid to add one to that
+ * line (tap again to add another); − and + on the right change the quantity. Extras ↔ Modifiers is a tab
+ * in the header. Changes for all lines are kept as drafts and saved together with "Done" (only lines that
+ * changed are dispatched).
  */
 
 interface CartLine {
@@ -92,6 +94,17 @@ const RemoveButton = ({ onClick, label }: { onClick: () => void; label: string }
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12" /></svg>
   </button>
 );
+
+const QtyStepper = ({ label, qty, onChange }: { label: string; qty: number; onChange: (delta: number) => void }) => {
+  const stepClass = "w-7 h-7 rounded-lg bg-slate-100 hover:bg-[#49293e] text-[#49293e] hover:text-white text-sm font-black flex items-center justify-center transition-all active:scale-90";
+  return (
+    <span className="flex items-center gap-1 shrink-0">
+      <button type="button" className={stepClass} aria-label={`One less ${label}`} tabIndex={-1} onClick={(e) => { e.stopPropagation(); onChange(-1); }}>−</button>
+      <span className="w-5 text-center text-[11px] font-black text-slate-700" aria-label={`${label} quantity`}>{qty}</span>
+      <button type="button" className={stepClass} aria-label={`One more ${label}`} tabIndex={-1} onClick={(e) => { e.stopPropagation(); onChange(1); }}>+</button>
+    </span>
+  );
+};
 
 export const PosExtrasModifierModal = ({
   isOpen,
@@ -185,7 +198,7 @@ export const PosExtrasModifierModal = ({
 
   // ── Items for the type + the active line's category ────────────────────────
   useEffect(() => {
-    if (!isOpen || activeTypeId === null) return;
+    if (!isOpen || activeTypeId === null) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     (async () => {
@@ -238,26 +251,21 @@ export const PosExtrasModifierModal = ({
   const updateDraft = (key: string, fn: (d: LineCustomization) => LineCustomization) =>
     setDrafts((prev) => (prev[key] ? { ...prev, [key]: fn(prev[key]) } : prev));
 
-  // ── Grid tap: add to the active line, tap again to remove ──────────────────
-  const isInActiveLine = (item: any) => {
-    if (!activeDraft) return false;
-    return mode === "extras"
-      ? activeDraft.extras.some((x) => x.id === item.id)
-      : activeDraft.modifiers.some((x) => x.id === item.id && x.typeId === activeTypeId);
+  // ── Grid tap: add one to the active line, every further tap adds another ───
+  const qtyInActiveLine = (item: any) => {
+    if (!activeDraft) return 0;
+    return customizationQty(mode === "extras" ? activeDraft.extras : activeDraft.modifiers, item.id);
   };
 
   const handleItemTap = (item: any) => {
     if (!activeKey) return;
     if (mode === "extras") {
-      updateDraft(activeKey, (d) => d.extras.some((x) => x.id === item.id)
-        ? { ...d, extras: d.extras.filter((x) => x.id !== item.id) }
-        : { ...d, extras: [...d.extras, { ...item, qty: 1 }] });
+      updateDraft(activeKey, (d) => ({ ...d, extras: addCustomization(d.extras, item) }));
     } else {
       const activeType = types.find((t) => t.typeId === activeTypeId);
       const typeName = String(activeType?.typeName || activeType?.name || activeType?.modifierTypeName || item.typeName || "").trim();
-      updateDraft(activeKey, (d) => d.modifiers.some((x) => x.id === item.id && x.typeId === activeTypeId)
-        ? { ...d, modifiers: d.modifiers.filter((x) => !(x.id === item.id && x.typeId === activeTypeId)) }
-        : { ...d, modifiers: [...d.modifiers, { ...item, id: item.id, name: item.name, qty: 1, typeId: activeTypeId || item.typeId || 0, typeName }] });
+      const modifier = { ...item, typeId: activeTypeId || item.typeId || 0, typeName };
+      updateDraft(activeKey, (d) => ({ ...d, modifiers: addCustomization(d.modifiers, modifier) }));
     }
   };
 
@@ -391,7 +399,7 @@ export const PosExtrasModifierModal = ({
                 <span className="text-[11px] font-bold text-slate-400">Select a product on the right</span>
               )}
               <span className="hidden lg:inline ml-auto text-[9px] font-bold uppercase tracking-widest text-slate-300 shrink-0">
-                Tap to add · tap again to remove · ↑ ↓ change product
+                Tap to add · tap again for one more · − + on the right · ↑ ↓ change product
               </span>
             </div>
 
@@ -412,7 +420,8 @@ export const PosExtrasModifierModal = ({
               ) : (
                 <div className="grid gap-2 md:gap-2.5 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {items.map((item, index) => {
-                    const isSelected = isInActiveLine(item);
+                    const selectedQty = qtyInActiveLine(item);
+                    const isSelected = selectedQty > 0;
                     return (
                       <button
                         type="button"
@@ -426,8 +435,8 @@ export const PosExtrasModifierModal = ({
                         }`}
                       >
                         {isSelected && (
-                          <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-[#ff9500] flex items-center justify-center">
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5"><path d="M20 6 9 17l-5-5" /></svg>
+                          <div className="absolute top-1.5 right-1.5 min-w-5 h-5 px-1 rounded-full bg-[#ff9500] flex items-center justify-center text-[10px] font-black text-white">
+                            ×{selectedQty}
                           </div>
                         )}
                         <span className="line-clamp-2 break-words">{item.name}</span>
@@ -497,14 +506,16 @@ export const PosExtrasModifierModal = ({
                         {d.extras.map((x) => (
                           <div key={`x-${x.id}-${x.typeId}`} className="flex items-center gap-2">
                             <span className="flex-1 min-w-0 text-[10px] font-bold uppercase text-blue-700 truncate">+ {x.name}</span>
-                            <span className="text-[10px] font-bold text-slate-500 shrink-0">{formatAmount(x.price * (x.qty || 1))}</span>
-                            <RemoveButton label={x.name} onClick={() => updateDraft(key, (dd) => ({ ...dd, extras: dd.extras.filter((e) => !(e.id === x.id && e.typeId === x.typeId)) }))} />
+                            <QtyStepper label={x.name} qty={customizationQty(d.extras, x.id)} onChange={(delta) => updateDraft(key, (dd) => ({ ...dd, extras: changeCustomizationQty(dd.extras, x.id, delta) }))} />
+                            <span className="w-12 text-right text-[10px] font-bold text-slate-500 shrink-0">{formatAmount(x.price * customizationQty(d.extras, x.id))}</span>
+                            <RemoveButton label={x.name} onClick={() => updateDraft(key, (dd) => ({ ...dd, extras: removeCustomization(dd.extras, x.id) }))} />
                           </div>
                         ))}
                         {d.modifiers.map((m) => (
                           <div key={`m-${m.id}-${m.typeId}`} className="flex items-center gap-2">
                             <span className="flex-1 min-w-0 text-[10px] font-bold uppercase text-orange-700 truncate">* {formatModifierLabel(m.typeName, m.name)}</span>
-                            <RemoveButton label={m.name} onClick={() => updateDraft(key, (dd) => ({ ...dd, modifiers: dd.modifiers.filter((e) => !(e.id === m.id && e.typeId === m.typeId)) }))} />
+                            <QtyStepper label={m.name} qty={customizationQty(d.modifiers, m.id)} onChange={(delta) => updateDraft(key, (dd) => ({ ...dd, modifiers: changeCustomizationQty(dd.modifiers, m.id, delta) }))} />
+                            <RemoveButton label={m.name} onClick={() => updateDraft(key, (dd) => ({ ...dd, modifiers: removeCustomization(dd.modifiers, m.id) }))} />
                           </div>
                         ))}
                         {d.messages.map((msg) => (

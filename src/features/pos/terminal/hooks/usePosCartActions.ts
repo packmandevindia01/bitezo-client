@@ -678,7 +678,7 @@ export const usePosCartActions = () => {
                   typeId: ex.typeId || 2,
                 }))
               : voidModifiers
-                  .filter((vm: any) => Number(vm.mapId) === Number(vp.mapId) && (Number(vm.typeId) === 2 || (vm.amount || 0) > 0))
+                  .filter((vm: any) => Number(vm.mapId) === Number(vp.mapId) && (Number(vm.typeId) === 2 || (vm.amount || 0) > 0) && !(vp.modifiers || []).some((mod: { id?: number; modifierId?: number }) => Number(mod.id ?? mod.modifierId) === Number(vm.modifierId)))
                   .map((vm: any) => ({
                     id: vm.modifierId,
                     qty: vm.qty || 1,

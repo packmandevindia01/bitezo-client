@@ -203,14 +203,8 @@ export const usePosVoidFlow = ({
           const mapId = Number(item.mapId || 0);
           const ratio = item.quantity > 0 ? 1 / item.quantity : 1;
 
-          const voidExtras = (item.extras || []).map((ex: any) => ({
-            id: ex.id || ex.modifierId,
-            name: (ex.name && ex.name !== "Extra") ? ex.name : (ex.modifierName || ex.name || "Extra"),
-            arabicName: ex.arabicName || ex.arabic,
-            price: ex.price || 0,
-            qty: Math.max(1, Math.round((ex.qty || 1) * ratio)),
-            typeId: ex.typeId || 2,
-          }));
+          // Extras are per line (R2): they stay on the line and stay charged until its last unit is voided.
+          const voidExtras: any[] = [];
 
           const voidModifiers = (item.modifiers || []).map((mod: any) => {
             const typeId = Number(mod.typeId ?? 1);

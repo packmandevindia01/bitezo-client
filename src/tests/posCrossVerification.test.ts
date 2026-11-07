@@ -76,7 +76,7 @@ const makeScenario = (seed: number): Scenario => {
     const product = { id, name: `P${id}`, price: money3(rnd, 0.1, 50), vatValue: pick(rnd, [0, 5, 10, 10, 15]), isIncl, categoryId: 1 };
     products.push(product);
     const extras = Array.from({ length: Math.floor(rnd() * 3) }, (_, k) => ({
-      id: 500 + k, name: `X${k}`, price: money3(rnd, 0.05, 3), qty: 1, typeId: 1,
+      id: 500 + k, name: `X${k}`, price: money3(rnd, 0.05, 3), qty: 1 + Math.floor(rnd() * 4), typeId: 1,
     }));
     const item: any = {
       uniqueId: `u${i}`, productId: id, quantity: 1 + Math.floor(rnd() * 4),

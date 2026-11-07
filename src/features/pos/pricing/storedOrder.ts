@@ -489,7 +489,7 @@ export const pickOrderMoney = (master: any): Record<string, any> => {
 /**
  * Remove duplicate modifier / extra rows (same line, same modifier, same name). The backend sometimes
  * returns an extra twice (e.g. sales-data for order 299, recall data for order 301); counting it twice
- * makes the product price come out too low. The POS always sends each extra once per line.
+ * makes the product price come out too low. The POS always sends each extra as one row per line, with its qty.
  */
 export const dedupeModifierRows = <T = any>(rows: T[] | null | undefined): T[] => {
   if (!Array.isArray(rows)) return [];

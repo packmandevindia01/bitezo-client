@@ -153,7 +153,8 @@ productBase   = qty × baseUnitPrice
 ### R2 — Extras
 - Extra prices are always gross (inclusive) and converted with the **same factor as their line**:
   `extraBase = extraGross / factor`.
-- Extra qty is **per line**, not multiplied by line quantity.
+- Extra qty is **per line**, not multiplied by line quantity. The same extra or modifier can be added many times: one entry with a qty (product 10 + 2 × extra at 2 = 14; at line qty 2: 24).
+- Voiding one unit of a multi-unit saved line voids no extras: they stay on the line and stay charged until its last unit is voided.
 - `amount = productBase + Σ(extraGross × extraQty) / factor` (exclusive line amount before discount).
 - Modifiers and messages have price 0.
 
@@ -316,11 +317,11 @@ session/day/shift (`cashier/`) must be open before orders.
 - **Extras / modifiers screen** (`PosExtrasModifierModal`, redesigned 2026-11-05): ONE screen for the whole bill.
   Line prices come from `utils/cartLineDisplay.ts` (`getCartLineDisplay`), the same as the cart rows. Never show `line.price` directly: on a saved order it includes extras only until the cart is first changed.
   Header tabs Extras ↔ Modifiers; right panel lists every cart line (qty / description / price / amount) with its
-  extras, modifiers and messages; tap a line to target it ("Adding to #n" bar), tap a grid item to add it, tap again
-  to remove; ↑ ↓ change line; Esc closes (captured so the global Esc = clear-cart shortcut never fires). Drafts for all
+  extras, modifiers and messages; tap a line to target it ("Adding to #n" bar), tap a grid item to add one, tap again
+  for one more (the tile shows ×n); − and + on the right change the qty, − at 1 or the X removes it; ↑ ↓ change line; Esc closes (captured so the global Esc = clear-cart shortcut never fires). Drafts for all
   lines are kept until **Done**, which calls `setItemCustomizations` only for lines that changed; Cancel discards.
   Opens with any non-empty cart (starts on the selected line, else the last one). Grid items are filtered by the
-  target line's category. Extras and modifiers stay qty 1 per line (R2: extras are per line, not × line qty).
+  target line's category. Qty rules are in `terminal/utils/lineCustomization.ts`: one entry per id on a line, saved as one row with its qty. Lowering or removing an extra on a saved order records no void and asks for no permission, same as removing one always did.
 - Bill discount: `setBillDiscount` (replaces item discounts, R5).
 - Delivery: customer + address required; delivery charge editable (`setCustomDeliveryCharge`). The footer shows
   Delivery Charge AFTER VAT (it is not taxed, R7); one tap opens `PosDeliveryChargeModal`, which lists only the
@@ -463,7 +464,7 @@ cart keep the price and name they were added with.
 
 | Area | Files |
 |---|---|
-| Engine | `pricingEngine`, `pricingConsistency`, `rounding`, `billing`, `discount`, `manualPrice`, `happyHour`, `extrasPerLine`, `duplicateExtras`, `vatInclusiveProduct`, `inclusive/exclusiveSpreadsheetCalculation` |
+| Engine | `pricingEngine`, `pricingConsistency`, `rounding`, `billing`, `discount`, `manualPrice`, `happyHour`, `extrasPerLine`, `extrasModifierQty`, `duplicateExtras`, `vatInclusiveProduct`, `inclusive/exclusiveSpreadsheetCalculation` |
 | Saved orders | `storedOrder`, `recallAndSettleDisplay`, `recallEditRoundTrip`, `recallEditSameAsScreen`, `vatAndSavedRates`, `menuOrderData` |
 | Golden orders | `pricingGoldenOrders`, `order288RoundedVat`, `order297DineIn`, `order301StaleMaster`, `userScreenshotScenarios` |
 | Payloads / API | `orderPayloadMapper`, `orderApi`, `delivery` |

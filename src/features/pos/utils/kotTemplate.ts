@@ -653,10 +653,11 @@ export const generateKotHtml = async (
         item.modifiers.forEach((mod: any) => {
           const rawModName = escapeHtml((mod.name || mod.modifierName || "").trim());
           if (!rawModName) return;
+          const modQtyPrefix = Number(mod.qty) > 1 ? `${Number(mod.qty)} X ` : "";
           const modArabic = isKotArabic ? escapeHtml((mod.arabicName || mod.arabic || "")) : "";
           const modDisplay = modArabic
-            ? `* ${rawModName.toUpperCase()} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${modArabic})</span>`
-            : `* ${rawModName.toUpperCase()}`;
+            ? `* ${modQtyPrefix}${rawModName.toUpperCase()} <span dir="rtl" lang="ar" class="arabic-text" style="font-size:11px; font-weight:normal; margin-left:4px; color:#000000;">(${modArabic})</span>`
+            : `* ${modQtyPrefix}${rawModName.toUpperCase()}`;
           otherSubRowsHtml += `
             <div style="font-size: 11px; font-weight: normal; font-style: italic; padding: 1px 0 1px 6px; color: #000000;">
               ${modDisplay}
