@@ -19,7 +19,7 @@ import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/ser
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
 import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
-import { stockLineAmount, stockNetAmount } from "../../shared/stockCalc";
+import { stockBaseQty, stockLineAmount, stockNetAmount } from "../../shared/stockCalc";
 import { getLineUnitValue, type RawUnit } from "../../shared/lineUnits";
 
 const toNumber = (val: any): number => {
@@ -470,8 +470,8 @@ export const useInternalStockTransfer = (id?: string) => {
           unitId,
           qty: toNumber(item.qty),
           price: toNumber(item.cost),
-          amount: toNumber(item.qty) * toNumber(item.cost),
-          baseQty: toNumber(item.qty) * unitCurrentValue
+          amount: stockLineAmount(item.qty, item.cost),
+          baseQty: stockBaseQty(item.qty, unitCurrentValue)
         };
       });
 

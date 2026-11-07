@@ -1,0 +1,128 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`payloads sent today, editing a saved document > Physical Entry 1`] = `
+{
+  "branchId": 2,
+  "details": [
+    {
+      "amount": 3.3,
+      "baseQty": 36,
+      "price": 1.1,
+      "productId": 5,
+      "qty": 3,
+      "unitId": 2,
+    },
+    {
+      "amount": 0.02,
+      "baseQty": 0.1,
+      "price": 0.2,
+      "productId": 6,
+      "qty": 0.1,
+      "unitId": 1,
+    },
+  ],
+  "employeeId": 4,
+  "narration": "note",
+  "netAmount": 3.32,
+  "transDate": "2026-11-05",
+  "transId": 1,
+}
+`;
+
+exports[`payloads sent today, editing a saved document > Production 1`] = `
+{
+  "amount": 4.82,
+  "baseQty": 2,
+  "branchId": 2,
+  "cost": 4.82,
+  "details": [
+    {
+      "amount": 3.3,
+      "baseQty": 36,
+      "cost": 1.1,
+      "productId": 5,
+      "qty": 3,
+      "unitId": 2,
+    },
+    {
+      "amount": 0.02,
+      "baseQty": 0.1,
+      "cost": 0.2,
+      "productId": 6,
+      "qty": 0.1,
+      "unitId": 1,
+    },
+  ],
+  "employeeId": 4,
+  "narration": "note",
+  "productId": 9,
+  "productionDate": "2026-11-05",
+  "qty": 2,
+  "totalWage": 1.5,
+  "transId": 1,
+  "unitId": 2,
+}
+`;
+
+exports[`payloads sent today, editing a saved document > Stock Adjustment 1`] = `
+{
+  "branchId": 2,
+  "details": [
+    {
+      "amount": 3.3,
+      "baseQty": 36,
+      "effect": "-",
+      "price": 1.1,
+      "productId": 5,
+      "qty": 3,
+      "typeId": 1,
+      "unitId": 2,
+    },
+    {
+      "amount": 0.02,
+      "baseQty": 0.1,
+      "effect": "+",
+      "price": 0.2,
+      "productId": 6,
+      "qty": 0.1,
+      "typeId": 1,
+      "unitId": 1,
+    },
+  ],
+  "employeeId": 4,
+  "narration": "note",
+  "netAmount": -3.28,
+  "transDate": "2026-11-05",
+  "transId": 1,
+}
+`;
+
+exports[`payloads sent today, editing a saved document > Stock Transfer 1`] = `
+{
+  "details": [
+    {
+      "amount": 3.3,
+      "baseQty": 36,
+      "price": 1.1,
+      "productId": 5,
+      "qty": 3,
+      "unitId": 2,
+    },
+    {
+      "amount": 0.02,
+      "baseQty": 0.1,
+      "price": 0.2,
+      "productId": 6,
+      "qty": 0.1,
+      "unitId": 1,
+    },
+  ],
+  "employeeId": 4,
+  "fromBranchId": 2,
+  "narration": "note",
+  "netAmount": 3.32,
+  "toBranchId": 3,
+  "transDate": "2026-11-05",
+  "transId": 1,
+}
+`;

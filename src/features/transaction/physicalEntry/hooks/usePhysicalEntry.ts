@@ -28,6 +28,12 @@ const toNumber = (value: string | number | undefined) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+/** The unit value behind a saved line: its baseQty per qty. (Using baseQty itself multiplied stock on every re-save.) */
+export const savedUnitValue = (baseQty: unknown, qty: unknown): number => {
+  const value = Number(baseQty) / Number(qty);
+  return Number.isFinite(value) && value > 0 ? Number(value.toFixed(6)) : 1;
+};
+
 export const calculateLine = (item: PhysicalEntryLineItem) => {
   const qty = toNumber(item.qty);
   const cost = toNumber(item.cost);
@@ -290,8 +296,10 @@ export const usePhysicalEntry = (id?: string | null) => {
           const cost = formatAmount(i.price ?? i.Price ?? i.cost ?? i.Cost ?? 0);
 
           if (unitId && uCat) {
+            // Lines of one category may use different units: keep them all.
             newCategoryUnits[uCat] = [
-              { label: unitName || "Unit", value: unitId, currentValue: Number(i.baseQty || 1) }
+              ...(newCategoryUnits[uCat] || []).filter((u) => u.value !== unitId),
+              { label: unitName || "Unit", value: unitId, currentValue: savedUnitValue(i.baseQty ?? i.BaseQty, qty) },
             ];
           }
 
