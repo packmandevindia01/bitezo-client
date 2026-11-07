@@ -1,3 +1,5 @@
+import { unwrapTransaction as unwrap } from "@shared/api/unwrap";
+import { formatDateOnly } from "@shared/lib/date";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../../inventory/product/types";
@@ -7,61 +9,8 @@ import type {
   ProductionDetailParams,
 } from "../types";
 
-import { toLocalDateString } from "../../../../utils/date";
-export const formatDateOnly = (dateVal: string | Date | undefined | null): string => {
-  if (!dateVal) return toLocalDateString();
-  if (typeof dateVal === "string") {
-    const trimmed = dateVal.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-    if (trimmed.includes("T")) return trimmed.split("T")[0];
-    const d = new Date(trimmed);
-    if (!isNaN(d.getTime())) {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    }
-    return trimmed;
-  }
-  const d = dateVal;
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+export { formatDateOnly };
 
-async function unwrap<T>(promise: Promise<{ data: any }>): Promise<T> {
-  try {
-    const { data: envelope } = await promise;
-    if (envelope && (envelope.isSuccess === false || (envelope.status && envelope.status >= 400))) {
-      const firstError = envelope.errors?.[0] as any;
-      const msg = (typeof firstError === 'object' ? (firstError.message || firstError.code) : firstError) 
-                  ?? envelope.message 
-                  ?? "Operation failed";
-      throw new Error(msg);
-    }
-    return envelope?.data !== undefined ? envelope.data : envelope;
-  } catch (error: any) {
-    const responseData = error.response?.data;
-    if (responseData) {
-      const envelope = responseData;
-      if (envelope.errors && typeof envelope.errors === 'object') {
-        if (!Array.isArray(envelope.errors)) {
-          const firstKey = Object.keys(envelope.errors)[0];
-          const firstErr = envelope.errors[firstKey];
-          const msg = Array.isArray(firstErr) ? firstErr[0] : firstErr;
-          throw new Error(`${firstKey}: ${msg}`);
-        } else if (envelope.errors.length > 0) {
-          const firstErr = envelope.errors[0];
-          const msg = typeof firstErr === 'object' ? (firstErr.message || firstErr.code) : firstErr;
-          throw new Error(msg || envelope.message || "An unexpected error occurred.");
-        }
-      }
-      throw new Error(envelope.message || envelope.title || "Request failed");
-    }
-    throw error;
-  }
-}
 
 const BASE_URL = "/production";
 

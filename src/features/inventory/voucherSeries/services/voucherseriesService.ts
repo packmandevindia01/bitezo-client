@@ -1,3 +1,4 @@
+import { unwrapMessage as unwrap } from "@shared/api/unwrap";
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../../inventory/product/types";
 import type { 
@@ -8,16 +9,6 @@ import type {
 
 const BASE = "/voucherseries";
 
-async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T> {
-  const { data: envelope } = await promise;
-
-  if (!envelope.isSuccess) {
-    const msg = envelope.message ?? "An unexpected error occurred.";
-    throw new Error(msg);
-  }
-
-  return envelope.data;
-}
 
 export const voucherseriesService = {
   list(): Promise<VoucherSeriesRecord[]> {

@@ -1,5 +1,6 @@
 /** Helpers shared by the Purchase Invoice and Purchase Return forms. */
 import { describe, it, expect } from "vitest";
+import { unwrapCoded, unwrapMaster, unwrapMessage, unwrapReport, unwrapResponse, unwrapTransaction } from "../shared/api/unwrap";
 import { formatDateOnly, mapStoredPayments, parseStockValue, paymodesForSave, toNumber } from "../features/transaction/shared/purchaseDocument";
 
 const paymodes = [{ paymodeId: 1, paymodeName: "Cash" }, { paymodeId: 2, paymodeName: "Card" }, { paymodeId: 3, paymodeName: "MultiPay" }];
@@ -55,5 +56,24 @@ describe("small helpers", () => {
     expect(toNumber("x")).toBe(0);
     expect(toNumber(undefined)).toBe(0);
     expect(toNumber("1.5")).toBe(1.5);
+  });
+});
+
+describe("shared response helpers", () => {
+  it("unwrapResponse reads the envelope or the plain body", () => {
+    expect(unwrapResponse({ data: { data: [1] } })).toEqual([1]);
+    expect(unwrapResponse({ data: [2] })).toEqual([2]);
+  });
+  it("unwrapTransaction fails on isSuccess false and on a status of 400 or more", async () => {
+    await expect(unwrapTransaction(Promise.resolve({ data: { isSuccess: false, errors: [{ message: "No branch" }] } }))).rejects.toThrow("No branch");
+    await expect(unwrapTransaction(Promise.resolve({ data: { status: 500, message: "Boom" } }))).rejects.toThrow("Boom");
+    await expect(unwrapTransaction(Promise.resolve({ data: { isSuccess: true, data: 5 } }))).resolves.toBe(5);
+  });
+  it("each master helper reports the same error text as its old copies", async () => {
+    const failed = Promise.resolve({ data: { data: 0, isSuccess: false, message: "Saved no", status: 400, errors: [{ message: "Bad", field: "name", code: "E1" }] } });
+    await expect(unwrapMessage(failed)).rejects.toThrow("Saved no");
+    await expect(unwrapMaster(failed)).rejects.toThrow("Bad");
+    await expect(unwrapReport(failed)).rejects.toThrow("name");
+    await expect(unwrapCoded(failed)).rejects.toMatchObject({ message: "Bad", code: "E1", apiStatus: 400 });
   });
 });

@@ -1,3 +1,4 @@
+import { unwrapResponse as unwrap } from "@shared/api/unwrap";
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../productWisePurchaseReport/services/productWisePurchaseReportApi";
 import type {
@@ -7,12 +8,6 @@ import type {
 } from "../types";
 import { assertReportSuccess } from "../../framework/reportResponse";
 
-function unwrap<T>(response: any): T {
-  if (response.data && response.data.data !== undefined) {
-    return response.data.data;
-  }
-  return response.data;
-}
 
 export const getDailySalesReport = async (params: DailySalesReportParams) => {
   const response = await axiosInstance.get<ApiResponse<DailySalesReportData>>("/reports/daily-sales-report", {

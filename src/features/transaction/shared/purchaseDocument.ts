@@ -1,4 +1,4 @@
-import { toLocalDateString } from "../../../utils/date";
+import { formatDateOnly } from "@shared/lib/date";
 
 /** Pure helpers shared by the Purchase Invoice and Purchase Return forms. */
 export const toNumber = (value: string | number | undefined) => {
@@ -6,27 +6,7 @@ export const toNumber = (value: string | number | undefined) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-export const formatDateOnly = (dateVal: string | Date | undefined | null): string => {
-  if (!dateVal) return toLocalDateString();
-  if (typeof dateVal === "string") {
-    const trimmed = dateVal.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-    if (trimmed.includes("T")) return trimmed.split("T")[0];
-    const d = new Date(trimmed);
-    if (!isNaN(d.getTime())) {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    }
-    return trimmed;
-  }
-  const d = dateVal;
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+export { formatDateOnly };
 
 /** Closing stock arrives as a number, a string or an object with one of several field names. */
 export const parseStockValue = (res: unknown, formatAmount: (n: number) => string): string => {

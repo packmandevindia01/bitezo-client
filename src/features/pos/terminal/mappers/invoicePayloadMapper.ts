@@ -1,9 +1,9 @@
+import { formatDateOnly } from "@shared/lib/date";
 import { roundCalc, sanitizeTaxExclusiveDetail, getVatStatus } from "../utils/billing";
 import type { SalesInvoicePayload, PaymodeItem } from "../../types";
 import { dec, sumDec, toNum } from "../../../../utils/money";
 import type { DirectSettleOrderBase } from "./orderPayloadMapper";
 
-import { toLocalDateString } from "../../../../utils/date";
 export interface BuildInvoiceOptions {
   orderPayload: DirectSettleOrderBase;
   payments: { paymodeId: number; amount: number; paymodeName?: string }[];
@@ -17,27 +17,7 @@ export interface BuildInvoiceOptions {
   activeProviderPostAccountId?: number;
 }
 
-export const formatDateOnly = (dateVal: string | Date | undefined | null): string => {
-  if (!dateVal) return toLocalDateString();
-  if (typeof dateVal === "string") {
-    const trimmed = dateVal.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-    if (trimmed.includes("T")) return trimmed.split("T")[0];
-    const d = new Date(trimmed);
-    if (!isNaN(d.getTime())) {
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${year}-${month}-${day}`;
-    }
-    return trimmed;
-  }
-  const d = dateVal;
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
+export { formatDateOnly };
 
 export const resolveExactTransDate = (sessionDate?: string): string => {
   const now = new Date();

@@ -1,3 +1,4 @@
+import { unwrapTransaction as unwrap } from "@shared/api/unwrap";
 import axiosInstance from "../../../api/axiosInstance";
 import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
 import type { VoucherAccount, VoucherCreatePayload, VoucherDataResponse, VoucherListDto, VoucherMasterData, VoucherUpdatePayload } from "./voucherTypes";
@@ -11,38 +12,6 @@ export interface ApiResponse<T> {
   errors?: any[];
 }
 
-async function unwrap<T>(promise: Promise<{ data: any }>): Promise<T> {
-  try {
-    const { data: envelope } = await promise;
-    if (envelope && (envelope.isSuccess === false || (envelope.status && envelope.status >= 400))) {
-      const firstError = envelope.errors?.[0] as any;
-      const msg = (typeof firstError === 'object' ? (firstError.message || firstError.code) : firstError) 
-                  ?? envelope.message 
-                  ?? "Operation failed";
-      throw new Error(msg);
-    }
-    return envelope?.data !== undefined ? envelope.data : envelope;
-  } catch (error: any) {
-    const responseData = error.response?.data;
-    if (responseData) {
-      const envelope = responseData;
-      if (envelope.errors && typeof envelope.errors === 'object') {
-        if (!Array.isArray(envelope.errors)) {
-          const firstKey = Object.keys(envelope.errors)[0];
-          const firstErr = envelope.errors[firstKey];
-          const msg = Array.isArray(firstErr) ? firstErr[0] : firstErr;
-          throw new Error(`${firstKey}: ${msg}`);
-        } else if (envelope.errors.length > 0) {
-          const firstErr = envelope.errors[0];
-          const msg = typeof firstErr === 'object' ? (firstErr.message || firstErr.code) : firstErr;
-          throw new Error(msg || envelope.message || "An unexpected error occurred.");
-        }
-      }
-      throw new Error(envelope.message || envelope.title || "Request failed");
-    }
-    throw error;
-  }
-}
 
 /** Payment and Receipt Vouchers call the same endpoints under their own path. */
 export const createVoucherApi = (path: "payment" | "receipt") => ({

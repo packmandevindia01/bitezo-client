@@ -1,3 +1,4 @@
+import { unwrapResponse as unwrap } from "@shared/api/unwrap";
 import axiosInstance from "../../../../api/axiosInstance";
 import type {
   ProductTransactionLogParams,
@@ -8,12 +9,6 @@ import type {
 import { normalizeTransactionLog, EMPTY_TOTALS } from "../utils/normalizeTransactionLog";
 import { assertReportSuccess } from "../../framework/reportResponse";
 
-function unwrap<T>(response: any): T {
-  if (response.data && response.data.data !== undefined) {
-    return response.data.data;
-  }
-  return response.data;
-}
 
 export const getProductTransactionLogReport = async (
   params: ProductTransactionLogParams

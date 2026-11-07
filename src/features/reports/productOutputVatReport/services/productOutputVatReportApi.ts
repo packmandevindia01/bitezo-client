@@ -1,3 +1,4 @@
+import { unwrapResponse as unwrap } from "@shared/api/unwrap";
 import axiosInstance from "../../../../api/axiosInstance";
 import type {
   ProductOutputVatReportParams,
@@ -5,16 +6,9 @@ import type {
   BranchOption,
   ProductOption,
   VatOption,
-  ApiResponse,
 } from "../types";
 import { assertReportSuccess } from "../../framework/reportResponse";
 
-function unwrap<T>(response: { data: ApiResponse<T> } | any): T {
-  if (response.data && response.data.data !== undefined) {
-    return response.data.data;
-  }
-  return response.data;
-}
 
 export const getProductOutputVatReport = async (
   params: ProductOutputVatReportParams

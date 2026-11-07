@@ -1,3 +1,4 @@
+import { unwrapResponse as unwrap } from "@shared/api/unwrap";
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ProductWiseMarginReportParams, ProductWiseMarginReportResponse } from "../types";
 import { assertReportSuccess } from "../../framework/reportResponse";
@@ -10,12 +11,6 @@ export interface ApiResponse<T> {
   errors?: any[];
 }
 
-function unwrap<T>(response: { data: ApiResponse<T> } | any): T {
-  if (response.data && response.data.data !== undefined) {
-    return response.data.data;
-  }
-  return response.data;
-}
 
 export const getProductWiseMarginReport = async (
   params: ProductWiseMarginReportParams

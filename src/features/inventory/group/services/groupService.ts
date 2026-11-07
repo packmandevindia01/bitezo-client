@@ -1,3 +1,4 @@
+import { unwrapCoded as unwrap } from "@shared/api/unwrap";
 import axiosInstance from "../../../../api/axiosInstance";
 import type {
   ApiResponse,
@@ -14,20 +15,6 @@ const BASE = "/group";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T> {
-  const { data: envelope } = await promise;
-
-  if (!envelope.isSuccess) {
-    const msg =
-      envelope.errors?.[0]?.message ?? envelope.message ?? "An unexpected error occurred.";
-    const err = new Error(msg) as Error & { code?: string; apiStatus?: number };
-    err.code = envelope.errors?.[0]?.code;
-    err.apiStatus = envelope.status;
-    throw err;
-  }
-
-  return envelope.data;
-}
 
 // ─── Group Service ────────────────────────────────────────────────────────────
 

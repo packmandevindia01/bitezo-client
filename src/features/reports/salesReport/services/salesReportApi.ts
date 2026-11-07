@@ -1,3 +1,4 @@
+import { unwrapResponse as unwrap } from "@shared/api/unwrap";
 import axiosInstance from "../../../../api/axiosInstance";
 
 import type {
@@ -17,12 +18,6 @@ export interface ApiResponse<T> {
   errors?: any[];
 }
 
-function unwrap<T>(response: { data: ApiResponse<T> } | any): T {
-  if (response.data && response.data.data !== undefined) {
-    return response.data.data;
-  }
-  return response.data;
-}
 
 export const getSalesReport = async (params: SalesReportParams) => {
   const response = await axiosInstance.get<SalesReportResponse>("/reports/sales-report", {
