@@ -700,7 +700,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         narration: master.narration || "",
         discAmount: master.discAmount?.toString() || "0",
         globalDiscPercent: master.discPer?.toString() || "0",
-        roundOff: "0",
+        roundOff: master.roundOff?.toString() || "0",
         otherCharge: "0",
         items: mappedItems,
         payments: mappedPayments,
@@ -804,6 +804,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
         discPer: toNumber(data.globalDiscPercent),
         vatExclAmount: totals.vatExclAmount,
         vatAmount: totals.vatAmount,
+        roundOff: toNumber(data.roundOff),
         netAmount: totals.grandTotal,
         details: validItems.map((item) => {
           const l = calculateLine(item as PurchaseInvoiceLineItem, grossTotal, toNumber(data.discAmount));

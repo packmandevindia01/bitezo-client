@@ -432,7 +432,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         narration: master.narration || "",
         discAmount: master.discAmount?.toString() || "0",
         globalDiscPercent: master.discPer?.toString() || "0",
-        roundOff: "0",
+        roundOff: master.roundOff?.toString() || "0",
         otherCharge: "0",
       };
 
@@ -1095,6 +1095,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         // 14 dp, exact Σ of the lines below (transaction/shared/purchaseCalc.ts)
         vatExclAmount: totals.vatExclAmount,
         vatAmount: totals.vatAmount,
+        roundOff: toNumber(data.roundOff),
         netAmount: totals.grandTotal,
         details: validItems.map((item: any) => {
           const l = calculateLine(item as PurchaseReturnLineItem, decimalPart, grossTotal, toNumber(data.discAmount));
