@@ -913,16 +913,16 @@ option pick, grids, forms using `useEnterKeyNavigation`), in multi-line text box
   Report print previews are custom overlays — they move to the report framework in Phase 4.
 - Tests: `layers.test.ts`.
 
-### 11.10 Phase 4 — report framework (all 31 routes migrated 2026-11-07; real-data check pending)
+### 11.10 Phase 4 — report framework (done 2026-11-07: all 31 reports, old pages deleted)
 `src/features/reports/framework/` — a report is a definition (`ReportDefinition`: id, title, filters, `fetch` → `{ columns, rows }`,
 subtitle). The framework gives every report the same page (`ReportPage`): filter panel (branch / date / month / select, LOCAL-date
 defaults, branch never sent as 0 via `toReportBranchId`, branch lock respected), table with S.No, exact totals row (`reportMath`, decimal),
 visible error banner (403 / network — was "No records found"), live refresh on transactions + window focus, Print (iframe), PDF and XLS
 (`reportOutput`: jsPDF / xlsx loaded only on click; all three from the same `toMatrix` as the screen). Column kinds: text, date
 (dd/MM/yyyy), money, number, qty.
-- Definitions in `src/features/reports/definitions/`; each route points at a `*FrameworkPage.tsx`. Old module folders stay until the
-  owner has checked the new page with real data, then they are deleted.
-- **Migrated (31 / 31; old pages still in place until checked with real data):** Monthly Sales (`monthlySales.ts`); Daily / Hourly / Order-Type / Menu Session Sales (`salesByPeriod.ts` →
+- Definitions in `src/features/reports/definitions/`; each route points at a `*FrameworkPage.tsx`. The old module folders now hold only
+  `services/` and `types.ts` (plus the log normaliser). Rows not seen live yet (no data): Stock Adjustment x2, Stock Transfer x2, Supplier Statement / Balance.
+- **Migrated (31 / 31):** Monthly Sales (`monthlySales.ts`); Daily / Hourly / Order-Type / Menu Session Sales (`salesByPeriod.ts` →
   `periodTable`, row Total modes compute / columnOnly / computeIfMissing); Category / Group / Employee Sales (`itemSales.ts`: field
   fallbacks, Category name resolved against the category master, money totals from backend `totalData` via `totalsOverride`).
   Framework additions: `lookup` filter (options loaded from the server, "All" = 0), `totalsOverride` on `ReportTable`.

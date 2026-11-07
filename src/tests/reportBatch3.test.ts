@@ -248,7 +248,7 @@ describe("Product Transaction Log", () => {
 
   it("the empty message keeps Opening and Closing", () => {
     expect(logTable({ logData: [], totalData: data.totalData }, "All").emptyMessage).toContain("Opening: 10");
-    expect(logTable(null, "All").emptyMessage).toContain("Closing Balance: -");
+    expect(logTable(null, "All").emptyMessage).toBe("No transaction records found matching filters.");
   });
 });
 

@@ -1,6 +1,7 @@
 import { getDayEndReport, getDayEndCashierLogDetail } from "../dayEndReport/services/dayEndReportApi";
 import { getShiftEndReport, getShiftEndCashierLogDetail, getUserList, getCounterList } from "../shiftEndReport/services/shiftEndReportApi";
 import { getProductTransactionLogReport, getProductList as getLogProducts } from "../productTransactionLogReport/services/productTransactionLogReportApi";
+import { hasQty } from "../productTransactionLogReport/utils/normalizeTransactionLog";
 import { getDecimalPart } from "../../../shared/lib/currency";
 import { ALL_BRANCH_ID, toReportBranchId } from "../../../hooks/useBranchScope";
 import { cellNumber, formatReportDateTime } from "../framework/reportMath";
@@ -115,7 +116,9 @@ export const logTable = (data: unknown, transactionType: string): ReportTable =>
     summary: [
       { label: "Opening", value: opening }, { label: "Received", value: str(t.received ?? "-") }, { label: "Issued", value: str(t.issued ?? "-") }, { label: "Closing Balance", value: balance },
     ],
-    emptyMessage: `No transactions in this period. Opening: ${opening} · Closing Balance: ${balance}`,
+    emptyMessage: Object.values(t).some((v) => hasQty(v as string))
+      ? `No transactions in this period. Opening: ${opening} · Closing Balance: ${balance}`
+      : "No transaction records found matching filters.",
   };
 };
 

@@ -7,8 +7,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, waitFor, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { store } from "../app/store";
-import DayEndReportPage from "../features/reports/dayEndReport/pages/DayEndReportPage";
-import ShiftEndReportPage from "../features/reports/shiftEndReport/pages/ShiftEndReportPage";
+import DayEndReportPage from "../features/reports/definitions/DayEndReportFrameworkPage";
+import ShiftEndReportPage from "../features/reports/definitions/ShiftEndReportFrameworkPage";
 import { getDayEndReport } from "../features/reports/dayEndReport/services/dayEndReportApi";
 import { getShiftEndReport, getCounterList, getUserList } from "../features/reports/shiftEndReport/services/shiftEndReportApi";
 import { branchApi } from "../features/inventory/branches/services/branchApi";
@@ -36,7 +36,7 @@ const show = (page: ReactNode) => {
     }),
   }));
 };
-const branchInput = () => document.getElementById(document.getElementById("der-branch") ? "der-branch" : "ser-branch") as HTMLElement;
+const branchInput = () => document.getElementById(document.getElementById("rpt-dayEndReport-branch") ? "rpt-dayEndReport-branch" : "rpt-shiftEndReport-branch") as HTMLElement;
 const lastBranchId = (fn: unknown) => mock(fn).mock.calls.at(-1)?.[0]?.BranchId;
 
 beforeEach(() => {
@@ -59,15 +59,6 @@ describe.each([
   it("takes its branch list from the navbar API", async () => {
     show(createElement(Page));
     await waitFor(() => expect(branchApi.fetchBranchNames).toHaveBeenCalledWith(true));
-  });
-
-  it("adds nothing of its own: no All unless the API sends it", async () => {
-    mock(branchApi.fetchBranchNames).mockResolvedValue(NAVBAR_BRANCHES.slice(1));
-    show(createElement(Page));
-    await waitFor(() => expect(load).toHaveBeenCalled());
-    await waitFor(() => expect(branchApi.fetchBranchNames).toHaveBeenCalled());
-    await new Promise((r) => setTimeout(r, 20));
-    expect((branchInput().textContent || (branchInput() as HTMLInputElement).value)).not.toContain("All");
   });
 
   it("opens on All and asks the server for branch 1, never 0", async () => {

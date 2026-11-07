@@ -1,5 +1,4 @@
 import { getSalesReport, getPaymodeList, getCustomerList, getSeriesList } from "../salesReport/services/salesReportApi";
-import { formatTransactionDateTime } from "../salesReport/utils/exportUtils";
 import { getBillWiseMarginReport, getSeriesList as getMarginSeries, getCustomerList as getMarginCustomers } from "../billWiseMarginReport/services/billWiseMarginReportApi";
 import { getProductWiseMarginReport, getProductList as getMarginProducts, getGroupList, getCategoryList, getSubCategoryList } from "../productWiseMarginReport/services/productWiseMarginReportApi";
 import { allTransactionReportApi } from "../allTransactionReport/services/allTransactionReportApi";
@@ -13,6 +12,42 @@ import { cashCredit, seriesKey } from "./purchase";
 
 /** Sales, Bill / Product Wise Margin and All Transaction reports (Phase 4). */
 const customerOption = (c: AnyRow): Option => ({ value: str(c.customerId), label: c.code ? `[${str(c.code)}] ${str(c.customerName)}` : str(c.customerName) });
+
+export const formatTransactionDateTime = (row: AnyRow): string => {
+  const rawDate = str(row.invoiceDate || row.transDate || row.createdAt || row.voucherDate);
+  if (!rawDate) return "";
+  const rawTime = str(row.invoiceTime || row.transTime || row.time || row.orderTime || row.entryTime);
+
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(rawDate.trim());
+  let d: Date;
+  if (isDateOnly) {
+    const [y, m, day] = rawDate.split("-").map(Number);
+    d = new Date(y, m - 1, day);
+  } else {
+    d = new Date(rawDate);
+  }
+
+  if (isNaN(d.getTime())) return rawTime ? `${rawDate} ${rawTime}` : rawDate;
+
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const dateFormatted = `${dd}/${mm}/${yyyy}`;
+
+  if (rawTime) return `${dateFormatted} ${rawTime}`;
+
+  const isZeroTime = /^.*T00:00:00(\.0+)?(Z|[+-]\d{2}:\d{2})?$/.test(rawDate.trim());
+  const hasTimeComponent = !isDateOnly && !isZeroTime && (
+    rawDate.includes("T") || rawDate.includes(":")
+  );
+
+  if (hasTimeComponent) {
+    const timeStr = d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
+    return `${dateFormatted} ${timeStr}`;
+  }
+
+  return dateFormatted;
+};
 
 // ── Sales ─────────────────────────────────────────────────────────────────────────────
 const SALES_SUM_KEYS = ["netValue", "vatAmount", "billsundry", "roundOff", "netAmount"];
