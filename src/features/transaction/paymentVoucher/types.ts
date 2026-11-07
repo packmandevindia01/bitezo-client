@@ -1,123 +1,13 @@
-import { z } from "zod";
+import { createVoucherSchema } from "../shared/voucherTypes";
+import type { VoucherAccount, VoucherCreatePayload, VoucherDataResponse, VoucherForm, VoucherListDto, VoucherMasterData, VoucherUpdatePayload } from "../shared/voucherTypes";
 
-export const paymentVoucherSchema = z.object({
-  seriesId: z.number().min(1, "Series is required"),
-  prefix: z.string().optional(),
-  voucherDate: z.string().min(1, "Date is required").refine((date) => {
-    const selectedDate = new Date(date);
-    const today = new Date();
-    today.setHours(23, 59, 59, 999);
-    return selectedDate <= today;
-  }, { message: "Future dates are not allowed" }),
-  voucherNo: z.string().min(1, "Voucher No is required"),
-  accountId: z.number().min(1, "Account is required"),
-  accountName: z.string().min(1, "Account name is required"),
-  paymodeId: z.number().min(1, "Paymode is required"),
-  branchId: z.number().min(1, "Branch is required"),
-  employeeId: z.number().min(1, "Employee is required"),
-  refNo: z.string().max(50, "Reference No cannot exceed 50 characters").optional(),
-  amount: z.string()
-    .min(1, "Amount is required")
-    .max(15, "Amount cannot exceed 15 characters")
-    .refine(val => {
-      if (!val || val.trim() === "") return true;
-      return Number(val) > 0;
-    }, "Amount must be greater than 0"),
-  narration: z.string().max(200, "Narration cannot exceed 200 characters").optional(),
-  paymodes: z.array(z.object({
-    paymodeId: z.number(),
-    amount: z.number()
-  })).optional(),
-}).superRefine((data, ctx) => {
-  if (data.paymodeId === 3) {
-    const totalMultiPay = (data.paymodes || []).reduce((sum, p) => sum + Number(p.amount), 0);
-    const voucherAmount = Number(data.amount) || 0;
-    
-    // allow a tiny float epsilon difference just in case
-    if (Math.abs(totalMultiPay - voucherAmount) > 0.001) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Total Multi-pay amount must match the voucher amount",
-        path: ["amount"],
-      });
-    }
-  }
-});
+export const paymentVoucherSchema = createVoucherSchema(15);
 
-export type PaymentVoucherForm = z.infer<typeof paymentVoucherSchema>;
-
-export interface PaymentVoucherCreatePayload {
-  seriesId: number;
-  prefix: string;
-  branchId: number;
-  accountId: number;
-  paymodeId: number;
-  dayId: number;
-  shiftId: number;
-  employeeId: number;
-  voucherDate: string; // YYYY-MM-DD
-  amount: number;
-  refNo?: string;
-  narration?: string;
-  createdAt: string; // ISO
-  paymodes: { paymodeId: number; amount: number }[];
-}
-
-export interface PaymentVoucherUpdatePayload {
-  transId: number;
-  branchId: number;
-  accountId: number;
-  paymodeId: number;
-  employeeId: number;
-  voucherDate: string; // YYYY-MM-DD
-  amount: number;
-  refNo?: string;
-  narration?: string;
-  updatedAt: string; // ISO
-  paymodes: { paymodeId: number; amount: number }[];
-}
-
-export type PaymentVoucherPayload = PaymentVoucherCreatePayload | PaymentVoucherUpdatePayload;
-
-export interface PaymentMasterData {
-  series: { seriesId: number; seriesName: string; prefix: string; startNo: number; branchId: number; }[];
-  branches: { branchId: number; branchName: string; }[];
-  salesman: { employeeId: number; employeeName: string; }[];
-  paymodes: { paymodeId: number; paymodeName: string; }[];
-}
-
-export interface PaymentAccount {
-  accountId: number;
-  code: string;
-  accountName: string;
-}
-
-export interface PaymentListDto {
-  transId: number;
-  sNo: number;
-  voucherDate: string;
-  voucherNo: string;
-  code: string;
-  account: string;
-  amount: string;
-}
-
-export interface PaymentDataResponse {
-  masterData: {
-    seriesId: number;
-    voucherNo: string;
-    voucherDate: string;
-    branchId: number;
-    employeeId: number;
-    accountId: number;
-    accountName: string;
-    refNo: string;
-    narration: string;
-    paymodeId: number;
-    amount: number;
-    createdAt?: string;
-    modifiedAt?: string;
-    isCancelled?: boolean;
-  };
-  paymodesData: any;
-}
+export type PaymentVoucherForm = VoucherForm;
+export type PaymentVoucherCreatePayload = VoucherCreatePayload;
+export type PaymentVoucherUpdatePayload = VoucherUpdatePayload;
+export type PaymentVoucherPayload = VoucherCreatePayload | VoucherUpdatePayload;
+export type PaymentMasterData = VoucherMasterData;
+export type PaymentAccount = VoucherAccount;
+export type PaymentListDto = VoucherListDto;
+export type PaymentDataResponse = VoucherDataResponse;

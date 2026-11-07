@@ -1,0 +1,115 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Payment Voucher > edit with a split payment: each paymode is sent 1`] = `
+{
+  "accountId": 9,
+  "amount": 40,
+  "branchId": 2,
+  "employeeId": 4,
+  "narration": "note",
+  "paymodeId": 3,
+  "paymodes": [
+    {
+      "amount": 25,
+      "paymodeId": 1,
+    },
+    {
+      "amount": 15,
+      "paymodeId": 2,
+    },
+  ],
+  "refNo": "R-1",
+  "transId": 1,
+  "voucherDate": "2026-11-05",
+}
+`;
+
+exports[`Payment Voucher > edit: URL and body 1`] = `
+{
+  "accountId": 9,
+  "amount": 12.5,
+  "branchId": 2,
+  "employeeId": 4,
+  "narration": "note",
+  "paymodeId": 1,
+  "paymodes": [],
+  "refNo": "R-1",
+  "transId": 1,
+  "voucherDate": "2026-11-05",
+}
+`;
+
+exports[`Payment Voucher > new: URL and body 1`] = `
+{
+  "accountId": 9,
+  "amount": 12.5,
+  "branchId": 2,
+  "dayId": 0,
+  "employeeId": 4,
+  "narration": "note",
+  "paymodeId": 2,
+  "paymodes": [],
+  "prefix": "",
+  "refNo": "R-1",
+  "seriesId": 7,
+  "shiftId": 0,
+  "voucherDate": "2026-11-05",
+}
+`;
+
+exports[`Receipt Voucher > edit with a split payment: each paymode is sent 1`] = `
+{
+  "accountId": 9,
+  "amount": 40,
+  "branchId": 2,
+  "employeeId": 4,
+  "narration": "note",
+  "paymodeId": 3,
+  "paymodes": [
+    {
+      "amount": 25,
+      "paymodeId": 1,
+    },
+    {
+      "amount": 15,
+      "paymodeId": 2,
+    },
+  ],
+  "refNo": "R-1",
+  "transId": 1,
+  "voucherDate": "2026-11-05",
+}
+`;
+
+exports[`Receipt Voucher > edit: URL and body 1`] = `
+{
+  "accountId": 9,
+  "amount": 12.5,
+  "branchId": 2,
+  "employeeId": 4,
+  "narration": "note",
+  "paymodeId": 1,
+  "paymodes": [],
+  "refNo": "R-1",
+  "transId": 1,
+  "voucherDate": "2026-11-05",
+}
+`;
+
+exports[`Receipt Voucher > new: URL and body 1`] = `
+{
+  "accountId": 9,
+  "amount": 12.5,
+  "branchId": 2,
+  "dayId": 0,
+  "employeeId": 4,
+  "narration": "note",
+  "paymodeId": 2,
+  "paymodes": [],
+  "prefix": "",
+  "refNo": "R-1",
+  "seriesId": 7,
+  "shiftId": 0,
+  "voucherDate": "2026-11-05",
+}
+`;

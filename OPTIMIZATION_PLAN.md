@@ -171,7 +171,7 @@ print (iframe, no reload), Excel/PDF export (lazy-loaded), column chooser, saved
 | **2. POS core** | P1 saved-order loader, P3 settle state machine, P6 settings store, modal stack + hotkeys | 8–10 | cross-verification + regressions must pass; one real-terminal shift test | **DONE 2026-11-05** (2a–2d, AGENT.md §11.6–11.9) |
 | **3. POS UI** | 3-zone layout, virtualised menu, split giant modals (P2), printing module (P5) | 10–12 | terminal test on tablet + desktop + Android |
 | **4. Report framework** | engine + migrate 31 reports (2–3/day) | 12–15 | totals compared old vs new on the same data (snapshot test per report) | **DONE 2026-11-07** — 31/31 reports, old pages deleted (AGENT.md §11.10) |
-| **5. Back Office forms** | `MasterPage`, `DocumentForm`, `VoucherForm`, resource API | 10–12 | each document saved old vs new → identical payload (payload snapshot tests) | **STARTED** — purchase forms share `transaction/shared` code, payload snapshots in place (AGENT.md §11.11) |
+| **5. Back Office forms** | `MasterPage`, `DocumentForm`, `VoucherForm`, resource API | 10–12 | each document saved old vs new → identical payload (payload snapshot tests) | **STARTED** — purchase forms and Payment / Receipt Vouchers share `transaction/shared` code, payload snapshots in place (AGENT.md §11.11) |
 | **6. Clean-up** | remove legacy (P4), move tests next to code, delete old folders, lint ratchet to < 500 `any` | 4–5 | — |
 | **Total** | | **≈ 55–65 days** | ship after every phase |
 
