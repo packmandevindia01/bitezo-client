@@ -1,0 +1,119 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Payment Against Voucher > edit: URL and body 1`] = `
+{
+  "accountId": 9,
+  "amount": 0.3,
+  "branchId": 2,
+  "details": [
+    {
+      "amount": 0.1,
+      "invoiceId": 11,
+      "voucherType": "Sales",
+    },
+    {
+      "amount": 0.2,
+      "invoiceId": 12,
+      "voucherType": "Sales",
+    },
+  ],
+  "discount": 0,
+  "employeeId": 4,
+  "narration": "note",
+  "paymodeId": 1,
+  "paymodes": [],
+  "refNo": "R-1",
+  "transId": 1,
+  "voucherDate": "2026-11-05",
+}
+`;
+
+exports[`Payment Against Voucher > new: URL and body 1`] = `
+{
+  "accountId": 9,
+  "amount": 0.3,
+  "branchId": 2,
+  "dayId": 0,
+  "details": [
+    {
+      "amount": 0.1,
+      "invoiceId": 11,
+      "voucherType": "Sales",
+    },
+    {
+      "amount": 0.2,
+      "invoiceId": 12,
+      "voucherType": "Sales",
+    },
+  ],
+  "discount": 0,
+  "employeeId": 4,
+  "narration": "note",
+  "paymodeId": 2,
+  "paymodes": [],
+  "prefix": "",
+  "refNo": "R-1",
+  "seriesId": 7,
+  "shiftId": 0,
+  "voucherDate": "2026-11-05",
+}
+`;
+
+exports[`Receipt Against Voucher > edit: URL and body 1`] = `
+{
+  "accountId": 9,
+  "amount": 0.3,
+  "branchId": 2,
+  "details": [
+    {
+      "amount": 0.1,
+      "invoiceId": 11,
+      "voucherType": "Sales",
+    },
+    {
+      "amount": 0.2,
+      "invoiceId": 12,
+      "voucherType": "Sales",
+    },
+  ],
+  "discount": 0,
+  "employeeId": 4,
+  "narration": "note",
+  "paymodeId": 1,
+  "paymodes": [],
+  "refNo": "R-1",
+  "transId": 1,
+  "voucherDate": "2026-11-05",
+}
+`;
+
+exports[`Receipt Against Voucher > new: URL and body 1`] = `
+{
+  "accountId": 9,
+  "amount": 0.3,
+  "branchId": 2,
+  "dayId": 0,
+  "details": [
+    {
+      "amount": 0.1,
+      "invoiceId": 11,
+      "voucherType": "Sales",
+    },
+    {
+      "amount": 0.2,
+      "invoiceId": 12,
+      "voucherType": "Sales",
+    },
+  ],
+  "discount": 0,
+  "employeeId": 4,
+  "narration": "note",
+  "paymodeId": 2,
+  "paymodes": [],
+  "prefix": "",
+  "refNo": "R-1",
+  "seriesId": 7,
+  "shiftId": 0,
+  "voucherDate": "2026-11-05",
+}
+`;

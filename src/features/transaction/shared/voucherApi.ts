@@ -1,4 +1,5 @@
 import axiosInstance from "../../../api/axiosInstance";
+import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
 import type { VoucherAccount, VoucherCreatePayload, VoucherDataResponse, VoucherListDto, VoucherMasterData, VoucherUpdatePayload } from "./voucherTypes";
 import { formatDateOnly } from "./purchaseDocument";
 
@@ -99,15 +100,19 @@ export const createVoucherApi = (path: "payment" | "receipt") => ({
   },
 
   create: async (payload: VoucherCreatePayload): Promise<any> => {
-    return unwrap<any>(axiosInstance.post<ApiResponse<any>>(`/${path}`, payload));
+    const res = await unwrap<any>(axiosInstance.post<ApiResponse<any>>(`/${path}`, payload));
+    notifyTransactionsUpdated(path);
+    return res;
   },
 
   update: async (transId: number, payload: VoucherUpdatePayload): Promise<void> => {
     await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/${path}/${transId}`, payload));
+    notifyTransactionsUpdated(path);
   },
 
   cancel: async (transId: number): Promise<void> => {
     await unwrap<any>(axiosInstance.put<ApiResponse<any>>(`/${path}/cancel/${transId}`));
+    notifyTransactionsUpdated(path);
   }
 });
 
