@@ -57,8 +57,12 @@ export interface Formatter {
   number: (n: number) => string;
 }
 
+/** A cell with nothing to show (Price on a grouped row). An empty value from the API still reads as 0. */
+export const BLANK_CELL = Symbol("blank");
+
 /** Display text for one cell. */
 export const formatCell = (col: ReportColumn, value: unknown, fmt: Formatter): string => {
+  if (value === BLANK_CELL) return "";
   if (col.kind === "money") return fmt.money(cellNumber(value));
   if (col.kind === "number" || col.kind === "qty") return fmt.number(cellNumber(value));
   if (col.kind === "date") return formatReportDate(value);
@@ -94,6 +98,15 @@ export const formatReportDateTime = (value: unknown): string => {
   return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 
+/** A subtotal inside the list (All Transaction): bold on screen, no serial number. */
+export const isSubtotalRow = (row: ReportRow) => row.__subtotal === true;
+
+/** S.No of each row; subtotal rows are not counted. */
+export const rowSerials = (rows: ReportRow[]): string[] => {
+  let n = 0;
+  return rows.map((r) => (isSubtotalRow(r) ? "" : String(++n)));
+};
+
 /**
  * The table as text, exactly as screen / print / Excel / PDF show it: header, rows (with S.No) and
  * the totals row. One source for every output.
@@ -101,7 +114,8 @@ export const formatReportDateTime = (value: unknown): string => {
 export const toMatrix = (table: ReportTable, fmt: Formatter, totalLabel = "Total") => {
   const totals = computeTotals(table);
   const header = ["S.No", ...table.columns.map((c) => c.label.toUpperCase())];
-  const body = table.rows.map((r, i) => [String(i + 1), ...table.columns.map((c) => formatCell(c, r[c.key], fmt))]);
+  const serials = rowSerials(table.rows);
+  const body = table.rows.map((r, i) => [serials[i], ...table.columns.map((c) => formatCell(c, r[c.key], fmt))]);
   const firstText = table.columns.findIndex((c) => !isNumericColumn(c));
   const footer = ["", ...table.columns.map((c, i) =>
     isTotalled(c)
@@ -109,7 +123,7 @@ export const toMatrix = (table: ReportTable, fmt: Formatter, totalLabel = "Total
       : i === firstText ? totalLabel.toUpperCase() : "",
   )];
   const align = ["center", ...table.columns.map((c) => c.align ?? (isNumericColumn(c) ? "right" : "left"))] as ("left" | "right" | "center")[];
-  return { header, body, footer: table.rows.length ? footer : null, align, totals };
+  return { header, body, footer: table.rows.length && table.columns.some(isTotalled) ? footer : null, align, totals };
 };
 
 /** Sum check used by tests: totals equal the exact sum of the displayed rows. */

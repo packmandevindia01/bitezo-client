@@ -1,5 +1,6 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { BillWiseMarginReportParams, BillWiseMarginReportResponse } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 export interface ApiResponse<T> {
   data: T;
   status: number;
@@ -21,6 +22,7 @@ export const getBillWiseMarginReport = async (
   const response = await axiosInstance.get("/reports/bill-wise-margin-report", {
     params,
   });
+  assertReportSuccess(response.data);
   return unwrap(response);
 };
 

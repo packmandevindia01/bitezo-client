@@ -1,5 +1,6 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { CustomerStatementParams, CustomerStatementResponse } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 
 export const fetchCustomerStatement = async (
@@ -8,5 +9,6 @@ export const fetchCustomerStatement = async (
     const response = await axiosInstance.get<CustomerStatementResponse>(
         "/reports/customer-statement", { params }
     );
+    assertReportSuccess(response.data);
     return response.data;
 }

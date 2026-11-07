@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { toReportBranchId, useBranchScope } from "../../../../hooks/useBranchScope";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import { fetchSupplierBalance } from "../services/supplierBalanceApi";
@@ -50,7 +50,7 @@ export const useSupplierBalance = () => {
   const { data: reportResponse, isLoading: reportLoading, isFetching, refetch } = useQuery({
     queryKey: ["supplierBalance", { fromDate, toDate, branchId, supplierId, decimalPart }],
     queryFn: () => fetchSupplierBalance({
-      BranchId: Number(branchId),
+      BranchId: toReportBranchId(branchId),
       FromDate: fromDate,
       ToDate: toDate,
       SupplierId: Number(supplierId),

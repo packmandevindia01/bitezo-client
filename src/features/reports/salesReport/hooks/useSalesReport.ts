@@ -4,7 +4,7 @@ import { getSalesReport, getBranchList, getPaymodeList, getCustomerList, getSeri
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption, PaymodeOption, CustomerOption } from "../types";
-import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { toReportBranchId, useBranchScope } from "../../../../hooks/useBranchScope";
 
 import { toLocalDateString } from "../../../../utils/date";
 export const useSalesReport = () => {
@@ -54,7 +54,7 @@ export const useSalesReport = () => {
     queryKey: ["salesReport", { fromDate, toDate, branchId, customerId, paymodeId, seriesId, decimalPart }],
     queryFn: () =>
       getSalesReport({
-        BranchId: Number(branchId),
+        BranchId: toReportBranchId(branchId),
         SeriesId: Number(seriesId),
         FromDate: fromDate,
         ToDate: toDate,

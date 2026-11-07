@@ -5,6 +5,7 @@ import type {
   DailySalesReportData,
   BranchOption,
 } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 function unwrap<T>(response: any): T {
   if (response.data && response.data.data !== undefined) {
@@ -17,6 +18,7 @@ export const getDailySalesReport = async (params: DailySalesReportParams) => {
   const response = await axiosInstance.get<ApiResponse<DailySalesReportData>>("/reports/daily-sales-report", {
     params,
   });
+  assertReportSuccess(response.data);
   return unwrap<DailySalesReportData>(response);
 };
 

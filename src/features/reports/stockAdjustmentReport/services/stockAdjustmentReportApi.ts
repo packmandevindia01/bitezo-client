@@ -1,4 +1,5 @@
 import axiosInstance from "../../../../api/axiosInstance";
+import { toReportBranchId } from "../../../../hooks/useBranchScope";
 import type { StockAdjustmentReportItem, BranchOption, EmployeeOption } from "../types";
 
 export const getStockAdjustmentReport = async (filters: {
@@ -11,11 +12,8 @@ export const getStockAdjustmentReport = async (filters: {
     FromDate: filters.fromDate,
     ToDate: filters.toDate,
     Decimals: parseInt(localStorage.getItem("decimalPart") || "3", 10),
+    BranchId: toReportBranchId(filters.branchId),
   };
-
-  if (filters.branchId && filters.branchId !== "0") {
-    params.BranchId = Number(filters.branchId);
-  }
 
   if (filters.employeeId && filters.employeeId !== "0") {
     params.EmployeeId = Number(filters.employeeId);

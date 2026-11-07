@@ -53,7 +53,7 @@ const ProductWiseStockTransferReportPage = () => {
   const toBranchOptions = useMemo(
     () => [
       { label: "All Branches", value: "0" },
-      ...(Array.isArray(masterData.branches) ? masterData.branches : []).map((b) => ({ label: b.branchName, value: String(b.branchId) })),
+      ...(Array.isArray(masterData.branches) ? masterData.branches : []).filter((b) => String(b.branchId) !== "1").map((b) => ({ label: b.branchName, value: String(b.branchId) })),
     ],
     [masterData.branches]
   );

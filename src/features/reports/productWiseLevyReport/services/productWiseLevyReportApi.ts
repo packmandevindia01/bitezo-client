@@ -5,6 +5,7 @@ import type {
   BranchOption,
   ApiResponse,
 } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 function unwrap<T>(response: { data: ApiResponse<T> } | any): T {
   if (response.data && response.data.data !== undefined) {
@@ -26,6 +27,7 @@ export const getProductWiseLevyReport = async (
   const response = await axiosInstance.get("/reports/product-wise-levy-report", {
     params: queryParams,
   });
+  assertReportSuccess(response.data);
   return unwrap(response);
 };
 

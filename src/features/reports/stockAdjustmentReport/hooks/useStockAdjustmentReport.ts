@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { ALL_BRANCH_ID, useBranchScope } from "../../../../hooks/useBranchScope";
 import {
   getStockAdjustmentReport,
   getBranchList,
@@ -47,7 +47,7 @@ export const useStockAdjustmentReport = () => {
   // Employees filtered by the currently selected branch
   const { data: employees = [] } = useQuery({
     queryKey: ["stockAdjustmentEmployeeList", branchId],
-    queryFn: () => getEmployeeList(branchId !== "0" && branchId !== "" ? Number(branchId) : undefined),
+    queryFn: () => getEmployeeList(Number(branchId) > ALL_BRANCH_ID ? Number(branchId) : undefined),
   });
 
   const {

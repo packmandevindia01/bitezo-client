@@ -47,7 +47,7 @@ const StockTransferReportPage = () => {
   const toBranchOptions = useMemo(
     () => [
       { label: "All Branches", value: "0" },
-      ...masterData.branches.map((b) => ({ label: b.branchName, value: String(b.branchId) })),
+      ...masterData.branches.filter((b) => String(b.branchId) !== "1").map((b) => ({ label: b.branchName, value: String(b.branchId) })),
     ],
     [masterData.branches]
   );

@@ -1,5 +1,6 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ProductWiseMarginReportParams, ProductWiseMarginReportResponse } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 export interface ApiResponse<T> {
   data: T;
@@ -22,6 +23,7 @@ export const getProductWiseMarginReport = async (
   const response = await axiosInstance.get("/reports/product-wise-margin-report", {
     params,
   });
+  assertReportSuccess(response.data);
   return unwrap(response);
 };
 

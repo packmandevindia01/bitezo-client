@@ -23,7 +23,9 @@ export interface ReportTable {
   /** Totals sent by the backend (e.g. totalData) — they win over the computed sum, like the old pages. */
   totalsOverride?: Record<string, number>;
   /** Extra money figures shown next to the record count (e.g. Cash / Credit). */
-  summary?: { label: string; value: number }[];
+  summary?: { label: string; value: number | string }[];
+  /** Shown instead of "No records found" when the table has no rows. */
+  emptyMessage?: string;
 }
 
 /** Filter values are kept as strings (form inputs); definitions convert them in `fetch`. */
@@ -46,6 +48,16 @@ export interface ReportDefinition {
   id: string;
   title: string;
   filters: FilterDef[];
+  /** Fixed columns, shown as the table header while loading or after a failed load. */
+  columns?: ReportColumn[];
+  /** Search box above the rows (client side; nothing is sent to the server). */
+  search?: { placeholder: string; match: (row: ReportRow, term: string) => boolean };
+  /** Clicking a row opens this route (null = the row is not clickable). */
+  rowLink?: (row: ReportRow) => string | null;
+  /** The report loads only once this filter has a value; until then the message is shown. */
+  requires?: { key: string; message: string };
+  /** Filter values taken from the URL when the page opens: { filterKey: "queryParam" }. */
+  urlParams?: Record<string, string>;
   /** Load the table for the given filters (convert strings → API params here). */
   fetch: (filters: FilterValues) => Promise<ReportTable>;
   /** Line under the title, e.g. "from 2026-01 To 2026-12". */

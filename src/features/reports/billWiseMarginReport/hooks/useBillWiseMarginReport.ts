@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { toReportBranchId, useBranchScope } from "../../../../hooks/useBranchScope";
 import type { BranchOption, CustomerOption, SeriesOption } from "../types";
 import { getBillWiseMarginReport, getBranchList, getCustomerList, getSeriesList } from "../services/billWiseMarginReportApi";
 import { getDecimalPart } from "../../../../utils/currency";
@@ -71,7 +71,7 @@ export const useBillWiseMarginReport = () => {
     ],
     queryFn: () =>
       getBillWiseMarginReport({
-        BranchId: Number(branchId),
+        BranchId: toReportBranchId(branchId),
         SeriesId: Number(seriesId),
         CustomerId: Number(customerId),
         FromDate: fromDate,

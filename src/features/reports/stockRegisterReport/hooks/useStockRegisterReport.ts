@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
-import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { toReportBranchId, useBranchScope } from "../../../../hooks/useBranchScope";
 import {
   getStockRegisterReport,
   getBranchList,
@@ -77,7 +77,7 @@ export const useStockRegisterReport = () => {
     queryKey: ["stockRegisterReport", { asOnDate, branchId, groupId, categoryId, subCategoryId, productTypeId, productId, decimalPart }],
     queryFn: () => {
       const params: StockRegisterReportParams = {
-        BranchId: Number(branchId),
+        BranchId: toReportBranchId(branchId),
         AsOndate: asOnDate,
         Decimals: decimalPart,
       };

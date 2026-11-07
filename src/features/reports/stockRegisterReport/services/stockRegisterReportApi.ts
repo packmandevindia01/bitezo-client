@@ -9,9 +9,11 @@ import type {
   ProductTypeOption,
   ProductOption
 } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 export const getStockRegisterReport = async (params: StockRegisterReportParams): Promise<StockRegisterResponse> => {
   const response = await axiosInstance.get("/reports/stock-register-report", { params });
+  assertReportSuccess(response.data);
   return response.data.data;
 };
 

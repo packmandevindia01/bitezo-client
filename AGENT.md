@@ -21,7 +21,7 @@ General project rules (git, shared components, architecture) live in `GEMINI.md`
 - TanStack Query for menu / config fetching
 - axios (`axiosInstance`, JWT from `localStorage.accessToken`)
 - Printing: own **Bitezo Printer Agent** (`PrinterAgent.exe`, WebSocket) on web/Windows; Capacitor native `BitezoPrinterPlugin` (raw ESC/POS TCP :9100) on Android. **QZ Tray is NOT used** (only legacy names `qzService.ts` / `connectQZ` remain)
-- Vitest (`src/tests/`, 54 files / 530 tests, all passing on 2026-11-05)
+- Vitest (`src/tests/`, 76 files / 778 tests, all passing on 2026-11-06; node by default, jsdom + Testing Library only where a file asks for it)
 
 Verify every change with:
 ```
@@ -70,6 +70,7 @@ src/features/pos/
     printPricing.ts        numbers for every print (saved order or live cart)
     orderPricing.ts        LEGACY unified pricing — now used only for names/extras/modifiers
     guestPrintTemplate.ts, kotTemplate.ts, escPosGenerator.ts, deliverySettlePrintTemplate.ts
+    printBarcode.ts, cashDrawer.ts, settlePrintConfig.ts   receipt barcode, drawer rule, Settle Print setting
   bulkSettlement/, cashier/, customer/, lockItem/, payInOut/   (other POS modules)
 ```
 
@@ -113,6 +114,9 @@ it as `localStorage.posConfigs` and mirrors some fields as direct keys.
 | Delivery charge | `getStoredDefaultDeliveryCharge()` | posConfigs → direct keys | overridable per order (`customDeliveryCharge`) |
 | Decimals | `getDecimalPart()` | `localStorage.decimalPart` | display/print rounding only (live: 3) |
 | Item separation | `isItemSeperationEnabled()` | posConfigs | if on, same product adds a new row |
+| Standard KOT Print | `executeKotRouting` | posConfigs `kotPrint` (no value = on) | station KOTs on every order, re-order and void print (§6.8) |
+| Cash Drawer | `isCashDrawerEnabled()` | posConfigs `cashdrawer` = `Enable` | old `Default` / `Normal` values mean off (§6.8) |
+| Settle Print, Ask Before Printing | `getSettlePrintConfig()` | `localStorage.settlePrintConfig`, **this device only**, not on the server | no value = print directly (§6.8) |
 
 Live configuration at time of writing: VAT on, 3 decimals, Price View / Print Price / Discount Calc
 all `Inclusive`.
@@ -327,6 +331,7 @@ session/day/shift (`cashier/`) must be open before orders.
 ### 6.3 Place order (KOT)
 `usePosCartActions.submitOrder` → `buildNewOrderPayload` → `POST /menu/order` (retries on ticket conflict)
 → KOT print per printer routing (category / product / section / order type) → clear cart.
+The action row above it (Clear, Customer, Waiter, Split, Combine, Recall, More) is `PosActionButtons`, colours and animation in `.pos-action-btn` (`index.css`).
 The footer has one Order and one Settle button (`PosOrderSummary`; Order & Print / Settle & Print were removed). Order follows Standard KOT Print, Settle and Update follow Settle Print (§6.8).
 Order / ticket numbers are assigned by the backend: read the save reply with `readCreatedOrder`
 (`services/orderResponse.ts`, accepts any reply shape), then the saved order (`getOrderDetails`).
@@ -391,7 +396,7 @@ Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set
   company header (`showCompanyHeader`). Not printed on direct settle (no order placed first).
 - Templates: `guestPrintTemplate.ts`, `kotTemplate.ts`, `escPosGenerator.ts` (Android), Bitezo Printer Agent over WebSocket (desktop, `qzService.ts`).
 - Barcode at the bottom of the guest template (`printBarcode.ts`, Code 128 with the number under it): guest and packager prints encode the order number (first one on a combined order), settle prints encode the **sale id** (`saleId`, not the voucher number; no real id = no barcode). Bars are `<div>`s on whole printer dots, 3 dots wide: tested through html2canvas + the 1-bit threshold, SVG / PNG images and 2-dot bars were less reliable. Scanning a bill on the terminal still goes to the product SKU lookup (`useBarcodeScanner`), so a number equal to a SKU adds that product.
-- Cash drawer: cabled to the bill printer, opened by a raw ESC p job (`openCashDrawer` in `qzService.ts`, agent and Android). POS config "Cash Drawer" is saved as `cashdrawer: Enable / Disable` (the field used to be an unused Default / Normal type; old values mean off). `openDrawerIfCash` (`utils/cashDrawer.ts`) runs after the sale is saved, before the receipt, whether or not a receipt prints, when a Cash payment is above 0: checkout, dine-in settle and bulk delivery settlement. Not on an edit of a settled bill, reprints or provider settlements. It waits at most 3 s and only warns on failure.
+- Cash drawer: cabled to the bill printer, opened by a raw ESC p job (`openCashDrawer` in `qzService.ts`, agent and Android). POS config "Cash Drawer" is saved as `cashdrawer: Enable / Disable` (the field used to be an unused Default / Normal type; old values mean off). `openDrawerIfCash` (`utils/cashDrawer.ts`) runs after the sale is saved, before the receipt, whether or not a receipt prints, when a Cash payment is above 0: checkout, dine-in settle and bulk delivery settlement. Not on an edit of a settled bill, reprints or provider settlements. It waits at most 3 s and only warns on failure. More → OPEN CASH DRAWER (`openDrawerManually`) opens it without a sale: follows the same setting, asks for an employee PIN unless a default employee is active (any valid PIN until the backend adds a privilege, then set `permissionId` in `PosMoreModal`); not logged anywhere.
 - Bill discount is printed once in the footer; rows show no per-line discount.
 - Delivery orders taken from a missed call (`missedCall`) print "Missed Call : YES" in the DELIVERY DETAILS block
   of the KOT and guest bill; every print-data builder passes `missedCall` (saved order value, else cart state).
@@ -540,8 +545,8 @@ All routes are under `/dashboard/…` (`app/routes/AppRoutes.tsx`). Sidebar grou
 **Transactions** (`features/transaction/<module>/`: list page, form page, one form hook, service, types)
 | Screen | Endpoints |
 |---|---|
-| Purchase invoice | `/purchase-invoice` (save / update), `/purchase-invoice/data/{id}`, `/details`, `/cancel/{id}` |
-| Purchase return | `/purchase-return-invoice`; loads the source invoice via `/purchase-invoice/data/{id}` |
+| Purchase invoice | `/purchase-invoice` (save / update), `/purchase-invoice/data/{id}`, `/details`, `/cancel/{id}`. `roundOff` is saved and loaded; `netAmount` includes it. Other Chg is added to `netAmount` but has no field of its own, so it reads 0 when an invoice is reopened. |
+| Purchase return | `/purchase-return-invoice`; loads the source invoice via `/purchase-invoice/data/{id}`. `roundOff` is saved and loaded; `netAmount` includes it. |
 | Production | `/production`; unit cost from `/purchase-invoice/{product}/unit-cost/{unit}` |
 | Physical entry (stock count) | `/physical-entry`, `/product/as-on-date-stock/{…}` |
 | Stock adjustment | `/stock-adjustment`; line unit can be changed, cost from `/stock-adjustment/{product}/unit-cost/{unit}`, baseQty = qty x unit value (helpers: `transaction/shared/lineUnits.ts`) |
@@ -613,7 +618,7 @@ warning is shown if the server stored a different parent than the one sent — t
 4. Keep back-office money maths in a pure function in the module (like `calculateLine`) so it can be unit-tested;
    add a test with a real saved document when fixing a calculation bug.
 5. **Branch ids (backend):** `1` = **All** (every branch), `2+` = real branches (`2` = Main). Helpers in
-   `hooks/useBranchScope.ts`: `ALL_BRANCH_ID`, `isAllBranch`, `toReportBranchId` (empty / 0 → 1, never send 0).
+   `hooks/useBranchScope.ts`: `ALL_BRANCH_ID`, `isAllBranch`, `toReportBranchId` (empty / 0 → 1, never send 0). Report branch lists use `branchApi.fetchBranchNames(true)` (`/Branch/true/list-name`), the same API as the top navbar, whose list includes All (id 1).
    Opening stock (product master) always belongs to a real branch, never All.
    Selecting a unit in its grid sets Cost = product Cost x unit value / main unit value (`calcOpeningStockCost`,
    still editable; with no product Cost, the row's own cost is converted from its previous unit).
@@ -908,7 +913,7 @@ option pick, grids, forms using `useEnterKeyNavigation`), in multi-line text box
   Report print previews are custom overlays — they move to the report framework in Phase 4.
 - Tests: `layers.test.ts`.
 
-### 11.10 Phase 4 — report framework (in progress, 2026-11-05)
+### 11.10 Phase 4 — report framework (all 31 routes migrated 2026-11-07; real-data check pending)
 `src/features/reports/framework/` — a report is a definition (`ReportDefinition`: id, title, filters, `fetch` → `{ columns, rows }`,
 subtitle). The framework gives every report the same page (`ReportPage`): filter panel (branch / date / month / select, LOCAL-date
 defaults, branch never sent as 0 via `toReportBranchId`, branch lock respected), table with S.No, exact totals row (`reportMath`, decimal),
@@ -917,7 +922,7 @@ visible error banner (403 / network — was "No records found"), live refresh on
 (dd/MM/yyyy), money, number, qty.
 - Definitions in `src/features/reports/definitions/`; each route points at a `*FrameworkPage.tsx`. Old module folders stay until the
   owner has checked the new page with real data, then they are deleted.
-- **Migrated (10 / 31):** Monthly Sales (`monthlySales.ts`); Daily / Hourly / Order-Type / Menu Session Sales (`salesByPeriod.ts` →
+- **Migrated (31 / 31; old pages still in place until checked with real data):** Monthly Sales (`monthlySales.ts`); Daily / Hourly / Order-Type / Menu Session Sales (`salesByPeriod.ts` →
   `periodTable`, row Total modes compute / columnOnly / computeIfMissing); Category / Group / Employee Sales (`itemSales.ts`: field
   fallbacks, Category name resolved against the category master, money totals from backend `totalData` via `totalsOverride`).
   Framework additions: `lookup` filter (options loaded from the server, "All" = 0), `totalsOverride` on `ReportTable`.
@@ -926,5 +931,6 @@ visible error banner (403 / network — was "No records found"), live refresh on
   only applied for a real branch. Framework additions: `datetime` column (dd/MM/yyyy HH:mm), `summary` on `ReportTable`,
   `lookup.dependsOn` (Series reloads and resets when the branch changes), select filters printed in the report header.
   Fixed on the way: Order-Type / Category / Group defaulted the branch to 0 and Order-Type double-counted a backend "Total"; float totals.
-- Tests: `reportFramework.test.ts`, `reportBatch1.test.ts`, `reportBatch2.test.ts` — maths, defaults, errors and old-vs-new comparisons (cells, totals to the fil).
+  Last 21 (`stock.ts`, `sales.ts`, `vatLevy.ts`, `accounts.ts`, `closing.ts`, Product Wise Purchase in `purchase.ts`, helpers in `helpers.ts`): Sales, Product Wise Purchase, Stock Register, Stock Adjustment x2, Stock Transfer x2, Output / Input VAT, Bill / Product Levy, Bill / Product Margin, All Transaction, Customer / Supplier Statement and Balance, Day End, Shift End, Product Transaction Log. Framework additions: client `search`, `rowLink`, `requires` (load waits for a filter), `urlParams`, subtotal rows (`__subtotal`, no S.No), text `summary`, `emptyMessage`, `BLANK_CELL`, column alignment on screen, fixed `columns` kept as the header during loading or after an error. `assertReportSuccess` turns HTTP 200 + `isSuccess: false` into an error.
+- Tests: `reportFramework.test.ts`, `reportBatch1.test.ts`, `reportBatch2.test.ts`, `reportBatch3.test.ts` — maths, defaults, errors and old-vs-new comparisons (cells, totals to the fil).
 - Adding a report: write a definition (fetch + table mapping), a comparison test against the old page logic, a 3-line page, switch the route.

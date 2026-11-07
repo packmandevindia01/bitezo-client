@@ -1,9 +1,10 @@
 import { getPurchaseReport, getPaymodeList, getSupplierList, getSeriesList } from "../purchaseReport/services/purchaseReportApi";
 import { getPurchaseReturnReport, getSeriesList as getReturnSeriesList } from "../purchaseReturnReport/services/purchaseReturnReportApi";
+import { getProductWisePurchaseReport, getProductList as getPwProductList } from "../productWisePurchaseReport/services/productWisePurchaseReportApi";
 import { getDecimalPart } from "../../../shared/lib/currency";
 import { toReportBranchId } from "../../../hooks/useBranchScope";
 import { sumDec, toNum } from "../../../shared/lib/money";
-import { cellNumber } from "../framework/reportMath";
+import { BLANK_CELL, cellNumber } from "../framework/reportMath";
 import type { FilterValues, ReportColumn, ReportDefinition, ReportRow, ReportTable } from "../framework/types";
 
 /**
@@ -81,7 +82,8 @@ const blank = (): ReportRow => ({ invoiceDate: "", invoiceNo: "", refNo: "", sup
 /** Rows as the old page showed them (supplier upper-case), optionally grouped with exact sums. */
 export const purchaseRows = (rows: AnyRow[], groupBy: PurchaseGroupBy): ReportRow[] => {
   const asRow = (r: AnyRow): ReportRow => ({
-    invoiceDate: r.invoiceDate ?? "",
+    // The purchase return report sends its date as purchaseReturnDate.
+    invoiceDate: r.invoiceDate || r.purchaseReturnDate || "",
     invoiceNo: str(r.invoiceNo),
     refNo: str(r.refNo),
     supplierName: str(r.supplierName).toUpperCase(),
@@ -147,6 +149,7 @@ const makePurchaseReport = (k: PurchaseKind): ReportDefinition => {
   return {
     id: k.id,
     title: k.title,
+    columns: PURCHASE_COLUMNS,
     filters: [
       { kind: "select", key: "groupBy", label: "Group by", options: ["All", "Supplier", "Paymode", "Series"].map((v) => ({ label: v, value: v })), default: "All" },
       { kind: "branch", key: "branch" },
@@ -182,3 +185,101 @@ export const purchaseReturnReport = makePurchaseReport({
   id: "purchaseReturnReport", title: "Purchase Return Report", rowsKey: "purchaseReturnData",
   load: getPurchaseReturnReport, series: getReturnSeriesList,
 });
+
+// ── Product Wise Purchase ─────────────────────────────────────────────────────────────
+const pwText = (key: string, label: string, align: "left" | "center" = "left"): ReportColumn => ({ key, label, kind: "text", align });
+export const PRODUCT_WISE_PURCHASE_COLUMNS: ReportColumn[] = [
+  { key: "invoiceDate", label: "Date", kind: "datetime", align: "left" },
+  pwText("prNumber", "P/R No", "center"),
+  pwText("invoiceNo", "Inv No", "center"),
+  pwText("supplierName", "Supplier"),
+  pwText("productCode", "Code", "center"),
+  pwText("productName", "Product"),
+  { key: "qty", label: "Qty", kind: "qty", align: "right" },
+  pwText("unit", "Unit", "center"),
+  { key: "price", label: "Price", kind: "money", align: "right", total: false },
+  money("discount", "Discount"),
+  money("netValue", "Net Value"),
+  money("vatAmount", "Vat Amt"),
+  money("netAmount", "Net Amount"),
+];
+const PW_SUM_KEYS = ["qty", "discount", "netValue", "vatAmount", "netAmount"];
+export type ProductWiseGroupBy = "All" | "Product" | "Supplier";
+
+export const productWiseFallbacks = (rows: AnyRow[], f: FilterValues, m: { suppliers: AnyRow[]; products: AnyRow[] }): AnyRow[] =>
+  rows.filter((row) => {
+    if (f.supplier && f.supplier !== "0") {
+      const sup = m.suppliers.find((s) => String(s.supplierId) === f.supplier);
+      if (sup && lower(row.supplierName) !== lower(sup.supplierName)) return false;
+    }
+    if (f.product && f.product !== "0") {
+      const p = m.products.find((x) => String(x.productId) === f.product);
+      if (p && lower(row.productnName) !== lower(p.productName) && lower(row.productCode) !== lower(p.code)) return false;
+    }
+    return true;
+  });
+
+/** Rows as the old page showed them, optionally grouped with exact sums. `productnName` is how the API spells it. */
+export const productWiseRows = (rows: AnyRow[], groupBy: ProductWiseGroupBy): ReportRow[] => {
+  const asRow = (r: AnyRow): ReportRow => ({
+    invoiceDate: r.invoiceDate ?? "", prNumber: str(r["p/R Number"]), invoiceNo: str(r.invoiceNo), supplierName: str(r.supplierName).toUpperCase(),
+    productCode: str(r.productCode), productName: str(r.productnName).toUpperCase(), qty: cellNumber(r.qty), unit: str(r.unit), price: r.price ?? BLANK_CELL,
+    discount: cellNumber(r.discount), netValue: cellNumber(r.netValue), vatAmount: cellNumber(r.vatAmount), netAmount: cellNumber(r.netAmount),
+  });
+  if (groupBy === "All") return rows.map(asRow);
+  const groups = new Map<string, AnyRow[]>();
+  rows.forEach((r) => {
+    const key = groupBy === "Product" ? str(r.productCode) || str(r.productnName) || "Unknown" : str(r.supplierName) || "Unknown";
+    groups.set(key, [...(groups.get(key) ?? []), r]);
+  });
+  return Array.from(groups.values(), (members) => {
+    const r = members[0];
+    return {
+      invoiceDate: "", prNumber: "", invoiceNo: "", price: BLANK_CELL,
+      supplierName: groupBy === "Supplier" ? (str(r.supplierName) || "Unknown Supplier").toUpperCase() : "",
+      productCode: groupBy === "Product" ? str(r.productCode) : "",
+      productName: groupBy === "Product" ? (str(r.productnName) || "Unknown Product").toUpperCase() : "",
+      unit: groupBy === "Product" ? str(r.unit) : "",
+      ...Object.fromEntries(PW_SUM_KEYS.map((k) => [k, toNum(sumDec(members.map((m) => cellNumber(m[k]))))])),
+    };
+  });
+};
+
+export const productWiseTable = (data: unknown, f: FilterValues, m: { suppliers: AnyRow[]; products: AnyRow[] }): ReportTable => {
+  const d = data as AnyRow | AnyRow[] | null;
+  const raw = Array.isArray(d) ? d : asArray(d?.purchaseData);
+  const groupBy = (f.groupBy as ProductWiseGroupBy) || "All";
+  const t = (Array.isArray(d) ? null : d?.totalData) as AnyRow | null | undefined;
+  // Backend totals, like the old page: only for the ungrouped list. Qty is always the sum of the rows.
+  const totalsOverride = t && groupBy === "All"
+    ? Object.fromEntries(["discount", "netValue", "vatAmount", "netAmount"].map((k) => [k, Number(t[k])]))
+    : undefined;
+  return { columns: PRODUCT_WISE_PURCHASE_COLUMNS, rows: productWiseRows(productWiseFallbacks(raw, f, m), groupBy), totalsOverride };
+};
+
+export const productWisePurchaseReport: ReportDefinition = {
+  id: "productWisePurchaseReport",
+  title: "Product Wise Purchase Report",
+  columns: PRODUCT_WISE_PURCHASE_COLUMNS,
+  filters: [
+    { kind: "select", key: "groupBy", label: "Group by", options: ["All", "Product", "Supplier"].map((v) => ({ label: v, value: v })), default: "All" },
+    { kind: "branch", key: "branch" },
+    { kind: "lookup", key: "supplier", label: "Supplier", queryKey: "suppliers", load: supplierOptions },
+    { kind: "lookup", key: "product", label: "Product", queryKey: "pwPurchaseProducts", load: async () => asArray(await getPwProductList()).map((p) => ({ value: str(p.productId), label: p.code ? `[${str(p.code)}] ${str(p.productName)}` : str(p.productName) })) },
+    { kind: "date", key: "from", label: "From", default: "firstOfMonth" },
+    { kind: "date", key: "to", label: "To", default: "today" },
+  ],
+  search: { placeholder: "Search product, supplier, invoice…", match: (r, t) => ["productName", "productCode", "supplierName", "prNumber", "invoiceNo"].some((k) => lower(r[k]).includes(t)) },
+  fetch: async (f) => {
+    const params: Parameters<typeof getProductWisePurchaseReport>[0] = { BranchId: toReportBranchId(f.branch), FromDate: f.from, ToDate: f.to, Decimals: getDecimalPart() };
+    if (f.product !== "0") params.productId = Number(f.product);
+    if (f.supplier !== "0") params.supplierId = Number(f.supplier);
+    const [data, suppliers, products] = await Promise.all([
+      getProductWisePurchaseReport(params),
+      f.supplier !== "0" ? getSupplierList().catch(() => []) : [],
+      f.product !== "0" ? getPwProductList().catch(() => []) : [],
+    ]);
+    return productWiseTable(data, f, { suppliers: asArray(suppliers), products: asArray(products) });
+  },
+  subtitle: (f) => `Product Wise Purchase Report from ${f.from} To ${f.to}`,
+};

@@ -6,6 +6,7 @@ import type {
   ProductOption,
 } from "../types";
 import { normalizeTransactionLog, EMPTY_TOTALS } from "../utils/normalizeTransactionLog";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 function unwrap<T>(response: any): T {
   if (response.data && response.data.data !== undefined) {
@@ -18,6 +19,7 @@ export const getProductTransactionLogReport = async (
   params: ProductTransactionLogParams
 ): Promise<ProductTransactionLogResponse> => {
   const response = await axiosInstance.get("/reports/product-transaction-log", { params });
+  assertReportSuccess(response.data);
   return normalizeTransactionLog(response?.data) ?? { logData: [], totalData: EMPTY_TOTALS };
 };
 

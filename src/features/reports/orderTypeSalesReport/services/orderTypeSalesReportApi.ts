@@ -1,5 +1,6 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { OrderTypeSalesReportParams, OrderTypeSalesReportResponse, BranchOption, ApiResponse } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 export const getOrderTypeSalesReport = async (
   params: OrderTypeSalesReportParams
@@ -8,6 +9,7 @@ export const getOrderTypeSalesReport = async (
     "/reports/order-type-sales-report",
     { params }
   );
+  assertReportSuccess(response.data);
   return response.data;
 };
 

@@ -1,10 +1,12 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { HourlySalesReportParams, HourlySalesReportResponse, BranchOption, ApiResponse } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 export const getHourlySalesReport = async (
   params: HourlySalesReportParams
 ): Promise<HourlySalesReportResponse["data"]> => {
   const response = await axiosInstance.get<HourlySalesReportResponse>("/reports/hourly-sales-report", { params });
+  assertReportSuccess(response.data);
   return response.data.data;
 };
 

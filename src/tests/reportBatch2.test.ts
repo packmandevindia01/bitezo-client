@@ -71,3 +71,21 @@ describe("Purchase report", () => {
     expect(formatReportDateTime("")).toBe("-");
   });
 });
+
+describe("Purchase Return report: BillDate and header", () => {
+  const apiRow = { purchaseReturnId: 2, purchaseReturnNo: "2", purchaseReturnDate: "2026-11-07T00:00:00", invoiceNo: "11", supplierName: "Supplier", supplierCode: "1", employee: null, paymode: "Cash", netValue: "350.000", vatAmount: "35.000", roundOff: "20.000", netAmount: "405.000" };
+
+  it("BillDate shows purchaseReturnDate, the field the API sends", () => {
+    const m = toMatrix({ columns: purchaseReturnReport.columns!, rows: purchaseRows([apiRow], "All") }, fmt);
+    expect(m.body[0][1]).toBe("07/11/2026 00:00");
+  });
+
+  it("a row with invoiceDate keeps it (Purchase Report)", () => {
+    expect(purchaseRows([{ invoiceDate: "2026-10-23T14:05:00", purchaseDate: "2026-10-01T00:00:00" }], "All")[0].invoiceDate).toBe("2026-10-23T14:05:00");
+  });
+
+  it("the header columns are known before any data loads, so a failed load keeps them", () => {
+    expect(purchaseReturnReport.columns?.map((c) => c.label)).toContain("BillDate");
+    expect(purchaseReport.columns?.map((c) => c.label)).toContain("BillDate");
+  });
+});

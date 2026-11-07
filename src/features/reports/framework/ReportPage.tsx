@@ -4,15 +4,22 @@ import { X, Printer, Download, FileText } from "lucide-react";
 import { PageShell, FormInput, SearchableSelect, ResetButton, Button } from "../../../components/common";
 import { formatAmount } from "../../../shared/lib/currency";
 import { useReport } from "./useReport";
-import { toMatrix, isNumericColumn, isTotalled, formatCell, type Formatter } from "./reportMath";
+import { toMatrix, isNumericColumn, isTotalled, formatCell, isSubtotalRow, type Formatter } from "./reportMath";
 import { printReport, exportReportExcel, exportReportPdf, type ReportMeta } from "./reportOutput";
-import type { FilterDef, ReportDefinition } from "./types";
+import type { FilterDef, ReportColumn, ReportDefinition } from "./types";
 
 /**
  * One page for every report (Phase 4). Same look as the hand-built report pages it replaces:
  * filter panel (close + reset), table with sticky header / totals row, record count, Print / PDF / XLS.
  * Adds what most old pages lacked: a visible error banner (403 / network) instead of "No records found".
  */
+const summaryText = (v: number | string) => (typeof v === "number" ? formatAmount(v) : v);
+
+const alignClass = (c: ReportColumn) => {
+  const align = c.align ?? (isNumericColumn(c) ? "right" : "left");
+  return align === "right" ? "text-right" : align === "center" ? "text-center" : "text-left";
+};
+
 const fmt: Formatter = {
   money: (n) => formatAmount(n),
   number: (n) => (Number.isInteger(n) ? String(n) : formatAmount(n)),
@@ -43,7 +50,7 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
       if (f.kind === "lookup") lines.push([f.label, r.lookups[f.key]?.find((o) => o.value === v)?.label || "All"]);
       if (f.kind === "select") lines.push([f.label, f.options.find((o) => o.value === v)?.label || v]);
     });
-    table.summary?.forEach((x) => lines.push([x.label, formatAmount(x.value)]));
+    table.summary?.forEach((x) => lines.push([x.label, summaryText(x.value)]));
     return { title: definition.title, subtitle, lines };
   };
 
@@ -104,8 +111,13 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
             <X size={18} />
           </button>
           <ResetButton onReset={r.reset} className="absolute top-1/2 -translate-y-1/2 right-12 !bg-blue-600 !border-blue-600 hover:!bg-blue-700 !text-white" />
-          <div className="px-4 py-3 flex flex-col xl:flex-row xl:items-center gap-3.5">
+          <div className="px-4 py-3 flex flex-col xl:flex-row xl:flex-wrap xl:items-center gap-3.5">
             {definition.filters.map(renderFilter)}
+            {definition.search && (
+              <div className="w-56">
+                <FormInput id={`${idPrefix}-search`} type="text" value={r.search} placeholder={definition.search.placeholder} onChange={(e: React.ChangeEvent<HTMLInputElement>) => r.setSearch(e.target.value)} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -125,7 +137,7 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
                 <tr>
                   <th className="px-2 py-2 font-semibold text-gray-700 text-[11px] tracking-wide border-r border-gray-200 w-16 text-center">SNo</th>
                   {table.columns.map((c) => (
-                    <th key={c.key} className={`px-2 py-2 font-semibold text-gray-700 text-[11px] tracking-wide border-r border-gray-200 ${isNumericColumn(c) ? "text-right" : "text-left"}`}>
+                    <th key={c.key} className={`px-2 py-2 font-semibold text-gray-700 text-[11px] tracking-wide border-r border-gray-200 ${alignClass(c)}`}>
                       {c.label.toUpperCase()}
                     </th>
                   ))}
@@ -143,23 +155,26 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
                 ) : !hasRows ? (
                   <tr>
                     <td colSpan={table.columns.length + 1} className="text-center py-20 text-gray-400 text-sm">
-                      {r.error ? "The report could not be loaded — see the message above." : "No records found. Adjust filters."}
+                      {r.error ? "The report could not be loaded — see the message above." : r.waitingMessage || table.emptyMessage || "No records found. Adjust filters."}
                     </td>
                   </tr>
                 ) : (
-                  table.rows.map((row, idx) => (
-                    <tr key={idx} className={`hover:bg-[#49293e]/5 transition-colors ${idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}`}>
-                      <td className="px-2 py-2 text-center text-gray-500 border-r border-gray-100">{idx + 1}</td>
+                  table.rows.map((row, idx) => {
+                    const link = definition.rowLink?.(row) ?? null;
+                    return (
+                    <tr key={idx} onClick={link ? () => navigate(link) : undefined} className={`hover:bg-[#49293e]/5 transition-colors ${link ? "cursor-pointer" : ""} ${isSubtotalRow(row) ? "font-bold bg-gray-100" : idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}`}>
+                      <td className="px-2 py-2 text-center text-gray-500 border-r border-gray-100">{matrix.body[idx]?.[0]}</td>
                       {table.columns.map((c) => (
-                        <td key={c.key} className={`px-2 py-2 border-r border-gray-100 ${isNumericColumn(c) ? "text-right tabular-nums text-[#49293e] font-semibold" : "text-left font-medium text-gray-800"}`}>
+                        <td key={c.key} className={`px-2 py-2 border-r border-gray-100 ${alignClass(c)} ${isNumericColumn(c) ? "tabular-nums text-[#49293e] font-semibold" : "font-medium text-gray-800"}`}>
                           {formatCell(c, row[c.key], fmt)}
                         </td>
                       ))}
                     </tr>
-                  ))
+                    );
+                  })
                 )}
               </tbody>
-              {!r.isLoading && hasRows && (
+              {!r.isLoading && hasRows && matrix.footer && (
                 <tfoot className="sticky bottom-0 z-10 bg-gray-100 border-t-2 border-t-[#49293e]/20">
                   <tr>
                     <td className="border-r border-gray-200" />
@@ -179,7 +194,7 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-2 shrink-0 flex items-center justify-end gap-3">
           {hasRows && table.summary?.map((x) => (
             <span key={x.label} className="text-xs text-gray-500">
-              {x.label}: <span className="font-bold text-[#49293e] tabular-nums ml-1">{formatAmount(x.value)}</span>
+              {x.label}: <span className="font-bold text-[#49293e] tabular-nums ml-1">{summaryText(x.value)}</span>
             </span>
           ))}
           {hasRows && <span className="text-xs text-gray-400">{table.rows.length} record{table.rows.length !== 1 ? "s" : ""}</span>}

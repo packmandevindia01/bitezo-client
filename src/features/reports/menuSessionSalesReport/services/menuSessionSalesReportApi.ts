@@ -1,5 +1,6 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { MenuSessionSalesReportParams, MenuSessionSalesReportResponse, BranchOption, ApiResponse } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 export const getMenuSessionSalesReport = async (
   params: MenuSessionSalesReportParams
@@ -8,6 +9,7 @@ export const getMenuSessionSalesReport = async (
     "/reports/menu-session-sales-report",
     { params }
   );
+  assertReportSuccess(response.data);
   return response.data;
 };
 

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { useBranchScope } from "../../../hooks/useBranchScope";
 import { subscribeToTransactionUpdates } from "../../../utils/transactionSync";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { defaultFilters } from "./filterDefaults";
-import type { FilterValues, ReportDefinition, ReportTable } from "./types";
+import type { FilterValues, ReportDefinition, ReportRow, ReportTable } from "./types";
 
 /** Readable reason for a failed report load (a 403 used to show as "No records found"). */
 export const reportErrorMessage = (err: unknown): string => {
@@ -18,11 +19,25 @@ export const reportErrorMessage = (err: unknown): string => {
 
 const EMPTY: ReportTable = { columns: [], rows: [] };
 
+/** Rows matching the search box. Backend totals describe every row, so they are dropped while searching. */
+export const applyReportSearch = (table: ReportTable, term: string, match?: (row: ReportRow, term: string) => boolean): ReportTable => {
+  const t = term.trim().toLowerCase();
+  if (!t || !match) return table;
+  return { ...table, rows: table.rows.filter((r) => match(r, t)), totalsOverride: undefined };
+};
+
 export const useReport = (def: ReportDefinition) => {
   const queryClient = useQueryClient();
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const initial = useMemo(() => defaultFilters(def.filters, new Date(), initialBranchId), [def.filters, initialBranchId]);
-  const [filters, setFilters] = useState<FilterValues>(initial);
+  const [searchParams] = useSearchParams();
+  const [filters, setFilters] = useState<FilterValues>(() => {
+    const fromUrl = Object.entries(def.urlParams ?? {}).flatMap(([key, param]) => {
+      const value = searchParams.get(param);
+      return value ? [[key, value]] : [];
+    });
+    return { ...initial, ...Object.fromEntries(fromUrl) };
+  });
 
   // Changing a filter resets the lookups that depend on it (e.g. Series when the branch changes).
   const setFilter = useCallback((key: string, value: string) => setFilters((f) => {
@@ -56,10 +71,13 @@ export const useReport = (def: ReportDefinition) => {
     lookups[f.key] = [{ label: f.allLabel ?? "All", value: "0" }, ...opts];
   });
 
+  const requiredValue = def.requires ? filters[def.requires.key] : undefined;
+  const waiting = !!def.requires && (!requiredValue || requiredValue === "0");
   const queryKey = [def.id, filters];
   const query = useQuery({
     queryKey,
     queryFn: () => def.fetch(filters),
+    enabled: !waiting,
     meta: { silentError: true }, // shown inside the report (error banner), not as a toast
     staleTime: 0,
     gcTime: 0,
@@ -73,7 +91,13 @@ export const useReport = (def: ReportDefinition) => {
     void queryClient.invalidateQueries({ queryKey: [def.id] });
   }), [queryClient, def.id]);
 
+  const [search, setSearch] = useState("");
+  const placeholder = useMemo<ReportTable>(() => (def.columns ? { columns: def.columns, rows: [] } : EMPTY), [def.columns]);
+  const loaded = query.data ?? placeholder;
+  const table = useMemo(() => applyReportSearch(loaded, search, def.search?.match), [loaded, search, def.search?.match]);
+
   const reset = useCallback(() => {
+    setSearch("");
     setFilters((f) => {
       const next = { ...initial };
       // A branch locked by the user's scope stays as it is.
@@ -89,8 +113,11 @@ export const useReport = (def: ReportDefinition) => {
     branches: branches as { id: number | string; branchName: string }[],
     isBranchLocked,
     lookups,
-    table: query.data ?? EMPTY,
+    table,
+    search,
+    setSearch,
     isLoading: query.isLoading || query.isFetching,
+    waitingMessage: waiting ? def.requires?.message ?? "" : "",
     error: query.error ? reportErrorMessage(query.error) : "",
     refetch: query.refetch,
   };

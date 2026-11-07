@@ -46,16 +46,14 @@ const StockAdjustmentReportPage = () => {
 
   const branchOptions = useMemo(() => {
     const list = masterData.branches.map(b => ({
-      label: b.branchName || (String(b.branchId) === "1" ? "Branch 1" : `Branch ${b.branchId}`),
+      label: b.branchName || (String(b.branchId) === "1" ? "All" : `Branch ${b.branchId}`),
       value: String(b.branchId),
     }));
+    // Branch id 1 is already "All" (every branch), so no separate "All Branches" option.
     if (!list.some(b => b.value === "1")) {
-      list.unshift({ label: "Branch 1", value: "1" });
+      list.unshift({ label: "All", value: "1" });
     }
-    return [
-      { label: "All Branches", value: "0" },
-      ...list,
-    ];
+    return list;
   }, [masterData.branches]);
 
   const employeeOptions = useMemo(() => [

@@ -7,6 +7,7 @@ import type {
   VatOption,
   ApiResponse,
 } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 function unwrap<T>(response: { data: ApiResponse<T> } | any): T {
   if (response.data && response.data.data !== undefined) {
@@ -36,6 +37,7 @@ export const getProductOutputVatReport = async (
   const response = await axiosInstance.get("/reports/product-output-vat-report", {
     params: queryParams,
   });
+  assertReportSuccess(response.data);
   return unwrap(response);
 };
 

@@ -5,6 +5,7 @@ import type {
   BranchOption,
   EmployeeOption,
 } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 export interface ApiResponse<T> {
   data: T;
@@ -28,6 +29,7 @@ export const getStockTransferReport = async (
     "/reports/stock-transfer",
     { params }
   );
+  assertReportSuccess(response.data);
   return unwrap<StockTransferReportRow[]>(response);
 };
 

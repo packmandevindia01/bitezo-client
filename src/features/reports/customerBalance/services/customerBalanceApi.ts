@@ -1,5 +1,6 @@
 import axiosInstance from "../../../../api/axiosInstance";
 import type { CustomerBalanceParams, CustomerBalanceResponse } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 export const fetchCustomerBalance = async (
   params: CustomerBalanceParams
@@ -20,5 +21,6 @@ export const fetchCustomerBalance = async (
     "/reports/customer-balance",
     { params: queryParams }
   );
+  assertReportSuccess(response.data);
   return response.data;
 };

@@ -6,6 +6,7 @@ import type {
   ProductOption,
   AdjustmentTypeOption,
 } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 export interface ApiResponse<T> {
   data: T;
@@ -29,6 +30,7 @@ export const getProductWiseStockAdjustmentReport = async (
     "/reports/product-wise-stock-adjustment",
     { params }
   );
+  assertReportSuccess(response.data);
   return unwrap<ProductWiseStockAdjustmentRow[]>(response);
 };
 

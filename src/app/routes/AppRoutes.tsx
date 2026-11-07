@@ -86,15 +86,20 @@ const PosConfigurationPage = lazy(() => import("../../features/pos/terminal/page
 const DineInSelectionPage = lazy(() => import("../../features/pos/terminal/pages/DineInSelectionPage"));
 const PosDeliveryPage = lazy(() => import("../../features/pos/customer/pages/PosDeliveryPage"));
 const PayInOutPage = lazy(() => import("../../features/pos/payInOut/pages/PayInOutPage"));
-const SalesReportPage = lazy(() => import("../../features/reports/salesReport/pages/SalesReportPage"));
+// Phase 4: report framework (old page: salesReport/pages/SalesReportPage)
+const SalesReportPage = lazy(() => import("../../features/reports/definitions/SalesReportFrameworkPage"));
 // Phase 4: report framework (old page: purchaseReport/pages/PurchaseReportPage)
 const PurchaseReportPage = lazy(() => import("../../features/reports/definitions/PurchaseReportFrameworkPage"));
 // Phase 4: report framework (old page: purchaseReturnReport/pages/PurchaseReturnReportPage)
 const PurchaseReturnReportPage = lazy(() => import("../../features/reports/definitions/PurchaseReturnReportFrameworkPage"));
-const ProductWisePurchaseReportPage = lazy(() => import("../../features/reports/productWisePurchaseReport/pages/ProductWisePurchaseReportPage"));
-const StockRegisterReportPage = lazy(() => import("../../features/reports/stockRegisterReport/pages/StockRegisterReportPage"));
-const StockAdjustmentReportPage = lazy(() => import("../../features/reports/stockAdjustmentReport/pages/StockAdjustmentReportPage"));
-const ProductTransactionLogReportPage = lazy(() => import("../../features/reports/productTransactionLogReport/pages/ProductTransactionLogReportPage"));
+// Phase 4: report framework (old page: productWisePurchaseReport/pages/ProductWisePurchaseReportPage)
+const ProductWisePurchaseReportPage = lazy(() => import("../../features/reports/definitions/ProductWisePurchaseReportFrameworkPage"));
+// Phase 4: report framework (old page: stockRegisterReport/pages/StockRegisterReportPage)
+const StockRegisterReportPage = lazy(() => import("../../features/reports/definitions/StockRegisterReportFrameworkPage"));
+// Phase 4: report framework (old page: stockAdjustmentReport/pages/StockAdjustmentReportPage)
+const StockAdjustmentReportPage = lazy(() => import("../../features/reports/definitions/StockAdjustmentReportFrameworkPage"));
+// Phase 4: report framework (old page: productTransactionLogReport/pages/ProductTransactionLogReportPage)
+const ProductTransactionLogReportPage = lazy(() => import("../../features/reports/definitions/ProductTransactionLogReportFrameworkPage"));
 // Phase 4: report framework (old page: dailySalesReport/pages/DailySalesReportPage)
 const DailySalesReportPage = lazy(() => import("../../features/reports/definitions/DailySalesReportFrameworkPage"));
 // Phase 4: report framework (old page: hourlySalesReport/pages/HourlySalesReportPage)
@@ -107,26 +112,42 @@ const MenuSessionSalesReportPage = lazy(() => import("../../features/reports/def
 const GroupWiseSalesReportPage = lazy(() => import("../../features/reports/definitions/GroupWiseSalesReportFrameworkPage"));
 // Phase 4: report framework (old page: categoryWiseSalesReport/pages/CategoryWiseSalesReportPage)
 const CategoryWiseSalesReportPage = lazy(() => import("../../features/reports/definitions/CategoryWiseSalesReportFrameworkPage"));
-const AllTransactionReportPage = lazy(() => import("../../features/reports/allTransactionReport/pages/AllTransactionReportPage"));
+// Phase 4: report framework (old page: allTransactionReport/pages/AllTransactionReportPage)
+const AllTransactionReportPage = lazy(() => import("../../features/reports/definitions/AllTransactionReportFrameworkPage"));
 // Phase 4: rendered by the report framework (old page: monthlySalesReport/pages/MonthlySalesReportPage)
 const MonthlySalesReportPage = lazy(() => import("../../features/reports/definitions/MonthlySalesReportFrameworkPage"));
-const BillWiseMarginReportPage = lazy(() => import("../../features/reports/billWiseMarginReport/pages/BillWiseMarginReportPage"));
-const ProductWiseMarginReportPage = lazy(() => import("../../features/reports/productWiseMarginReport/pages/ProductWiseMarginReportPage"));
-const SupplierStatementPage = lazy(() => import("../../features/reports/supplierStatement/pages/SupplierStatementPage"));
-const CustomerStatementPage = lazy(() => import("../../features/reports/customerStatement/pages/CustomerStatementPage"));
-const CustomerBalancePage = lazy(() => import("../../features/reports/customerBalance/pages/CustomerBalancePage"));
-const SupplierBalancePage = lazy(() => import("../../features/reports/supplierBalance/pages/SupplierBalancePage"));
+// Phase 4: report framework (old page: billWiseMarginReport/pages/BillWiseMarginReportPage)
+const BillWiseMarginReportPage = lazy(() => import("../../features/reports/definitions/BillWiseMarginReportFrameworkPage"));
+// Phase 4: report framework (old page: productWiseMarginReport/pages/ProductWiseMarginReportPage)
+const ProductWiseMarginReportPage = lazy(() => import("../../features/reports/definitions/ProductWiseMarginReportFrameworkPage"));
+// Phase 4: report framework (old page: supplierStatement/pages/SupplierStatementPage)
+const SupplierStatementPage = lazy(() => import("../../features/reports/definitions/SupplierStatementReportFrameworkPage"));
+// Phase 4: report framework (old page: customerStatement/pages/CustomerStatementPage)
+const CustomerStatementPage = lazy(() => import("../../features/reports/definitions/CustomerStatementReportFrameworkPage"));
+// Phase 4: report framework (old page: customerBalance/pages/CustomerBalancePage)
+const CustomerBalancePage = lazy(() => import("../../features/reports/definitions/CustomerBalanceReportFrameworkPage"));
+// Phase 4: report framework (old page: supplierBalance/pages/SupplierBalancePage)
+const SupplierBalancePage = lazy(() => import("../../features/reports/definitions/SupplierBalanceReportFrameworkPage"));
 // Phase 4: report framework (old page: employeeSalesReport/pages/EmployeeSalesReportPage)
 const EmployeeSalesReportPage = lazy(() => import("../../features/reports/definitions/EmployeeSalesReportFrameworkPage"));
-const DayEndReportPage = lazy(() => import("../../features/reports/dayEndReport/pages/DayEndReportPage"));
-const ShiftEndReportPage = lazy(() => import("../../features/reports/shiftEndReport/pages/ShiftEndReportPage"));
-const ProductWiseStockAdjustmentReportPage = lazy(() => import("../../features/reports/productWiseStockAdjustmentReport/pages/ProductWiseStockAdjustmentReportPage"));
-const StockTransferReportPage = lazy(() => import("../../features/reports/stockTransferReport/pages/StockTransferReportPage"));
-const ProductWiseStockTransferReportPage = lazy(() => import("../../features/reports/productWiseStockTransferReport/pages/ProductWiseStockTransferReportPage"));
-const ProductOutputVatReportPage = lazy(() => import("../../features/reports/productOutputVatReport/pages/ProductOutputVatReportPage"));
-const ProductInputVatReportPage = lazy(() => import("../../features/reports/productInputVatReport/pages/ProductInputVatReportPage"));
-const BillWiseLevyReportPage = lazy(() => import("../../features/reports/billWiseLevyReport/pages/BillWiseLevyReportPage"));
-const ProductWiseLevyReportPage = lazy(() => import("../../features/reports/productWiseLevyReport/pages/ProductWiseLevyReportPage"));
+// Phase 4: report framework (old page: dayEndReport/pages/DayEndReportPage)
+const DayEndReportPage = lazy(() => import("../../features/reports/definitions/DayEndReportFrameworkPage"));
+// Phase 4: report framework (old page: shiftEndReport/pages/ShiftEndReportPage)
+const ShiftEndReportPage = lazy(() => import("../../features/reports/definitions/ShiftEndReportFrameworkPage"));
+// Phase 4: report framework (old page: productWiseStockAdjustmentReport/pages/ProductWiseStockAdjustmentReportPage)
+const ProductWiseStockAdjustmentReportPage = lazy(() => import("../../features/reports/definitions/ProductWiseStockAdjustmentReportFrameworkPage"));
+// Phase 4: report framework (old page: stockTransferReport/pages/StockTransferReportPage)
+const StockTransferReportPage = lazy(() => import("../../features/reports/definitions/StockTransferReportFrameworkPage"));
+// Phase 4: report framework (old page: productWiseStockTransferReport/pages/ProductWiseStockTransferReportPage)
+const ProductWiseStockTransferReportPage = lazy(() => import("../../features/reports/definitions/ProductWiseStockTransferReportFrameworkPage"));
+// Phase 4: report framework (old page: productOutputVatReport/pages/ProductOutputVatReportPage)
+const ProductOutputVatReportPage = lazy(() => import("../../features/reports/definitions/ProductOutputVatReportFrameworkPage"));
+// Phase 4: report framework (old page: productInputVatReport/pages/ProductInputVatReportPage)
+const ProductInputVatReportPage = lazy(() => import("../../features/reports/definitions/ProductInputVatReportFrameworkPage"));
+// Phase 4: report framework (old page: billWiseLevyReport/pages/BillWiseLevyReportPage)
+const BillWiseLevyReportPage = lazy(() => import("../../features/reports/definitions/BillWiseLevyReportFrameworkPage"));
+// Phase 4: report framework (old page: productWiseLevyReport/pages/ProductWiseLevyReportPage)
+const ProductWiseLevyReportPage = lazy(() => import("../../features/reports/definitions/ProductWiseLevyReportFrameworkPage"));
 
 
 const LoginRedirect = () => {

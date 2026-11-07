@@ -6,6 +6,7 @@ import type {
   CategoryOption,
   ApiResponse,
 } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 function unwrap<T>(response: { data: ApiResponse<T> } | any): T {
   if (response.data && response.data.data !== undefined) {
@@ -20,6 +21,7 @@ export const getCategoryWiseSalesReport = async (
   const response = await axiosInstance.get("/reports/category-wise-sales-report", {
     params,
   });
+  assertReportSuccess(response.data);
   return unwrap(response);
 };
 

@@ -5,6 +5,7 @@ import type {
   BranchOption,
   ProductOption,
 } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 export interface ApiResponse<T> {
   data: T;
@@ -28,6 +29,7 @@ export const getProductWiseStockTransferReport = async (
     "/reports/product-wise-stock-transfer",
     { params }
   );
+  assertReportSuccess(response.data);
   return unwrap<ProductWiseStockTransferRow[]>(response);
 };
 

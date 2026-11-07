@@ -1,3 +1,4 @@
+import { assertReportSuccess } from "@features/reports/framework/reportResponse";
 /**
  * Phase 4 — report framework: pure maths + the Monthly Sales pilot compared with the old page logic.
  */
@@ -156,5 +157,17 @@ describe("Daily / Hourly / Order-Type on the framework = old pages (money cells 
   it("date-range params: BranchId never 0 (Order-Type defaulted to 0)", () => {
     expect(dateRangeParams({ branch: "0", from: "2026-11-01", to: "2026-11-05" })).toEqual({ BranchId: 1, FromDate: "2026-11-01", ToDate: "2026-11-05", Decimals: 3 });
     expect(dateRangeParams({ branch: "4", from: "a", to: "b" }).BranchId).toBe(4);
+  });
+});
+
+describe("assertReportSuccess", () => {
+  it("HTTP 200 with isSuccess false is an error, with the backend's reason", () => {
+    expect(() => assertReportSuccess({ isSuccess: false, message: "Validation failed.", errors: [{ message: "Branch ID is required." }] })).toThrow("Branch ID is required.");
+    expect(() => assertReportSuccess({ isSuccess: false, message: "Operation failed" })).toThrow("Operation failed");
+  });
+  it("a successful or plain response passes", () => {
+    expect(() => assertReportSuccess({ isSuccess: true, data: [] })).not.toThrow();
+    expect(() => assertReportSuccess([])).not.toThrow();
+    expect(() => assertReportSuccess(null)).not.toThrow();
   });
 });

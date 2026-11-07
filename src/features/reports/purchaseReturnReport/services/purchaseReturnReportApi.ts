@@ -6,6 +6,7 @@ import type {
   PaymodeOption,
   SupplierOption,
 } from "../types";
+import { assertReportSuccess } from "../../framework/reportResponse";
 
 export interface ApiResponse<T> {
   data: T;
@@ -26,6 +27,7 @@ export const getPurchaseReturnReport = async (params: PurchaseReturnReportParams
   const response = await axiosInstance.get<PurchaseReturnReportResponse>("/reports/purchase-return-report", {
     params,
   });
+  assertReportSuccess(response.data);
   return unwrap<PurchaseReturnReportResponse>(response);
 };
 

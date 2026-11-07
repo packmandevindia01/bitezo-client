@@ -7,7 +7,7 @@ import {
 } from "../services/stockTransferReportApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
-import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { toReportBranchId, useBranchScope } from "../../../../hooks/useBranchScope";
 import type { BranchOption, EmployeeOption } from "../types";
 
 import { toLocalDateString } from "../../../../utils/date";
@@ -56,7 +56,7 @@ export const useStockTransferReport = () => {
     ],
     queryFn: () =>
       getStockTransferReport({
-        FromBranchId: Number(fromBranchId),
+        FromBranchId: toReportBranchId(fromBranchId),
         ToBranchId: Number(toBranchId),
         EmployeeId: Number(employeeId),
         FromDate: fromDate,

@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { allTransactionReportApi } from "../services/allTransactionReportApi";
 import { branchApi } from "../../../inventory/branches/services/branchApi";
 import { getDecimalPart } from "../../../../utils/currency";
-import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { toReportBranchId, useBranchScope } from "../../../../hooks/useBranchScope";
 import { subscribeToTransactionUpdates } from "../../../../utils/transactionSync";
 
 import { toLocalDateString } from "../../../../utils/date";
@@ -37,7 +37,7 @@ export const useAllTransactionReport = () => {
     queryKey: ["allTransactionReport", branchId, fromDate, toDate, decimalPart],
     queryFn: () =>
       allTransactionReportApi.getAllTransactionReport({
-        BranchId: Number(branchId),
+        BranchId: toReportBranchId(branchId),
         FromDate: fromDate,
         ToDate: toDate,
         Decimals: decimalPart,
