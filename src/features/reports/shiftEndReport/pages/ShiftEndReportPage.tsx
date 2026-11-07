@@ -1,3 +1,4 @@
+import { ALL_BRANCH_ID, toReportBranchId } from "../../../../hooks/useBranchScope";
 import { useNavigate } from "react-router-dom";
 import { useMemo, useState, useCallback } from "react";
 import { Printer, X, Download } from "lucide-react";
@@ -186,7 +187,7 @@ export const ShiftEndReportPage = () => {
                     value={filters.counterId}
                     onChange={filters.setCounterId}
                     placeholder="All Counters"
-                    disabled={masterData.countersLoading || !filters.branchId || filters.branchId === "0"}
+                    disabled={masterData.countersLoading || toReportBranchId(filters.branchId) === ALL_BRANCH_ID}
                   />
                 </div>
               </div>

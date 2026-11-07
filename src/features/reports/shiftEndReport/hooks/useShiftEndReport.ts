@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getShiftEndReport, getBranchList, getUserList, getCounterList, getShiftEndCashierLogDetail } from "../services/shiftEndReportApi";
+import { getShiftEndReport, getUserList, getCounterList, getShiftEndCashierLogDetail } from "../services/shiftEndReportApi";
+import { branchApi } from "../../../inventory/branches/services/branchApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption, UserOption, CounterOption } from "../types";
-import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { ALL_BRANCH_ID, toReportBranchId, useBranchScope } from "../../../../hooks/useBranchScope";
 
 import { toLocalDateString } from "../../../../utils/date";
 export const useShiftEndReport = () => {
@@ -20,14 +21,17 @@ export const useShiftEndReport = () => {
     const today = new Date();
     return toLocalDateString(today);
   });
-  const [branchId, setBranchId] = useState<string>(isBranchLocked ? initialBranchId : "");
+  // initialBranchId is the locked branch, or "1" = All. BranchId is never sent as 0 (toReportBranchId).
+  const [branchId, setBranchId] = useState<string>(initialBranchId);
   const [userId, setUserId] = useState<string>("0");
   const [counterId, setCounterId] = useState<string>("0");
 
   // Master data queries
+  // Same API as the top navbar branch selector: the server's own list, "All" included.
   const { data: branches = [] as BranchOption[], isLoading: branchesLoading } = useQuery({
-    queryKey: ["branchList", "shiftEndReport"],
-    queryFn: getBranchList,
+    queryKey: ["activeBranches"],
+    queryFn: () => branchApi.fetchBranchNames(true),
+    select: (list): BranchOption[] => list.map((b) => ({ branchId: Number(b.id), branchName: b.branchName })),
   });
 
   const { data: users = [] as UserOption[], isLoading: usersLoading } = useQuery({
@@ -38,7 +42,7 @@ export const useShiftEndReport = () => {
   const { data: counters = [] as CounterOption[], isLoading: countersLoading } = useQuery({
     queryKey: ["counterList", "shiftEndReport", branchId],
     queryFn: () => getCounterList(Number(branchId)),
-    enabled: !!branchId && branchId !== "0", // Only fetch if branch is selected (and not 'All' if 'All' is 0, though Bitezo usually requires a valid branch or '0' returns all for some APIs. The swagger showed /api/counter/2/list-name)
+    enabled: toReportBranchId(branchId) !== ALL_BRANCH_ID, // Counters belong to a real branch, not "All".
   });
 
   // Reset counter when branch changes to avoid invalid counter selections
@@ -51,7 +55,7 @@ export const useShiftEndReport = () => {
     queryKey: ["shiftEndReport", { fromDate, toDate, branchId, userId, counterId, decimalPart }],
     queryFn: async () => {
       const res = await getShiftEndReport({
-        BranchId: Number(branchId),
+        BranchId: toReportBranchId(branchId),
         UserId: Number(userId),
         CounterId: Number(counterId),
         FromDate: fromDate,
@@ -109,7 +113,7 @@ export const useShiftEndReport = () => {
     
     setFromDate(defaultFrom);
     setToDate(defaultTo);
-    setBranchId(isBranchLocked ? initialBranchId : "");
+    setBranchId(initialBranchId);
     setUserId("0");
     setCounterId("0");
     setTimeout(() => {

@@ -3,7 +3,6 @@ import type {
   ApiResponse, 
   ShiftEndReportResponse, 
   ShiftEndReportParams, 
-  BranchOption,
   UserOption,
   CounterOption
 } from "../types";
@@ -40,23 +39,6 @@ export const getShiftEndReport = async (
       params,
     })
   );
-};
-
-interface BranchListItem {
-  branchId: number;
-  branchName: string;
-  isActive: string;
-  sNo?: number;
-}
-
-export const getBranchList = async (): Promise<BranchOption[]> => {
-  const data = await unwrap(
-    axiosInstance.get<ApiResponse<BranchListItem[]>>("/Branch/list")
-  );
-  return ((data as any[]) ?? []).map((b: any) => ({
-    branchId: Number(b.branchId),
-    branchName: b.branchName,
-  }));
 };
 
 export const getUserList = async (): Promise<UserOption[]> => {

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getDayEndReport, getBranchList, getDayEndCashierLogDetail } from "../services/dayEndReportApi";
+import { getDayEndReport, getDayEndCashierLogDetail } from "../services/dayEndReportApi";
+import { branchApi } from "../../../inventory/branches/services/branchApi";
 import { useAppSelector } from "../../../../app/hooks";
 import { selectDecimalPart } from "../../../auth/store/authSlice";
 import type { BranchOption } from "../types";
-import { useBranchScope } from "../../../../hooks/useBranchScope";
+import { toReportBranchId, useBranchScope } from "../../../../hooks/useBranchScope";
 
 import { toLocalDateString } from "../../../../utils/date";
 export const useDayEndReport = () => {
@@ -20,12 +21,15 @@ export const useDayEndReport = () => {
     const today = new Date();
     return toLocalDateString(today);
   });
-  const [branchId, setBranchId] = useState<string>(isBranchLocked ? initialBranchId : "");
+  // initialBranchId is the locked branch, or "1" = All. BranchId is never sent as 0 (toReportBranchId).
+  const [branchId, setBranchId] = useState<string>(initialBranchId);
 
   // Master data queries
+  // Same API as the top navbar branch selector: the server's own list, "All" included.
   const { data: branches = [] as BranchOption[], isLoading: branchesLoading } = useQuery({
-    queryKey: ["branchList", "dayEndReport"],
-    queryFn: getBranchList,
+    queryKey: ["activeBranches"],
+    queryFn: () => branchApi.fetchBranchNames(true),
+    select: (list): BranchOption[] => list.map((b) => ({ branchId: Number(b.id), branchName: b.branchName })),
   });
 
   // Report query
@@ -33,7 +37,7 @@ export const useDayEndReport = () => {
     queryKey: ["dayEndReport", { fromDate, toDate, branchId, decimalPart }],
     queryFn: async () => {
       const res = await getDayEndReport({
-        BranchId: Number(branchId),
+        BranchId: toReportBranchId(branchId),
         FromDate: fromDate,
         ToDate: toDate,
         Decimals: decimalPart,
@@ -89,7 +93,7 @@ export const useDayEndReport = () => {
     
     setFromDate(defaultFrom);
     setToDate(defaultTo);
-    setBranchId(isBranchLocked ? initialBranchId : "");
+    setBranchId(initialBranchId);
     setTimeout(() => {
       refetch();
     }, 0);

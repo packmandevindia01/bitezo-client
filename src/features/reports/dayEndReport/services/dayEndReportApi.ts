@@ -1,5 +1,5 @@
 import axiosInstance from "../../../../api/axiosInstance";
-import type { ApiResponse, DayEndReportResponse, DayEndReportParams, BranchOption } from "../types";
+import type { ApiResponse, DayEndReportResponse, DayEndReportParams } from "../types";
 
 async function unwrap<T>(promise: Promise<{ data: ApiResponse<T> }>): Promise<T> {
   try {
@@ -33,23 +33,6 @@ export const getDayEndReport = async (
       params,
     })
   );
-};
-
-interface BranchListItem {
-  branchId: number;
-  branchName: string;
-  isActive: string;
-  sNo?: number;
-}
-
-export const getBranchList = async (): Promise<BranchOption[]> => {
-  const data = await unwrap(
-    axiosInstance.get<ApiResponse<BranchListItem[]>>("/Branch/list")
-  );
-  return ((data as any[]) ?? []).map((b: any) => ({
-    branchId: Number(b.branchId),
-    branchName: b.branchName,
-  }));
 };
 
 export const getDayEndCashierLogDetail = async (dayId: number): Promise<any> => {
