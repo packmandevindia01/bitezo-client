@@ -164,16 +164,6 @@ export const OpeningStockGrid = ({
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, [openingStocks, mainBranchId, mainUnitId, defaultCost, branches]);
 
-  const calcRowValues = (stock: OpeningStockDraft) => {
-    const q = Number(stock.qty) || 0;
-    const c = Number(stock.cost) || 0;
-    const amt = q * c;
-    const unitObj = masterData?.unit?.find(u => String(u.id) === String(stock.unitId));
-    const uVal = unitObj?.currentvalue !== undefined && unitObj?.currentvalue !== null ? Number(unitObj.currentvalue) : 1;
-    const bQty = q * (isNaN(uVal) ? 1 : uVal);
-    return { amt, bQty };
-  };
-
   return (
     <div className="animate-in fade-in slide-in-from-right-2 duration-300">
       <div className="flex items-center justify-end mb-3">
@@ -187,25 +177,24 @@ export const OpeningStockGrid = ({
           <table className="w-full border-collapse text-left table-fixed">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="sticky top-0 bg-gray-50 z-10 w-[24%] px-2 py-1 text-left text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch</th>
-                <th className="sticky top-0 bg-gray-50 z-10 w-[20%] px-2 py-1 text-left text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Unit</th>
-                <th className="sticky top-0 bg-gray-50 z-10 w-[14%] px-2 py-1 text-right text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Qty</th>
-                <th className="sticky top-0 bg-gray-50 z-10 w-[14%] px-2 py-1 text-right text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Cost</th>
-                <th className="sticky top-0 bg-gray-50 z-10 w-[14%] px-2 py-1 text-right text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Amount</th>
-                <th className="sticky top-0 bg-gray-50 z-10 w-[14%] px-2 py-1 text-right text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Base Qty</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-[28%] px-2 py-1 text-left text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60">Branch</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-[24%] px-2 py-1 text-left text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Unit</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-[16%] px-2 py-1 text-right text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Qty</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-[16%] px-2 py-1 text-right text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Cost</th>
+                <th className="sticky top-0 bg-gray-50 z-10 w-[16%] px-2 py-1 text-right text-[9px] font-bold uppercase tracking-widest text-[#49293e]/60 border-l border-gray-200">Amount</th>
                 <th className="sticky top-0 bg-gray-50 z-10 w-8 px-1 py-1 border-l border-gray-200"></th>
               </tr>
             </thead>
             <tbody>
               {openingStocks.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-4 text-center text-gray-400 text-[10px] font-bold uppercase tracking-widest">
+                  <td colSpan={6} className="py-4 text-center text-gray-400 text-[10px] font-bold uppercase tracking-widest">
                     No opening stock records added.
                   </td>
                 </tr>
               ) : (
                 openingStocks.map((stock, rIdx) => {
-                  const { amt, bQty } = calcRowValues(stock);
+                  const amt = (Number(stock.qty) || 0) * (Number(stock.cost) || 0);
                   return (
                     <tr key={stock.id ?? rIdx} className="group border-b border-gray-100 transition-colors hover:bg-gray-50/50">
                       <td className="p-0 border-r border-gray-100">
@@ -327,9 +316,6 @@ export const OpeningStockGrid = ({
                       </td>
                       <td className="p-0 border-r border-gray-100 px-2 py-1 text-right font-mono text-sm font-bold text-emerald-700 select-none bg-gray-50/40">
                         {formatAmount(amt, decimalPart)}
-                      </td>
-                      <td className="p-0 border-r border-gray-100 px-2 py-1 text-right font-mono text-sm font-bold text-slate-600 select-none bg-gray-50/40">
-                        {Number(bQty).toLocaleString("en-US", { maximumFractionDigits: 4 })}
                       </td>
                       <td className="px-1 py-0 text-center">
                          <button
