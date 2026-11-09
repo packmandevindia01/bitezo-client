@@ -1,5 +1,6 @@
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import html2canvas from 'html2canvas';
+import { ensureReceiptFonts, withReceiptFontFaces } from '@shared/lib/receiptFonts';
 import { generateUUID } from '../../../utils/uuid';
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from '../utils/printHeadingUtils';
 
@@ -660,7 +661,7 @@ export const uint8ArrayToBase64 = (bytes: Uint8Array): string => {
  */
 export const renderHtmlToCanvas = async (htmlContent: string): Promise<HTMLCanvasElement> => {
   // Strip any inline oklch strings before writing
-  const sanitizedHtml = htmlContent.replace(/oklch\([^)]+\)/gi, "#000000");
+  const sanitizedHtml = withReceiptFontFaces(htmlContent.replace(/oklch\([^)]+\)/gi, "#000000"));
 
   // Render in an isolated hidden iframe to prevent inheriting Tailwind CSS v4 oklch styles
   const iframe = document.createElement("iframe");
@@ -683,6 +684,9 @@ export const renderHtmlToCanvas = async (htmlContent: string): Promise<HTMLCanva
     doc.open();
     doc.write(sanitizedHtml);
     doc.close();
+
+    // Layout happens in the iframe and drawing on a canvas of this page: the fonts must be ready in both.
+    await Promise.all([ensureReceiptFonts(document, htmlContent), ensureReceiptFonts(doc, htmlContent)]);
 
     // Give iframe DOM and custom fonts a moment to layout
     try {

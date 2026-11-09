@@ -3,7 +3,7 @@ import type { PosCartItem } from "../types";
 import { modifierLabelOf } from "./modifierLabel";
 import { toDisplayNo } from "../services/orderResponse";
 import { branchApi } from "../../inventory/branches/services/branchApi";
-import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
+import { printLineHtml } from "../../inventory/branches/utils/lineHelpers";
 import { isKotArabicEnabled, isOtherKitchenItemEnabled, isCompanyNameKotEnabled, getAlternativeArabicName, containsArabic, formatItemDisplayName } from "./alternativeHelpers";
 import { getDecimalPart } from "../../../utils/currency";
 import { roundCalc } from "../terminal/utils/billing";
@@ -187,15 +187,7 @@ export const generateKotHtml = async (
         };
         const headers = branchLines.filter(l => isHeader(l) && (l.value ?? l.lineValue) && String(l.value ?? l.lineValue).trim() !== "");
         if (headers.length > 0) {
-          customHeadersHtml = headers.map(l => {
-            const val = l.value ?? l.lineValue ?? "";
-            const styleObj = getLineStyle(l) as any;
-            const styleStr = Object.entries(styleObj).map(([k, v]) => {
-              const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-              return `${kebab}:${v}`;
-            }).join(";");
-            return `<div dir="auto" style="${styleStr}">${val}</div>`;
-          }).join("");
+          customHeadersHtml = headers.map(l => printLineHtml({ ...l, value: l.value ?? l.lineValue ?? "" })).join("");
         }
       }
     } catch {

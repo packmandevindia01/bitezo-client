@@ -21,6 +21,7 @@ import BranchBasicInfo from "./BranchBasicInfo";
 import FontModal from "./FontModal";
 import PrintSection from "./PrintSection";
 import ReceiptPreview from "./ReceiptPreview";
+import { DEFAULT_RECEIPT_FONT, ensureReceiptFonts } from "@shared/lib/receiptFonts";
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error && error.message) return error.message;
@@ -76,6 +77,8 @@ const BranchForm = ({
 
   const [activeTab, setActiveTab] = useState<"kot" | "end">("kot");
 
+  useEffect(() => { void ensureReceiptFonts(); }, []);
+
   const { allLines, headerLines, footerLines, dayEndLines, updateLine, moveLine, reorderLines, resetLines } =
     useBranchLines(initialData?.lines);
 
@@ -89,7 +92,7 @@ const BranchForm = ({
   const [fontModal, setFontModal] = useState<FontModalState>({
     open: false,
     lineId: "",
-    temp: { fontFamily: "Courier", fontStyle: "Regular", fontSize: "Medium" },
+    temp: { fontFamily: DEFAULT_RECEIPT_FONT, fontStyle: "Regular", fontSize: "Medium" },
   });
 
   useEffect(() => {
@@ -216,7 +219,7 @@ const BranchForm = ({
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="grid grid-cols-1 gap-2 lg:grid-cols-[1fr_270px] xl:grid-cols-[1fr_300px]">
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-[1fr_340px]">
           <div className="flex flex-col">
             <div className="flex-1 pr-1">
               <BranchBasicInfo
@@ -319,7 +322,7 @@ const BranchForm = ({
               </div>
 
               {activeTab === "kot" ? (
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                   <PrintSection
                     section="header"
                     lines={headerLines}
@@ -357,7 +360,7 @@ const BranchForm = ({
                   />
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                   <PrintSection
                     section="dayEndHeader"
                     lines={dayEndLines}

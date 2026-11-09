@@ -22,6 +22,7 @@ import { hasPrinterHeadings, notifyPrinterHeadingWarning } from '../../../../uti
 import { printHtmlReceipt } from '../../../../services/qzService';
 import { openDrawerIfCash } from '../../../../utils/cashDrawer';
 import { useSettlePrintPrompt } from '../../../hooks/useSettlePrintPrompt';
+import { forEachBillCopy } from '../../../../utils/settlePrintConfig';
 import { SettlePrintPrompt } from '../payment/SettlePrintPrompt';
 import { printerSettingsApi } from '../../../../services/printerSettingsApi';
 import {
@@ -789,7 +790,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         }
 
         if (billPrinter && printReceipt) {
-          await printHtmlReceipt(htmlContent, billPrinter);
+          const printer = billPrinter;
+          await forEachBillCopy(() => printHtmlReceipt(htmlContent, printer));
         }
       } catch (printErr: any) {
         console.warn("[DineInTableOrdersModal] Receipt print warning:", printErr);

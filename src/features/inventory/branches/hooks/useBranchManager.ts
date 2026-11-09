@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "../../../../app/providers/useToast";
-import { createBranch, deleteBranch, fetchBranches, fetchBranchNames, fetchRegisteredBranches, updateBranch } from "../services/branchApi";
+import { createBranch, deleteBranch, fetchBranches, fetchBranchNames, fetchRegisteredBranches, refreshTerminalPrintData, updateBranch } from "../services/branchApi";
+import { getTerminalBranchId } from "@shared/config/device";
 import axiosInstance from "../../../../api/axiosInstance";
 import type { BranchPayload, BranchRecord } from "../types";
 import { useAppDispatch } from "../../../../app/hooks";
@@ -107,6 +108,8 @@ export const useBranchManager = () => {
       }
       showToast("Branch created successfully", "success");
     }
+
+    void refreshTerminalPrintData(getTerminalBranchId());
 
     // Invalidate and refetch all branch caches (both active and inactive)
     queryClient.invalidateQueries({ queryKey: ["registeredBranches"], refetchType: "all" });

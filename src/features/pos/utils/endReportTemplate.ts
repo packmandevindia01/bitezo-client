@@ -1,8 +1,9 @@
 import type { EndReportData } from '../cashier/services/cashierLogService';
 import { branchApi } from "../../inventory/branches/services/branchApi";
-import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
+import { printLineHtml } from "../../inventory/branches/utils/lineHelpers";
 import { getDayEndReportConfig } from '../services/posConfigApi';
 import { roundCalc } from '../terminal/utils/billing';
+import { escapeHtml } from "../../../utils/html";
 
 export const generateEndReportHtml = async (data: EndReportData, reportType: 'DAYEND' | 'SHIFTEND', isPdf: boolean = false): Promise<string> => {
   const config = getDayEndReportConfig();
@@ -96,14 +97,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
       }
 
       if (headers.length > 0) {
-        customHeadersHtml = headers.map(l => {
-          const styleObj = getLineStyle(l) as any;
-          const styleStr = Object.entries(styleObj).map(([k, v]) => {
-            const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-            return `${kebab}:${v}`;
-          }).join(";");
-          return `<div dir="auto" style="${styleStr}">${sanitizeHeaderText(l.value)}</div>`;
-        }).join("");
+        customHeadersHtml = headers.map(l => printLineHtml({ ...l, value: sanitizeHeaderText(l.value) })).join("");
       }
     }
   } catch (e) {
@@ -123,14 +117,9 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
   const renderHeaderItem = (item: any) => {
     if (!item || !item.value || String(item.value).toLowerCase() === 'string') return '';
     try {
-      const styleObj = getLineStyle(item) as any;
-      const styleStr = Object.entries(styleObj).map(([k, v]) => {
-        const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-        return `${kebab}:${v}`;
-      }).join(";");
-      return `<div dir="auto" style="${styleStr}">${item.value}</div>`;
+      return printLineHtml(item);
     } catch {
-      return `<div>${item.value}</div>`;
+      return `<div>${escapeHtml(item.value)}</div>`;
     }
   };
 

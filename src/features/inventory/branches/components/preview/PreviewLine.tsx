@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DragHandle, PositionSlider } from "../../../../../components/common";
-import { getPreviewLineStyle } from "../../utils/lineHelpers";
+import { getLineGapStyle, getLineStyle, getLineTextStyle } from "../../utils/lineHelpers";
 import type { LineItem } from "../../types";
 
 interface PreviewLineProps {
@@ -26,6 +26,7 @@ const PreviewLine = ({
   const dragStartX = useRef<number | null>(null);
   const dragStartOffset = useRef<number>(0);
   const isSelected = selectedId === item.id;
+  const gapStyle = getLineGapStyle(item);
 
   if (!item.value) return null;
 
@@ -84,14 +85,16 @@ const PreviewLine = ({
 
         {/* Repositioning Area (Horizontal dragging) */}
         <div
-          className="w-full cursor-ew-resize select-none pl-3"
+          className="w-full cursor-ew-resize select-none"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           title="Drag left ↔ right to reposition"
         >
           <div className="relative w-full">
-            <p style={getPreviewLineStyle(item)}>{item.value}</p>
+            <div dir="auto" style={getLineStyle(item)}>
+              {gapStyle ? <><span style={gapStyle} /><span style={getLineTextStyle(item)}>{item.value}</span></> : item.value}
+            </div>
           </div>
         </div>
 

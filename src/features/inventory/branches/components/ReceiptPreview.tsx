@@ -3,7 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { SectionDropZone } from "../../../../components/common";
 import type { LineItem } from "../types";
 import PreviewLine from "./preview/PreviewLine";
-import ReceiptDummyBody from "./preview/ReceiptDummyBody";
+import ReceiptSampleBody from "./preview/ReceiptSampleBody";
 
 interface Props {
   branchName: string;
@@ -11,6 +11,9 @@ interface Props {
   activeTab: "kot" | "end";
   onOffsetChange: (id: string, offset: number) => void;
 }
+
+/** Width the POS renders a receipt at (qzService: 288px × 2 = the printer's 576 dots). */
+const RECEIPT_WIDTH_PX = 288;
 
 const ReceiptPreview = ({ branchName, allLines, activeTab, onOffsetChange }: Props) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -30,22 +33,23 @@ const ReceiptPreview = ({ branchName, allLines, activeTab, onOffsetChange }: Pro
 
       <div
         ref={containerRef}
-        className="bg-white border border-dashed border-gray-300 rounded-lg p-4 font-mono text-xs"
+        className="box-content bg-white border border-dashed border-gray-300 rounded-lg font-mono text-xs mx-auto"
+        style={{ width: RECEIPT_WIDTH_PX }}
         onClick={() => setSelectedId(null)}
       >
-        {/* Branch identity section */}
-        {branchName ? (
+        {/* The end report shows the branch name; the bill prints only the lines below. */}
+        {activeTab === "end" && (branchName ? (
           <p className="font-bold text-center text-sm mb-2">{branchName}</p>
         ) : (
           <p className="text-gray-300 text-center text-[10px] mb-2">Branch name here</p>
-        )}
+        ))}
 
-        {/* Dynamic Header Zone */}
+        {/* Dynamic Header Zone: same side space as the printed bill */}
+        <div className="px-3 mb-2.5">
         <SectionDropZone
           id="preview-zone-header"
           isEmpty={headers.length === 0}
           emptyMessage="Header lines appear here"
-          className="mb-1"
         >
           <SortableContext
             items={headers.map((l) => `preview-${l.id}`)}
@@ -63,15 +67,17 @@ const ReceiptPreview = ({ branchName, allLines, activeTab, onOffsetChange }: Pro
             ))}
           </SortableContext>
         </SectionDropZone>
+        </div>
 
-        {/* POS Simulation Body */}
-        {activeTab === "kot" ? <ReceiptDummyBody /> : (
+        {/* The real bill body */}
+        {activeTab === "kot" ? <ReceiptSampleBody /> : (
           <div className="py-4 my-2 border-y border-dashed border-gray-200 text-center text-gray-400">
             [End Report Data]
           </div>
         )}
 
         {/* Dynamic Footer Zone */}
+        <div className="px-3 mt-2.5 mb-2">
         <SectionDropZone
           id="preview-zone-footer"
           isEmpty={footers.length === 0}
@@ -93,6 +99,7 @@ const ReceiptPreview = ({ branchName, allLines, activeTab, onOffsetChange }: Pro
             ))}
           </SortableContext>
         </SectionDropZone>
+        </div>
       </div>
     </div>
   );

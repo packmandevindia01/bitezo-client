@@ -67,6 +67,11 @@ export const getRuntimePosConfig = async (): Promise<RuntimePosConfig | null> =>
         if (companyKotVal !== undefined && companyKotVal !== null) {
           localStorage.setItem("companyNameKot", String(companyKotVal));
         }
+        // Prints read these per-device copies first: keep them in step with a change made on another terminal.
+        const configs = response.data.configs as unknown as Record<string, unknown>;
+        for (const key of ["kotHeader", "kotArabic", "billArabic", "masterKot", "masterKotBillPrinter", "otherKitchenItem", "itemSeperation"]) {
+          if (configs[key] !== undefined && configs[key] !== null && configs[key] !== "") localStorage.setItem(key, String(configs[key]));
+        }
         const pv = response.data.configs?.priceView ?? (response.data.configs as any)?.PriceView;
         if (pv) {
           localStorage.setItem("priceView", String(pv));

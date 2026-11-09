@@ -8,6 +8,8 @@ import { setIsSettling, setWaiter } from '../store/posSlice';
 import { salesInvoiceApi } from '../../services/salesInvoiceApi';
 import { openDrawerIfCash } from '../../utils/cashDrawer';
 import { useSettlePrintPrompt } from './useSettlePrintPrompt';
+import { forEachBillCopy } from '../../utils/settlePrintConfig';
+import { printKotOnSettle } from '../utils/settleKot';
 import { orderApi } from '../../services/orderApi';
 import { settledOrdersApi } from '../../services/settledOrdersApi';
 import { getVatStatus, roundCalc, getPrintPrice, getPriceView } from '../utils/billing';
@@ -145,6 +147,18 @@ export const usePosCheckoutFlow = ({
 
   const finalizeSettlement = useEvent(async (shouldPrint: boolean, payloadToPrint?: any) => {
     try {
+      // POS config "KOT Print (Settle)": before the receipt, so an "ask before printing" question cannot hold up the kitchen.
+      try {
+        await printKotOnSettle({
+          cartDetails,
+          isEdit: Boolean(editingOrderId),
+          printData: (payloadToPrint || settledPrintPayload)?.printData,
+          sectionId: store.getState().pos.selectedSectionId,
+        });
+      } catch (kotErr: unknown) {
+        console.error("Settle KOT failed:", kotErr);
+        showToast(`Order settled, but the KOT failed: ${kotErr instanceof Error ? kotErr.message : kotErr}`, "warning");
+      }
       // POS config "Settle Print": print, skip or ask. The sale is already saved; the settle lock holds meanwhile.
       await printAndClearAfterSettle(shouldPrint && (await settlePrint.decide()), payloadToPrint);
     } finally {
@@ -183,7 +197,7 @@ export const usePosCheckoutFlow = ({
           notifyPrinterHeadingWarning(showToast);
         }
         const html = await generateGuestPrintHtml(payload.unifiedPricing || payload.mappedItems, payload.printData);
-        await printHtmlReceipt(html, targetPrinter);
+        await forEachBillCopy(() => printHtmlReceipt(html, targetPrinter));
 
         showToast("Sales saved successfully", "success");
       } catch (printErr: any) {

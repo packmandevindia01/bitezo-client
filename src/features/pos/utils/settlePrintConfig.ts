@@ -30,6 +30,32 @@ export const saveSettlePrintConfig = (config: SettlePrintConfig): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
 };
 
+const readRuntimeConfig = (): Record<string, unknown> => {
+  try {
+    const parsed = JSON.parse(localStorage.getItem("posConfigs") || "{}");
+    return parsed?.configs || parsed || {};
+  } catch {
+    return {};
+  }
+};
+
+/** POS config "Bill Copies": how many receipts one settlement prints. At least 1. */
+export const getBillCopies = (): number => {
+  const copies = Math.floor(Number(readRuntimeConfig().billCopies));
+  return copies >= 1 ? copies : 1;
+};
+
+export const forEachBillCopy = async (print: () => Promise<void>): Promise<void> => {
+  const copies = getBillCopies();
+  for (let i = 0; i < copies; i++) await print();
+};
+
+/** POS config "KOT Print (Settle)": a settlement sends the kitchen whatever it has not received yet. */
+export const isKotPrintSettleEnabled = (): boolean => {
+  const value = readRuntimeConfig().kotPrintSettle;
+  return value === true || ["enable", "true", "1"].includes(String(value ?? "").trim().toLowerCase());
+};
+
 /** Whether this settlement prints its receipt. `ask` shows the yes / no question and is only called when configured. */
 export const decideSettlePrint = async (ask: () => Promise<boolean>): Promise<boolean> => {
   const { enabled, askBeforePrint } = getSettlePrintConfig();

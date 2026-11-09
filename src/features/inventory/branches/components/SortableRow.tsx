@@ -5,6 +5,7 @@ import { DragHandle, PositionSlider } from "../../../../components/common";
 
 import type { LineItem } from "../types";
 import { resolveFontSizePx } from "../utils/lineHelpers";
+import { receiptFontStack } from "@shared/lib/receiptFonts";
 
 interface Props {
   item: LineItem;
@@ -50,7 +51,7 @@ const SortableRow = ({
         onKeyDown={onKeyDown}
         placeholder="Enter text..."
         style={{
-          fontFamily: item.fontFamily || "Courier",
+          fontFamily: receiptFontStack(item.fontFamily),
           fontWeight: String(item.fontStyle || "").toLowerCase().includes("bold") ? "bold" : "normal",
           fontStyle: String(item.fontStyle || "").toLowerCase().includes("italic") ? "italic" : "normal",
           fontSize: `${resolveFontSizePx(item.fontSize)}px`,

@@ -4,7 +4,7 @@ import { modifierLabelOf } from "./modifierLabel";
 import { barcodeHtml } from "./printBarcode";
 import { toDisplayNo } from "../services/orderResponse";
 import { branchApi } from "../../inventory/branches/services/branchApi";
-import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
+import { printLineHtml } from "../../inventory/branches/utils/lineHelpers";
 import { isBillArabicEnabled, getAlternativeArabicName, containsArabic } from "./alternativeHelpers";
 export { isBillArabicEnabled };
 import { getDecimalPart } from "../../../utils/currency";
@@ -251,28 +251,12 @@ export const generateGuestPrintHtml = async (
 
         const headers = branchLines.filter(l => isHeader(l) && (l.value ?? l.lineValue) && String(l.value ?? l.lineValue).trim() !== "");
         if (headers.length > 0) {
-          customHeadersHtml = headers.map(l => {
-            const val = l.value ?? l.lineValue ?? "";
-            const styleObj = getLineStyle(l) as any;
-            const styleStr = Object.entries(styleObj).map(([k, v]) => {
-              const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-              return `${kebab}:${v}`;
-            }).join(";");
-            return `<div dir="auto" style="${styleStr}">${val}</div>`;
-          }).join("");
+          customHeadersHtml = headers.map(l => printLineHtml({ ...l, value: l.value ?? l.lineValue ?? "" })).join("");
         }
 
         const footers = branchLines.filter(l => isFooter(l) && (l.value ?? l.lineValue) && String(l.value ?? l.lineValue).trim() !== "");
         if (footers.length > 0) {
-          customFootersHtml = footers.map(l => {
-            const val = l.value ?? l.lineValue ?? "";
-            const styleObj = getLineStyle(l) as any;
-            const styleStr = Object.entries(styleObj).map(([k, v]) => {
-              const kebab = k.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-              return `${kebab}:${v}`;
-            }).join(";");
-            return `<div dir="auto" style="${styleStr}">${val}</div>`;
-          }).join("");
+          customFootersHtml = footers.map(l => printLineHtml({ ...l, value: l.value ?? l.lineValue ?? "" })).join("");
         }
       }
     } catch {
@@ -628,7 +612,7 @@ export const generateGuestPrintHtml = async (
           }
           .text-center { text-align: center; }
           .font-bold { font-weight: bold; }
-          .header-title { font-size: 16px; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: 800; color: #000000; line-height: 1.3; }
+          .header-title { font-family: 'Roboto', 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 16px; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: 700; color: #000000; line-height: 1.3; }
           
           table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
           
@@ -985,12 +969,6 @@ export const generateGuestPrintHtml = async (
           ${customFootersHtml}
         </div>
         ` : ''}
-        <div style="text-align: center; margin-top: 6px; font-size: 13px; font-family: 'Courier New', Courier, monospace; font-weight: bold; line-height: 1.4; padding: 0 4px 2px 4px; box-sizing: border-box;">
-          <div>Thank you For Visiting</div>
-          ${isBillArabic ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size: 12.5px; font-weight: bold; text-align: center; display: block; margin-top: 3px; line-height: 1.5; word-break: break-word; overflow-wrap: break-word;">شكراً لزيارتكم</div>' : ''}
-          <div style="margin-top: 6px;">HAVE A GOOD DAY</div>
-          ${isBillArabic ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size: 12.5px; font-weight: bold; text-align: center; display: block; margin-top: 3px; line-height: 1.5; word-break: break-word; overflow-wrap: break-word;">نتمنى لكم يوماً سعيداً</div>' : ''}
-        </div>
       </body>
     </html>
   `;

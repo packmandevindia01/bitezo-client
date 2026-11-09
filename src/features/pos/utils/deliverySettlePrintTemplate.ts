@@ -1,6 +1,6 @@
 import { escapeHtml } from "../../../utils/html";
 import { branchApi } from "../../inventory/branches/services/branchApi";
-import { getLineStyle } from "../../inventory/branches/utils/lineHelpers";
+import { printLineHtml } from "../../inventory/branches/utils/lineHelpers";
 import { getDecimalPart } from "../../../utils/currency";
 import { isBillArabicEnabled } from "./alternativeHelpers";
 import { roundCalc } from "../terminal/utils/billing";
@@ -104,16 +104,7 @@ export const generateDeliverySettlePrintHtml = async (
         );
         if (headers.length > 0) {
           customHeadersHtml = headers
-            .map((l) => {
-              const styleObj = getLineStyle(l) as any;
-              const styleStr = Object.entries(styleObj)
-                .map(([k, v]) => {
-                  const kebab = k.replace(/[A-Z]/g, (m) => "-" + m.toLowerCase());
-                  return `${kebab}:${v}`;
-                })
-                .join(";");
-              return `<div style="${styleStr}">${l.value}</div>`;
-            })
+            .map((l) => printLineHtml(l))
             .join("");
         }
       }

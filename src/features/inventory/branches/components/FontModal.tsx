@@ -1,6 +1,7 @@
 import { Modal, Button } from "../../../../components/common";
 import { X, Check } from "lucide-react";
 import { FONT_FAMILIES, FONT_STYLES, FONT_SIZES, resolveFontSizePx } from "../utils/lineHelpers";
+import { RECEIPT_WEIGHT_BOLD, RECEIPT_WEIGHT_REGULAR, receiptFontStack, resolveReceiptFont } from "@shared/lib/receiptFonts";
 import type { FontModalState } from "../types";
 
 interface Props {
@@ -44,11 +45,11 @@ const FontModal = ({ state, sampleText, onChange, onApply, onClose }: Props) => 
               key={f}
               onClick={() => onChange({ fontFamily: f })}
               className={`px-3 py-1.5 text-sm cursor-pointer transition ${
-                state.temp.fontFamily === f
+                resolveReceiptFont(state.temp.fontFamily) === f
                   ? "bg-[#49293e] text-white"
                   : "hover:bg-gray-50 text-gray-700"
               }`}
-              style={{ fontFamily: f }}
+              style={{ fontFamily: receiptFontStack(f), fontWeight: RECEIPT_WEIGHT_REGULAR }}
             >
               {f}
             </div>
@@ -107,8 +108,8 @@ const FontModal = ({ state, sampleText, onChange, onApply, onClose }: Props) => 
       <p className="text-xs text-gray-400 mb-1">Sample</p>
       <p
         style={{
-          fontFamily: state.temp.fontFamily || "Courier",
-          fontWeight: String(state.temp.fontStyle || "").toLowerCase().includes("bold") ? "bold" : "normal",
+          fontFamily: receiptFontStack(state.temp.fontFamily),
+          fontWeight: String(state.temp.fontStyle || "").toLowerCase().includes("bold") ? RECEIPT_WEIGHT_BOLD : RECEIPT_WEIGHT_REGULAR,
           fontStyle: String(state.temp.fontStyle || "").toLowerCase().includes("italic") ? "italic" : "normal",
           fontSize: `${resolveFontSizePx(state.temp.fontSize)}px`,
         }}

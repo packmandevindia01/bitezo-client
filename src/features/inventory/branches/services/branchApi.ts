@@ -245,6 +245,17 @@ export const fetchBranchPrintData = async (branchId?: number): Promise<LineItem[
   });
 };
 
+/** After a branch is saved: this device's next print uses the new header and footer, even if the POS is already open. */
+export const refreshTerminalPrintData = async (terminalBranchId: number | null | undefined): Promise<void> => {
+  if (!terminalBranchId) return;
+  try {
+    const lines = await fetchBranchPrintData(terminalBranchId);
+    if (lines.length > 0) localStorage.setItem("branchPrintData", JSON.stringify(lines));
+  } catch (err) {
+    console.warn("[refreshTerminalPrintData] Could not refresh print lines:", err);
+  }
+};
+
 export const branchApi = {
   fetchRegisteredBranches,
   fetchBranchNames,

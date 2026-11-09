@@ -453,6 +453,8 @@ export const usePosConfiguration = () => {
           parsed.configs.kotHeader = payload.kotHeader;
           parsed.configs.cashdrawer = payload.cashdrawer;
           parsed.configs.kotPrint = payload.kotPrint;
+          parsed.configs.kotPrintSettle = payload.kotPrintSettle;
+          parsed.configs.billCopies = payload.billCopies;
           parsed.configs.kotArabic = payload.kotArabic;
           parsed.configs.billArabic = payload.billArabic;
           parsed.configs.masterKot = payload.masterKot;

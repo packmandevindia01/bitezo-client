@@ -117,6 +117,14 @@ describe("dine-in settle", () => {
     expect(drawerOpens).toBe(1);
   });
 
+  it("Bill Copies 3: three receipts from one settlement", async () => {
+    localStorage.setItem("posConfigs", JSON.stringify({ configs: { billCopies: 3 } }));
+    await openAndPay("stub-pay-card");
+    await saved();
+    await finished();
+    expect(receipts()).toHaveLength(3);
+  });
+
   it("print directly, card: receipt, no drawer", async () => {
     await openAndPay("stub-pay-card");
     await saved();
