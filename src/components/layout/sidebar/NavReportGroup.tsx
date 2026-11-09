@@ -1,4 +1,4 @@
-import { BarChart3, TrendingUp, ShoppingCart, Boxes } from "lucide-react";
+import { BarChart3, TrendingUp, ShoppingCart, Boxes, Percent } from "lucide-react";
 import SidebarDropdown from "../SidebarDropdown";
 import { usePermissions } from "../../../hooks/usePermissions";
 
@@ -82,10 +82,6 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
             <TrendingUp size={13} className="shrink-0" />
             <span>Category Wise Sales Report</span>
           </div>
-          <div onClick={() => handleItemClick("/dashboard/reports/product-output-vat")} className={itemClassName}>
-            <TrendingUp size={13} className="shrink-0" />
-            <span>Product Output VAT Report</span>
-          </div>
           <div onClick={() => handleItemClick("/dashboard/reports/bill-wise-levy")} className={itemClassName}>
             <TrendingUp size={13} className="shrink-0" />
             <span>Bill Wise Levy Report</span>
@@ -123,16 +119,28 @@ const NavReportGroup = ({ navigate, onClose, itemClassName }: NavReportGroupProp
             <ShoppingCart size={13} className="shrink-0" />
             <span>Product Wise Purchase</span>
           </div>
-          <div onClick={() => handleItemClick("/dashboard/reports/product-input-vat")} className={itemClassName}>
-            <ShoppingCart size={13} className="shrink-0" />
-            <span>Product Input VAT Report</span>
-          </div>
           <div onClick={() => handleItemClick("/dashboard/reports/purchase-return")} className={itemClassName}>
             <ShoppingCart size={13} className="shrink-0" />
             <span>Purchase Return Report</span>
           </div>
         </SidebarDropdown>
       )}
+
+      {/* Same permissions as the routes in AppRoutes: Output needs Sales Report, Input needs Sales or Purchase Report */}
+      <SidebarDropdown icon={<Percent size={14} />} label="VAT Report" nested={true}>
+        {hasPermission("Sales Report", "View") && (
+          <div onClick={() => handleItemClick("/dashboard/reports/product-output-vat")} className={itemClassName}>
+            <Percent size={13} className="shrink-0" />
+            <span>Product Output VAT Report</span>
+          </div>
+        )}
+        {(hasPermission("Sales Report", "View") || hasPermission("Purchase Report", "View")) && (
+          <div onClick={() => handleItemClick("/dashboard/reports/product-input-vat")} className={itemClassName}>
+            <Percent size={13} className="shrink-0" />
+            <span>Product Input VAT Report</span>
+          </div>
+        )}
+      </SidebarDropdown>
 
       {(hasPermission("Stock Report", "View") || hasPermission("Purchase Report", "View") || hasPermission("Inventory Report", "View")) && (
         <SidebarDropdown icon={<Boxes size={14} />} label="Inventory Report" nested={true}>
