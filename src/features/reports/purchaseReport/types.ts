@@ -11,6 +11,8 @@ export interface PurchaseReportParams {
 export interface PurchaseData {
   purchaseId: number;
   sNo: number;
+  purchaseDate?: string;
+  purchaseNo?: string;
   invoiceDate: string;
   invoiceNo: string;
   refNo?: string;

@@ -39,6 +39,20 @@ export const PURCHASE_COLUMNS: ReportColumn[] = [
   money("netAmount", "Amount"),
 ];
 
+/** Exactly what the purchase report API sends: it has the purchase's own date and number and no billsundry. */
+export const PURCHASE_REPORT_COLUMNS: ReportColumn[] = [
+  { key: "purchaseDate", label: "Purchase Date", kind: "datetime", align: "left" },
+  { key: "purchaseNo", label: "Purchase No", kind: "text", align: "center" },
+  ...PURCHASE_COLUMNS.filter((c) => c.key !== "billsundry"),
+];
+
+/** Exactly what the purchase return report API sends: BillDate is its return date, and it has a return number and no billsundry. */
+export const PURCHASE_RETURN_REPORT_COLUMNS: ReportColumn[] = [
+  PURCHASE_COLUMNS[0],
+  { key: "purchaseReturnNo", label: "Return No", kind: "text", align: "center" },
+  ...PURCHASE_COLUMNS.slice(1).filter((c) => c.key !== "billsundry"),
+];
+
 export type PurchaseGroupBy = "All" | "Supplier" | "Paymode" | "Series";
 
 export interface PurchaseMasters {
@@ -77,11 +91,14 @@ export const seriesKey = (invoiceNo: unknown): string => {
   return m ? m[1].trim() : "Main";
 };
 
-const blank = (): ReportRow => ({ invoiceDate: "", invoiceNo: "", refNo: "", supplierName: "", supplierCode: "", employee: "", paymode: "" });
+const blank = (): ReportRow => ({ purchaseDate: "", purchaseNo: "", purchaseReturnNo: "", invoiceDate: "", invoiceNo: "", refNo: "", supplierName: "", supplierCode: "", employee: "", paymode: "" });
 
 /** Rows as the old page showed them (supplier upper-case), optionally grouped with exact sums. */
 export const purchaseRows = (rows: AnyRow[], groupBy: PurchaseGroupBy): ReportRow[] => {
   const asRow = (r: AnyRow): ReportRow => ({
+    purchaseDate: str(r.purchaseDate),
+    purchaseNo: str(r.purchaseNo),
+    purchaseReturnNo: str(r.purchaseReturnNo),
     // The purchase return report sends its date as purchaseReturnDate.
     invoiceDate: r.invoiceDate || r.purchaseReturnDate || "",
     invoiceNo: str(r.invoiceNo),
@@ -118,11 +135,11 @@ export const cashCredit = (rows: AnyRow[]) => ({
   credit: toNum(sumDec(rows.filter((r) => r.paymode && !lower(r.paymode).includes("cash")).map((r) => cellNumber(r.netAmount)))),
 });
 
-export const purchaseTable = (rows: AnyRow[], f: FilterValues, m: PurchaseMasters): ReportTable => {
+export const purchaseTable = (rows: AnyRow[], f: FilterValues, m: PurchaseMasters, columns: ReportColumn[] = PURCHASE_COLUMNS): ReportTable => {
   const filtered = applyPurchaseFallbacks(rows, f, m);
   const { cash, credit } = cashCredit(filtered);
   return {
-    columns: PURCHASE_COLUMNS,
+    columns,
     rows: purchaseRows(filtered, (f.groupBy as PurchaseGroupBy) || "All"),
     summary: [{ label: "Cash", value: cash }, { label: "Credit", value: credit }],
   };
@@ -135,10 +152,24 @@ const supplierOptions = async (): Promise<Option[]> =>
 const paymodeOptions = async (): Promise<Option[]> =>
   asArray(await getPaymodeList()).map((p) => ({ value: String(p.paymodeId), label: str(p.paymodeName) }));
 
+/** Purchase and Purchase Return footer as the API sends it: one line per paymode, and its totals for the ungrouped list. */
+export const purchaseBackendFooter = (data: unknown, f: FilterValues): Pick<ReportTable, "summary" | "totalsOverride"> => {
+  const d = data as AnyRow | null;
+  const totals = asArray(d?.totalData)[0];
+  return {
+    summary: asArray(d?.paymodeData).map((p) => ({ label: str(p.paymodeName), value: Number(p.amount) })),
+    totalsOverride: totals && (f.groupBy || "All") === "All"
+      ? Object.fromEntries(["netValue", "vatAmount", "roundOff", "netAmount"].map((k) => [k, Number(totals[k])]))
+      : undefined,
+  };
+};
+
 interface PurchaseKind {
   id: string;
   title: string;
   rowsKey: "purchaseData" | "purchaseReturnData";
+  columns: ReportColumn[];
+  footer?: typeof purchaseBackendFooter;
   load: (p: { BranchId: number; SeriesId: number; FromDate: string; ToDate: string; SupplierId: number; PaymodeId: number; Decimals: number }) => Promise<unknown>;
   series: (branchId: number) => Promise<unknown>;
 }
@@ -149,7 +180,7 @@ const makePurchaseReport = (k: PurchaseKind): ReportDefinition => {
   return {
     id: k.id,
     title: k.title,
-    columns: PURCHASE_COLUMNS,
+    columns: k.columns,
     filters: [
       { kind: "select", key: "groupBy", label: "Group by", options: ["All", "Supplier", "Paymode", "Series"].map((v) => ({ label: v, value: v })), default: "All" },
       { kind: "branch", key: "branch" },
@@ -170,19 +201,20 @@ const makePurchaseReport = (k: PurchaseKind): ReportDefinition => {
         f.series !== "0" ? k.series(Number(f.branch)).catch(() => []) : [],
       ]);
       const rows = asArray((data as AnyRow | null)?.[k.rowsKey]);
-      return purchaseTable(rows, f, { suppliers: asArray(suppliers), paymodes: asArray(paymodes), series: asArray(series) });
+      const table = purchaseTable(rows, f, { suppliers: asArray(suppliers), paymodes: asArray(paymodes), series: asArray(series) }, k.columns);
+      return k.footer ? { ...table, ...k.footer(data, f) } : table;
     },
     subtitle: (f) => `${k.title} from ${f.from} To ${f.to}`,
   };
 };
 
 export const purchaseReport = makePurchaseReport({
-  id: "purchaseReport", title: "Purchase Report", rowsKey: "purchaseData",
+  id: "purchaseReport", title: "Purchase Report", rowsKey: "purchaseData", columns: PURCHASE_REPORT_COLUMNS, footer: purchaseBackendFooter,
   load: getPurchaseReport, series: getSeriesList,
 });
 
 export const purchaseReturnReport = makePurchaseReport({
-  id: "purchaseReturnReport", title: "Purchase Return Report", rowsKey: "purchaseReturnData",
+  id: "purchaseReturnReport", title: "Purchase Return Report", rowsKey: "purchaseReturnData", columns: PURCHASE_RETURN_REPORT_COLUMNS, footer: purchaseBackendFooter,
   load: getPurchaseReturnReport, series: getReturnSeriesList,
 });
 

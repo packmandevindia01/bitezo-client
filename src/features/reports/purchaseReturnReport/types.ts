@@ -11,7 +11,9 @@ export interface PurchaseReturnReportParams {
 export interface PurchaseReturnData {
   purchaseReturnId: number;
   sNo: number;
-  invoiceDate: string;
+  purchaseReturnDate?: string;
+  purchaseReturnNo?: string;
+  invoiceDate?: string;
   invoiceNo: string;
   refNo?: string;
   supplierCode: string;
