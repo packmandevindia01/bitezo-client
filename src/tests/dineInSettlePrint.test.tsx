@@ -19,12 +19,14 @@ let drawerOpens = 0;
 const toasts: string[] = [];
 
 vi.mock("react-router-dom", async (orig) => ({ ...(await orig<object>()), useNavigate: () => vi.fn() }));
+const printedTo: (string | undefined)[] = [];
+let serverPrinters: Record<string, string> = { billPrinter: "POS-80C" };
 vi.mock("../features/pos/services/qzService", () => ({
-  printHtmlReceipt: async (html: string) => { printed.push(html); },
+  printHtmlReceipt: async (html: string, printer?: string) => { printed.push(html); printedTo.push(printer); },
   openCashDrawer: async () => { drawerOpens++; },
 }));
 vi.mock("../features/pos/services/printerSettingsApi", () => ({
-  printerSettingsApi: { getGeneral: async () => ({ data: { billPrinter: "POS-80C" } }), getPrinterData: async () => ({ isSuccess: false }) },
+  printerSettingsApi: { getGeneral: async () => ({ data: serverPrinters }), getPrinterData: async () => ({ isSuccess: false }) },
 }));
 vi.mock("../features/pos/services/orderApi", () => ({ orderApi: { getOrderDetails: vi.fn() } }));
 vi.mock("../features/pos/services/dineInApi", () => ({ dineInApi: { getTableOrders: vi.fn() } }));
@@ -93,6 +95,8 @@ const finished = () => waitFor(() => expect(toasts.some((t) => /settled successf
 beforeEach(() => {
   localStorage.clear();
   printed.length = 0;
+  printedTo.length = 0;
+  serverPrinters = { billPrinter: "POS-80C" };
   toasts.length = 0;
   drawerOpens = 0;
   vi.clearAllMocks();
@@ -115,6 +119,44 @@ describe("dine-in settle", () => {
     expect(receipts().length).toBe(1);
     expect(receipts()[0]).toContain("105672");
     expect(drawerOpens).toBe(1);
+  });
+
+  it("no printer saved anywhere: still prints, the agent picks its default", async () => {
+    localStorage.removeItem("cachedBillPrinter");
+    serverPrinters = {};
+    await openAndPay("stub-pay-card");
+    await saved();
+    await finished();
+    expect(receipts()).toHaveLength(1);
+    expect(printedTo).toEqual([undefined]);
+    expect(toasts).toContain("Printing receipt...");
+  });
+
+  it("uses this device's bill printer before the server's Android printer, like the terminal's settle", async () => {
+    localStorage.setItem("cachedBillPrinter", "COUNTER-1");
+    serverPrinters = { androidBillPrinter: "192.168.1.50", billPrinter: "OTHER" };
+    await openAndPay("stub-pay-card");
+    await saved();
+    await finished();
+    expect(printedTo).toEqual(["COUNTER-1"]);
+  });
+
+  it("no printer on this device: falls back to the server's printer", async () => {
+    localStorage.removeItem("cachedBillPrinter");
+    serverPrinters = { billPrinter: "SERVER-POS" };
+    await openAndPay("stub-pay-card");
+    await saved();
+    await finished();
+    expect(printedTo).toEqual(["SERVER-POS"]);
+  });
+
+  it("the server's No Printer is ignored, the receipt still prints", async () => {
+    localStorage.removeItem("cachedBillPrinter");
+    serverPrinters = { billPrinter: "No Printer" };
+    await openAndPay("stub-pay-card");
+    await saved();
+    await finished();
+    expect(printedTo).toEqual([undefined]);
   });
 
   it("Bill Copies 3: three receipts from one settlement", async () => {

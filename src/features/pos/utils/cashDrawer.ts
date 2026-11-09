@@ -23,7 +23,7 @@ export const hasCashPayment = (
   });
 
 /** The printer the drawer is cabled to: the bill printer, in the same order the settle receipt uses. */
-const billPrinter = (): string | undefined => {
+export const billPrinter = (): string | undefined => {
   const named = localStorage.getItem("cachedBillPrinter");
   if (named && named !== "No Printer") return named;
   return (

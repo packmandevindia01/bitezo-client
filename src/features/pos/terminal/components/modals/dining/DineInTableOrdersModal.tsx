@@ -20,7 +20,7 @@ import { GuestCountModal } from "./GuestCountModal";
 import { generateGuestPrintHtml, isEnableVatGuestPrint } from '../../../../utils/guestPrintTemplate';
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from '../../../../utils/printHeadingUtils';
 import { printHtmlReceipt } from '../../../../services/qzService';
-import { openDrawerIfCash } from '../../../../utils/cashDrawer';
+import { billPrinter, openDrawerIfCash } from '../../../../utils/cashDrawer';
 import { useSettlePrintPrompt } from '../../../hooks/useSettlePrintPrompt';
 import { forEachBillCopy } from '../../../../utils/settlePrintConfig';
 import { SettlePrintPrompt } from '../payment/SettlePrintPrompt';
@@ -770,27 +770,20 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         };
 
         const htmlContent = await generateGuestPrintHtml(unified as any, printData);
-        let billPrinter: string | undefined;
-        try {
-          const settingsRes = await printerSettingsApi.getGeneral();
-          const gen = settingsRes?.data;
-          billPrinter = gen?.androidBillPrinter || gen?.billPrinter || gen?.androidKOTPrinter || gen?.kotPrinter;
-        } catch (err) {
-          console.warn("[DineInTableOrdersModal] Could not fetch general printer settings:", err);
-        }
-
-        if (!billPrinter || billPrinter === "No Printer") {
-          billPrinter =
-            localStorage.getItem('cachedBillPrinter') ||
-            localStorage.getItem('cachedBillPrinterIp') ||
-            localStorage.getItem('cachedKotPrinter') ||
-            localStorage.getItem('cachedKotPrinterIp') ||
-            localStorage.getItem('printerIpAddress') ||
-            undefined;
-        }
-
-        if (billPrinter && printReceipt) {
-          const printer = billPrinter;
+        if (printReceipt) {
+          showToast("Printing receipt...", "info");
+          // Same as the terminal's settle: this device's bill printer first, then the server's.
+          // With no name at all it still prints: the agent picks its default printer.
+          let printer = billPrinter();
+          if (!printer) {
+            try {
+              const gen = (await printerSettingsApi.getGeneral())?.data;
+              const saved = gen?.androidBillPrinter || gen?.billPrinter || gen?.androidKOTPrinter || gen?.kotPrinter;
+              if (saved && saved !== "No Printer") printer = saved;
+            } catch (err) {
+              console.warn("[DineInTableOrdersModal] Could not fetch general printer settings:", err);
+            }
+          }
           await forEachBillCopy(() => printHtmlReceipt(htmlContent, printer));
         }
       } catch (printErr: any) {
