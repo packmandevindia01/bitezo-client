@@ -467,8 +467,10 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       const exclHtml = await generateGuestPrintHtml(cartDetails, dineInData);
       expect(exclHtml).toContain('Sub Total');
       expect(exclHtml).toContain('20.000');
-      expect(exclHtml).toContain('Charges');
-      expect(exclHtml).toContain('3.100');
+      expect(exclHtml).toContain('Levy (5%)');
+      expect(exclHtml).toContain('1.100');
+      expect(exclHtml).toContain('Service Charge (10%)');
+      expect(exclHtml).toContain('2.000');
       expect(exclHtml).toContain('Net Value');
       expect(exclHtml).toContain('23.100');
       expect(exclHtml).toContain('VAT Amount');
@@ -581,8 +583,10 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       // 1. Test HTML Guest Print
       const html = await generateGuestPrintHtml(cartDetails, dineInData);
       expect(html).toContain('55.000'); // Sub Total
-      expect(html).toContain('Charges');
-      expect(html).toContain('8.525');  // Charges (5.500 + 3.025)
+      expect(html).toContain('Levy (5%)');
+      expect(html).toContain('3.025');
+      expect(html).toContain('Service Charge (10%)');
+      expect(html).toContain('5.500');
       expect(html).toContain('Net Value');
       expect(html).toContain('63.525'); // Net Value
       expect(html).toContain('6.353');  // VAT Amount
@@ -594,8 +598,10 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       // 2. Test ESC/POS Thermal Markup
       const markup = generateBillMarkup({ data: dineInData, cartDetails });
       expect(markup).toContain('55.000');
-      expect(markup).toContain('Charges');
-      expect(markup).toContain('8.525');
+      expect(markup).toContain('Levy (5%)');
+      expect(markup).toContain('3.025');
+      expect(markup).toContain('Service Charge (10%)');
+      expect(markup).toContain('5.500');
       expect(markup).toContain('Net Value');
       expect(markup).toContain('63.525');
       expect(markup).toContain('6.353');

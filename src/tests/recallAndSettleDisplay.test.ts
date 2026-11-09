@@ -358,7 +358,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
       ]
     };
 
-    it('Order #97 inside recall Guest Print HTML: displays Charges (0.500) and Net Value (10.500), NOT Levy(5%)', async () => {
+    it('Order #97 inside recall Guest Print HTML: displays Levy (5%) 0.500 and Net Value (10.500)', async () => {
       const { generateGuestPrintHtml } = await import('../features/pos/utils/guestPrintTemplate');
       localStorage.setItem('printPrice', 'Exclusive');
       localStorage.setItem('priceView', 'Exclusive');
@@ -397,7 +397,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
       expect(html).toContain('20.000');
       expect(html).toContain('Discount');
       expect(html).toContain('-10.000');
-      expect(html).toContain('Charges');
+      expect(html).toContain('Levy (5%)');
       expect(html).toContain('0.500');
       expect(html).toContain('Net Value');
       expect(html).toContain('10.500');
@@ -405,13 +405,10 @@ describe('Recall & Settle Display Matching Backend Data', () => {
       expect(html).toContain('1.050');
       expect(html).toContain('Grand Total');
       expect(html).toContain('11.550');
-
-      // Crucial: Must NEVER contain obsolete separate 'Levy(5%)'
-      expect(html).not.toContain('Levy(5%)');
-      expect(html).not.toContain('Levy (5%)');
+      expect(html).not.toContain('Service Charge');
     });
 
-    it('Order #97 inside recall ESC/POS Thermal Print: displays Charges and Net Value, NOT Levy (5%)', async () => {
+    it('Order #97 inside recall ESC/POS Thermal Print: displays Levy (5%) and Net Value', async () => {
       const { generateBillMarkup } = await import('../features/pos/utils/escPosGenerator');
       localStorage.setItem('printPrice', 'Exclusive');
       localStorage.setItem('priceView', 'Exclusive');
@@ -452,7 +449,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
       expect(markup).toContain('20.000');
       expect(markup).toContain('Discount');
       expect(markup).toContain('-10.000');
-      expect(markup).toContain('Charges');
+      expect(markup).toContain('Levy (5%)');
       expect(markup).toContain('0.500');
       expect(markup).toContain('Net Value');
       expect(markup).toContain('10.500');
@@ -460,13 +457,10 @@ describe('Recall & Settle Display Matching Backend Data', () => {
       expect(markup).toContain('1.050');
       expect(markup).toContain('GRAND TOTAL');
       expect(markup).toContain('11.550');
-
-      // Crucial: Must NEVER contain obsolete separate 'Levy(5%)' or 'Levy (5%)'
-      expect(markup).not.toContain('Levy(5%)');
-      expect(markup).not.toContain('Levy (5%)');
+      expect(markup).not.toContain('Service Charge');
     });
 
-    it('Inside recall print when master has missing levy/charges: falls back gracefully to unified summary and prints Charges', async () => {
+    it('Inside recall print when master has missing levy/charges: falls back gracefully to unified summary and prints the Levy', async () => {
       const { generateGuestPrintHtml } = await import('../features/pos/utils/guestPrintTemplate');
       localStorage.setItem('printPrice', 'Exclusive');
       localStorage.setItem('priceView', 'Exclusive');
@@ -533,13 +527,13 @@ describe('Recall & Settle Display Matching Backend Data', () => {
       };
 
       const html = await generateGuestPrintHtml(unified as any, printData);
-      expect(html).toContain('Charges');
+      expect(html).toContain('Levy (5%)');
       expect(html).toContain('0.500');
       expect(html).toContain('Net Value');
       expect(html).toContain('10.500');
     });
 
-    it('Bilingual Arabic Guest Print: prints Charges (الرسوم) and Net Value (القيمة الصافية)', async () => {
+    it('Bilingual Arabic Guest Print: prints Levy (5%) (الضريبة الإضافية) and Net Value (القيمة الصافية)', async () => {
       const { generateGuestPrintHtml } = await import('../features/pos/utils/guestPrintTemplate');
       localStorage.setItem('printPrice', 'Exclusive');
       localStorage.setItem('priceView', 'Exclusive');
@@ -574,8 +568,8 @@ describe('Recall & Settle Display Matching Backend Data', () => {
       };
 
       const html = await generateGuestPrintHtml(unified as any, printData);
-      expect(html).toContain('Charges');
-      expect(html).toContain('الرسوم');
+      expect(html).toContain('Levy (5%)');
+      expect(html).toContain('الضريبة الإضافية');
       expect(html).toContain('Net Value');
       expect(html).toContain('القيمة الصافية');
     });

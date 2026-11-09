@@ -99,7 +99,8 @@ describe("rendered guest bill shows the right numbers", () => {
     it(`#283 Exclusive bill (data ${dataView}) prints 82.645 row, charges 12.810, net value 95.455, total 105.000`, async () => {
       const html = await render(order283, dataView, "Exclusive");
       expect(has(html, "82.645")).toBe(true);
-      expect(has(html, "12.810")).toBe(true);
+      expect(has(html, "4.545")).toBe(true); // Levy
+      expect(has(html, "8.265")).toBe(true); // Service Charge
       expect(has(html, "95.455")).toBe(true);
       expect(has(html, "105.000")).toBe(true);
     });

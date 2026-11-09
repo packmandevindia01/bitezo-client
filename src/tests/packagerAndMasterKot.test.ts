@@ -46,11 +46,11 @@ describe("package (packager) print", () => {
     const t = text(await generateGuestPrintHtml(cart() as unknown as GuestArgs[0],
       { ...common, isPackager: true, printPrice: "Inclusive", deliveryCharge: 1.5, showCompanyHeader: true } as unknown as GuestArgs[1]));
     expect(t).toMatch(/PACKAGER/);
-    expect(t).toMatch(/Ticket No #57/);
+    expect(t).toMatch(/Ticket No : #57/);
     expect(t).toContain("* TEST TEST1");
     expect(t).toMatch(/Missed Call : YES/);
     const num = (label: string) => Number(new RegExp(`${label}\\s+-?([0-9.]+)`).exec(t)?.[1]);
-    const sub = num("Sub Total"), charges = num("Charges"), net = num("Net Value"), vat = num("VAT Amount");
+    const sub = num("Sub Total"), charges = num("Levy \\(5%\\)"), net = num("Net Value"), vat = num("VAT Amount");
     const del = num("Delivery Charge"), grand = num("Grand Total");
     expect(fils(sub) + fils(charges)).toBe(fils(net));
     expect(fils(net) + fils(del) + fils(vat)).toBe(fils(grand));
@@ -66,6 +66,34 @@ describe("package (packager) print", () => {
 
     await executePackagerPrint(cart() as never, { ...common }, printer, print, generate);
     expect(generate.mock.calls[1][1].showCompanyHeader).toBe(true); // default: show
+  });
+
+  describe("company header and footer from the branch print design", () => {
+    const render = (over: Record<string, unknown>) => {
+      localStorage.setItem("branchPrintData", JSON.stringify([
+        { section: "header", code: "H1", value: "BITEZO RESTAURANT" },
+        { section: "footer", code: "F1", value: "THANK YOU VISIT AGAIN" },
+      ]));
+      return generateGuestPrintHtml(cart() as unknown as GuestArgs[0], { ...common, printPrice: "Inclusive", ...over } as unknown as GuestArgs[1]).then(text);
+    };
+
+    it("Packager Header on: header and footer", async () => {
+      const t = await render({ isPackager: true, showCompanyHeader: true });
+      expect(t).toContain("BITEZO RESTAURANT");
+      expect(t).toContain("THANK YOU VISIT AGAIN");
+    });
+
+    it("Packager Header off: no header, the footer still prints", async () => {
+      const t = await render({ isPackager: true, showCompanyHeader: false });
+      expect(t).not.toContain("BITEZO RESTAURANT");
+      expect(t).toContain("THANK YOU VISIT AGAIN");
+    });
+
+    it("other prints with the header switched off stay without both", async () => {
+      const t = await render({ showCompanyHeader: false });
+      expect(t).not.toContain("BITEZO RESTAURANT");
+      expect(t).not.toContain("THANK YOU VISIT AGAIN");
+    });
   });
 });
 

@@ -97,8 +97,8 @@ describe("guest bill (Exclusive print): rows add up to Sub Total, footer adds up
     const rows = [...text.matchAll(/P[123]\s+[0-9.]+\s+([0-9.]+)/g)].map((m) => Number(m[1]));
     expect(rows).toHaveLength(3);
     expect(rows.reduce((s, r) => s + fils(r), 0)).toBe(fils(num("Sub Total")));
-    const sub = num("Sub Total"), charges = num("Charges"), net = num("Net Value"), vat = num("VAT Amount"), grand = num("Grand Total");
-    expect(fils(sub) + fils(charges)).toBe(fils(net));
+    const sub = num("Sub Total"), levy = num("Levy \\(5%\\)"), sc = num("Service Charge \\(10%\\)"), net = num("Net Value"), vat = num("VAT Amount"), grand = num("Grand Total");
+    expect(fils(sub) + fils(levy) + fils(sc)).toBe(fils(net));
     expect(fils(net) + fils(vat)).toBe(fils(grand));
   });
 });

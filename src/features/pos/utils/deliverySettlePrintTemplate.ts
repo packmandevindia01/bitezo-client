@@ -177,7 +177,7 @@ export const generateDeliverySettlePrintHtml = async (
             </tr>
           </thead>
           <tbody>
-            <tr><td colspan="4"><div class="dashed-hr" style="margin: 2px 0 4px 0;"></div></td></tr>
+            <tr><td colspan="4"><div class="dashed-hr" style="margin: 6px 0 0 0;"></div></td></tr>
             ${rowsHtml}
           </tbody>
         </table>
@@ -221,7 +221,8 @@ export const generateDeliverySettlePrintHtml = async (
           
           table { width: 100%; border-collapse: collapse; font-size: 12px; }
           
-          .dashed-hr { border: none; border-top: 1px dashed #000; margin: 5px 0; }
+          /* Printed text lands low (see orderTicketHtml in kotTemplate), so a line needs more room above it than below */
+          .dashed-hr { border: none; border-top: 1px dashed #000; margin: 10px 0 0 0; }
           .solid-hr { border: none; border-top: 1px solid #000; margin: 4px 0; }
           
           .meta-table td { padding: 1.5px 0; font-size: 12px; }
@@ -240,7 +241,7 @@ export const generateDeliverySettlePrintHtml = async (
             line-height: 1.15;
           }
           
-          .totals-table { width: 100%; font-size: 13px; margin-top: 3px; }
+          .totals-table { width: 100%; font-size: 13px; margin-top: 0; }
           .totals-label { width: 72%; text-align: right; padding-right: 12px; font-weight: bold; }
           .totals-value { width: 28%; text-align: right; font-weight: bold; }
           

@@ -11,6 +11,7 @@ import { getDecimalPart } from "../../../utils/currency";
 import { getBillingConfig, getPriceView, getVatStatus, roundCalc } from "../terminal/utils/billing";
 import { applyCartPricingToUnified } from "./printPricing";
 import { balanceBillFooter, balanceToTotal } from "../../../utils/money";
+import { printChargeLines } from "./printCharges";
 import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
 
 export interface GuestPrintData {
@@ -200,7 +201,8 @@ export const generateGuestPrintHtml = async (
   let customHeadersHtml = "";
   let customFootersHtml = "";
   const allowCompanyHeader = data.showCompanyHeader !== false;
-  if (allowCompanyHeader) {
+  // POS config "Packager Header" only controls the header: a packager print always keeps its footer.
+  if (allowCompanyHeader || data.isPackager) {
     try {
       let branchLines: any[] = [];
       const cached = localStorage.getItem("branchPrintData");
@@ -250,7 +252,7 @@ export const generateGuestPrintHtml = async (
         };
 
         const headers = branchLines.filter(l => isHeader(l) && (l.value ?? l.lineValue) && String(l.value ?? l.lineValue).trim() !== "");
-        if (headers.length > 0) {
+        if (allowCompanyHeader && headers.length > 0) {
           customHeadersHtml = headers.map(l => printLineHtml({ ...l, value: l.value ?? l.lineValue ?? "" })).join("");
         }
 
@@ -464,6 +466,7 @@ export const generateGuestPrintHtml = async (
   data.vatAmount = isVatActive ? shownFooter.vat : 0;
   data.netAmount = shownFooter.grandTotal;
   if (totalPrintDiscount > 0) data.discount = shownFooter.discount;
+  const chargeLines = printChargeLines({ total: shownFooter.charges, serviceCharge: effectiveSc, levy: effectiveLevy, netBase, orderType: data.orderType, decimals: decimalPart });
 
   // Exclusive print rows add up to the footer (Inclusive rows carry VAT, the footer Sub Total never does).
   const rowsBalanceable = !isTaxInclusive && unified.lines.length > 0;
@@ -616,7 +619,8 @@ export const generateGuestPrintHtml = async (
           
           table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
           
-          .dashed-hr { border: none; border-top: 1px dashed #000000; margin: 6px 0; clear: both; width: 100%; display: block; }
+          /* Printed text lands low (see orderTicketHtml in kotTemplate), so a line needs more room above it than below */
+          .dashed-hr { border: none; border-top: 1px dashed #000000; margin: 11px 0 1px 0; clear: both; width: 100%; display: block; }
           .solid-hr { border: none; border-top: 1px solid #000000; margin: 4px 0; clear: both; width: 100%; display: block; }
           
           table.meta-table {
@@ -686,12 +690,17 @@ export const generateGuestPrintHtml = async (
             overflow-wrap: break-word;
           }
 
+          ${isGuestPrint ? `
+          table.items-table th { padding-bottom: 9px; border-bottom: 1px dashed #000000; }
+          table.items-table tbody tr:first-child td { padding-top: 4px; }
+          ` : ''}
+
           .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: 600; color: #000000; }
           
           .totals-table {
             width: 100%;
             table-layout: fixed;
-            margin-top: 4px;
+            margin-top: 0;
             font-size: 13px;
             font-weight: 600;
             color: #000000;
@@ -726,8 +735,8 @@ export const generateGuestPrintHtml = async (
           }
 
           .vat-table { margin-top: 6px; font-weight: 600; font-size: 12px; color: #000000; table-layout: fixed; }
-          .vat-table th { text-align: left; padding-bottom: 5px; font-weight: 700; color: #000000; border-bottom: 1px dashed #000000; }
-          .vat-table td { padding: 4px 0 2px 0; font-weight: 600; color: #000000; }
+          .vat-table th { text-align: left; padding-bottom: 9px; font-weight: 700; color: #000000; border-bottom: 1px dashed #000000; }
+          .vat-table td { padding: 0 0 2px 0; font-weight: 600; color: #000000; }
           
           .barcode-container { margin-top: 15px; margin-bottom: 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000000; }
         </style>
@@ -746,24 +755,24 @@ export const generateGuestPrintHtml = async (
         ${data.invoiceNo ? `
         <table class="meta-table">
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Invoice No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم الفاتورة)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${data.invoiceNo.startsWith('#') ? data.invoiceNo : (isNaN(Number(data.invoiceNo)) ? data.invoiceNo : '#' + data.invoiceNo)}</span></td>
-            <td style="width: 50%; white-space: nowrap;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${formatOrderNo(data.orderNo)}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Invoice No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم الفاتورة)</bdi>' : ''} :&nbsp;<span style="font-size: 13px; font-weight: bold;">${data.invoiceNo.startsWith('#') ? data.invoiceNo : (isNaN(Number(data.invoiceNo)) ? data.invoiceNo : '#' + data.invoiceNo)}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} :&nbsp;<span style="font-size: 13px; font-weight: bold;">${formatOrderNo(data.orderNo)}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${toDisplayNo(data.ticketNo) ? "#" + toDisplayNo(data.ticketNo) : ""}</span></td>
-            <td style="width: 50%; white-space: nowrap;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(التاريخ)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${dateStr}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} :&nbsp;<span style="font-size: 13px; font-weight: bold;">${toDisplayNo(data.ticketNo) ? "#" + toDisplayNo(data.ticketNo) : ""}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(التاريخ)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${dateStr}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الوقت)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${formattedTimeStr}</span></td>
-            <td style="width: 50%; white-space: nowrap;">Employee${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الموظف)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.waiter}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الوقت)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${formattedTimeStr}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Waiter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(النادل)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.waiter}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الكاونتر)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.counter}</span></td>
-            ${isDineIn ? `<td style="width: 50%; white-space: nowrap;">Section${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(القسم)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.section}</span></td>` : (driverVal ? `<td style="width: 50%; white-space: nowrap;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(السائق)</bdi>' : ''} &nbsp;<span style="font-weight: bold; white-space: nowrap;">${driverVal}</span></td>` : '<td style="width: 50%;"></td>')}
+            <td style="width: 50%; white-space: nowrap;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الكاونتر)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.counter}</span></td>
+            ${isDineIn ? `<td style="width: 50%; white-space: nowrap;">Section${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(القسم)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.section}</span></td>` : (driverVal ? `<td style="width: 50%; white-space: nowrap;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(السائق)</bdi>' : ''} :&nbsp;<span style="font-weight: bold; white-space: nowrap;">${driverVal}</span></td>` : '<td style="width: 50%;"></td>')}
           </tr>
           ${isDineIn ? `
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Table${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الطاولة)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.table}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Table${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الطاولة)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.table}</span></td>
             <td style="width: 50%;"></td>
           </tr>
           ` : ''}
@@ -771,28 +780,33 @@ export const generateGuestPrintHtml = async (
         ` : `
         <table class="meta-table">
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${formatOrderNo(data.orderNo)}</span></td>
-            <td style="width: 50%; white-space: nowrap;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} &nbsp;<span style="font-size: 13px; font-weight: bold; vertical-align: middle;">${toDisplayNo(data.ticketNo) ? "#" + toDisplayNo(data.ticketNo) : ""}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Order No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم الطلب)</bdi>' : ''} :&nbsp;<span style="font-size: 13px; font-weight: bold;">${formatOrderNo(data.orderNo)}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Ticket No${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(رقم التذكرة)</bdi>' : ''} :&nbsp;<span style="font-size: 13px; font-weight: bold;">${toDisplayNo(data.ticketNo) ? "#" + toDisplayNo(data.ticketNo) : ""}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(التاريخ)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${dateStr}</span></td>
-            <td style="width: 50%; white-space: nowrap;">Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الوقت)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${formattedTimeStr}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Date${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(التاريخ)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${dateStr}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Time${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الوقت)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${formattedTimeStr}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Employee${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الموظف)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.waiter}</span></td>
-            <td style="width: 50%; white-space: nowrap;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الكاونتر)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.counter}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Waiter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(النادل)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.waiter}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الكاونتر)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.counter}</span></td>
           </tr>
           ${isDineIn ? `
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Section${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(القسم)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.section}</span></td>
-            <td style="width: 50%; white-space: nowrap;">Table${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الطاولة)</bdi>' : ''} &nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.table}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Section${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(القسم)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.section}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Table${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الطاولة)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.table}</span></td>
           </tr>
           ` : (driverVal ? `
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(السائق)</bdi>' : ''} &nbsp;<span style="font-weight: bold; white-space: nowrap;">${driverVal}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(السائق)</bdi>' : ''} :&nbsp;<span style="font-weight: bold; white-space: nowrap;">${driverVal}</span></td>
             <td style="width: 50%;"></td>
           </tr>
           ` : '')}
+          ${isGuestPrint && !isDelivery && data.customerName ? `
+          <tr>
+            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(العميل)</bdi>' : ''} :&nbsp;<span style="font-weight: normal;" dir="auto">${escapeHtml(data.customerName)}</span></td>
+          </tr>
+          ` : ''}
         </table>
         `}
         
@@ -825,12 +839,12 @@ export const generateGuestPrintHtml = async (
             <td class="totals-value">-${fmt(shownFooter.discount)}</td>
           </tr>
           ` : ''}
-          ${effectiveCharges > 0 ? `
+          ${chargeLines.map((c) => `
           <tr>
-            <td class="totals-label">Charges${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(الرسوم)</bdi>' : ''}</td>
-            <td class="totals-value">${fmt(shownFooter.charges)}</td>
+            <td class="totals-label">${c.label}${isBillArabic ? ` <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(${c.arabic})</bdi>` : ''}</td>
+            <td class="totals-value">${fmt(c.amount)}</td>
           </tr>
-          ` : ''}
+          `).join('')}
           ${(displayNetValue > 0) ? `
           <tr>
             <td class="totals-label">Net Value${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(القيمة الصافية)</bdi>' : ''}</td>
@@ -854,7 +868,7 @@ export const generateGuestPrintHtml = async (
             <td class="totals-value grand-total" style="white-space: nowrap; text-align: right;">${fmt(data.netAmount)}</td>
           </tr>
           ${data.payments && data.payments.length > 0 ? `
-          <tr><td colspan="2"><div class="dashed-hr" style="margin: 5px 0;"></div></td></tr>
+          <tr><td colspan="2"><div class="dashed-hr" style="margin: 9px 0 1px 0;"></div></td></tr>
           ${data.payments.map(p => {
             const arPay = isBillArabic && getPaymodeArabic(p.name) ? ` <bdi class="arabic-text" style="font-size:10.5px; font-weight:normal; white-space:nowrap;">(${getPaymodeArabic(p.name)})</bdi>` : '';
             return `
@@ -888,36 +902,36 @@ export const generateGuestPrintHtml = async (
 
           return `
         <div class="dashed-hr"></div>
-        <table class="vat-table" style="margin-top: 4px; width: 100%;">
+        <table class="vat-table" style="margin-top: 0; width: 100%;">
           <thead>
             <tr>
               ${hasDeliveryCharge ? `
-              <th style="text-align: left; width: 18%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">VAT Code${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">رمز الضريبة</span>' : ''}</th>
-              <th style="text-align: right; width: 22%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Excl Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ غير شامل</span>' : ''}</th>
-              <th style="text-align: right; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">VAT Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">مبلغ الضريبة</span>' : ''}</th>
-              <th style="text-align: right; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Delivery${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">رسوم التوصيل</span>' : ''}</th>
-              <th style="text-align: right; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Net Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ الصافي</span>' : ''}</th>
+              <th style="text-align: left; width: 18%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Code${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">رمز الضريبة</span>' : ''}</th>
+              <th style="text-align: right; width: 22%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Excl Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ غير شامل</span>' : ''}</th>
+              <th style="text-align: right; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">مبلغ الضريبة</span>' : ''}</th>
+              <th style="text-align: right; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Delivery${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">رسوم التوصيل</span>' : ''}</th>
+              <th style="text-align: right; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Net Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:8.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ الصافي</span>' : ''}</th>
               ` : `
-              <th style="text-align: left; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">VAT Code${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">رمز الضريبة</span>' : ''}</th>
-              <th style="text-align: right; width: 30%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Excl Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ غير شامل</span>' : ''}</th>
-              <th style="text-align: right; width: 24%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">VAT Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">مبلغ الضريبة</span>' : ''}</th>
-              <th style="text-align: right; width: 26%; border-bottom: 1px dashed #000000; padding-bottom: 5px;">Net Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ الصافي</span>' : ''}</th>
+              <th style="text-align: left; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Code${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:left; white-space:nowrap;">رمز الضريبة</span>' : ''}</th>
+              <th style="text-align: right; width: 30%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Excl Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ غير شامل</span>' : ''}</th>
+              <th style="text-align: right; width: 24%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">مبلغ الضريبة</span>' : ''}</th>
+              <th style="text-align: right; width: 26%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Net Amt${isBillArabic ? '<br/><span class="arabic-text" style="font-size:9.5px; font-weight:normal; display:block; text-align:right; white-space:nowrap;">المبلغ الصافي</span>' : ''}</th>
               `}
             </tr>
           </thead>
           <tbody>
             <tr>
               ${hasDeliveryCharge ? `
-              <td style="text-align: left; font-weight: normal; width: 18%; padding-top: 4px;">${vatPercent}%</td>
-              <td style="text-align: right; font-weight: normal; width: 22%; padding-top: 4px;">${fmt(exclAmount)}</td>
-              <td style="text-align: right; font-weight: normal; width: 20%; padding-top: 4px;">${fmt(data.vatAmount)}</td>
-              <td style="text-align: right; font-weight: normal; width: 20%; padding-top: 4px;">${fmt(effectiveDeliveryCharge)}</td>
-              <td style="text-align: right; font-weight: normal; width: 20%; padding-top: 4px;">${fmt(data.netAmount)}</td>
+              <td style="text-align: left; font-weight: normal; width: 18%; padding-top: 0;">${vatPercent}%</td>
+              <td style="text-align: right; font-weight: normal; width: 22%; padding-top: 0;">${fmt(exclAmount)}</td>
+              <td style="text-align: right; font-weight: normal; width: 20%; padding-top: 0;">${fmt(data.vatAmount)}</td>
+              <td style="text-align: right; font-weight: normal; width: 20%; padding-top: 0;">${fmt(effectiveDeliveryCharge)}</td>
+              <td style="text-align: right; font-weight: normal; width: 20%; padding-top: 0;">${fmt(data.netAmount)}</td>
               ` : `
-              <td style="text-align: left; font-weight: normal; width: 20%; padding-top: 4px;">${vatPercent}%</td>
-              <td style="text-align: right; font-weight: normal; width: 30%; padding-top: 4px;">${fmt(exclAmount)}</td>
-              <td style="text-align: right; font-weight: normal; width: 24%; padding-top: 4px;">${fmt(data.vatAmount)}</td>
-              <td style="text-align: right; font-weight: normal; width: 26%; padding-top: 4px;">${fmt(data.netAmount)}</td>
+              <td style="text-align: left; font-weight: normal; width: 20%; padding-top: 0;">${vatPercent}%</td>
+              <td style="text-align: right; font-weight: normal; width: 30%; padding-top: 0;">${fmt(exclAmount)}</td>
+              <td style="text-align: right; font-weight: normal; width: 24%; padding-top: 0;">${fmt(data.vatAmount)}</td>
+              <td style="text-align: right; font-weight: normal; width: 26%; padding-top: 0;">${fmt(data.netAmount)}</td>
               `}
             </tr>
           </tbody>
@@ -935,12 +949,12 @@ export const generateGuestPrintHtml = async (
           if (!(isMissedCall || data.contactNo || effectiveCallBack || hasValidKeepChange || data.customerName || driverVal || data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address || data.providerNo)) return '';
 
           return `
-        <div style="margin-top: 10px; font-size: 12px; width: 100%;">
+        <div style="margin-top: 0; font-size: 12px; width: 100%;">
           <div style="font-weight: bold; text-transform: uppercase; margin-bottom: 3px;">
             DELIVERY DETAILS
             ${isBillArabic ? '<bdi class="arabic-text" style="font-size: 11px; margin-left: 6px; white-space:nowrap;">(بيانات التوصيل)</bdi>' : ''}
           </div>
-          <div class="solid-hr" style="border-top: 1px solid #000; margin-bottom: 6px;"></div>
+          <div class="solid-hr" style="border-top: 1px solid #000; margin: 9px 0 1px 0;"></div>
           <div style="width: 100%; font-size: 12px;">
             ${isMissedCall ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Missed Call${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(مكالمة فائتة)</bdi>' : ''} : </span><span style="font-weight: bold;">YES</span></div>` : ''}
             ${data.contactNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Mob No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم الجوال)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.contactNo)}</span></div>` : ''}
@@ -957,6 +971,7 @@ export const generateGuestPrintHtml = async (
             ${data.providerNo ? `<div style="padding: 2px 0; line-height: 1.4; width: 100%; word-break: break-word;"><span style="font-weight: bold; white-space: nowrap;">Provider No${isBillArabic ? ' <bdi class="arabic-text" style="font-size:10px; font-weight:bold;">(رقم المزود)</bdi>' : ''} : </span><span style="font-weight: normal;">${escapeHtml(data.providerNo)}</span></div>` : ''}
           </div>
         </div>
+        <div class="dashed-hr"></div>
         `;
         })()}
 

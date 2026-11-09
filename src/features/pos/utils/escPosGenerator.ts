@@ -24,6 +24,8 @@ import { getDayEndReportConfig } from "../services/posConfigApi";
 import { isKotArabicEnabled, isBillArabicEnabled, isCompanyNameKotEnabled, getAlternativeArabicName } from "./alternativeHelpers";
 import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
 import { roundCalc } from "../terminal/utils/billing";
+import { printChargeLines } from "./printCharges";
+import { getDecimalPart } from "../../../utils/currency";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LINE_WIDTH = 48; // standard 48 chars per line on 80mm thermal paper
@@ -346,7 +348,7 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
   const tktLbl = isBillArabic ? "Ticket No (رقم التذكرة)" : "Ticket No";
   const dateLbl = isBillArabic ? "Date (التاريخ)" : "Date";
   const timeLbl = isBillArabic ? "Time (الوقت)" : "Time";
-  const empLbl = isBillArabic ? "Employee (الموظف)" : "Employee";
+  const empLbl = isBillArabic ? "Waiter (النادل)" : "Waiter";
   const cntLbl = isBillArabic ? "Counter (الكاونتر)" : "Counter";
   const secLbl = isBillArabic ? "Section (القسم)" : "Section";
   const drvLbl = isBillArabic ? "Driver (السائق)" : "Driver";
@@ -531,9 +533,9 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
     }
   }
 
-  if (effectiveCharges > 0) {
-    markup += totalsLine(isBillArabic ? "Charges (الرسوم)" : "Charges", fmt(effectiveCharges)) + "\n";
-  }
+  printChargeLines({ total: effectiveCharges, serviceCharge: effectiveSc, levy: effectiveLevy, netBase, orderType: data.orderType, decimals: getDecimalPart() }).forEach((c) => {
+    markup += totalsLine(isBillArabic ? `${c.label} (${c.arabic})` : c.label, fmt(c.amount)) + "\n";
+  });
   const recalculatedNetValue = roundCalc(netBase + effectiveCharges);
   const effectiveNetValue = (data.netValue !== undefined && data.netValue !== null && Number(data.netValue) > 0 && Math.abs(Number(data.netValue) - recalculatedNetValue) <= 0.005)
     ? Number(data.netValue)
@@ -724,7 +726,7 @@ export const generateKotMarkup = (input: KotMarkupInput): string => {
   const kotTktLbl = isKotArabic ? "Ticket (رقم التذكرة)" : "Ticket";
   const kotDateLbl = isKotArabic ? "Date (التاريخ)" : "Date";
   const kotTimeLbl = isKotArabic ? "Time (الوقت)" : "Time";
-  const kotWaitLbl = isKotArabic ? (isDineIn ? "Waiter (النادل)" : "Employee (الموظف)") : (isDineIn ? "Waiter" : "Employee");
+  const kotWaitLbl = isKotArabic ? "Waiter (النادل)" : "Waiter";
   const kotCntLbl = isKotArabic ? "Counter (الكاونتر)" : "Counter";
   const kotSecLbl = isKotArabic ? "Section (القسم)" : "Section";
   const kotTblLbl = isKotArabic ? "Table (الطاولة)" : "Table";

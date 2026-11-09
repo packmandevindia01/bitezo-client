@@ -117,6 +117,12 @@ export const resolveKotHeaderStyle = (dataHeader?: string): string => {
   return "QTY,DESCRIPTION,AMT";
 };
 
+/** The number exactly as the order has it, "#21": never padded with zeros. */
+export const kotNumber = (value: unknown): string => {
+  const shown = toDisplayNo(value);
+  return shown ? `#${shown}` : "";
+};
+
 export const generateKotHtml = async (
   cartDetails: PosCartItem[], 
   data: KotPrintData
@@ -418,7 +424,7 @@ export const generateKotHtml = async (
             width: 100%;
             border-collapse: collapse;
             table-layout: fixed;
-            margin-top: 1px;
+            margin-top: 0;
           }
           table.items-table th {
             font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
@@ -426,8 +432,9 @@ export const generateKotHtml = async (
             font-size: 12px !important;
             color: #000000;
             border-bottom: 1px dashed #000000;
-            padding-top: 2px;
-            padding-bottom: 7px !important; /* Clearance above dashed underline for Arabic descenders */
+            line-height: 1;
+            padding-top: 0 !important;
+            padding-bottom: 12px !important; /* Printed text lands about a quarter of its size low (see orderTicketHtml) */
             vertical-align: bottom;
           }
           table.items-table td {
@@ -440,7 +447,7 @@ export const generateKotHtml = async (
             overflow-wrap: break-word;
           }
           table.items-table tbody tr:first-child td {
-            padding-top: 3px !important;
+            padding-top: 0 !important;
           }
           .arabic-text {
             direction: rtl;
@@ -467,23 +474,24 @@ export const generateKotHtml = async (
     const arMap: Record<string, string> = {
       Date: "التاريخ",
       Time: "الوقت",
-      Employee: "الموظف",
       Waiter: "النادل",
       Counter: "الكاونتر",
       Section: "القسم",
       Table: "الطاولة",
       Vehicle: "المركبة",
-      Customer: "العميل",
       Driver: "السائق",
     };
     const ar = arMap[lbl];
     return ar ? `${lbl} (${ar})` : lbl;
   };
+  // The Table row is the other way round from the rest: normal label, larger bold value.
   const metaCell = (label: string, val: string) => {
     if (!label && !val) return '<td style="width: 50%;"></td>';
+    const isTable = label === "Table";
+    const colon = label === "Date" || label === "Time" ? "" : " :";
     return `
-      <td style="width: 50%; padding: 1px 0; font-size: 11px; line-height: 1.25;">
-        ${label ? `<span style="font-weight: bold;">${metaLabel(label)} :</span>` : ""} <span style="font-weight: normal;">${val}</span>
+      <td style="width: 50%; padding: 1.5px 0; font-size: 11px; line-height: 1.25;">
+        ${label ? `<span style="display: inline-block; min-width: 54px; font-weight: ${isTable ? "normal" : "bold"};">${metaLabel(label)}${colon}</span>` : ""} <span style="${isTable ? "font-weight: bold; font-size: 14px; line-height: 1; position: relative; top: -1px;" : "font-weight: normal;"}">${val}</span>
       </td>
     `;
   };
@@ -496,25 +504,15 @@ export const generateKotHtml = async (
 
   // Common meta rows
   let metaHtml = metaRow("Date", dateStr, "Time", timeStr);
-  const empLabel = isDineIn ? "Waiter" : "Employee";
-  metaHtml += metaRow(empLabel, data.waiter, "Counter", data.counter);
+  metaHtml += metaRow("Waiter", data.waiter, "Counter", data.counter);
   if (isDineIn) {
     metaHtml += metaRow("Section", data.section, "Table", data.table);
   }
   if (!isDelivery) {
-    if (data.customerName) {
-      metaHtml += `
-        <tr>
-          <td colspan="2" style="width: 100%; padding: 1px 0; font-size: 11px; line-height: 1.25;">
-            <span style="font-weight: bold;">${metaLabel("Customer")} :</span> <span style="font-weight: normal;">${escapeHtml(data.customerName)}</span>
-          </td>
-        </tr>
-      `;
-    }
     if (data.vehicleNo) {
       metaHtml += `
         <tr>
-          <td colspan="2" style="width: 100%; padding: 1px 0; font-size: 11px; line-height: 1.25;">
+          <td colspan="2" style="width: 100%; padding: 1.5px 0; font-size: 11px; line-height: 1.25;">
             <span style="font-weight: bold;">${metaLabel("Vehicle")} :</span> <span style="font-weight: normal;">${escapeHtml(data.vehicleNo)}</span>
           </td>
         </tr>
@@ -558,17 +556,20 @@ export const generateKotHtml = async (
     </div>
   ` : '';
 
-  // ─── Order No / Ticket No row ──────
+  // ─── Order No / Ticket No row: the Ticket No lines up with the Time / Counter column above it ──────
+  // html2canvas measures text on the app page, where Tailwind's `img { display: block }` makes it draw every line about
+  // 0.25em lower than the browser shows, so larger text drops further than its label: the `top` lifts keep them level.
+  // The spacing here and in the item headings allows for that too: check it on paper.
   const orderTicketHtml = `
-    <table style="width: 100%; border-collapse: collapse; margin-top: 2px; margin-bottom: 2px;">
+    <table style="width: 100%; border-collapse: collapse; margin: -1px 0 0 0;">
       <tr>
-        <td style="width: 50%; text-align: left; padding: 2px 0 6px 0; font-size: 11.5px; line-height: 1.3;">
-          <span style="font-weight: bold;">Order No${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal; margin-left: 2px;">(رقم الطلب)</bdi>' : ''}:</span>&nbsp;
-          <span style="font-size: 13.5px; font-weight: bold;">${toDisplayNo(data.orderNo) ? "#" + toDisplayNo(data.orderNo) : ""}</span>
+        <td style="width: 50%; text-align: left; padding: 0; font-size: 11.5px; line-height: 1.3;">
+          <span style="font-weight: normal;">Order No${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal; margin-left: 2px;">(رقم الطلب)</bdi>' : ''}</span>&nbsp;&nbsp;
+          <span style="font-size: 18px; font-weight: bold; position: relative; top: -2px;">${kotNumber(data.orderNo)}</span>
         </td>
-        <td style="width: 50%; text-align: right; padding: 2px 0 6px 0; font-size: 11.5px; line-height: 1.3;">
-          <span style="font-weight: bold;">Ticket No${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal; margin-left: 2px;">(رقم التذكرة)</bdi>' : ''}:</span>&nbsp;
-          <span style="font-size: 13.5px; font-weight: bold;">${toDisplayNo(data.ticketNo) ? "#" + toDisplayNo(data.ticketNo) : ""}</span>
+        <td style="width: 50%; text-align: left; padding: 0; font-size: 11.5px; line-height: 1.3;">
+          <span style="font-weight: normal;">Ticket No${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 10px; font-weight: normal; margin-left: 2px;">(رقم التذكرة)</bdi>' : ''}</span>&nbsp;&nbsp;
+          <span style="font-size: 18px; font-weight: bold; position: relative; top: -2px;">${kotNumber(data.ticketNo)}</span>
         </td>
       </tr>
     </table>
@@ -579,13 +580,13 @@ export const generateKotHtml = async (
     tableHeaderHtml = `
       <thead>
         <tr>
-          <th style="width: 56%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+          <th style="width: 56%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px solid #000000;">
             DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: left; margin-top: 1px; padding-bottom: 2px;">الصنف</div>' : ''}
           </th>
-          <th style="width: 18%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+          <th style="width: 18%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px solid #000000;">
             QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: center; margin-top: 1px; padding-bottom: 2px;">الكمية</div>' : ''}
           </th>
-          <th style="width: 26%; text-align: right; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+          <th style="width: 26%; text-align: right; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px solid #000000;">
             AMT${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: right; margin-top: 1px; padding-bottom: 2px;">المبلغ</div>' : ''}
           </th>
         </tr>
@@ -595,13 +596,13 @@ export const generateKotHtml = async (
     tableHeaderHtml = `
       <thead>
         <tr>
-          <th style="width: 18%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+          <th style="width: 18%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px solid #000000;">
             QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: center; margin-top: 1px; padding-bottom: 2px;">الكمية</div>' : ''}
           </th>
-          <th style="width: 56%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+          <th style="width: 56%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px solid #000000;">
             DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: left; margin-top: 1px; padding-bottom: 2px;">الصنف</div>' : ''}
           </th>
-          <th style="width: 26%; text-align: right; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+          <th style="width: 26%; text-align: right; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px solid #000000;">
             AMT${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: right; margin-top: 1px; padding-bottom: 2px;">المبلغ</div>' : ''}
           </th>
         </tr>
@@ -702,10 +703,10 @@ export const generateKotHtml = async (
       otherTableHeaderHtml = `
         <thead>
           <tr>
-            <th style="width: 80%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            <th style="width: 80%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px solid #000000;">
               DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: left; margin-top: 1px; padding-bottom: 2px;">الصنف</div>' : ''}
             </th>
-            <th style="width: 20%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            <th style="width: 20%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px solid #000000;">
               QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: center; margin-top: 1px; padding-bottom: 2px;">الكمية</div>' : ''}
             </th>
           </tr>
@@ -715,10 +716,10 @@ export const generateKotHtml = async (
       otherTableHeaderHtml = `
         <thead>
           <tr>
-            <th style="width: 20%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            <th style="width: 20%; text-align: center; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px solid #000000;">
               QTY${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: center; margin-top: 1px; padding-bottom: 2px;">الكمية</div>' : ''}
             </th>
-            <th style="width: 80%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px dashed #000000;">
+            <th style="width: 80%; text-align: left; padding: 2px 0 7px 0; font-size: 12px; font-weight: bold; border-bottom: 1px solid #000000;">
               DESCRIPTION${isKotArabic ? '<div class="arabic-text" style="font-size: 10.5px; font-weight: bold; text-align: left; margin-top: 1px; padding-bottom: 2px;">الصنف</div>' : ''}
             </th>
           </tr>
@@ -765,7 +766,7 @@ export const generateKotHtml = async (
 
           <table>${metaHtml}</table>
 
-          ${isDineIn ? `<div class="text-center" style="font-size: 18px; margin: 8px 0;"><span style="font-weight: bold;">Table${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 14px; font-weight: normal;">(الطاولة)</bdi>' : ''} :</span> <span style="font-weight: normal;">${data.table}</span></div>` : ''}
+          ${isDineIn ? `<div class="text-center" style="font-size: 18px; margin: 8px 0;"><span style="font-weight: normal;">Table${isKotArabic ? ' <bdi class="arabic-text" style="font-size: 14px; font-weight: normal;">(الطاولة)</bdi>' : ''} :</span> <span style="font-weight: bold; font-size: 21px; position: relative; top: -1px;">${data.table}</span></div>` : ''}
 
           <hr class="solid-line" />
           <div class="text-center" style="font-size: 22px; font-weight: bold; margin: 8px 0;">***${kotHeaderTitleDisplay}***</div>
@@ -793,16 +794,14 @@ export const generateKotHtml = async (
             ${customHeadersHtml}
           </div>
         ` : ''}
-        <div class="text-center" style="font-size: 16px; font-weight: bold; margin-bottom: 2px;">${orderTypeDisplay}</div>
-        <div class="text-center" style="font-size: 17px; font-weight: bold; margin-bottom: 3px;">***${kotHeaderTitleDisplay}***</div>
-
-        <hr class="solid-line" />
+        <div class="text-center" style="font-size: 18px; font-weight: bold; margin-bottom: 4px;">${orderTypeDisplay}</div>
+        <div class="text-center" style="font-size: 20px; font-weight: bold; margin-bottom: 6px;">***${kotHeaderTitleDisplay}***</div>
 
         <table>${metaHtml}</table>
 
         ${orderTicketHtml}
 
-        <hr class="solid-line" />
+        <hr class="solid-line" style="margin: 5px 0 0 0; border-top-width: 1px;" />
 
         ${itemsTableHtml}
 

@@ -6,6 +6,8 @@ import { printKotOnSettle } from "../features/pos/terminal/utils/settleKot";
 import { getRuntimePosConfig } from "../features/pos/terminal/hooks/system/useTerminalInit";
 import { isKotArabicEnabled, isOtherKitchenItemEnabled } from "../features/pos/utils/alternativeHelpers";
 import { posConfigApi } from "../features/pos/services/posConfigApi";
+import { generateKotHtml, kotNumber } from "../features/pos/utils/kotTemplate";
+import { generateGuestPrintHtml } from "../features/pos/utils/guestPrintTemplate";
 
 const printed = vi.hoisted(() => [] as { html: string; printer?: string }[]);
 const printFails = vi.hoisted(() => ({ next: false }));
@@ -34,6 +36,172 @@ beforeEach(() => {
   vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
+});
+
+describe("Order No and Ticket No on the KOT", () => {
+  const row = async (over: Record<string, unknown> = {}) => {
+    const html = await generateKotHtml([item({})], { ...printData, orderNo: "21", ticketNo: "21", ...over } as never);
+    const at = html.indexOf("Order No");
+    return html.slice(html.lastIndexOf("<table", at), html.indexOf("</table>", at));
+  };
+
+  it.each([[1, "#1"], ["21", "#21"], [321, "#321"], [9001, "#9001"], ["21, 22", "#21, 22"], [0, ""], [undefined, ""], [null, ""]])("%s prints as %s", (value, shown) => {
+    expect(kotNumber(value)).toBe(shown);
+  });
+
+  it("labels are normal weight, numbers bold", async () => {
+    const html = await row();
+    expect(html).toMatch(/font-weight: normal;">Order No/);
+    expect(html).toMatch(/font-weight: normal;">Ticket No/);
+    expect(html.match(/font-size: 18px; font-weight: bold;[^"]*">#21</g)).toHaveLength(2);
+  });
+
+  it("Ticket No starts in the second column, not at the far right edge", async () => {
+    const html = await row();
+    expect(html).not.toContain("text-align: right");
+    expect(html.match(/width: 50%; text-align: left/g)).toHaveLength(2);
+  });
+
+  it("order and ticket keep their own numbers", async () => {
+    const t = text(await row({ orderNo: "7", ticketNo: "1234" }));
+    expect(t).toContain("#7");
+    expect(t).not.toContain("#007");
+    expect(t).toContain("#1234");
+  });
+});
+
+describe("Guest print customer and heading line", () => {
+  const bill = (over: Record<string, unknown> = {}) =>
+    generateGuestPrintHtml([item({})], { ...printData, orderType: "DineIn", section: "In", table: "T1", netAmount: 10, showCompanyHeader: false, ...over } as never);
+  const customerRows = (html: string) => (text(html).match(/Customer/g) ?? []).length;
+  const headingLine = "table.items-table th { padding-bottom: 9px; border-bottom: 1px dashed #000000; }";
+
+  it("prints the customer, escaped, in the header", async () => {
+    expect(text(await bill({ customerName: "CASH CUSTOMER" }))).toMatch(/Customer :(?:&nbsp;)? ?CASH CUSTOMER/);
+    expect(await bill({ customerName: "A<b>" })).toContain("A&lt;b&gt;");
+  });
+
+  it("has no Customer row when the order has no customer", async () => {
+    expect(customerRows(await bill())).toBe(0);
+  });
+
+  it("a delivery guest bill prints the customer once, in Delivery Details", async () => {
+    expect(customerRows(await bill({ orderType: "Delivery", customerName: "Ali" }))).toBe(1);
+  });
+
+  it("adds the line under the item headings on guest prints only", async () => {
+    expect(await bill()).toContain(headingLine);
+    expect(await bill({ invoiceNo: "84", isSettlement: true })).not.toContain(headingLine);
+    expect(await bill({ isPackager: true })).not.toContain(headingLine);
+  });
+
+  it.each([["guest", {}], ["settle", { invoiceNo: "84", saleId: 84, isSettlement: true }]])("delivery %s bill: the Delivery Details block ends with its own line before the barcode", async (_name, over) => {
+    const html = await bill({ orderType: "Delivery", customerName: "Ali", contactNo: "33445566", ...over });
+    const block = html.slice(html.indexOf("DELIVERY DETAILS"), html.indexOf('<div class="barcode-container">'));
+    expect(block).toContain('margin: 9px 0 1px 0;');
+    expect(block.trimEnd().endsWith('<div class="dashed-hr"></div>')).toBe(true);
+  });
+
+  it("a dine-in bill has no Delivery Details block or extra line", async () => {
+    const html = await bill({ customerName: "Ali" });
+    expect(html).not.toContain("DELIVERY DETAILS");
+  });
+
+  it("settle prints and packager prints get no header Customer row", async () => {
+    expect(customerRows(await bill({ invoiceNo: "84", isSettlement: true, customerName: "Ali" }))).toBe(0);
+    expect(customerRows(await bill({ isPackager: true, customerName: "Ali" }))).toBe(0);
+  });
+});
+
+describe("Waiter label on the prints", () => {
+  const data = { ...printData, waiter: "Ali", netAmount: 10, showCompanyHeader: false };
+
+  it.each([
+    ["dine in guest", { orderType: "DineIn" }],
+    ["take out guest", { orderType: "TakeOut" }],
+    ["delivery guest", { orderType: "Delivery" }],
+    ["settle", { orderType: "TakeOut", invoiceNo: "84", isSettlement: true }],
+    ["packager", { orderType: "TakeOut", isPackager: true }],
+  ])("%s bill says Waiter", async (_name, over) => {
+    const t = text(await generateGuestPrintHtml([item({})], { ...data, ...over } as never));
+    expect(t).toMatch(/Waiter :(?:&nbsp;)? ?Ali/);
+    expect(t).not.toContain("Employee");
+  });
+
+  it.each(["DINE IN", "TakeOut", "DELIVERY"])("%s KOT says Waiter", async (orderType) => {
+    const t = text(await generateKotHtml([item({})], { ...data, orderType, section: "In", table: "T1" } as never));
+    expect(t).toMatch(/Waiter : Ali/);
+    expect(t).not.toContain("Employee");
+  });
+
+  it("the Arabic label is the waiter word too", async () => {
+    const html = await generateGuestPrintHtml([item({})], { ...data, orderType: "TakeOut", billArabic: true } as never);
+    expect(html).toContain("النادل");
+    expect(html).not.toContain("الموظف");
+  });
+});
+
+describe("KOT header layout", () => {
+  const dineIn = (over: Record<string, unknown> = {}) =>
+    generateKotHtml([item({})], { ...printData, orderType: "DINE IN", section: "In", table: "T1", waiter: "cashier", counter: "Main", date: "04/06/2026", ...over } as never);
+
+  it("no Customer row in the header, even when the order has a customer", async () => {
+    expect(text(await dineIn({ customerName: "CASH CUSTOMER" }))).not.toMatch(/Customer|CASH CUSTOMER/);
+    expect(text(await dineIn({ orderType: "TakeOut", customerName: "CASH CUSTOMER" }))).not.toMatch(/Customer|CASH CUSTOMER/);
+  });
+
+  it("a delivery KOT still shows the customer in its delivery details", async () => {
+    expect(text(await dineIn({ orderType: "DELIVERY", customerName: "Ali" }))).toMatch(/DELIVERY DETAILS[\s\S]*Customer : Ali/);
+  });
+
+  it("prints in the sample's order and labels", async () => {
+    const t = text(await dineIn({ orderNo: "10", ticketNo: "10" }));
+    expect(t).toMatch(/DINE IN \*\*\*KOT\*\*\* Date .*Time .*Waiter : cashier Counter : Main Section : In Table : T1 Order No (?:&nbsp;)+ #10 Ticket No (?:&nbsp;)+ #10 QTY DESCRIPTION AMT/);
+    expect(t).not.toMatch(/Date :|Time :|Order No:|Ticket No:/);
+  });
+
+  it("no line between ***KOT*** and the Date row, a solid line under the table headings", async () => {
+    const html = await dineIn();
+    expect(html.slice(html.indexOf("***KOT***"), html.indexOf(">Date<"))).not.toContain("<hr");
+    expect(html).toContain("border-bottom: 1px solid #000000;\">");
+  });
+});
+
+describe("KOT header row gaps", () => {
+  const kot = (over: Record<string, unknown> = {}) => generateKotHtml([item({})], { ...printData, orderType: "DINE IN", section: "In", table: "T1", ...over } as never);
+
+  it("Order No keeps enough room above the line: its row must not be squeezed", async () => {
+    const html = await kot();
+    expect(html.match(/padding: 0; font-size: 11\.5px; line-height: 1\.3;/g)).toHaveLength(2);
+    expect(html).toContain('<hr class="solid-line" style="margin: 5px 0 0 0; border-top-width: 1px;" />');
+  });
+
+  it("both lines around the headings are the same thickness, and the gap under the headings stays open", async () => {
+    const html = await kot();
+    expect(html).toMatch(/padding-bottom: 12px !important;/);
+    expect(html.slice(html.indexOf("<thead"), html.indexOf("</thead>"))).not.toMatch(/border-bottom: 1\.5px/);
+  });
+});
+
+describe("Table on the dine in KOT", () => {
+  const kot = (over: Record<string, unknown> = {}) =>
+    generateKotHtml([item({})], { ...printData, orderType: "DINE IN", section: "Main", table: "T5", ...over } as never);
+  const tableRow = (size: number) => new RegExp(`font-weight: normal;">Table[\\s\\S]{0,20}:</span> <span style="font-weight: bold; font-size: ${size}px;[^"]*">T5<`);
+
+  it("normal KOT: label normal, table name bold and larger", async () => {
+    expect(await kot()).toMatch(tableRow(14));
+  });
+
+  it("master KOT: every Table row has a normal label and a larger bold name", async () => {
+    const html = await kot({ isMaster: true, headerTitle: "MASTER KOT" });
+    expect(html).toMatch(tableRow(14));
+    expect(html).toMatch(tableRow(21));
+    expect(html).not.toMatch(/font-weight: bold;">Table/);
+  });
+
+  it("the Section row keeps its bold label and normal value", async () => {
+    expect(await kot()).toMatch(/font-weight: bold;">Section :<\/span> <span style="font-weight: normal;">Main</);
+  });
 });
 
 describe("Bill Copies", () => {

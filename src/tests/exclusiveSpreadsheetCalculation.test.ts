@@ -199,8 +199,10 @@ describe('Exclusive Price View & Internal Calculation (Exact Spreadsheet Verific
     // Totals table
     expect(html).toContain('Sub Total');
     expect(html).toContain('74.000');
-    expect(html).toContain('Charges');
-    expect(html).toContain('11.470');
+    expect(html).toContain('Levy (5%)');
+    expect(html).toContain('4.070');
+    expect(html).toContain('Service Charge (10%)');
+    expect(html).toContain('7.400');
     expect(html).toContain('Net Value');
     expect(html).toContain('85.470');
     expect(html).toContain('VAT Amount');
@@ -245,8 +247,10 @@ describe('Exclusive Price View & Internal Calculation (Exact Spreadsheet Verific
     // Totals rows
     expect(markup).toContain('Sub Total');
     expect(markup).toContain('74.000');
-    expect(markup).toContain('Charges');
-    expect(markup).toContain('11.470');
+    expect(markup).toContain('Levy (5%)');
+    expect(markup).toContain('4.070');
+    expect(markup).toContain('Service Charge (10%)');
+    expect(markup).toContain('7.400');
     expect(markup).toContain('Net Value');
     expect(markup).toContain('85.470');
     expect(markup).toContain('VAT Amount');
