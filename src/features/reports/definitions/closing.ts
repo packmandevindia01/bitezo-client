@@ -22,9 +22,12 @@ export const closingCell = (row: AnyRow, col: string): number => {
   return cellNumber(row[col]);
 };
 
-/** API columns minus the fixed ones; Opening / Pay In / Pay Out added when missing, Total always last. */
+/** Purchase and Tips are not shown on the Day End / Shift End reports, under any spelling the API uses. */
+const HIDDEN_CLOSING_COLUMN = /^(total)?(purchases?|tips?)(amount|amt)?$/;
+
+/** API columns minus the fixed and hidden ones; Opening / Pay In / Pay Out added when missing, Total always last. */
 export const closingColumnNames = (raw: string[], excluded: string[]): string[] => {
-  const cols = raw.filter((c) => !excluded.includes(c));
+  const cols = raw.filter((c) => !excluded.includes(c) && !HIDDEN_CLOSING_COLUMN.test(norm(c)));
   const has2 = (...names: string[]) => cols.some((c) => names.includes(norm(c)));
   const result = cols.filter((c) => c.toLowerCase() !== "total");
   if (!has2("openingbalance", "openingbal")) result.push("Opening Balance");

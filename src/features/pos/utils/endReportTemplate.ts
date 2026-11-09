@@ -953,34 +953,6 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
     `;
   }
 
-  // Tips Summary — 2 columns (60% / 40%)
-  const tipsList = (data as any).tips || (data as any).tipsSummary || [];
-  let tipsTotal = 0;
-  let tipsRows = '';
-  tipsList.forEach((t: any) => {
-    const paymode = t.paymodeName || t.paymode || "-";
-    const amount = t.amount || 0;
-    tipsTotal += Number(amount) || 0;
-    tipsRows += `<tr><td style="text-align: left;">${paymode}</td><td style="text-align: right;">${fmt(amount)}</td></tr>`;
-  });
-  const tipsHtml = `
-    <div class="section-title">Tips Summary</div>
-    <div class="sep"></div>
-    <table style="width: 100%; table-layout: fixed;">
-      <thead>
-        <tr>
-          <th style="width: 60%; text-align: left;">Paymode</th>
-          <th style="width: 40%; text-align: right;">Amount</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${tipsRows.length > 0 ? tipsRows : '<tr><td style="text-align: left;">-</td><td style="text-align: right;">0</td></tr>'}
-        ${tipsRows.length > 0 ? `<tr><td style="text-align: left; font-weight: 700;">Total</td><td style="text-align: right; font-weight: 700;">${fmt(tipsTotal)}</td></tr>` : ''}
-      </tbody>
-    </table>
-    <div class="sep"></div>
-  `;
-
   // Driver Summary — 3 columns (50% / 20% / 30%)
   let driverHtml = '';
   const driverList = (data as any).drivers || (data as any).driverSummary || [];
@@ -1074,9 +1046,8 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
   `;
 
   // Cash Flow — 2 columns (60% / 40%)
-  const purchase = (cf as any).purchase ?? 0;
   const totalCashIn = (cf.cashSales || 0) + (cf.openingBal || 0) + (cf.payIn || 0);
-  const totalCashOut = (cf.payOut || 0) + (purchase || 0);
+  const totalCashOut = cf.payOut || 0;
   const netCash = totalCashIn - totalCashOut;
   const difference = (cf.closingBal || 0) - netCash;
 
@@ -1090,7 +1061,6 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
         <tr><td style="text-align: left;">Pay In</td><td style="text-align: right;">${fmt(cf.payIn)}</td></tr>
         <tr><td style="text-align: left; font-weight: 700;">Total Cash In</td><td style="text-align: right; font-weight: 700;">${fmt(totalCashIn)}</td></tr>
         <tr><td style="text-align: left;">Pay Out</td><td style="text-align: right;">${fmt(cf.payOut)}</td></tr>
-        <tr><td style="text-align: left;">Purchase</td><td style="text-align: right;">${fmt(purchase)}</td></tr>
         <tr><td style="text-align: left; font-weight: 700;">Total Cash Out</td><td style="text-align: right; font-weight: 700;">${fmt(totalCashOut)}</td></tr>
         <tr><td style="text-align: left; font-weight: 700;">Net Cash</td><td style="text-align: right; font-weight: 700;">${fmt(netCash)}</td></tr>
         <tr><td style="text-align: left; font-weight: 700;">Closing Balance</td><td style="text-align: right; font-weight: 700;">${fmt(cf.closingBal)}</td></tr>
@@ -1211,7 +1181,6 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
         ${taxHtml}
         ${payInHtml}
         ${payOutHtml}
-        ${tipsHtml}
         ${driverHtml}
         ${voucherHtml}
         ${salesSummaryHtml}
