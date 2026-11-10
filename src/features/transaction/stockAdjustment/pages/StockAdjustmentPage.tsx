@@ -103,6 +103,7 @@ const StockAdjustmentPage = () => {
     return {
       series: vals.series || "",
       refNo: vals.refNo || "",
+      date: vals.date ? formatDateOnly(vals.date) : formatDateOnly(new Date()),
       transDate: vals.date ? formatDateOnly(vals.date) : formatDateOnly(new Date()),
       branch: vals.branch || "",
       salesman: vals.salesman || "",
@@ -117,7 +118,9 @@ const StockAdjustmentPage = () => {
       effect: "",
       amount: "0",
     };
-  }, [getValues]);
+    // Read again each time the preview opens: the form has no values yet when the page first renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getValues, isPrintModalOpen]);
 
   const printItems = useMemo<StockAdjustmentLineItem[]>(() => {
     return watchedItems
@@ -128,7 +131,7 @@ const StockAdjustmentPage = () => {
         const tOpt = masterData?.types?.find(t => t.value === String(item.type));
         return {
           ...item,
-          productName: pOpt ? pOpt.label : item.product,
+          productName: pOpt?.label ?? item.productName ?? item.product,
           unitName: uOpt ? uOpt.label : item.unit,
           typeName: tOpt ? tOpt.label : item.type,
         };

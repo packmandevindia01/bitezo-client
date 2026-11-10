@@ -63,6 +63,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 |---|---|
 | Physical Entry | A slow unit-cost reply could change a line whose unit had moved on, and a failed one was silent |
 | Stock Transfer list | Cancelling did not refresh the stock reports |
+| Stock Adjustment and Stock Transfer prints | Number, branch and date were blank, and Stock Adjustment printed the product id instead of its name |
 | Stock Adjustment | A product list arriving late wiped the branch, Ref No and anything already typed |
 | Stock Adjustment (new) | The form looped and reset itself while the product list was loading |
 | Stock Adjustment, Physical Entry, Stock Transfer (new) | A new document could start on the API's All row; it now starts on the first real branch. **Check saved Stock Adjustments with branch 1 (All).** |

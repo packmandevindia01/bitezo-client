@@ -181,7 +181,9 @@ const InternalStockTransferPage = () => {
       cost: "0",
       amount: "0",
     };
-  }, [getValues]);
+    // Read again each time the preview opens: the form has no values yet when the page first renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [getValues, isPrintModalOpen]);
 
   const printItems = useMemo<InternalStockTransferLineItem[]>(() => {
     return watchedItems
@@ -192,7 +194,7 @@ const InternalStockTransferPage = () => {
         return {
           ...item,
           product: pOpt ? pOpt.label : item.product,
-          productName: pOpt ? pOpt.label : item.product,
+          productName: pOpt?.label ?? item.productName ?? item.product,
           unitName: uOpt ? uOpt.label : item.unit,
           unit: uOpt ? uOpt.label : item.unit
         };

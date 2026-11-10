@@ -4,6 +4,9 @@ import { Button } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
 import type { StockAdjustmentForm, StockAdjustmentLineItem } from "../types";
 
+/** The list labels start with the code, which has its own column on the report. */
+const printedName = (item: StockAdjustmentLineItem) => String(item.productName || item.product || "").replace(/^\[[^\]]*\]\s*/, "");
+
 // Plain CSS only — no Tailwind, no CSS variables. Safe for html2pdf.
 const printStyles = `
   @media print {
@@ -163,7 +166,7 @@ const StockAdjustmentPrintModal: React.FC<PrintModalProps> = ({
       items.forEach((item, index) => {
         wsData.push([
           (index + 1).toString(),
-          item.product,
+          printedName(item),
           item.code || "",
           item.effect === "+" ? "(+)" : item.effect === "-" ? "(-)" : "(All)",
           item.qty.toString()
@@ -356,7 +359,7 @@ const StockAdjustmentPrintModal: React.FC<PrintModalProps> = ({
                 {items.map((item, index) => (
                   <tr key={index}>
                     <td>{index + 1}</td>
-                    <td>{item.product}</td>
+                    <td>{printedName(item)}</td>
                     <td>{item.code}</td>
                     <td>{item.effect === "+" ? "(+)" : item.effect === "-" ? "(-)" : "(All)"}</td>
                     <td>{item.qty}</td>

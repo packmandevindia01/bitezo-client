@@ -276,6 +276,7 @@ export const useStockAdjustment = (id?: string | null) => {
           mappedItems.push({
             id: generateUUID(),
             product: String(d.productId),
+            productName: d.productName || undefined,
             code: d.barcode || d.productCode || "",
             unitId: d.unitId,
             unit: String(d.unitId || ""),
