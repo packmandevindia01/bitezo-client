@@ -64,6 +64,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | Physical Entry | A slow unit-cost reply could change a line whose unit had moved on, and a failed one was silent |
 | Stock Transfer list | Cancelling did not refresh the stock reports |
 | Group master | An Inactive group showed as Active in the list |
+| POS recall / edit | In Exclusive view an inclusive product showed a wrong rate on the cart rows (order 285: 82.645 instead of the saved 90.909) |
 | POS close day | If the pending-orders check failed, the day closed with no warning; it now asks to try again or close anyway |
 | POS locked items | If the list failed to load, items could sell as unlocked with no warning; the last saved list stays in force and a warning shows |
 | Stock Adjustment and Stock Transfer prints | Number, branch and date were blank, and Stock Adjustment printed the product id instead of its name |
@@ -108,6 +109,6 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Fonts: Outfit and Inter ship in `public/fonts/ui` (`shared/styles/fonts.css`), and interface and receipt fonts are in the offline cache. Nothing is requested from Google.
 - Stock Adjustment, Physical Entry and Stock Transfer forms do not offer All as a branch or To Branch; a document already saved under All still shows it. Saved lists and reports keep All.
 - Payment and Receipt Against Voucher forms use the compact input size of the other transaction forms.
-- POS pricing replacement: dead code removed; `utils/orderLineItems.ts` and `utils/orderLineShape.ts` hold the non-money part. Saved-order prints no longer use `orderPricing.ts`. Still to move: KOT, guest fallback, recall, settled screen, split, and the guessing in saving.
+- POS pricing replacement: dead code removed; `utils/orderLineItems.ts` and `utils/orderLineShape.ts` hold the non-money part. Saved-order prints, live KOT, guest bills and recall/edit no longer use `orderPricing.ts`. Still to move: settled screen, split, plain-row fallback, and the guessing in saving.
 - Not started: other performance items (re-render measurements), Playwright smoke tests, CI, report column chooser and saved filters, Ctrl+K search, unsaved-changes guard, new dashboard, empty catches and `alert()`.
 - A login token was pasted into chat on 2026-11-07. Ask the backend team to revoke it if possible.

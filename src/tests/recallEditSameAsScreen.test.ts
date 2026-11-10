@@ -6,7 +6,7 @@ import { describe, it, expect } from "vitest";
 import { storedOrderFooter } from "../features/pos/pricing";
 import { applyStoredOrderView } from "../features/pos/services/storedOrderView";
 import { loadSettledOrderIntoCart } from "../features/pos/terminal/utils/loadSettledOrderIntoCart";
-import { buildUnifiedOrderPricing } from "../features/pos/utils/orderPricing";
+import { buildPrintPricing } from "../features/pos/utils/printPricing";
 
 const setConfig = (sc: number, levy: number, view: "Inclusive" | "Exclusive") => {
   localStorage.clear();
@@ -78,8 +78,11 @@ describe("recall/settled screen footer = edit cart footer", () => {
         expect(p.authoritativeNetAmount).toBeCloseTo(screen.netAmount, 5);
 
         // Lines: edit cart rows = screen rows
-        const unified = buildUnifiedOrderPricing(data, { orderType: data.masterData.orderType, priceView: view, products, productCache });
+        const unified = buildPrintPricing(data, { dataView: view, printPrice: view, orderType: data.masterData.orderType, products, productCache });
         const isIncl = view === "Inclusive";
+        // Lines add up to the footer: the saved order is the truth (order 285 was shown 3 x 82.645 before).
+        const linesSum = p.cartItems.reduce((sum: number, item: any) => sum + item.authoritativeOriginalLineTotal, 0);
+        if (view === "Exclusive") expect(linesSum).toBeCloseTo(o.footer.subTotal, 3);
         p.cartItems.forEach((item: any, i: number) => {
           const row = unified.lines[i];
           expect(item.authoritativePrice).toBeCloseTo(row.getRate(isIncl), 3);
