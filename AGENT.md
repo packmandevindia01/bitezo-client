@@ -21,7 +21,7 @@ General project rules (git, shared components, architecture) live in `GEMINI.md`
 - TanStack Query for menu / config fetching
 - axios (`axiosInstance`, JWT from `localStorage.accessToken`)
 - Printing: own **Bitezo Printer Agent** (`PrinterAgent.exe`, WebSocket) on web/Windows; Capacitor native `BitezoPrinterPlugin` (raw ESC/POS TCP :9100) on Android. **QZ Tray is NOT used** (only legacy names `qzService.ts` / `connectQZ` remain)
-- Vitest (`src/tests/`, 108 files / 1371 tests, all passing on 2026-11-10; node by default, jsdom + Testing Library only where a file asks for it)
+- Vitest (`src/tests/`, 109 files / 1375 tests, all passing on 2026-11-10; node by default, jsdom + Testing Library only where a file asks for it)
 
 Verify every change with:
 ```
@@ -446,13 +446,10 @@ cart keep the price and name they were added with.
 
 ## 8. Known legacy / tech debt (do not extend)
 
-- `utils/orderPricing.ts` (`buildUnifiedOrderPricing`): old heuristic pricing; now only supplies
-  names/extras/modifiers to `printPricing` and some modals. Its numbers are replaced.
-- `billing.ts` `getTaxExclusivePrice` / `sanitizeTaxExclusiveDetail` / `getTaxExclusiveExtraPrice` /
-  `getDisplayPriceForProduct`: tolerance-based guessing (0.03 / 0.05). Engine output is flagged
-  `isPriceTaxExclusive: true`, so they pass it through unchanged — keep that flag on every payload detail.
-- `orderApi.submitOrder/updateOrder` re-derive `vatExclAmount`/`vatAmount` only when missing; they must
-  **not** re-sanitize engine details (that caused order #288's rounded VAT).
+- `utils/orderPricing.ts` (`buildUnifiedOrderPricing`): old heuristic pricing. The app only imports its types;
+  only tests still call it. To be deleted.
+- Saving sends engine values as they are: order, update, invoice and split lines are never re-derived from tax
+  settings. `orderApi.submitOrder/updateOrder` only fill `vatExclAmount`/`vatAmount` when missing.
 - `orderPayloadMapper` "useStoredTotals": an unmodified recalled order without a bill discount keeps the
   selector's (authoritative) `netAmount`/`vatAmount`. Transitional.
 - `invoicePayloadMapper` recomputes `vatExclAmount` from details (+ modifiers when not already combined)

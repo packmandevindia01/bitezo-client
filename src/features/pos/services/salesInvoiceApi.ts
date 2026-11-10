@@ -1,7 +1,7 @@
 import { unwrapStrict as unwrap } from "../../../shared/api/unwrap";
 import axiosInstance from "../../../api/axiosInstance";
 import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
-import { sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
+import { roundCalc, getVatStatus } from "../terminal/utils/billing";
 import { allocate } from "../terminal/utils/pos-calc";
 import { withDetailNet7 } from "../../../utils/money";
 
@@ -126,8 +126,6 @@ export const salesInvoiceApi = {
         postPayload.createdAt = now.toISOString();
 
         if (postPayload.details && Array.isArray(postPayload.details)) {
-          // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
-          postPayload.details = postPayload.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
           const totalModifierGross = Array.isArray(postPayload.modifiers)
             ? postPayload.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
             : 0;
@@ -246,23 +244,21 @@ export const salesInvoiceApi = {
         : toLocalDateString();
 
       const cleanedDetails = (payload.details || []).map((d: any) => {
-        // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
-        const sanitized = d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d);
         return {
-          productId: Number(sanitized.productId || 0),
-          unitId: Number(sanitized.unitId || 1),
-          vatId: Number(sanitized.vatId || 1),
-          qty: Number(sanitized.qty || 0),
-          price: sanitized.price,
-          discPer: Number(sanitized.discPer || 0),
-          discAmount: sanitized.discAmount,
-          serviceCharge: sanitized.serviceCharge,
-          levy: sanitized.levy,
-          vatAmount: sanitized.vatAmount,
-          netAmount: sanitized.netAmount,
-          baseQty: Number(sanitized.baseQty || sanitized.qty || 1),
-          mapId: Number(sanitized.mapId || 0),
-          complimentaryStatus: Boolean(sanitized.complimentaryStatus),
+          productId: Number(d.productId || 0),
+          unitId: Number(d.unitId || 1),
+          vatId: Number(d.vatId || 1),
+          qty: Number(d.qty || 0),
+          price: d.price,
+          discPer: Number(d.discPer || 0),
+          discAmount: d.discAmount,
+          serviceCharge: d.serviceCharge,
+          levy: d.levy,
+          vatAmount: d.vatAmount,
+          netAmount: d.netAmount,
+          baseQty: Number(d.baseQty || d.qty || 1),
+          mapId: Number(d.mapId || 0),
+          complimentaryStatus: Boolean(d.complimentaryStatus),
         };
       });
 
