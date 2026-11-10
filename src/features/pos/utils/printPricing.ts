@@ -270,7 +270,7 @@ export const applyCartPricingToUnified = (
  */
 export const buildLiveCartPricing = (
   cartItems: any[],
-  options: { printPrice: View; deliveryCharge?: number; orderType?: string }
+  options: { printPrice: View; deliveryCharge?: number; orderType?: string; [key: string]: any }
 ): UnifiedOrderPricingResult | null => {
   if (!Array.isArray(cartItems) || cartItems.length === 0) return null;
   const base = { lines: buildOrderLineShapes(cartItems, options), summary: { isVatActive: orderHasVat(cartItems, options) } } as unknown as UnifiedOrderPricingResult;
