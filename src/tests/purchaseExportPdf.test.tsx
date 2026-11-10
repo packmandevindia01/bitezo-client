@@ -91,6 +91,16 @@ describe("Purchase Export PDF", () => {
     expect(showToast).toHaveBeenCalledWith("PDF Downloaded successfully!", "success");
   });
 
+  it("a blocked print window is a message, not a blocking alert", async () => {
+    const opened = vi.spyOn(window, "open").mockReturnValue(null);
+    const alerted = vi.spyOn(window, "alert").mockImplementation(() => {});
+    await open();
+    fireEvent.click(screen.getByText("Print").closest("button") as HTMLButtonElement);
+    expect(opened).toHaveBeenCalled();
+    expect(alerted).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith("Please allow popups for this site to enable printing.", "warning");
+  });
+
   it("a failure is shown and nothing is saved", async () => {
     pdf.autoTable = () => { throw new Error("broken table"); };
     fireEvent.click(await open());

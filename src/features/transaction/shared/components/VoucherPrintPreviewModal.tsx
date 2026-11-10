@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useToast } from "../../../../app/providers/useToast";
 import { X, Download, Printer } from "lucide-react";
 import { Button } from "../../../../components/common";
 import { VoucherPrintTemplate } from "./VoucherPrintTemplate";
@@ -53,6 +54,7 @@ const VOUCHER_PRINT_STYLES = `
 `;
 
 export const VoucherPrintPreviewModal = ({ isOpen, onClose, data }: VoucherPrintPreviewModalProps) => {
+  const { showToast } = useToast();
   const [enrichedData, setEnrichedData] = useState<Partial<VoucherPrintData>>(data);
   const [paperSize, setPaperSize] = useState<"A4" | "80mm">("A4");
   const containerRef = useRef<HTMLDivElement>(null);
@@ -90,7 +92,7 @@ export const VoucherPrintPreviewModal = ({ isOpen, onClose, data }: VoucherPrint
 
     const printWindow = window.open("", "_blank", "width=800,height=800");
     if (!printWindow) {
-      alert("Please allow pop-ups to print.");
+      showToast("Please allow popups for this site to enable printing.", "warning");
       return;
     }
 

@@ -76,10 +76,10 @@ const PRINT_STYLES = `
 `;
 
 /** Opens a clean new window with the invoice HTML and the browser print dialog. */
-const openPrintWindow = (html: string, title: string) => {
+const openPrintWindow = (html: string, title: string, onBlocked: () => void) => {
   const win = window.open("", "_blank", "width=900,height=750");
   if (!win) {
-    alert("Please allow popups for this site to enable printing.");
+    onBlocked();
     return;
   }
   win.document.open();
@@ -327,7 +327,7 @@ export const PurchasePrintPreviewModal = ({
   const handlePrint = () => {
     if (!printRef.current || !mergedData) return;
     const title = `${mergedData.docTitle} - ${mergedData.purchaseNo || mergedData.voucherNo || ""}`;
-    openPrintWindow(printRef.current.innerHTML, title);
+    openPrintWindow(printRef.current.innerHTML, title, () => showToast("Please allow popups for this site to enable printing.", "warning"));
   };
 
   if (!isOpen) return null;
