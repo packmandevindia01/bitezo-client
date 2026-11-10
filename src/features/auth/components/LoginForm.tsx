@@ -23,8 +23,8 @@ const LoginForm = () => {
 
   const state = (location.state ?? {}) as LocationState;
 
-  // clientDb is hidden from UI — comes from onboarding state, localStorage, or falls back to "app_db"
-  const [clientDb, setClientDb] = useState(state.clientDb ?? localStorage.getItem("tenantId") ?? "app_db");
+  // clientDb is hidden from UI: it comes from onboarding state or localStorage, never from a name in the code.
+  const [clientDb, setClientDb] = useState(state.clientDb ?? localStorage.getItem("tenantId") ?? "");
   const [username, setUsername] = useState(state.username ?? "");
   const [password, setPassword] = useState(state.password ?? "");
   const [showPassword, setShowPassword] = useState(false);
@@ -55,7 +55,7 @@ const LoginForm = () => {
       setLoading(true);
 
       // Save tenantId to localStorage so the axios interceptor picks it up for the header
-      localStorage.setItem("tenantId", clientDb);
+      if (clientDb) localStorage.setItem("tenantId", clientDb);
       const data = await loginApi(username.trim(), password.trim());
 
       if (data?.accessToken && data?.user?.userId) {
