@@ -5,8 +5,6 @@ import { useToast } from "../../../../app/providers/useToast";
 import { PurchasePrintTemplate, type PurchasePrintData } from "./PurchasePrintTemplate";
 import { fetchCompany } from "../../../company/services/companyApi";
 import axiosInstance from "../../../../api/axiosInstance";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { formatAmount } from "../../../../utils/formatters";
 import { numberToWords } from "../../../../utils/numberToWords";
 
@@ -156,11 +154,12 @@ export const PurchasePrintPreviewModal = ({
   }, [isOpen, data]);
 
   /** Export PDF — Native jsPDF implementation bypassing html2canvas to avoid oklch crash */
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (!mergedData) return;
     showToast("Generating PDF, please wait...", "info");
     
     try {
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import("jspdf"), import("jspdf-autotable")]);
       const doc = new jsPDF('p', 'mm', 'a4');
       const title = `${mergedData.docTitle}_${mergedData.purchaseNo || mergedData.voucherNo || "Export"}.pdf`;
       const isReturn = mergedData.docTitle.toLowerCase().includes("return");

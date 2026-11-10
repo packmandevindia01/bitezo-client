@@ -94,6 +94,8 @@ export default defineConfig({
         manualPureFunctions: ['console.log', 'console.debug'],
       },
       output: {
+        // Do not pin recharts here: its shared helpers (immer, reselect, decimal) would come with it and every page
+        // would then load the charts. Left alone, it loads with the dashboard.
         manualChunks(id) {
           if (id.includes('node_modules')) {
             if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
@@ -104,9 +106,6 @@ export default defineConfig({
             }
             if (id.includes('lucide-react')) {
               return 'vendor-icons';
-            }
-            if (id.includes('recharts')) {
-              return 'vendor-charts';
             }
           }
         }

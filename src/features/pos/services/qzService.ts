@@ -457,8 +457,6 @@ export const getAvailablePrinters = async (): Promise<string[]> => {
   }
 };
 
-import jsPDF from 'jspdf';
-
 /**
  * Checks if a target printer name corresponds to an ESC/POS thermal receipt printer.
  * Returns true for all POS receipt printers (POS-80C, Epson, Xprinter, etc.).
@@ -927,23 +925,6 @@ export const printHtmlReceipt = async (htmlContent: string, printerName?: string
     console.error("[PrintAgent] Print failed:", err);
     throw err;
   }
-};
-
-/**
- * Directly prints a jsPDF Document instance via PrinterAgent.
- * Allows components like PurchasePrintPreviewModal and pdfGenerator to bypass the browser print dialog.
- */
-export const printJsPdfReceipt = async (doc: jsPDF, printerName?: string): Promise<void> => {
-  await printAgent.connect();
-  let targetPrinter = printerName;
-  if (!targetPrinter || targetPrinter === "No Printer") {
-    targetPrinter = await printAgent.getDefaultPrinter() || (await printAgent.listPrinters())[0];
-  }
-  if (!targetPrinter) {
-    throw new Error("No printer available on this system. Please check PrinterAgent.exe.");
-  }
-  const pdfArrayBuffer = doc.output("arraybuffer");
-  await printAgent.printPdf(targetPrinter, pdfArrayBuffer);
 };
 
 // Precomputed CRC table for fast PNG chunk calculation

@@ -21,7 +21,7 @@ General project rules (git, shared components, architecture) live in `GEMINI.md`
 - TanStack Query for menu / config fetching
 - axios (`axiosInstance`, JWT from `localStorage.accessToken`)
 - Printing: own **Bitezo Printer Agent** (`PrinterAgent.exe`, WebSocket) on web/Windows; Capacitor native `BitezoPrinterPlugin` (raw ESC/POS TCP :9100) on Android. **QZ Tray is NOT used** (only legacy names `qzService.ts` / `connectQZ` remain)
-- Vitest (`src/tests/`, 95 files / 1186 tests, all passing on 2026-11-10; node by default, jsdom + Testing Library only where a file asks for it)
+- Vitest (`src/tests/`, 96 files / 1191 tests, all passing on 2026-11-10; node by default, jsdom + Testing Library only where a file asks for it)
 
 Verify every change with:
 ```
@@ -830,6 +830,7 @@ Tests: `src/tests/productionHardening.test.ts` (local dates, `escapeHtml`, guest
 - **DONE 2026-11-05:** dead files deleted (see §12.0 "Unused files").
 - `index.html` title is `bitezo-client`. Google Fonts load from the internet; terminals without internet fall back
   to system fonts. Bundle the fonts locally.
+- Do not pin `recharts` in `manualChunks` (`vite.config.ts`): its shared helpers come with it and every page then loads the charts. It loads with the dashboard.
 - Bundle sizes: `xlsx` (865 kB), `html2pdf` (738 kB), `jspdf` (400 kB), charts (407 kB). They are separate chunks;
   make sure they are only imported lazily from export/print actions.
 - 422 `console.*` calls (78 `console.log`), some may log payloads. Drop `console.log` in production builds
