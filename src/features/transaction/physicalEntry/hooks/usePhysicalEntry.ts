@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { physicalEntryApi, formatDateOnly } from "../services/physicalEntryApi";
 import { createEmptyPhysicalEntryForm } from "../constants";
 import { firstRealBranch, useStockBranches } from "../../shared/useStockBranches";
+import { useCategoryUnits } from "../../shared/useStockLineUnits";
 import { searchStockProducts, useStockBarcodeScan, withStoredProduct } from "../../shared/stockProductLookup";
 import { physicalEntrySchema } from "../types";
 import type {
@@ -46,7 +47,6 @@ export const usePhysicalEntry = (id?: string | null) => {
   const { showToast } = useToast();
 
   const [saving, setSaving] = useState(false);
-  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
 
   // Always clear cached branchData (refNo + employees) on Add-mode mount so the
   // ref number is fetched fresh from the API, never served from stale cache.
@@ -57,21 +57,7 @@ export const usePhysicalEntry = (id?: string | null) => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadCategoryUnits = useCallback(async (unitCategory: string) => {
-    if (!unitCategory) return;
-    setCategoryUnits(prev => {
-      if (prev[unitCategory]) return prev;
-      physicalEntryApi.getUnitList(unitCategory).then(res => {
-        setCategoryUnits(current => ({
-          ...current,
-          [unitCategory]: res.map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
-        }));
-      }).catch(err => {
-        console.error("Failed to load units for category", unitCategory, err);
-      });
-      return prev;
-    });
-  }, []);
+  const { categoryUnits, setCategoryUnits, loadCategoryUnits } = useCategoryUnits(physicalEntryApi.getUnitList);
 
   // Product Search State
   const [productOptions, setProductOptions] = useState<SearchableOption[]>([]);

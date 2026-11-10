@@ -24,6 +24,7 @@ import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/empl
 import { getEmployeeNames } from "../../../general/employee/services/employeeService";
 import { stockLineAmount, stockBaseQty, stockNetAmount } from "../../shared/stockCalc";
 import { firstRealBranch, useStockBranches } from "../../shared/useStockBranches";
+import { useCategoryUnits, useClosingStock, useStockUnitChange } from "../../shared/useStockLineUnits";
 import { searchStockProducts, toProductOption, uniqueProductOptions, useStockBarcodeScan, withStoredProduct } from "../../shared/stockProductLookup";
 import { getLineUnitValue, type RawUnit } from "../../shared/lineUnits";
 
@@ -49,23 +50,8 @@ export const useStockAdjustment = (id?: string | null) => {
   const { showToast } = useToast();
 
   const [saving, setSaving] = useState(false);
-  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
 
-  const loadCategoryUnits = useCallback(async (unitCategory: string) => {
-    if (!unitCategory) return;
-    setCategoryUnits(prev => {
-      if (prev[unitCategory]) return prev;
-      stockAdjustmentApi.getUnitList(unitCategory).then(res => {
-        setCategoryUnits(current => ({
-          ...current,
-          [unitCategory]: res.map((u: RawUnit) => ({ label: u.name || u.unitName || "", value: String(u.unitId ?? u.id), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
-        }));
-      }).catch(err => {
-        console.error("Failed to load units for category", unitCategory, err);
-      });
-      return prev;
-    });
-  }, []);
+  const { categoryUnits, loadCategoryUnits } = useCategoryUnits(stockAdjustmentApi.getUnitList);
 
   // Product Search State
   const [productOptions, setProductOptions] = useState<SearchableOption[]>([]);
@@ -438,13 +424,7 @@ export const useStockAdjustment = (id?: string | null) => {
     }
   }, []);
 
-  const loadStock = useCallback((index: number, productId: number) => {
-    const branchIdStr = getValues("branch");
-    if (!branchIdStr || !productId) return;
-    productService.getClosingStock(productId, Number(branchIdStr))
-      .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-      .catch(() => setValue(`items.${index}.stock`, "Error"));
-  }, [getValues, setValue]);
+  const loadStock = useClosingStock("branch", getValues, setValue);
 
   // 6. Select details from product
   const handleProductSelect = async (index: number, val: string, barcode: string) => {
@@ -480,31 +460,7 @@ export const useStockAdjustment = (id?: string | null) => {
     }
   };
 
-  const handleUnitChange = useCallback(async (index: number, unitId: string) => {
-    setValue(`items.${index}.unit`, unitId);
-    setValue(`items.${index}.unitId`, Number(unitId));
-    const rowId = getValues(`items.${index}.id`);
-    const productId = getValues(`items.${index}.product`);
-    if (!productId || !unitId) return;
-
-    // A slow response must not change a line whose row, product or unit has changed since.
-    const isSameLine = () =>
-      getValues(`items.${index}.id`) === rowId &&
-      getValues(`items.${index}.product`) === productId &&
-      getValues(`items.${index}.unit`) === unitId;
-
-    try {
-      const cost = await stockAdjustmentApi.getUnitCost(Number(productId), Number(unitId));
-      if (!isSameLine()) return;
-      setValue(`items.${index}.cost`, formatAmount(cost));
-      loadStock(index, Number(productId));
-    } catch (error) {
-      console.error("Failed to fetch unit cost", error);
-      if (isSameLine()) {
-        showToast("Could not load the cost for this unit. Please check the Cost before saving.", "warning");
-      }
-    }
-  }, [setValue, getValues, formatAmount, showToast, loadStock]);
+  const handleUnitChange = useStockUnitChange({ getUnitCost: stockAdjustmentApi.getUnitCost, getValues, setValue, formatAmount, showToast, loadStock });
 
   const handleReset = useCallback(() => {
     if (id && recordData) {

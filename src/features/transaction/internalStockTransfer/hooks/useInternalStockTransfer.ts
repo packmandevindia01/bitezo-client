@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ import {
 } from "../types";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { firstRealBranch, useStockBranches } from "../../shared/useStockBranches";
+import { useCategoryUnits, useClosingStock, useStockUnitChange } from "../../shared/useStockLineUnits";
 import { stockBaseQty, stockLineAmount, stockNetAmount } from "../../shared/stockCalc";
 import { getLineUnitValue, type RawUnit } from "../../shared/lineUnits";
 
@@ -48,23 +49,8 @@ export const useInternalStockTransfer = (id?: string) => {
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
 
-  const loadCategoryUnits = useCallback(async (unitCategory: string) => {
-    if (!unitCategory) return;
-    setCategoryUnits(prev => {
-      if (prev[unitCategory]) return prev;
-      internalStockTransferApi.getUnits(unitCategory).then(res => {
-        setCategoryUnits(current => ({
-          ...current,
-          [unitCategory]: (res || []).map((u: RawUnit) => ({ label: u.name || u.unitName || "", value: String(u.unitId ?? u.id), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
-        }));
-      }).catch(err => {
-        console.error("Failed to load units for category", unitCategory, err);
-      });
-      return prev;
-    });
-  }, []);
+  const { categoryUnits, loadCategoryUnits } = useCategoryUnits(internalStockTransferApi.getUnits);
 
   const methods = useForm<InternalStockTransferForm>({
     resolver: zodResolver(InternalStockTransferFormSchema),
@@ -248,6 +234,8 @@ export const useInternalStockTransfer = (id?: string) => {
     }
   }, [branchSpecificData, id, setValue, getValues]);
 
+  const loadStock = useClosingStock("fromBranch", getValues, setValue);
+
   // Product Selection Logic
   const handleProductSelect = async (index: number, productIdStr: string) => {
     if (!masterLookupData?.products) return;
@@ -272,12 +260,7 @@ export const useInternalStockTransfer = (id?: string) => {
           }
         }
         
-        const branchIdStr = getValues("fromBranch");
-        if (branchIdStr && productIdStr) {
-          productService.getClosingStock(Number(productIdStr), Number(branchIdStr))
-            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-            .catch(() => setValue(`items.${index}.stock`, "Error"));
-        }
+        loadStock(index, Number(productIdStr));
       } catch (err) {
         console.error("Failed to load product details", err);
         setValue(`items.${index}.stock`, "Error");
@@ -286,37 +269,7 @@ export const useInternalStockTransfer = (id?: string) => {
   };
 
 
-  const handleUnitChange = useCallback(async (index: number, unitId: string) => {
-    setValue(`items.${index}.unit`, unitId);
-    setValue(`items.${index}.unitId`, Number(unitId));
-    const rowId = getValues(`items.${index}.id`);
-    const productId = getValues(`items.${index}.product`);
-    if (!productId || !unitId) return;
-
-    // A slow response must not change a line whose row, product or unit has changed since.
-    const isSameLine = () =>
-      getValues(`items.${index}.id`) === rowId &&
-      getValues(`items.${index}.product`) === productId &&
-      getValues(`items.${index}.unit`) === unitId;
-
-    try {
-      const cost = await internalStockTransferApi.getUnitCost(Number(productId), Number(unitId));
-      if (!isSameLine()) return;
-      setValue(`items.${index}.cost`, formatAmount(cost));
-
-      const branchIdStr = getValues("fromBranch");
-      if (branchIdStr && productId) {
-        productService.getClosingStock(Number(productId), Number(branchIdStr))
-          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-          .catch(() => setValue(`items.${index}.stock`, "Error"));
-      }
-    } catch (error) {
-      console.error("Failed to fetch unit cost", error);
-      if (isSameLine()) {
-        showToast("Could not load the cost for this unit. Please check the Cost before saving.", "warning");
-      }
-    }
-  }, [setValue, getValues, showToast]);
+  const handleUnitChange = useStockUnitChange({ getUnitCost: internalStockTransferApi.getUnitCost, getValues, setValue, formatAmount, showToast, loadStock });
 
   const handleReset = () => {
     reset(initialTransferForm);

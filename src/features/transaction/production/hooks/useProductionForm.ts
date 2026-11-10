@@ -5,6 +5,7 @@ import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { productionApi, formatDateOnly } from "../services/productionApi";
+import { useCategoryUnits } from "../../shared/useStockLineUnits";
 import { productService } from "../../../inventory/product/services/productService";
 import { productionSchema } from "../types";
 import type {
@@ -25,23 +26,8 @@ export const useProductionForm = (initialTransId?: number) => {
 
   // Unit lists for Finished Product and Raw Material rows
   const [finishedProductUnits, setFinishedProductUnits] = useState<{ label: string; value: string; currentValue: number }[]>([]);
-  const [categoryUnits, setCategoryUnits] = useState<Record<string, { label: string, value: string, currentValue: number }[]>>({});
 
-  const loadCategoryUnits = useCallback(async (unitCategory: string) => {
-    if (!unitCategory) return;
-    setCategoryUnits(prev => {
-      if (prev[unitCategory]) return prev;
-      productionApi.getUnitListByName(unitCategory).then(res => {
-        setCategoryUnits(current => ({
-          ...current,
-          [unitCategory]: (res || []).map((u: any) => ({ label: u.name || u.unitName, value: String(u.unitId), currentValue: Number(u.currentValue ?? u.currentvalue ?? 1) }))
-        }));
-      }).catch(err => {
-        console.error("Failed to load units for category", unitCategory, err);
-      });
-      return prev;
-    });
-  }, []);
+  const { categoryUnits, loadCategoryUnits } = useCategoryUnits(productionApi.getUnitListByName);
 
   // 1. Initialize React Hook Form
   const form = useForm<ProductionForm>({
