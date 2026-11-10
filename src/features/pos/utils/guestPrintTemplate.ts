@@ -466,6 +466,12 @@ export const generateGuestPrintHtml = async (
   data.vatAmount = isVatActive ? shownFooter.vat : 0;
   data.netAmount = shownFooter.grandTotal;
   if (totalPrintDiscount > 0) data.discount = shownFooter.discount;
+  // Guest and settle bills always name the customer. A delivery bill with a name shows it once, in Delivery Details.
+  const customerRowHtml = !data.isPackager && (!isDelivery || !data.customerName) ? `
+          <tr>
+            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(العميل)</bdi>' : ''} :&nbsp;<span style="font-weight: normal;" dir="auto">${escapeHtml(data.customerName || "CASH CUSTOMER")}</span></td>
+          </tr>
+          ` : '';
   const chargeLines = printChargeLines({ total: shownFooter.charges, serviceCharge: effectiveSc, levy: effectiveLevy, netBase, orderType: data.orderType, decimals: decimalPart });
 
   // Exclusive print rows add up to the footer (Inclusive rows carry VAT, the footer Sub Total never does).
@@ -776,6 +782,7 @@ export const generateGuestPrintHtml = async (
             <td style="width: 50%;"></td>
           </tr>
           ` : ''}
+          ${customerRowHtml}
         </table>
         ` : `
         <table class="meta-table">
@@ -802,11 +809,7 @@ export const generateGuestPrintHtml = async (
             <td style="width: 50%;"></td>
           </tr>
           ` : '')}
-          ${isGuestPrint && !isDelivery && data.customerName ? `
-          <tr>
-            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(العميل)</bdi>' : ''} :&nbsp;<span style="font-weight: normal;" dir="auto">${escapeHtml(data.customerName)}</span></td>
-          </tr>
-          ` : ''}
+          ${customerRowHtml}
         </table>
         `}
         

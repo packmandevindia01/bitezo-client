@@ -8,6 +8,7 @@ import { isKotArabicEnabled, isOtherKitchenItemEnabled } from "../features/pos/u
 import { posConfigApi } from "../features/pos/services/posConfigApi";
 import { generateKotHtml, kotNumber } from "../features/pos/utils/kotTemplate";
 import { generateGuestPrintHtml } from "../features/pos/utils/guestPrintTemplate";
+import { generateBillMarkup } from "../features/pos/utils/escPosGenerator";
 
 const printed = vi.hoisted(() => [] as { html: string; printer?: string }[]);
 const printFails = vi.hoisted(() => ({ next: false }));
@@ -81,8 +82,20 @@ describe("Guest print customer and heading line", () => {
     expect(await bill({ customerName: "A<b>" })).toContain("A&lt;b&gt;");
   });
 
-  it("has no Customer row when the order has no customer", async () => {
-    expect(customerRows(await bill())).toBe(0);
+  it.each([["guest", {}], ["settle", { invoiceNo: "84", isSettlement: true }], ["settle with no invoice number yet", { isSettlement: true }]])("%s bill always has a customer, CASH CUSTOMER when the order has none", async (_name, over) => {
+    expect(text(await bill(over))).toMatch(/Customer :(?:&nbsp;)? ?CASH CUSTOMER/);
+    expect(text(await bill({ ...over, customerName: "Ali" }))).toMatch(/Customer :(?:&nbsp;)? ?Ali/);
+  });
+
+  it.each([["TakeOut"], ["DineIn"]])("%s settle bill names the customer once", async (orderType) => {
+    expect(customerRows(await bill({ orderType, invoiceNo: "84", isSettlement: true, customerName: "Ali" }))).toBe(1);
+  });
+
+  it("thermal format: guest and settle name the customer, packager does not", () => {
+    const markup = (over: Record<string, unknown>) => generateBillMarkup({ cartDetails: [item({})], data: { ...printData, orderType: "TakeOut", netAmount: 10, customerName: "Ali", ...over } as never });
+    expect(markup({})).toContain("Customer: Ali");
+    expect(markup({ invoiceNo: "84", isSettlement: true })).toContain("Customer: Ali");
+    expect(markup({ isPackager: true })).not.toContain("Customer: Ali");
   });
 
   it("a delivery guest bill prints the customer once, in Delivery Details", async () => {
@@ -107,9 +120,12 @@ describe("Guest print customer and heading line", () => {
     expect(html).not.toContain("DELIVERY DETAILS");
   });
 
-  it("settle prints and packager prints get no header Customer row", async () => {
-    expect(customerRows(await bill({ invoiceNo: "84", isSettlement: true, customerName: "Ali" }))).toBe(0);
+  it("packager prints get no header Customer row", async () => {
     expect(customerRows(await bill({ isPackager: true, customerName: "Ali" }))).toBe(0);
+  });
+
+  it("a delivery settle bill prints the customer once, in Delivery Details", async () => {
+    expect(customerRows(await bill({ orderType: "Delivery", invoiceNo: "84", isSettlement: true, customerName: "Ali" }))).toBe(1);
   });
 });
 

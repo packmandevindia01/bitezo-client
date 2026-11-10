@@ -371,6 +371,9 @@ export const generateBillMarkup = (input: BillMarkupInput): string => {
       markup += twoCol(`${drvLbl}: ${driverVal}`, "") + "\n";
     }
   }
+  if (!data.isPackager && (!isDelivery || !data.customerName)) {
+    markup += `[L]${isBillArabic ? "Customer (العميل)" : "Customer"}: ${data.customerName || "CASH CUSTOMER"}\n`;
+  }
   markup += `[L]${DASH_SEP}\n`;
 
   // ── Items Pricing ───────────────────────────────────────────────────────────
