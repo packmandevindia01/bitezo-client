@@ -11,6 +11,7 @@ import { getCurrencySymbol } from "../../../../../../utils/currency";
 import { generateEndReportHtml } from "../../../../utils/endReportTemplate";
 import { useQueryClient } from "@tanstack/react-query";
 import { bulkSettlementApi } from "../../../../bulkSettlement/services/bulkSettlementApi";
+import { checkPendingOrders } from "../../../utils/pendingDayCheck";
 import { roundCalc } from "../../../utils/billing";
 import { PosPreSessionMoreModal } from "./PosPreSessionMoreModal";
 
@@ -71,6 +72,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({
 
   // ── Pending Order Settlement State ────────────────────────────────────────
   const [showPendingSettleModal, setShowPendingSettleModal] = useState(false);
+  const [pendingCheckFailed, setPendingCheckFailed] = useState(false);
   const [isSettlingPending, setIsSettlingPending] = useState(false);
   // Captures the close-day payload so we can resume after the pending modal
   const pendingCloseDayRef = useRef<{
@@ -241,6 +243,20 @@ export const PosCashierSessionModal: React.FC<Props> = ({
     }
   };
 
+  const runPendingCheck = (dayId: number) => checkPendingOrders((id) => bulkSettlementApi.checkPendingOrderStatus(id), dayId);
+
+  /** True when closing the day has to wait for the cashier: orders are pending, or the check itself failed. */
+  const holdCloseForPendingCheck = async (close: NonNullable<typeof pendingCloseDayRef.current>): Promise<boolean> => {
+    if (!cashierStatus) return false;
+    const outcome = await runPendingCheck(cashierStatus.dayId);
+    if (outcome === "clear") return false;
+    pendingCloseDayRef.current = close;
+    setSubmitting(false);
+    if (outcome === "pending") setShowPendingSettleModal(true);
+    else setPendingCheckFailed(true);
+    return true;
+  };
+
   const executeSubmit = async () => {
     if (!mode || !cashierStatus) return;
     setSubmitting(true);
@@ -297,20 +313,9 @@ export const PosCashierSessionModal: React.FC<Props> = ({
         }
 
         // ── Check for pending orders before closing the day ──────────────────
-        try {
-          const pendingStatus = await bulkSettlementApi.checkPendingOrderStatus(cashierStatus.dayId);
-          if (pendingStatus.hasPendingOrder) {
-            // Capture the payload so we can resume after user decides
-            pendingCloseDayRef.current = { isoString, denominations, isCombined: false };
-            setSubmitting(false);
-            setShowPendingSettleModal(true);
-            return; // Don't close yet — wait for the pending modal result
-          }
-        } catch {
-          // If the check fails, proceed to close the day normally
-        }
+        if (await holdCloseForPendingCheck({ isoString, denominations, isCombined: false })) return;
 
-        // No pending orders (or check failed) — close day directly
+        // No pending orders: close the day directly
         await cashierLogService.closeDay({ dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId, closingBal: totalAmount, endDate: isoString, denominations: denominations });
         setPrintState({ type: "DAY", step: 2, dayId: cashierStatus.dayId, shiftId: cashierStatus.shiftId });
       }
@@ -350,17 +355,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({
       await cashierLogService.closeShift(payload);
 
       // ── Check for pending orders before closing the day ──────────────────
-      try {
-        const pendingStatus = await bulkSettlementApi.checkPendingOrderStatus(cashierStatus.dayId);
-        if (pendingStatus.hasPendingOrder) {
-          pendingCloseDayRef.current = { isoString, denominations, isCombined: true };
-          setSubmitting(false);
-          setShowPendingSettleModal(true);
-          return; // Don't close day yet — wait for the pending modal result
-        }
-      } catch {
-        // If the check fails, proceed to close the day normally
-      }
+      if (await holdCloseForPendingCheck({ isoString, denominations, isCombined: true })) return;
 
       // No pending orders — close day directly
       await cashierLogService.closeDay({ ...payload, closingBal: totalAmount, denominations });
@@ -439,6 +434,17 @@ export const PosCashierSessionModal: React.FC<Props> = ({
       setSubmitting(false);
       pendingCloseDayRef.current = null;
     }
+  };
+
+  const retryPendingCheck = async () => {
+    setPendingCheckFailed(false);
+    if (!cashierStatus) return;
+    setSubmitting(true);
+    const outcome = await runPendingCheck(cashierStatus.dayId);
+    setSubmitting(false);
+    if (outcome === "pending") setShowPendingSettleModal(true);
+    else if (outcome === "failed") setPendingCheckFailed(true);
+    else void handlePendingModalResult(false);
   };
 
   const finishLogout = (msg: string) => {
@@ -1072,6 +1078,20 @@ export const PosCashierSessionModal: React.FC<Props> = ({
         onConfirm={() => handlePrintStep(true)}
         onCancel={() => handlePrintStep(false)}
         loading={isPrinting}
+      />
+
+      <ConfirmDialog
+        isOpen={pendingCheckFailed}
+        title="Could Not Check Pending Orders"
+        message="The system could not check for unsettled orders, so open orders may be left behind. Try again, or close the day anyway."
+        confirmLabel="Close Day Anyway"
+        cancelLabel="Try Again"
+        loading={submitting}
+        onConfirm={() => {
+          setPendingCheckFailed(false);
+          void handlePendingModalResult(false);
+        }}
+        onCancel={() => void retryPendingCheck()}
       />
 
       {/* ── Pending Orders Settlement Modal ─────────────────────────────── */}
