@@ -19,6 +19,9 @@ import VoucherSeriesPage from "../features/inventory/voucherSeries/pages/Voucher
 import UnitPage from "../features/inventory/unit/pages/UnitPage";
 import TaxPage from "../features/inventory/tax/pages/TaxPage";
 import GroupPage from "../features/inventory/group/pages/GroupPage";
+import StockAdjustmentTypePage from "../features/inventory/stockAdjustmentType/pages/StockAdjustmentTypePage";
+import ModifierTypePage from "../features/inventory/modifierType/pages/ModifierTypePage";
+import ExtrasTypePage from "../features/inventory/extrasType/pages/ExtrasTypePage";
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }));
 const perms = vi.hoisted(() => ({ denied: new Set<string>(), asked: new Set<string>() }));
@@ -432,6 +435,113 @@ describe.each(HOOK_DELETE_DOCS)("$name master list", (doc) => {
     fireEvent.click(screen.getByText("Retry"));
     await loaded();
     expect(screen.queryByText("Retry")).toBeNull();
+  });
+});
+
+const TYPE_DOCS = [
+  {
+    name: "Stock Adjustment Type", Page: StockAdjustmentTypePage, module: null as string | null, table: "Stock Adjustment Types", placeholder: "Search adjustment types...",
+    list: "/stock-adjustment-type/details", nameField: "typeName",
+    rows: [{ sNo: 3, typeId: 5, typeName: "Front", effect: "+" }, { typeId: 6, typeName: "Bar", effect: "-" }],
+    detail: null as string | null, detailData: null,
+    remove: "/stock-adjustment-type/5", message: "Are you sure you want to delete this type? This action cannot be undone.", dialogTitle: "Delete Stock Adjustment Type",
+    headers: ["S.No", "Type Name", "Effect", "Actions"], firstCells: ["3", "Front", "+"], secondCells: ["6", "Bar", "-"], formDelete: false,
+  },
+  {
+    name: "Modifier Type", Page: ModifierTypePage, module: "Modifier Type" as string | null, table: "Saved Modifier Type List", placeholder: "Search modifier type...",
+    list: "/modifiertype/modifiertype-list", nameField: "name",
+    rows: [{ sNo: 1, typeId: 5, name: "Front", arabicName: "A" }, { sNo: 2, typeId: 6, name: "Bar", arabicName: "B" }],
+    detail: "/modifiertype/5/typeid-data" as string | null, detailData: { typeId: 5, name: "Front", arabicName: "A", price: 0 },
+    remove: "/modifiertype/5", message: 'Are you sure you want to delete "Front"?', dialogTitle: "Confirm Delete",
+    headers: ["S.No", "Name", "Arabic", "Actions"], firstCells: ["1", "Front", "A"], secondCells: ["2", "Bar", "B"], formDelete: true,
+  },
+  {
+    name: "Extras Type", Page: ExtrasTypePage, module: "Extras Type" as string | null, table: "Saved Extras Type List", placeholder: "Search extras type...",
+    list: "/extrastype/modifiertype-list", nameField: "name",
+    rows: [{ typeId: 5, name: "Front" }, { sNo: 9, typeId: 6, name: "Bar" }],
+    detail: "/extrastype/5/typeid-data" as string | null, detailData: { typeId: 5, name: "Front", arabicName: "" },
+    remove: "/extrastype/5", message: 'Are you sure you want to delete extras type "Front"?', dialogTitle: "Confirm Delete",
+    headers: ["S.No", "Name", "Actions"], firstCells: ["1", "Front"], secondCells: ["9", "Bar"], formDelete: true,
+  },
+];
+
+describe.each(TYPE_DOCS)("$name master list", (doc) => {
+  const rowOf = (row: number) => Array.from(document.querySelectorAll("tbody tr")).find((tr) => tr.textContent?.includes(row === 0 ? "Front" : "Bar")) as HTMLElement;
+  const icon = (row: number, name: string) => rowOf(row).querySelector(`svg[class*="${name}"]`)?.closest("button") as HTMLElement | undefined;
+  const cells = (row: number) => Array.from(rowOf(row).querySelectorAll("td")).map((td) => td.textContent?.trim());
+
+  beforeEach(() => {
+    http.get.mockImplementation(async (url: string, config?: { params?: { typeName?: string } }) => {
+      if (url.startsWith(doc.list)) {
+        const query = decodeURIComponent(url.split("typeName=")[1] ?? config?.params?.typeName ?? "").toLowerCase();
+        return ok(doc.rows.filter((row) => String((row as Record<string, unknown>)[doc.nameField]).toLowerCase().includes(query)));
+      }
+      if (url === doc.detail) return ok(doc.detailData);
+      return ok([]);
+    });
+  });
+
+  it("shows its columns and the permission it checks", async () => {
+    show(doc.Page);
+    await loaded();
+    expect(screen.getByText(doc.table)).toBeTruthy();
+    expect(Array.from(document.querySelectorAll("th")).map((th) => th.textContent?.trim())).toEqual(doc.headers);
+    expect(cells(0).slice(0, doc.firstCells.length)).toEqual(doc.firstCells);
+    expect(cells(1).slice(0, doc.secondCells.length)).toEqual(doc.secondCells);
+    expect([...perms.asked]).toEqual(doc.module ? [doc.module] : []);
+  });
+
+  it("search narrows the list", async () => {
+    show(doc.Page);
+    await loaded();
+    fireEvent.change(screen.getByPlaceholderText(doc.placeholder), { target: { value: "bar" } });
+    await waitFor(() => {
+      expect(rowTexts()).toHaveLength(1);
+      expect(rowTexts()[0]).toContain("Bar");
+    });
+  });
+
+  it("Add, Edit and Delete follow the permissions it has today", async () => {
+    perms.denied.add("Add");
+    perms.denied.add("Edit");
+    perms.denied.add("Delete");
+    show(doc.Page);
+    await loaded();
+    const shown = doc.module === null;
+    expect(!!screen.queryByText("Add New")).toBe(shown);
+    expect(!!icon(0, "pencil")).toBe(shown);
+    expect(!!icon(0, "trash")).toBe(shown);
+  });
+
+  it("deleting asks first, Cancel keeps it, confirming deletes", async () => {
+    show(doc.Page);
+    await loaded();
+    fireEvent.click(icon(0, "trash") as HTMLElement);
+    expect(screen.getByText(doc.message)).toBeTruthy();
+    expect(screen.getByText(doc.dialogTitle)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^\s*Cancel\s*$/ }));
+    await waitFor(() => expect(screen.queryByText(doc.message)).toBeNull());
+    expect(http.delete).not.toHaveBeenCalled();
+    fireEvent.click(icon(0, "trash") as HTMLElement);
+    fireEvent.click(plainDelete());
+    await waitFor(() => expect(http.delete).toHaveBeenCalledWith(doc.remove));
+    await waitFor(() => expect(screen.queryByText(doc.message)).toBeNull());
+  });
+
+  it("Edit opens the form, and Delete there asks first where it has one", async () => {
+    show(doc.Page);
+    await loaded();
+    fireEvent.click(icon(0, "pencil") as HTMLElement);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^\s*Clear\s*$/ })).toBeTruthy());
+    if (doc.detail) await waitFor(() => expect(http.get).toHaveBeenCalledWith(doc.detail));
+    if (!doc.formDelete) {
+      expect(screen.queryByRole("button", { name: /^\s*Delete\s*$/ })).toBeNull();
+      return;
+    }
+    await waitFor(() => expect((plainDelete() as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(plainDelete());
+    await waitFor(() => expect(screen.getByText(doc.message)).toBeTruthy());
+    expect(http.delete).not.toHaveBeenCalled();
   });
 });
 

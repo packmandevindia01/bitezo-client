@@ -1,18 +1,11 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
+import { RotateCcw, Save, Trash2 } from "lucide-react";
 
-import {
-  Button,
-  ConfirmDialog,
-  Modal,
-  PageShell,
-  RecordTableCard,
-  ListHeader,
-} from "../../../../components/common";
+import { Button, Modal } from "../../../../components/common";
+import MasterListPage, { type MasterColumn } from "../../../../components/common/MasterListPage";
 import ExtrasTypeFormComponent from "../components/ExtrasTypeForm";
-import { usePermissions } from "../../../../hooks/usePermissions";
 import { useToast } from "../../../../app/providers/useToast";
 
 import { extrasTypeFormSchema, type ExtrasTypeForm as ExtrasTypeFormType, type ExtrasTypeRecord } from "../schemas";
@@ -24,18 +17,18 @@ import {
   useDeleteExtrasType
 } from "../hooks/useExtrasTypeQueries";
 
+const COLUMNS: MasterColumn<ExtrasTypeRecord>[] = [
+  { header: "S.No", accessor: "sNo", render: (row, index) => row.sNo ?? index + 1 },
+  { header: "Name", accessor: "name" },
+];
+
 const ExtrasTypePage = () => {
-  const { hasPermission } = usePermissions();
   const { showToast } = useToast();
   
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteRecord, setDeleteRecord] = useState<ExtrasTypeRecord | null>(null);
-
-  const canAdd = hasPermission("Extras Type", "Add");
-  const canEdit = hasPermission("Extras Type", "Edit");
-  const canDelete = hasPermission("Extras Type", "Delete");
 
   const { data: records = [], isLoading } = useExtrasTypes(search || undefined);
   const { data: detailRecord, isLoading: isDetailLoading } = useExtrasTypeDetail(editingId || undefined);
@@ -148,128 +141,93 @@ const ExtrasTypePage = () => {
   const handleSave = form.handleSubmit(onSubmit, onInvalid);
 
   return (
-    <PageShell title="Extras Type">
-      <ListHeader
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search extras type..."
-        autoFocusSearch
-        canAdd={canAdd}
-        onAdd={openCreateModal}
-      />
-      <RecordTableCard
-        title="Saved Extras Type List"
-        rowKey="typeId"
-        data={records}
-        loading={isLoading}
-        columns={[
-          { header: "S.No", accessor: "sNo" as any, render: (row: any, index: number) => row.sNo ?? (index + 1) },
-          { header: "Name", accessor: "name" },
-          {
-            header: "Actions",
-            accessor: "typeId",
-            render: (row) => (
-              <div className="flex gap-2">
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(row)}
-                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                    aria-label={`Edit ${row.name}`}
+    <MasterListPage<ExtrasTypeRecord>
+      moduleName="Extras Type"
+      title="Extras Type"
+      tableTitle="Saved Extras Type List"
+      searchPlaceholder="Search extras type..."
+      rowKey="typeId"
+      getName={(row) => row.name}
+      columns={COLUMNS}
+      records={records}
+      loading={isLoading}
+      search={search}
+      onSearchChange={setSearch}
+      onAdd={openCreateModal}
+      onEdit={handleEdit}
+      editingId={editingId}
+      closeForm={closeModal}
+      deleteFlow={{ candidate: deleteRecord, request: setDeleteRecord, confirm: handleDelete, cancel: () => setDeleteRecord(null) }}
+      deleteDialog={{ message: (row) => `Are you sure you want to delete extras type "${row.name}"?` }}
+      renderForm={(_, canDelete) => (
+          <Modal
+            isOpen={open}
+            onClose={closeModal}
+            title={editingId ? "Edit Extras Type" : "Add Extras Type"}
+            size="lg"
+            footer={
+              <div className="flex gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    form.reset({ name: "", arabicName: "" });
+                    form.clearErrors();
+                    setTimeout(() => {
+                      const el = document.getElementById("exttype-name");
+                      el?.focus();
+                      if (el instanceof HTMLInputElement) el.select?.();
+                    }, 10);
+                  }}
+                  disabled={isSaving || isDetailLoading}
+                  tabIndex={-1}
+                  isAction
+                  icon={<RotateCcw size={18} />}
+                >
+                  Clear
+                </Button>
+                <Button
+                  id="exttype-save"
+                  onClick={handleSave}
+                  loading={isSaving}
+                  disabled={isDetailLoading}
+                  isAction
+                  icon={<Save size={18} />}
+                >
+                  Save
+                </Button>
+                {editingId && canDelete && (
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      const record = records.find(r => r.typeId === editingId);
+                      if (record) {
+                        setDeleteRecord(record);
+                        closeModal();
+                      }
+                    }}
+                    disabled={isSaving || isDetailLoading}
+                    isAction
+                    tabIndex={-1}
+                    icon={<Trash2 size={18} />}
                   >
-                    <Pencil size={16} />
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => setDeleteRecord(row)}
-                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                    aria-label={`Delete ${row.name}`}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                    Delete
+                  </Button>
                 )}
               </div>
-            ),
-          },
-        ]}
-      />
-
-      <Modal
-        isOpen={open}
-        onClose={closeModal}
-        title={editingId ? "Edit Extras Type" : "Add Extras Type"}
-        size="lg"
-        footer={
-          <div className="flex gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => {
-                form.reset({ name: "", arabicName: "" });
-                form.clearErrors();
-                setTimeout(() => {
-                  const el = document.getElementById("exttype-name");
-                  el?.focus();
-                  if (el instanceof HTMLInputElement) el.select?.();
-                }, 10);
+            }
+          >
+            <form
+              noValidate
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSave();
               }}
-              disabled={isSaving || isDetailLoading}
-              tabIndex={-1}
-              isAction
-              icon={<RotateCcw size={18} />}
             >
-              Clear
-            </Button>
-            <Button
-              id="exttype-save"
-              onClick={handleSave}
-              loading={isSaving}
-              disabled={isDetailLoading}
-              isAction
-              icon={<Save size={18} />}
-            >
-              Save
-            </Button>
-            {editingId && canDelete && (
-              <Button
-                variant="danger"
-                onClick={() => {
-                  const record = records.find(r => r.typeId === editingId);
-                  if (record) {
-                    setDeleteRecord(record);
-                    closeModal();
-                  }
-                }}
-                disabled={isSaving || isDetailLoading}
-                isAction
-                tabIndex={-1}
-                icon={<Trash2 size={18} />}
-              >
-                Delete
-              </Button>
-            )}
-          </div>
-        }
-      >
-        <form
-          noValidate
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSave();
-          }}
-        >
-          <ExtrasTypeFormComponent form={form} onSave={handleSave} saveButtonId="exttype-save" />
-        </form>
-      </Modal>
-
-      <ConfirmDialog
-        isOpen={deleteRecord !== null}
-        onCancel={() => setDeleteRecord(null)}
-        onConfirm={handleDelete}
-        message={`Are you sure you want to delete extras type "${deleteRecord?.name}"?`}
-      />
-    </PageShell>
+              <ExtrasTypeFormComponent form={form} onSave={handleSave} saveButtonId="exttype-save" />
+            </form>
+          </Modal>
+      )}
+    />
   );
 };
 

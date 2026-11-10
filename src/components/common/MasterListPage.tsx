@@ -24,8 +24,8 @@ interface MasterDeleteDialog<T> {
 }
 
 export interface MasterListPageProps<T> {
-  /** Name the permission check uses. */
-  moduleName: string;
+  /** Name the permission check uses. Left out: every action is allowed. */
+  moduleName?: string;
   title: string;
   tableTitle: string;
   searchPlaceholder: string;
@@ -96,9 +96,9 @@ const MasterListPage = <T,>({
   const { hasPermission } = usePermissions();
   const [deleteRecord, setDeleteRecord] = useState<T | null>(null);
 
-  const canAdd = hasPermission(moduleName, "Add");
-  const canEdit = hasPermission(moduleName, "Edit");
-  const canDelete = hasPermission(moduleName, "Delete");
+  const canAdd = !moduleName || hasPermission(moduleName, "Add");
+  const canEdit = !moduleName || hasPermission(moduleName, "Edit");
+  const canDelete = !moduleName || hasPermission(moduleName, "Delete");
 
   const pendingDelete = deleteFlow ? deleteFlow.candidate : deleteRecord;
 

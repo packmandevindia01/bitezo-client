@@ -26,7 +26,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Stock Adjustment, Physical Entry and Stock Transfer forms and lists load branches through one hook (`shared/useStockBranches.ts`). New-document payloads and branch defaults are covered by `stockFormBranches`.
 - Stock Adjustment and Physical Entry share product search and barcode scan (`shared/stockProductLookup.ts`). Test: `stockProductLookup`.
 - All four stock forms load unit lists through one hook; Stock Adjustment and Stock Transfer also share unit change and closing stock (`shared/useStockLineUnits.ts`). Test: `stockLineUnits`.
-- Counter, Section, Paymode, User Role, Provider, Voucher Series, Unit, Tax and Group use one list screen (`components/common/MasterListPage.tsx`). Their hooks and forms stay separate because their rules differ. Test: `masterListPages`.
+- Counter, Section, Paymode, User Role, Provider, Voucher Series, Unit, Tax, Group, Stock Adjustment Type, Modifier Type and Extras Type use one list screen (`components/common/MasterListPage.tsx`). Their hooks and forms stay separate because their rules differ. Test: `masterListPages`.
 - 38 `unwrap` and 5 `formatDateOnly` exact copies replaced by `shared/api/unwrap.ts` and `shared/lib/date.ts`.
 - Payload snapshots: `purchasePayloadGolden`, `voucherPayloadGolden`, `againstVoucherPayloadGolden`, `stockDocumentPayloadGolden`.
 
@@ -38,7 +38,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | Production list page and the Transfer and Production APIs | Production filters by branch, product and unit, has no dates and shows other columns, so it stays separate. The APIs use different paths and method names | Leave unless they change |
 | `DocumentForm`: shared form page and line grid | About 3,000+ lines of form pages | Needs a visual check of each screen |
 | Voucher form pages | 4 pages | Field behaviour differs; decide which behaviour to keep |
-| More list screens on `MasterListPage` | 9 of the 23 list pages done | Compare the rest first; add tests before each |
+| More list screens on `MasterListPage` | 12 of the 23 list pages done. List work stopped here on purpose | The rest are larger or do not use the shared table, so savings are small and the risk grows. Stock Adjustment Type has no permission checks; confirm whether it should |
 | Remaining `unwrap` variants | 11 services with their own rules | Compare one by one |
 
 ## Bugs fixed on 2026-11-07
