@@ -5,6 +5,7 @@ import { AlertCircle, Pencil, Plus, Trash2, X } from "lucide-react";
 import { formatDateOnly } from "@shared/lib/date";
 import { Button, ConfirmDialog, FormInput, PageShell, RecordTableCard, SearchBar, SelectInput } from "../../../../components/common";
 import { useCurrency } from "../../../../hooks/useCurrency";
+import { useToast } from "../../../../app/providers/useToast";
 import type { StockDocumentRow } from "../stockDocumentApi";
 import { useStockDocumentList, type StockDocumentListConfig } from "../useStockDocumentList";
 
@@ -20,6 +21,15 @@ export interface StockDocumentListPageConfig extends StockDocumentListConfig {
   cancelDialogMessage: string;
   cancelConfirmLabel: string;
   cancelFailedMessage: string;
+  /** Set: the result of a cancel is a toast. Not set: only a failure shows, above the list. */
+  cancelSuccessMessage?: string;
+  /** Default: `route?id=<id>` */
+  editPath?: (transId: number) => string;
+  /** Default: one Branch column */
+  branchColumns?: { header: string; accessor: "branch" | "fromBranch" | "toBranch" }[];
+  /** Default: Ref No and Branch */
+  searchFields?: ("refNo" | "branch" | "fromBranch" | "toBranch")[];
+  searchPlaceholder?: string;
 }
 
 const REPORTS_AFFECTED_BY_CANCEL = [
@@ -30,11 +40,12 @@ const REPORTS_AFFECTED_BY_CANCEL = [
   "productTransactionLogReport",
 ];
 
-/** The saved list of Stock Adjustments and Physical Entries. */
+/** The saved list of Stock Adjustments, Physical Entries and Stock Transfers. */
 export const StockDocumentListPage = ({ config }: { config: StockDocumentListPageConfig }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { formatAmount } = useCurrency();
+  const { showToast } = useToast();
   const { records, loading, error: fetchError, filters, handleFilterChange, branches } = useStockDocumentList(config);
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -46,20 +57,22 @@ export const StockDocumentListPage = ({ config }: { config: StockDocumentListPag
     if (!deleteId) return;
     try {
       await config.cancelDocument(deleteId);
+      if (config.cancelSuccessMessage) showToast(config.cancelSuccessMessage, "success");
       [`${config.queryPrefix}List`, ...REPORTS_AFFECTED_BY_CANCEL].forEach((key) => {
         void queryClient.invalidateQueries({ queryKey: [key] });
       });
     } catch (err) {
-      setCancelError((err as Error).message || config.cancelFailedMessage);
+      const message = (err as Error).message || config.cancelFailedMessage;
+      if (config.cancelSuccessMessage) showToast(message, "error");
+      else setCancelError(message);
     } finally {
       setDeleteId(null);
     }
   };
 
   const term = searchTerm.toLowerCase();
-  const filteredRecords = records.filter(
-    (row) => !term || String(row.refNo || "").toLowerCase().includes(term) || String(row.branch || "").toLowerCase().includes(term)
-  );
+  const searchFields = config.searchFields ?? ["refNo", "branch"];
+  const filteredRecords = records.filter((row) => !term || searchFields.some((field) => String(row[field] || "").toLowerCase().includes(term)));
 
   return (
     <PageShell title={config.pageTitle} description={config.pageDescription}>
@@ -74,7 +87,7 @@ export const StockDocumentListPage = ({ config }: { config: StockDocumentListPag
       )}
 
       <div className="flex flex-col md:flex-row gap-4 mb-4 justify-between items-end">
-        <div className="flex gap-4 items-end flex-1">
+        <div className="flex gap-4 items-end flex-1 flex-wrap">
           <div className="w-40">
             <FormInput label="From Date" type="date" value={filters.fromDate} onChange={(e) => handleFilterChange("fromDate", e.target.value)} />
           </div>
@@ -85,7 +98,7 @@ export const StockDocumentListPage = ({ config }: { config: StockDocumentListPag
             <label className="flex items-center text-[10px] font-bold uppercase tracking-widest text-transparent mb-0.5 select-none pointer-events-none">
               -
             </label>
-            <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder="Search by Ref No or Branch..." />
+            <SearchBar value={searchTerm} onChange={setSearchTerm} placeholder={config.searchPlaceholder ?? "Search by Ref No or Branch..."} />
           </div>
           <div className="w-48">
             <SelectInput
@@ -114,7 +127,7 @@ export const StockDocumentListPage = ({ config }: { config: StockDocumentListPag
             { header: "Sl No", accessor: "sl", render: (_, index) => index + 1 },
             { header: "Date", accessor: "transDate", render: (row) => (row.transDate ? formatDateOnly(row.transDate) : "") },
             { header: "Ref No", accessor: "refNo" },
-            { header: "Branch", accessor: "branch" },
+            ...(config.branchColumns ?? [{ header: "Branch", accessor: "branch" as const }]),
             { header: "Total Amount", accessor: "netAmount", render: (row) => formatAmount(Number(row.netAmount)), align: "right" },
             {
               header: "Actions",
@@ -122,7 +135,7 @@ export const StockDocumentListPage = ({ config }: { config: StockDocumentListPag
               render: (row) => (
                 <div className="flex items-center justify-center gap-2">
                   <button
-                    onClick={() => navigate(`${config.route}?id=${row.transId}`)}
+                    onClick={() => navigate(config.editPath ? config.editPath(row.transId) : `${config.route}?id=${row.transId}`)}
                     className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
                     title="Edit"
                   >

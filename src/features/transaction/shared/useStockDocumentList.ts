@@ -10,6 +10,8 @@ export interface StockDocumentListConfig {
   queryPrefix: string;
   getDetails: (params: StockDocumentListParams) => Promise<StockDocumentRow[]>;
   getBranchList: () => Promise<StockDocumentBranch[]>;
+  /** Start of the date filter. Default: the first of this month. */
+  defaultFromDate?: () => string;
 }
 
 const newestFirst = (a: StockDocumentRow, b: StockDocumentRow) => {
@@ -19,13 +21,13 @@ const newestFirst = (a: StockDocumentRow, b: StockDocumentRow) => {
   return (b.transId || 0) - (a.transId || 0);
 };
 
-/** Filters, branch list and rows of the saved Stock Adjustment and Physical Entry lists. */
-export const useStockDocumentList = ({ queryPrefix, getDetails, getBranchList }: StockDocumentListConfig) => {
+/** Filters, branch list and rows of the saved stock document lists. */
+export const useStockDocumentList = ({ queryPrefix, getDetails, getBranchList, defaultFromDate }: StockDocumentListConfig) => {
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const [filters, setFilters] = useState({
     branchId: initialBranchId ? String(initialBranchId) : "",
     isBranchLocked,
-    fromDate: formatDateOnly(new Date(new Date().setDate(1))),
+    fromDate: defaultFromDate ? defaultFromDate() : formatDateOnly(new Date(new Date().setDate(1))),
     toDate: formatDateOnly(new Date()),
   });
 

@@ -22,7 +22,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Purchase Invoice and Return share totals, paymodes, bill discount percent, suppliers and payment mapping. They stay two hooks because their rules differ.
 - Payment and Receipt Vouchers share one hook, API, schema and list page.
 - Payment and Receipt Against Vouchers share one form hook, list hook, API, schema and types.
-- Stock Adjustment and Physical Entry share one list page, list hook and the read requests of their API (`shared/components/StockDocumentListPage.tsx`, `shared/useStockDocumentList.ts`, `shared/stockDocumentApi.ts`). Test: `stockDocumentList`. Not yet opened in the real app.
+- Stock Adjustment, Physical Entry and Stock Transfer share one saved list page and list hook; Stock Adjustment and Physical Entry also share the read requests of their API (`shared/components/StockDocumentListPage.tsx`, `shared/useStockDocumentList.ts`, `shared/stockDocumentApi.ts`). Test: `stockDocumentList`. Not yet opened in the real app.
 - Stock Adjustment, Physical Entry and Stock Transfer forms and lists load branches through one hook (`shared/useStockBranches.ts`). New-document payloads and branch defaults are covered by `stockFormBranches`.
 - Stock Adjustment and Physical Entry share product search and barcode scan (`shared/stockProductLookup.ts`). Test: `stockProductLookup`.
 - All four stock forms load unit lists through one hook; Stock Adjustment and Stock Transfer also share unit change and closing stock (`shared/useStockLineUnits.ts`). Test: `stockLineUnits`.
@@ -33,8 +33,8 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 
 | Work | Size | Note |
 |---|---|---|
-| Stock Adjustment, Physical Entry, Transfer hooks | About 2,000 lines left, mostly loading saved documents and building payloads, which differ per document | Stock Transfer has no product search or scan to share. Physical Entry unit change has no slow-reply guard. Production shares only 9% |
-| Transfer and Production APIs and list pages | Different method names and filters from the shared stock document code (From/To branch; Production number, BOM and product lists) | Compare first; share only what really matches |
+| Stock Adjustment, Physical Entry, Transfer hooks | About 2,000 lines left, mostly loading saved documents and building payloads, which differ per document | Stock Transfer has no product search or scan to share. Production shares only 9% |
+| Production list page and the Transfer and Production APIs | Production filters by branch, product and unit, has no dates and shows other columns, so it stays separate. The APIs use different paths and method names | Leave unless they change |
 | `DocumentForm`: shared form page and line grid | About 3,000+ lines of form pages | Needs a visual check of each screen |
 | Voucher form pages | 4 pages | Field behaviour differs; decide which behaviour to keep |
 | `MasterPage` and `createResourceApi` | 38 master pages, about 37,000 lines in `general` and `inventory` | Largest part of Phase 5; no safety net yet |
@@ -60,6 +60,8 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 
 | Screen | Bug |
 |---|---|
+| Physical Entry | A slow unit-cost reply could change a line whose unit had moved on, and a failed one was silent |
+| Stock Transfer list | Cancelling did not refresh the stock reports |
 | Stock Adjustment (new) | The form looped and reset itself while the product list was loading |
 | Stock Adjustment, Physical Entry, Stock Transfer (new) | A new document could start on the API's All row; it now starts on the first real branch. **Check saved Stock Adjustments with branch 1 (All).** |
 

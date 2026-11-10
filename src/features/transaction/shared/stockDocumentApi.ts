@@ -15,6 +15,8 @@ export interface StockDocumentRow {
   transDate?: string;
   refNo?: string;
   branch?: string;
+  fromBranch?: string;
+  toBranch?: string;
   netAmount?: number | string;
 }
 

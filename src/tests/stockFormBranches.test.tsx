@@ -14,7 +14,6 @@ import { notifyBranchesUpdated } from "../features/inventory/branches/utils/bran
 import { useStockAdjustment } from "../features/transaction/stockAdjustment/hooks/useStockAdjustment";
 import { usePhysicalEntry } from "../features/transaction/physicalEntry/hooks/usePhysicalEntry";
 import { useInternalStockTransfer } from "../features/transaction/internalStockTransfer/hooks/useInternalStockTransfer";
-import { useInternalStockTransferList } from "../features/transaction/internalStockTransfer/hooks/useInternalStockTransferList";
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }));
 vi.mock("../api/axiosInstance", () => ({ default: http }));
@@ -182,15 +181,6 @@ describe("Physical Entry and the branch store", () => {
     await waitFor(() => expect(labels(result.current.branches)).toContain("Main"));
     await settle();
     expect(result.current.methods.getValues("branch")).toBe("2");
-  });
-});
-
-describe("Stock Transfer saved list", () => {
-  it("lists each branch once, the branch master first", async () => {
-    const { result } = renderHook(() => useInternalStockTransferList(), { wrapper });
-    await waitFor(() => expect(labels(result.current.branches)).toContain("All"));
-    await settle();
-    expect(labels(result.current.branches)).toEqual(["Main", "Mall", "All"]);
   });
 });
 

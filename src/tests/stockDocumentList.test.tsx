@@ -14,9 +14,12 @@ import StockAdjustmentListPage from "../features/transaction/stockAdjustment/pag
 import PhysicalEntryListPage from "../features/transaction/physicalEntry/pages/PhysicalEntryListPage";
 import { stockAdjustmentApi } from "../features/transaction/stockAdjustment/services/stockAdjustmentApi";
 import { physicalEntryApi } from "../features/transaction/physicalEntry/services/physicalEntryApi";
+import InternalStockTransferListPage from "../features/transaction/internalStockTransfer/pages/InternalStockTransferListPage";
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }));
 vi.mock("../api/axiosInstance", () => ({ default: http }));
+const showToast = vi.hoisted(() => vi.fn());
+vi.mock("../app/providers/useToast", () => ({ useToast: () => ({ showToast }) }));
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 
 const ok = (data: unknown) => ({ data: { isSuccess: true, data } });
@@ -248,6 +251,103 @@ describe.each([
     await waitFor(() => expect(branchSelect().options.length).toBeGreaterThan(1));
     const labels = Array.from(branchSelect().options).map((o) => o.text);
     expect(labels).not.toContain("All Branches");
+  });
+});
+
+describe("Stock Transfer saved list", () => {
+  const base = "/stock-transfer";
+  const TRANSFERS = [
+    { transId: 5, transDate: "2026-11-03T00:00:00", refNo: "OLD", fromBranch: "Main", toBranch: "Mall", netAmount: 10 },
+    { transId: 9, transDate: "2026-11-05T00:00:00", refNo: "NEWEST", fromBranch: "Mall", toBranch: "Depot", netAmount: 1 },
+  ];
+  const open = () => {
+    const shown = show(InternalStockTransferListPage);
+    return shown;
+  };
+  const firstRow = () => within(document.querySelectorAll("tbody tr")[0] as HTMLElement);
+
+  beforeEach(() => {
+    const normal = http.get.getMockImplementation() as (url: string) => Promise<unknown>;
+    http.get.mockImplementation(async (url: string) => (url === `${base}/details` ? ok(TRANSFERS) : normal(url)));
+  });
+
+  it("shows its columns, the newest first", async () => {
+    open();
+    await loaded();
+    expect(screen.getByText("Internal Stock Transfer Records")).toBeTruthy();
+    const cells = Array.from(document.querySelectorAll("tbody tr")[0].querySelectorAll("td")).map((td) => td.textContent?.trim());
+    expect(cells.slice(0, 6)).toEqual(["1", "2026-11-05", "NEWEST", "Mall", "Depot", "1.000"]);
+  });
+
+  it("asks from 30 days back for the From branch, with the configured decimals", async () => {
+    localStorage.setItem("decimalPart", "2");
+    open();
+    await loaded();
+    const back = new Date();
+    back.setDate(back.getDate() - 30);
+    const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    expect(lastParams(base)).toEqual({ FromBranchId: 1, FromDate: iso(back), ToDate: iso(new Date()), Decimals: 2 });
+  });
+
+  it("lists the branches the API sends, with its own All first and no All Branches row", async () => {
+    open();
+    await loaded();
+    await waitFor(() => expect(branchSelect().options.length).toBe(3));
+    expect(Array.from(branchSelect().options).map((o) => o.text)).toEqual(["All", "Main", "Mall"]);
+  });
+
+  it("search matches Ref No and both branches", async () => {
+    open();
+    await loaded();
+    const search = screen.getByPlaceholderText("Search ref no or branch...");
+    fireEvent.change(search, { target: { value: "depot" } });
+    expect(rowTexts()).toHaveLength(1);
+    fireEvent.change(search, { target: { value: "main" } });
+    expect(rowTexts()[0]).toContain("OLD");
+    expect(rowTexts()).toHaveLength(1);
+  });
+
+  it("Add New and Edit go to the transfer", async () => {
+    open();
+    await loaded();
+    fireEvent.click(screen.getByText("Add New"));
+    expect(screen.getByTestId("where").textContent).toBe("/dashboard/internal-stock-transfer");
+    fireEvent.click(firstRow().getByTitle("Edit"));
+    expect(screen.getByTestId("where").textContent).toBe("/dashboard/internal-stock-transfer/edit/9");
+  });
+
+  it("cancelling confirms, cancels, reloads and says so", async () => {
+    open();
+    await loaded();
+    fireEvent.click(firstRow().getByTitle("Cancel Transfer"));
+    expect(screen.getByText("Are you sure you want to cancel this internal stock transfer?")).toBeTruthy();
+    const before = detailCalls(base).length;
+    fireEvent.click(screen.getAllByText("Cancel Transfer").at(-1) as HTMLElement);
+    await waitFor(() => expect(http.put).toHaveBeenCalledWith(`${base}/cancel/9`));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith("Transfer cancelled successfully", "success"));
+    await waitFor(() => expect(detailCalls(base).length).toBeGreaterThan(before));
+  });
+
+  it("a failed cancel is a message, with its own text when there is no reason", async () => {
+    open();
+    await loaded();
+    http.put.mockRejectedValueOnce(new Error("Already cancelled"));
+    fireEvent.click(firstRow().getByTitle("Cancel Transfer"));
+    fireEvent.click(screen.getAllByText("Cancel Transfer").at(-1) as HTMLElement);
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith("Already cancelled", "error"));
+    await waitFor(() => expect(screen.queryByText("Are you sure you want to cancel this internal stock transfer?")).toBeNull());
+    http.put.mockRejectedValueOnce(new Error(""));
+    fireEvent.click(firstRow().getByTitle("Cancel Transfer"));
+    fireEvent.click(screen.getAllByText("Cancel Transfer").at(-1) as HTMLElement);
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith("Failed to cancel transfer", "error"));
+  });
+
+  it("a user locked to a branch stays on it", async () => {
+    sessionStorage.setItem("backoffice_activeBranchId", "3");
+    open();
+    await loaded();
+    expect(lastParams(base).FromBranchId).toBe(3);
+    expect(branchSelect().disabled).toBe(true);
   });
 });
 
