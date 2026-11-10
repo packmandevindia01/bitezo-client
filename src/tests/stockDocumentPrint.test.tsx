@@ -82,6 +82,7 @@ describe("Stock Transfer print", () => {
     expect(text).toMatch(/Date\s*:\s*05\/11\/2026/);
     expect(text).toMatch(/Location From\s*:\s*Main/);
     expect(text).toMatch(/Location To\s*:\s*Mall/);
+    expect(text).not.toContain("Ref No");
     expect(text).toContain("Rice");
   });
 });

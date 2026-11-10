@@ -57,7 +57,7 @@ const printStyles = `
   }
   .print-meta-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 10px;
     margin-bottom: 20px;
     font-weight: bold;
@@ -206,7 +206,6 @@ const InternalStockTransferPrintModal: React.FC<PrintModalProps> = ({
         [""],
         [`Bill No : ${form.refNo || ""}`, "", "", `Location From : ${fromBranchName || ""}`],
         [`Date : ${formattedDate || ""}`, "", "", `Location To : ${toBranchName || ""}`],
-        [`Ref No :`, "", "", "", ""],
         [""],
         ["No.", "Product", "Product Code", "Qty", "Checked"]
       ];
@@ -399,14 +398,6 @@ const InternalStockTransferPrintModal: React.FC<PrintModalProps> = ({
                   <span className="print-meta-label">Location To</span>
                   <span className="print-meta-sep">:</span>
                   <span>{toBranchName || "______________"}</span>
-                </div>
-              </div>
-
-              <div className="print-meta-col">
-                <div className="print-meta-row">
-                  <span className="print-meta-label">Ref No</span>
-                  <span className="print-meta-sep">:</span>
-                  <span></span>
                 </div>
               </div>
             </div>
