@@ -337,9 +337,13 @@ export const useStockAdjustment = (id?: string | null) => {
       setProductOptions(recordData.productOptions);
     } else if (!id) {
       reset(initialForm);
-      setProductOptions(defaultProductOptionsRef.current.length > 0 ? defaultProductOptionsRef.current : defaultProductList);
     }
-  }, [id, recordData, reset, initialForm, defaultProductList]);
+  }, [id, recordData, reset, initialForm]);
+
+  // Kept apart from the reset above: a product list arriving late must not wipe what is already on the form.
+  useEffect(() => {
+    if (!id) setProductOptions(defaultProductOptionsRef.current.length > 0 ? defaultProductOptionsRef.current : defaultProductList);
+  }, [id, defaultProductList]);
 
   const defaultBranch = useMemo(
     () => resolvedBranches.find(b => b.label.toLowerCase() === "branch 1") ?? firstRealBranch(resolvedBranches),

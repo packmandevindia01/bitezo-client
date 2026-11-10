@@ -102,6 +102,23 @@ describe.each(FORMS)("$name form", (form) => {
     expect(result.current.methods.getValues(form.field)).toBe("2");
   });
 
+  it("a product list arriving late does not wipe what is already on the form", async () => {
+    const normal = http.get.getMockImplementation() as (url: string, config?: unknown) => Promise<unknown>;
+    http.get.mockImplementation(async (url: string, config?: unknown) => {
+      if (url.endsWith("/product-list-name")) {
+        await new Promise((r) => setTimeout(r, 200));
+        return ok([{ productId: 5, productName: "Rice", code: "P5", barcode: "B5" }]);
+      }
+      return normal(url, config);
+    });
+    const view = renderHook(form.useDocument, { wrapper });
+    await waitFor(() => expect(view.result.current.methods.getValues(form.field)).toBe(form.firstBranch));
+    act(() => view.result.current.methods.setValue("narration", "typed early"));
+    await act(async () => { await new Promise((r) => setTimeout(r, 300)); });
+    expect(view.result.current.methods.getValues(form.field)).toBe(form.firstBranch);
+    expect(view.result.current.methods.getValues("narration")).toBe("typed early");
+  });
+
   it("a user locked to a branch starts on it", async () => {
     sessionStorage.setItem("backoffice_activeBranchId", "3");
     const result = await open();
