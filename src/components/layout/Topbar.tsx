@@ -1,6 +1,5 @@
 import { Menu } from "lucide-react";
 import TopbarBreadcrumbs from "./topbar/TopbarBreadcrumbs";
-import TopbarShiftIndicator from "./topbar/TopbarShiftIndicator";
 import TopbarProfileMenu from "./topbar/TopbarProfileMenu";
 import { useCallback, useEffect, useState } from "react";
 import { useAppSelector, useAppDispatch } from "../../app/hooks";
@@ -84,7 +83,6 @@ const Topbar = ({ toggleSidebar }: TopbarProps) => {
 
         <TopbarBreadcrumbs />
 
-        <TopbarShiftIndicator />
       </div>
 
       {/* RIGHT — branch selector + profile dropdown */}
