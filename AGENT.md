@@ -21,7 +21,7 @@ General project rules (git, shared components, architecture) live in `GEMINI.md`
 - TanStack Query for menu / config fetching
 - axios (`axiosInstance`, JWT from `localStorage.accessToken`)
 - Printing: own **Bitezo Printer Agent** (`PrinterAgent.exe`, WebSocket) on web/Windows; Capacitor native `BitezoPrinterPlugin` (raw ESC/POS TCP :9100) on Android. **QZ Tray is NOT used** (only legacy names `qzService.ts` / `connectQZ` remain)
-- Vitest (`src/tests/`, 106 files / 1365 tests, all passing on 2026-11-10; node by default, jsdom + Testing Library only where a file asks for it)
+- Vitest (`src/tests/`, 107 files / 1371 tests, all passing on 2026-11-10; node by default, jsdom + Testing Library only where a file asks for it)
 
 Verify every change with:
 ```

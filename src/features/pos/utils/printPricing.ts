@@ -5,10 +5,10 @@
  * screen's Price View. All amounts come from the STORED order values and each line's own saved
  * rates (service charge, levy, VAT) — never from the current settings and never guessed.
  *
- * Names, extras, modifiers and messages still come from buildUnifiedOrderPricing (unchanged);
- * only the numbers are replaced.
+ * Names, extras, modifiers and messages come from orderLineShape, which calculates nothing.
  */
 import { buildUnifiedOrderPricing } from "./orderPricing";
+import { buildOrderLineShapes, orderHasBillDiscount, orderHasVat } from "./orderLineShape";
 import type { UnifiedOrderPricingResult, BuildUnifiedPricingOptions } from "./orderPricing";
 import { calculateOrder } from "../terminal/utils/billing";
 import { storedLineRates, dedupeModifierRows, storedOrderCharges } from "../pricing";
@@ -78,22 +78,19 @@ export interface PrintPricingOptions extends BuildUnifiedPricingOptions {
  */
 export const buildPrintPricing = (order: any, options: PrintPricingOptions): UnifiedOrderPricingResult => {
   const { dataView, printPrice, ...unifiedOptions } = options;
-  // Names / extras / modifiers: build with the view the data is actually in (no conversion needed).
-  const unified = buildUnifiedOrderPricing(order, { ...unifiedOptions, priceView: dataView, printPrice: dataView });
-
   const details: any[] = order?.detailsData || order?.details || [];
-  if (!Array.isArray(details) || details.length === 0 || unified.lines.length !== details.length) {
+  if (!Array.isArray(details) || details.length === 0) {
     // Not a saved order (or unexpected shape): keep the previous behaviour.
     return buildUnifiedOrderPricing(order, { ...unifiedOptions, priceView: printPrice, printPrice });
   }
 
   const master = masterOf(order);
-  const isBill = Boolean(unified.summary.isBillDiscount || n(pickField(master, "discAmount", "DiscAmount")) > 0);
+  const isBill = Boolean(orderHasBillDiscount(order, unifiedOptions) || n(pickField(master, "discAmount", "DiscAmount")) > 0);
   const modifiers: any[] = order?.modifiersData || order?.modifiers || [];
 
   let subEx = 0, subIn = 0, discEx = 0, discIn = 0;
 
-  const lines = unified.lines.map((line, i) => {
+  const lines = buildOrderLineShapes(order, unifiedOptions).map((line, i) => {
     const d = details[i];
     const s = lineNumbers(order, d, dataView);
     const exclusiveRate = r14(s.amount / s.qty);
@@ -111,8 +108,7 @@ export const buildPrintPricing = (order: any, options: PrintPricingOptions): Uni
     const lineMods = dedupeModifierRows(modifiers).filter((m: any) => n(pickField(m, "mapId", "MapId")) === mapId && n(pickField(m, "price", "Price")) > 0);
     const extras = (line.extras || []).map((ex: any, k: number) => {
       const mod = lineMods.find((m) => n(pickField(m, "modifierId", "ModifierId")) === n(ex.id ?? ex.modifierId)) ?? lineMods[k];
-      if (!mod) return ex;
-      const exExcl = r14(dataView === "Inclusive" ? n(mod.price) / s.factor : n(mod.price));
+      const exExcl = r14(dataView === "Inclusive" ? n(mod ? mod.price : ex.price) / s.factor : n(mod ? mod.price : ex.price));
       const exIncl = r14(exExcl * s.factor);
       return { ...ex, price: exExcl, exclusivePrice: exExcl, inclusivePrice: exIncl, getPrice: (incl: boolean) => (incl ? exIncl : exExcl) };
     });
@@ -142,17 +138,17 @@ export const buildPrintPricing = (order: any, options: PrintPricingOptions): Uni
   const { serviceCharge, levy } = storedOrderCharges(order);
   const vatAmount = n(pickField(master, "vatAmount", "VatAmount"));
   const deliveryCharge = n(pickField(master, "deliveryCharge", "DeliveryCharge"));
-  const grandTotal = n(pickField(master, "netAmount", "NetAmount")) || unified.summary.grandTotal;
   const subTotalExclusive = r14(subEx);
   const subTotalInclusive = r14(subIn);
   const totalDiscountExcl = r14(discEx);
   const totalDiscountIncl = r14(discIn);
   const netValue = r14(Math.max(0, subTotalExclusive - totalDiscountExcl) + serviceCharge + levy);
+  const grandTotal = n(pickField(master, "netAmount", "NetAmount")) || r14(netValue + deliveryCharge + vatAmount);
 
   return {
     lines,
     summary: {
-      ...unified.summary,
+      isVatActive: orderHasVat(order, unifiedOptions),
       printPrice,
       priceView: printPrice,
       isTaxInclusive: printPrice === "Inclusive",
