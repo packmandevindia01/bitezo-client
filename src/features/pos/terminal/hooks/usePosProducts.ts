@@ -1,4 +1,4 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import {
@@ -9,7 +9,7 @@ import {
   cacheProducts,
   setOrderTypes
 } from "../store/posSlice";
-import { lockProductService } from "../../lockItem/services/lockProductService";
+import { useLockedProducts } from "./useLockedProducts";
 import { 
   usePosMasterData, 
   usePosCategories, 
@@ -242,23 +242,7 @@ export const usePosProducts = () => {
 
   const deferredSearch = useDeferredValue(search);
   
-  const [lockedIds, setLockedIds] = useState<Set<number>>(new Set());
-
-  const fetchLockedProducts = useCallback(async () => {
-    try {
-      const locked = await lockProductService.list();
-      setLockedIds(new Set(locked.map(l => l.productId)));
-    } catch (err) {
-      // ignore silently
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchLockedProducts();
-    // Auto-poll locks every 15 seconds so changes from backoffice sync quickly
-    const interval = setInterval(fetchLockedProducts, 15000);
-    return () => clearInterval(interval);
-  }, [fetchLockedProducts]);
+  const { lockedIds, refreshLockedProducts } = useLockedProducts();
 
   const visibleProducts = useMemo(() => {
     const normalizedSearch = deferredSearch.trim().toLowerCase();
@@ -295,6 +279,6 @@ export const usePosProducts = () => {
     setSubCategory: (id: number | null) => dispatch(setSubCategory(id)),
     setSearch: (val: string) => dispatch(setSearch(val)),
     refresh: () => refreshMasterData(),
-    refreshLockedProducts: fetchLockedProducts,
+    refreshLockedProducts,
   };
 };
