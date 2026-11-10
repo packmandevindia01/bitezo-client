@@ -45,7 +45,7 @@ export interface MasterListPageProps<T> {
   closeForm: () => void;
   deleteDialog: MasterDeleteDialog<T>;
   /** The add / edit form. `deleteEditing` asks to delete the record being edited. */
-  renderForm: (deleteEditing: () => void) => ReactNode;
+  renderForm: (deleteEditing: () => void, canDelete: boolean) => ReactNode;
 }
 
 /** List screen of a simple master: search, table, edit and delete by permission, and a confirm before deleting. */
@@ -127,7 +127,7 @@ const MasterListPage = <T,>({
         ]}
       />
 
-      {renderForm(deleteEditing)}
+      {renderForm(deleteEditing, canDelete)}
 
       <ConfirmDialog
         isOpen={deleteRecord !== null}

@@ -14,6 +14,8 @@ import CounterPage from "../features/general/counter/pages/CounterPage";
 import SectionPage from "../features/general/section/pages/SectionPage";
 import PaymodePage from "../features/general/paymode/pages/PaymodePage";
 import UserRolePage from "../features/general/userRole/pages/UserRolePage";
+import ProviderPage from "../features/general/provider/pages/ProviderPage";
+import VoucherSeriesPage from "../features/inventory/voucherSeries/pages/VoucherSeriesPage";
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }));
 const perms = vi.hoisted(() => ({ denied: new Set<string>(), asked: new Set<string>() }));
@@ -195,6 +197,121 @@ describe.each(DOCS)("$name master list", (doc) => {
     fireEvent.click(plainDelete());
     await waitFor(() => expect(screen.getByText(doc.message)).toBeTruthy());
     expect(http.delete).not.toHaveBeenCalled();
+  });
+});
+
+const MORE_DOCS: (Doc & { headers: string[]; firstCells: string[]; secondCells: string[] })[] = [
+  {
+    name: "Provider", Page: ProviderPage, module: "Provider Master", table: "Registered Provider List", placeholder: "Search providers...",
+    list: "/provider/provider-list",
+    rows: [{ sNo: 1, providerId: 1, providerName: "Front", paymode: "Cash", deliveryStatus: "Enable" }, { sNo: 2, providerId: 2, providerName: "Bar", paymode: "", deliveryStatus: "Disable" }],
+    detail: "/provider/1/provider-data", detailData: { provider: { providerId: 1, providerName: "Front", paymodeId: 1, postAccountId: 0, deliveryStatus: "Enable", fileUrl: "" }, branch: [] },
+    remove: "/provider/1", message: 'Are you sure you want to delete provider "Front"?', dialogTitle: "Confirm Delete",
+    headers: ["Provider Info", "Paymode", "Delivery Status", "Actions"], firstCells: ["Front", "Cash", "Enable"], secondCells: ["Bar", "Standard", "Disable"],
+  },
+  {
+    name: "Voucher Series", Page: VoucherSeriesPage, module: "Voucher Series Master", table: "Saved Voucher Series list", placeholder: "Search voucher series...",
+    list: "/voucherseries/voucherseries-list",
+    rows: [{ sNo: 1, voucherId: 1, voucherType: "Sale", voucherName: "Front", branch: "Main" }, { sNo: 2, voucherId: 2, voucherType: "Sale", voucherName: "Bar", branch: "Mall" }],
+    detail: "/voucherseries/1/voucherid-data", detailData: { voucherId: 1, voucherType: "Sale", voucherName: "Front", prefix: "F", startNo: 1, branchId: 2 },
+    remove: "/voucherseries/1", message: 'Are you sure you want to delete voucher series "Front"?', dialogTitle: "Confirm Delete",
+    headers: ["S No", "Voucher Type", "Name", "Branch", "Actions"], firstCells: ["1", "Sale", "Front", "Main"], secondCells: ["2", "Sale", "Bar", "Mall"],
+  },
+];
+
+describe.each(MORE_DOCS)("$name master list", (doc) => {
+  const rowOf = (row: number) => Array.from(document.querySelectorAll("tbody tr")).find((tr) => tr.textContent?.includes(row === 0 ? "Front" : "Bar")) as HTMLElement;
+  const icon = (row: number, name: string) => rowOf(row).querySelector(`svg[class*="${name}"]`)?.closest("button") as HTMLElement | undefined;
+  const cells = (row: number) => Array.from(rowOf(row).querySelectorAll("td")).map((td) => td.textContent?.trim());
+
+  beforeEach(() => {
+    http.get.mockImplementation(async (url: string) => {
+      if (url === doc.list) return ok(doc.rows);
+      if (url === doc.detail) return ok(doc.detailData);
+      return ok([]);
+    });
+  });
+
+  it("shows its columns and the permission it checks", async () => {
+    show(doc.Page);
+    await loaded();
+    expect(screen.getByText(doc.table)).toBeTruthy();
+    expect(Array.from(document.querySelectorAll("th")).map((th) => th.textContent?.trim())).toEqual(doc.headers);
+    expect(cells(0).slice(0, doc.firstCells.length)).toEqual(doc.firstCells);
+    expect(cells(1).slice(0, doc.secondCells.length)).toEqual(doc.secondCells);
+    expect([...perms.asked]).toEqual([doc.module]);
+  });
+
+  it("search narrows the list", async () => {
+    show(doc.Page);
+    await loaded();
+    fireEvent.change(screen.getByPlaceholderText(doc.placeholder), { target: { value: "bar" } });
+    await waitFor(() => {
+      expect(rowTexts()).toHaveLength(1);
+      expect(rowTexts()[0]).toContain("Bar");
+    });
+  });
+
+  it("Add, Edit and Delete follow their permissions", async () => {
+    perms.denied.add("Add");
+    perms.denied.add("Edit");
+    show(doc.Page);
+    await loaded();
+    expect(screen.queryByText("Add New")).toBeNull();
+    expect(icon(0, "pencil")).toBeUndefined();
+    expect(icon(0, "trash")).toBeTruthy();
+    cleanup();
+    perms.denied.clear();
+    perms.denied.add("Delete");
+    show(doc.Page);
+    await loaded();
+    expect(screen.getByText("Add New")).toBeTruthy();
+    expect(icon(0, "pencil")).toBeTruthy();
+    expect(icon(0, "trash")).toBeUndefined();
+  });
+
+  it("deleting a row asks first, Cancel keeps it, confirming deletes and reloads", async () => {
+    show(doc.Page);
+    await loaded();
+    fireEvent.click(icon(0, "trash") as HTMLElement);
+    expect(screen.getByText(doc.message)).toBeTruthy();
+    expect(screen.getByText(doc.dialogTitle)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^\s*Cancel\s*$/ }));
+    await waitFor(() => expect(screen.queryByText(doc.message)).toBeNull());
+    expect(http.delete).not.toHaveBeenCalled();
+    const before = http.get.mock.calls.filter(([u]) => u === doc.list).length;
+    fireEvent.click(icon(0, "trash") as HTMLElement);
+    fireEvent.click(plainDelete());
+    await waitFor(() => expect(http.delete).toHaveBeenCalledWith(doc.remove));
+    await waitFor(() => expect(http.get.mock.calls.filter(([u]) => u === doc.list).length).toBeGreaterThan(before));
+  });
+
+  it("Edit loads the saved record, and Delete in the form asks first", async () => {
+    show(doc.Page);
+    await loaded();
+    fireEvent.click(icon(0, "pencil") as HTMLElement);
+    await waitFor(() => expect(http.get).toHaveBeenCalledWith(doc.detail));
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /^\s*Delete\s*$/ }).length).toBeGreaterThan(0));
+    fireEvent.click(plainDelete());
+    await waitFor(() => expect(screen.getByText(doc.message)).toBeTruthy());
+    expect(http.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe("Voucher Series form", () => {
+  it("has no Delete button without the Delete permission", async () => {
+    const doc = MORE_DOCS[1];
+    http.get.mockImplementation(async (url: string) => {
+      if (url === doc.list) return ok(doc.rows);
+      if (url === doc.detail) return ok(doc.detailData);
+      return ok([]);
+    });
+    perms.denied.add("Delete");
+    show(doc.Page);
+    await loaded();
+    fireEvent.click(document.querySelectorAll("tbody tr")[0].querySelector('svg[class*="pencil"]')?.closest("button") as HTMLElement);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^\s*Clear\s*$/ })).toBeTruthy());
+    expect(screen.queryByRole("button", { name: /^\s*Delete\s*$/ })).toBeNull();
   });
 });
 
