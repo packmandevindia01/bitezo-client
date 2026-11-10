@@ -68,7 +68,7 @@ src/features/pos/
     components/            UI only (cart, menu, modals/*)
   utils/
     printPricing.ts        numbers for every print (saved order or live cart)
-    orderPricing.ts        LEGACY unified pricing — now used only for names/extras/modifiers
+    printPricing.ts        Print pricing: saved orders, live carts, plain rows
     guestPrintTemplate.ts, kotTemplate.ts, escPosGenerator.ts, deliverySettlePrintTemplate.ts
     printBarcode.ts, cashDrawer.ts, settlePrintConfig.ts   receipt barcode, drawer rule, Settle Print setting
   bulkSettlement/, cashier/, customer/, lockItem/, payInOut/   (other POS modules)
@@ -421,7 +421,7 @@ so change forms and rules there. The More tile asks for an employee PIN; any val
 `SkipPermissionsContext` (`hooks/usePermissions.ts`), and the same pages in the Back Office still follow user roles. Inside the POS, `PosAllocationScopeContext` gives the Extras and Modifier forms
 categories from POS master data (`/category/category-list` can return 403 for a POS login, and `getCategories` turns that into an empty list),
 hides Branch Allocation and sets the branch to `getTerminalBranchId()`; an edit keeps the record's other branches (`posBranchIds`), so a name or price change applies to every branch that has the record (user decision 2026-11-06). Leaving the screen calls
-`menuApi.refreshAllExtras()`: never clear that cache, `orderPricing` uses it to recognise extras on saved orders. Lines already in the
+`menuApi.refreshAllExtras()`: never clear that cache, `orderLineItems` uses it to recognise extras on saved orders. Lines already in the
 cart keep the price and name they were added with.
 
 ---
@@ -446,8 +446,9 @@ cart keep the price and name they were added with.
 
 ## 8. Known legacy / tech debt (do not extend)
 
-- `utils/orderPricing.ts` (`buildUnifiedOrderPricing`): old heuristic pricing. The app only imports its types;
-  only tests still call it. To be deleted.
+- A saved order with a bill discount only on the order total: `pricing/storedOrder.ts` `withBillDiscountOnLines` spreads it
+  over the lines from the saved totals. Older orders whose line amount leaves out extras, or whose discount is stored in the
+  other view, can't be told apart without guessing: their rows and Sub Total can be wrong, Grand Total stays right.
 - Saving sends engine values as they are: order, update, invoice and split lines are never re-derived from tax
   settings. `orderApi.submitOrder/updateOrder` only fill `vatExclAmount`/`vatAmount` when missing.
 - `orderPayloadMapper` "useStoredTotals": an unmodified recalled order without a bill discount keeps the
@@ -455,7 +456,7 @@ cart keep the price and name they were added with.
 - `invoicePayloadMapper` recomputes `vatExclAmount` from details (+ modifiers when not already combined)
   and VAT as the sum of line VAT.
 - ~~`useSplitOrderData` remainder rule~~: the hook was unused and was deleted on 2026-11-05.
-- `terminal/utils/pos-calc.ts` now holds only `allocate`. `utils/orderLineItems.ts` reads a line's extras, modifiers and messages without calculating; it is what replaces the non-money part of `orderPricing.ts`.
+- `terminal/utils/pos-calc.ts` now holds only `allocate`. `utils/orderLineItems.ts` reads a line's extras, modifiers and messages without calculating.
 - `getBillingConfig` falls back to a 10% VAT rate when the config has none — confirm the menu
   `/products` API sends `vatValue` per product.
 - Not yet verified in the real app: print templates, split/combine and bulk settle after the engine refactor.
@@ -476,7 +477,7 @@ cart keep the price and name they were added with.
 | Regressions | `posRegressions` (bulk settlement allocation, amount bill discount on settled edit), `productionHardening` |
 | **Safety net (golden master)** | `posFlowSafetyNet` + `__snapshots__/posFlowSafetyNet.test.ts.snap` — 7 store-driven flows (Take-Out with extras/modifier/message + item discounts, Dine-In SC+levy + amount bill discount, Delivery + custom charge + % bill discount, complimentary, manual price / qty / remove in Exclusive view, VAT off, saved → settled edit → update payload). Snapshots the screen totals + lines, new-order / direct-settle / invoice payloads, update payload and bill + KOT text. Run `npm run test:pos-safety` before and after every refactor step. **Update snapshots (`npx vitest run -u src/tests/posFlowSafetyNet.test.ts`) only for an intended, reviewed change** — show the diff in the PR. |
 | Back office | `backofficeCalc` (currency decimals, no invented country/currency IDs, happy hour %/discount/promo incl. 500 random cases, vouchers: half-up, header = Σ lines, balance ≥ 0, multi-pay by name, production / stock exact amounts, purchase bill-discount cap + 300 random invoices), `purchaseCalc`, `unitParent`, `productTransactionLog`, `openingStockCost`, `lineUnits`, `tableLayout`, `cartLineDisplay` |
-| Legacy | `orderPricing`, `pos-calc` |
+| Legacy | `pos-calc` |
 
 ---
 
@@ -663,7 +664,7 @@ Main market: Bahrain / GCC (3-decimal currencies, see R8).
 | `shared/` (Phase 0) | used by POS and Back Office, may not import features (ESLint): `api/http.ts` (axios client; old path `api/axiosInstance.ts` re-exports), `api/unwrap.ts` (`unwrapBody` / `unwrapData` / `unwrapEnvelope` / `unwrapStrict`), `lib/` money, date, html, print, currency (old `utils/*` paths re-export), `config/settings.ts` (typed safe reads of localStorage settings — use in new code) |
 
 Size: ~84k lines of TS/TSX. Files over 1,000 lines (hard to change safely): `PosRecallDetailsModal.tsx`,
-`escPosGenerator.ts`, `PosSettledDetailsModal.tsx`, `DineInTableOrdersModal.tsx`, `orderPricing.ts`,
+`escPosGenerator.ts`, `PosSettledDetailsModal.tsx`, `DineInTableOrdersModal.tsx`,
 `usePosCheckoutFlow.ts`, `endReportTemplate.ts`, `usePurchaseReturn.ts`, `PosCashierSessionModal.tsx`,
 `posSlice.ts`, `PosTerminalPage.tsx`.
 
@@ -833,7 +834,7 @@ Tests: `src/tests/productionHardening.test.ts` (local dates, `escapeHtml`, guest
   (`esbuild.drop` / `pure`).
 - 1,036 direct `localStorage` reads/writes; settings are read from several keys with fallbacks (§3). Prefer one
   typed settings module.
-- Legacy pricing code listed in §8 (`orderPricing.ts`, `pos-calc.ts`, tolerance-based `getTaxExclusive*`).
+- Legacy pricing code listed in §8 (`pos-calc.ts`).
 - The back office has almost no automated tests (§10.6). The giant components (§11.2) need splitting before more
   features are added.
 - `ProtectedRoute` calls `clearAuthStorage()` during render (side effect in render).

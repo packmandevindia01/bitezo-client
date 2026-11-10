@@ -667,7 +667,7 @@ export const usePosCheckoutFlow = ({
               isBillDiscount: isBillDisc,
             });
           } catch (e) {
-            console.warn("[usePosCheckoutFlow] buildUnifiedOrderPricing on settled data failed:", e);
+            console.warn("[usePosCheckoutFlow] Could not price the settled data:", e);
           }
         }
 

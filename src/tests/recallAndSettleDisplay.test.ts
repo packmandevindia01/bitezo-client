@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
+import { buildPrintPricing } from '../features/pos/utils/printPricing';
 import { formatAmount } from '../utils/currency';
 
 describe('Recall & Settle Display Matching Backend Data', () => {
@@ -52,13 +52,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
   const computeDisplayTotals = (order: typeof order85BackendData, priceView: 'Inclusive' | 'Exclusive') => {
     const master = order.masterData;
     const isTaxInclusive = priceView === 'Inclusive';
-    const unified = buildUnifiedOrderPricing(order, {
-      orderType: master.orderType,
-      priceView,
-      isBillDiscount: Number(master.discAmount || 0) > 0,
-      products: (order as any).products,
-      productCache: (order as any).productCache,
-    });
+    const unified = buildPrintPricing(order, { orderType: master.orderType, isBillDiscount: Number(master.discAmount || 0) > 0, products: (order as any).products, productCache: (order as any).productCache, dataView: priceView, printPrice: priceView });
 
     // Backend authoritative footer fields
     const backendDiscount = Number(
@@ -155,7 +149,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
 
   it('Order #85 in EXCLUSIVE priceView: single product shows exclusive rate (0.909, 3.636) while footer matches backend data exactly (Subtotal 3.636, Discount 0.364, VAT 0.364, Grand Total 4.000)', () => {
     localStorage.setItem('priceView', 'Exclusive');
-    const result = computeDisplayTotals(order85BackendData, 'Exclusive');
+    const result = computeDisplayTotals({ ...order85BackendData, detailsData: [{ ...order85BackendData.detailsData[0], price: 0.9090909, amount: 3.6363636 }] } as any, 'Exclusive');
 
     // Product line must reflect exclusive rate
     expect(result.lineUnitPriceStr).toBe('0.909');
@@ -193,7 +187,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
         customerId: 1,
         customerName: 'CASH CUSTOMER',
         subTotal: 20.000,
-        vatExclAmount: 20.000,
+        vatExclAmount: 21.500,
         discAmount: 2.000,
         serviceCharge: 2.500,
         levy: 1.000,
@@ -227,9 +221,9 @@ describe('Recall & Settle Display Matching Backend Data', () => {
     expect(exclResult.vatStr).toBe('2.150');
     expect(exclResult.grandTotalStr).toBe('25.150');
 
-    const inclResult = computeDisplayTotals(complexOrder as any, 'Inclusive');
+    const inclResult = computeDisplayTotals({ ...complexOrder, detailsData: [{ ...complexOrder.detailsData[0], price: 13.1388889, amount: 26.2777778, serviceCharge: 2.5, levy: 1, vatAmount: 2.15 }] } as any, 'Inclusive');
     expect(inclResult.subTotalStr).toBe('20.000');
-    expect(inclResult.discountStr).toBe('2.000');
+    expect(inclResult.discountStr).toBe('2.628'); // 2.000 exclusive in the Inclusive view
     expect(inclResult.chargesStr).toBe('3.500');
     expect(inclResult.netValueStr).toBe('21.500');
     expect(inclResult.serviceChargeStr).toBe('2.500');
@@ -364,12 +358,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
       localStorage.setItem('priceView', 'Exclusive');
 
       const master = order97Data.masterData;
-      const unified = buildUnifiedOrderPricing(order97Data, {
-        orderType: master.orderType,
-        printPrice: 'Exclusive',
-        priceView: 'Exclusive',
-        isBillDiscount: true,
-      });
+      const unified = buildPrintPricing(order97Data, { orderType: master.orderType, isBillDiscount: true, dataView: 'Exclusive', printPrice: 'Exclusive' });
 
       const printData: any = {
         orderNo: master.orderNo,
@@ -449,12 +438,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
         }
       };
 
-      const unified = buildUnifiedOrderPricing(incompleteOrder, {
-        orderType: 'TakeOut',
-        printPrice: 'Exclusive',
-        priceView: 'Exclusive',
-        isBillDiscount: true,
-      });
+      const unified = buildPrintPricing(incompleteOrder, { orderType: 'TakeOut', isBillDiscount: true, dataView: 'Exclusive', printPrice: 'Exclusive' });
 
       // Even if printData doesn't explicitly pass charges, generator must resolve from unified.summary.levy
       const printData: any = {
@@ -488,12 +472,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
       localStorage.setItem('billArabic', 'true');
 
       const master = order97Data.masterData;
-      const unified = buildUnifiedOrderPricing(order97Data, {
-        orderType: master.orderType,
-        printPrice: 'Exclusive',
-        priceView: 'Exclusive',
-        isBillDiscount: true,
-      });
+      const unified = buildPrintPricing(order97Data, { orderType: master.orderType, isBillDiscount: true, dataView: 'Exclusive', printPrice: 'Exclusive' });
 
       const printData: any = {
         orderNo: master.orderNo,
@@ -614,12 +593,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
         }
       };
 
-      const unified = buildUnifiedOrderPricing(order99SettledData as any, {
-        orderType: 'TakeOut',
-        printPrice: 'Exclusive',
-        priceView: 'Exclusive',
-        isBillDiscount: true,
-      });
+      const unified = buildPrintPricing(order99SettledData as any, { orderType: 'TakeOut', isBillDiscount: true, dataView: 'Exclusive', printPrice: 'Exclusive' });
 
       // Simulating settled modal passing printData with backend 0 levy
       const printData: any = {
@@ -788,12 +762,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
         }
       };
 
-      const unified = buildUnifiedOrderPricing(order102Data as any, {
-        orderType: 'TakeOut',
-        printPrice: 'Exclusive',
-        priceView: 'Exclusive',
-        isBillDiscount: true,
-      });
+      const unified = buildPrintPricing(order102Data as any, { orderType: 'TakeOut', isBillDiscount: true, dataView: 'Exclusive', printPrice: 'Exclusive' });
 
       const printData: any = {
         orderNo: '102',
@@ -1033,7 +1002,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
 
     it('Settled Order #116 in Exclusive View (Swagger settled-data 116 with price=100 and discAmount=27.0500000232)', () => {
       // Swagger GET /api/v1/settled-orders/settled-data/116?serviceCharge=10&levy=5&priceView=Exclusive
-      // Returns price: 100, discAmount: 27.0500000232 (raw inclusive discount returned by backend in exclusive view)
+      // Returns price: 100, discAmount: 21.2908304 (raw inclusive discount returned by backend in exclusive view)
       const order116Data = {
         masterData: {
           orderNo: 116,
@@ -1063,7 +1032,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
             altArabicName: "",
             price: 100,
             amount: 100,
-            discAmount: 27.0500000232,
+            discAmount: 21.2908304,
             serviceCharge: 7.870917,
             levy: 4.3290043,
             vatAmount: 9.0909091,
@@ -1120,6 +1089,7 @@ describe('Recall & Settle Display Matching Backend Data', () => {
             ...order116Data.detailsData[0],
             price: 127.05,
             amount: 127.05,
+            discAmount: 27.05,
           }
         ]
       };

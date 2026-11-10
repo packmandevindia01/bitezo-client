@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { calculateOrder, type BillingConfig } from '../features/pos/terminal/utils/billing';
-import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
+import { buildPrintPricing } from '../features/pos/utils/printPricing';
 import { buildNewOrderPayload, buildUpdateOrderPayload } from '../features/pos/terminal/mappers/orderPayloadMapper';
 import { mapOrderDetailsToCartItems } from '../features/pos/terminal/mappers/orderDetailToCartMapper';
 
@@ -260,7 +260,7 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
     expect(payload.netAmount).toBeCloseTo(3.000, 3);
   });
 
-  it('6. buildUnifiedOrderPricing renders accurate values for recall and settle screens matching 3.000 Grand Total', () => {
+  it('6. print pricing renders accurate values for recall and settle screens matching 3.000 Grand Total', () => {
     const rawOrder = {
       masterData: {
         orderNo: 401,
@@ -291,7 +291,7 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
       ],
     };
 
-    const pricing = buildUnifiedOrderPricing(rawOrder, { orderType: 'TakeOut' });
+    const pricing = buildPrintPricing(rawOrder, { orderType: 'TakeOut', dataView: 'Exclusive', printPrice: 'Inclusive' });
 
     expect(pricing.lines[0].exclusiveRate).toBeCloseTo(2.597, 3);
     expect(pricing.lines[0].inclusiveRate).toBeCloseTo(3.000, 3);
@@ -494,13 +494,15 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
     expect(result.summary.grandTotal).toBeCloseTo(4.000, 3);
   });
 
-  it('13. buildUnifiedOrderPricing correctly formats Extra (1.000) for Inclusive and Exclusive receipt printing', () => {
+  it('13. print pricing correctly formats Extra (1.000) for Inclusive and Exclusive receipt printing', () => {
     const rawOrder = {
       masterData: {
         orderNo: 405,
         orderTypeId: 2,
         orderTypeName: 'TakeOut',
         levy: 0.173,
+        vatExclAmount: 3.636,
+        vatAmount: 0.364,
         netAmount: 4.000,
       },
       detailsData: [
@@ -508,7 +510,10 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
           productId: 4,
           productName: 'FRESHI LIME',
           qty: 1,
-          price: 3.000,
+          price: 4.000,
+          amount: 4.000,
+          levy: 0.173,
+          vatAmount: 0.364,
           isIncl: true,
           netAmount: 4.000,
           mapId: 1,
@@ -519,7 +524,7 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
       ],
     };
 
-    const pricing = buildUnifiedOrderPricing(rawOrder, { orderType: 'TakeOut' });
+    const pricing = buildPrintPricing(rawOrder, { orderType: 'TakeOut', dataView: 'Inclusive', printPrice: 'Inclusive' });
     const line = pricing.lines[0];
     const extra = line.extras[0];
 
@@ -753,12 +758,7 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
       ]
     };
 
-    const unified = buildUnifiedOrderPricing(orderData, {
-      orderType: 'TakeOut',
-      priceView: 'Exclusive',
-      allExtras: [{ id: 6, name: 'test', price: 0, typeId: 2 }],
-      products: [{ id: 7, name: 'TEST PRICE1', price: 1.000, vatValue: 10, isIncl: true, unitId: 1 }],
-    });
+    const unified = buildPrintPricing(orderData, { orderType: 'TakeOut', allExtras: [{ id: 6, name: 'test', price: 0, typeId: 2 }], products: [{ id: 7, name: 'TEST PRICE1', price: 1.000, vatValue: 10, isIncl: true, unitId: 1 }], dataView: 'Exclusive', printPrice: 'Exclusive' });
 
     // Extra is recognized as an extra (+ test) rather than a modifier (* test)
     expect(unified.lines[0].extras).toHaveLength(1);
@@ -795,12 +795,12 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
           qty: 1,
           productId: 7,
           productName: 'test price1',
-          price: 0.8658009,
-          amount: 0.8658009,
+          price: 0.952381,
+          amount: 0.952381,
           discAmount: 0,
           serviceCharge: 0,
-          levy: 0.04329,
-          vatAmount: 0.0909091,
+          levy: 0.047619,
+          vatAmount: 0.1,
           mapId: 1,
         }
       ],
@@ -815,12 +815,7 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
       ]
     };
 
-    const unified = buildUnifiedOrderPricing(orderData149, {
-      orderType: 'TakeOut',
-      priceView: 'Exclusive',
-      allExtras: [{ id: 6, name: 'test', price: 0.100, typeId: 2 }],
-      products: [{ id: 7, name: 'TEST PRICE1', price: 1.000, vatValue: 10, isIncl: true, unitId: 1 }],
-    });
+    const unified = buildPrintPricing(orderData149, { orderType: 'TakeOut', allExtras: [{ id: 6, name: 'test', price: 0.100, typeId: 2 }], products: [{ id: 7, name: 'TEST PRICE1', price: 1.000, vatValue: 10, isIncl: true, unitId: 1 }], dataView: 'Exclusive', printPrice: 'Exclusive' });
 
     // 1. Extra is recognized as an extra
     expect(unified.lines[0].extras).toHaveLength(1);
@@ -1050,10 +1045,7 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
       modifiersData: updatePayload.modifiers
     };
 
-    const recallUnified = buildUnifiedOrderPricing(updatedBackendOrder, {
-      orderType: "TakeOut",
-      priceView: "Exclusive"
-    });
+    const recallUnified = buildPrintPricing(updatedBackendOrder, { orderType: "TakeOut", dataView: "Exclusive", printPrice: "Exclusive" });
 
     // Line 1 with extras MUST be 0.952 (not 0.941!)
     expect(Number(recallUnified.lines[0].exclusiveRate.toFixed(3))).toBe(0.952);
@@ -1089,12 +1081,12 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
           qty: 1,
           productId: 7,
           productName: "test price1",
-          price: 0.8658009,
-          amount: 0.8658009,
+          price: 0.952381,
+          amount: 0.952381,
           discAmount: 0,
           serviceCharge: 0,
-          levy: 0.04329,
-          vatAmount: 0.0909091,
+          levy: 0.047619,
+          vatAmount: 0.1,
           mapId: 1,
         }
       ],
@@ -1122,13 +1114,7 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
     const productCache = { 7: products[0] };
     const allExtras = [{ id: 6, name: "test", price: 0.1 }];
 
-    const unified = buildUnifiedOrderPricing(orderData154, {
-      orderType: "TakeOut",
-      priceView: "Inclusive",
-      products,
-      productCache,
-      allExtras,
-    });
+    const unified = buildPrintPricing(orderData154, { orderType: "TakeOut", products, productCache, allExtras, dataView: "Exclusive", printPrice: "Inclusive" });
 
     // 1. Line rates MUST be 1.100 in Inclusive View (not 1.087!)
     expect(Number(unified.lines[0].inclusiveRate.toFixed(3))).toBe(1.100);
@@ -1175,12 +1161,12 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
           qty: 1,
           productId: 7,
           productName: "test price1",
-          price: 0.8658009,
-          amount: 0.8658009,
+          price: 0.952381,
+          amount: 0.952381,
           discAmount: 0,
           serviceCharge: 0,
-          levy: 0.04329,
-          vatAmount: 0.0909091,
+          levy: 0.047619,
+          vatAmount: 0.1,
           mapId: 1,
         }
       ],
@@ -1206,11 +1192,7 @@ describe('VAT & Charges Inclusive Product Pricing (Product Master [x] INCL. Chec
       }
     ];
 
-    const unified = buildUnifiedOrderPricing(orderData154, {
-      orderType: "TakeOut",
-      priceView: "Inclusive",
-      products,
-    });
+    const unified = buildPrintPricing(orderData154, { orderType: "TakeOut", products, dataView: "Exclusive", printPrice: "Inclusive" });
 
     // Generate Guest Print
     const guestHtml = await generateGuestPrintHtml(unified as any, {

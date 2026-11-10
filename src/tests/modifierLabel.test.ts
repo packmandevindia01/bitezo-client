@@ -8,7 +8,7 @@ import { formatModifierLabel, modifierLabelOf, rememberModifierTypes } from "../
 import { calculateOrder } from "../features/pos/terminal/utils/billing";
 import { generateKotHtml } from "../features/pos/utils/kotTemplate";
 import { generateGuestPrintHtml } from "../features/pos/utils/guestPrintTemplate";
-import { buildUnifiedOrderPricing } from "../features/pos/utils/orderPricing";
+import { buildPrintPricing } from "../features/pos/utils/printPricing";
 
 beforeEach(() => {
   localStorage.clear();
@@ -86,7 +86,7 @@ describe("prints show the full modifier label", () => {
         { mapId: 1, qty: 1, modifierId: 6, modifierName: "Sugar", typeName: "", price: 0 },
       ],
     };
-    const mods = buildUnifiedOrderPricing(saved, { orderType: "TakeOut" } as any).lines[0].modifiers;
+    const mods = buildPrintPricing(saved, { dataView: "Exclusive", printPrice: "Exclusive", orderType: "TakeOut" }).lines[0].modifiers;
     expect(mods.map((m) => modifierLabelOf(m, { upperCase: true }))).toEqual(["TEST TEST1", "NO SUGAR"]);
   });
 });

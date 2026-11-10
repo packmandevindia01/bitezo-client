@@ -12,7 +12,7 @@ import { getBillingConfig, getPriceView, getVatStatus, roundCalc } from "../term
 import { buildLiveCartPricing, buildRowPricing } from "./printPricing";
 import { balanceBillFooter, balanceToTotal } from "../../../utils/money";
 import { printChargeLines } from "./printCharges";
-import type { UnifiedOrderPricingResult } from "./orderPricing";
+import type { UnifiedOrderPricingResult } from "./printPricingTypes";
 
 export interface GuestPrintData {
   orderNo: string;

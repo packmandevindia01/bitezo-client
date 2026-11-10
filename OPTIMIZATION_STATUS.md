@@ -109,6 +109,6 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Fonts: Outfit and Inter ship in `public/fonts/ui` (`shared/styles/fonts.css`), and interface and receipt fonts are in the offline cache. Nothing is requested from Google.
 - Stock Adjustment, Physical Entry and Stock Transfer forms do not offer All as a branch or To Branch; a document already saved under All still shows it. Saved lists and reports keep All.
 - Payment and Receipt Against Voucher forms use the compact input size of the other transaction forms.
-- POS pricing replacement: dead code removed; `utils/orderLineItems.ts` and `utils/orderLineShape.ts` hold the non-money part. Saved-order prints, live KOT, guest bills and recall/edit no longer use `orderPricing.ts`. Still to move: settled screen, split, plain-row fallback, and the guessing in saving.
+- POS pricing replacement: done. `utils/orderPricing.ts` and the tax guessing in saving are removed; prints use `utils/printPricing.ts`, line details `utils/orderLineItems.ts` and `utils/orderLineShape.ts`.
 - Not started: other performance items (re-render measurements), Playwright smoke tests, CI, report column chooser and saved filters, Ctrl+K search, unsaved-changes guard, new dashboard, empty catches and `alert()`.
 - A login token was pasted into chat on 2026-11-07. Ask the backend team to revoke it if possible.

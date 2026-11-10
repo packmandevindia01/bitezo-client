@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { calculateOrder, type BillingConfig } from '../features/pos/terminal/utils/billing';
-import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
+import { buildPrintPricing } from '../features/pos/utils/printPricing';
 import { generateGuestPrintHtml } from '../features/pos/utils/guestPrintTemplate';
 
 describe('Exclusive Price View & Internal Calculation (Exact Spreadsheet Verification)', () => {
@@ -147,11 +147,7 @@ describe('Exclusive Price View & Internal Calculation (Exact Spreadsheet Verific
       ],
     };
 
-    const unified = buildUnifiedOrderPricing(rawOrder, {
-      orderType: 'DineIn',
-      priceView: 'Exclusive',
-      printPrice: 'Exclusive',
-    });
+    const unified = buildPrintPricing(rawOrder, { orderType: 'DineIn', dataView: 'Exclusive', printPrice: 'Exclusive' });
 
     expect(unified.lines[0].exclusiveRate).toBe(11);
     expect(unified.lines[0].exclusiveGross).toBe(44);

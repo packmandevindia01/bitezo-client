@@ -8,9 +8,9 @@
  * Names, extras, modifiers and messages come from orderLineShape, which calculates nothing.
  */
 import { buildOrderLineShapes, orderHasBillDiscount, orderHasVat } from "./orderLineShape";
-import type { UnifiedOrderLine, UnifiedOrderPricingResult, BuildUnifiedPricingOptions } from "./orderPricing";
+import type { UnifiedOrderLine, UnifiedOrderPricingResult, BuildUnifiedPricingOptions } from "./printPricingTypes";
 import { calculateOrder } from "../terminal/utils/billing";
-import { storedLineRates, dedupeModifierRows, storedOrderCharges } from "../pricing";
+import { storedLineRates, dedupeModifierRows, storedOrderCharges, withBillDiscountOnLines } from "../pricing";
 import { round } from "../pricing/money";
 
 type View = "Inclusive" | "Exclusive";
@@ -50,7 +50,7 @@ interface StoredLineNumbers {
 
 /** Exclusive numbers + factor of one saved line, from data in `view`. */
 const lineNumbers = (order: any, d: any, view: View): StoredLineNumbers => {
-  const qty = n(pickField(d, "qty", "Qty", "quantity")) || 1;
+  const qty = n(pickField(d, "qty", "Qty", "quantity", "orderQty", "OrderQty")) || 1;
   const rawAmount = n(pickField(d, "amount", "Amount")) || n(pickField(d, "price", "Price")) * qty;
   const rawDisc = n(pickField(d, "discAmount", "DiscAmount"));
   const vat = n(pickField(d, "vatAmount", "VatAmount"));
@@ -74,8 +74,9 @@ export interface PrintPricingOptions extends BuildUnifiedPricingOptions {
 /**
  * Build the pricing a print template consumes, with summary.printPrice set so the template uses it directly.
  */
-export const buildPrintPricing = (order: any, options: PrintPricingOptions): UnifiedOrderPricingResult => {
+export const buildPrintPricing = (savedOrder: any, options: PrintPricingOptions): UnifiedOrderPricingResult => {
   const { dataView, printPrice, ...unifiedOptions } = options;
+  const order = withBillDiscountOnLines(savedOrder, dataView);
   const rawDetails = order?.detailsData || order?.details;
   const details: any[] = Array.isArray(rawDetails) ? rawDetails : [];
 

@@ -9,7 +9,7 @@ import { getDecimalPart } from "../../../utils/currency";
 import { roundCalc } from "../terminal/utils/billing";
 import { buildLiveCartPricing, buildRowLines } from "./printPricing";
 import { orderHasBillDiscount } from "./orderLineShape";
-import type { UnifiedOrderPricingResult } from "./orderPricing";
+import type { UnifiedOrderPricingResult } from "./printPricingTypes";
 
 export interface KotPrintData {
   orderNo: string;

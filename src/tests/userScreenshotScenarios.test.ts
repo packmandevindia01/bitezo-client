@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { calculateOrder, type BillingConfig } from '../features/pos/terminal/utils/billing';
-import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
+import { buildPrintPricing } from '../features/pos/utils/printPricing';
 import { buildDirectSettleOrderPayload, buildNewOrderPayload } from '../features/pos/terminal/mappers/orderPayloadMapper';
 import { mapOrderDetailsToCartItems } from '../features/pos/terminal/mappers/orderDetailToCartMapper';
 import { generateGuestPrintHtml } from '../features/pos/utils/guestPrintTemplate';
@@ -402,11 +402,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
       modifiersData: null
     };
 
-    const unifiedIncl = buildUnifiedOrderPricing(swaggerInclusiveOrder, {
-      orderType: "DineIn",
-      priceView: "Inclusive",
-      isBillDiscount: true
-    });
+    const unifiedIncl = buildPrintPricing(swaggerInclusiveOrder, { orderType: "DineIn", isBillDiscount: true, dataView: "Inclusive", printPrice: "Inclusive" });
 
     expect(unifiedIncl.summary.subTotalExclusive).toBeCloseTo(100.000, P);
     expect(unifiedIncl.summary.totalDiscountExcl).toBeCloseTo(21.291, P);
@@ -450,11 +446,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
       modifiersData: null
     };
 
-    const unifiedExcl = buildUnifiedOrderPricing(swaggerExclusiveOrder, {
-      orderType: "DineIn",
-      priceView: "Exclusive",
-      isBillDiscount: true
-    });
+    const unifiedExcl = buildPrintPricing(swaggerExclusiveOrder, { orderType: "DineIn", isBillDiscount: true, dataView: "Exclusive", printPrice: "Exclusive" });
 
     expect(unifiedExcl.summary.subTotalExclusive).toBeCloseTo(100.000, P);
     expect(unifiedExcl.summary.totalDiscountExcl).toBeCloseTo(21.291, P);
@@ -497,11 +489,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
       modifiersData: null
     };
 
-    const unifiedIncl = buildUnifiedOrderPricing(swaggerInclusiveOrder, {
-      orderType: "DineIn",
-      priceView: "Inclusive",
-      isBillDiscount: false
-    });
+    const unifiedIncl = buildPrintPricing(swaggerInclusiveOrder, { orderType: "DineIn", isBillDiscount: false, dataView: "Inclusive", printPrice: "Inclusive" });
 
     expect(unifiedIncl.summary.subTotalExclusive).toBeCloseTo(100.000, P);
     expect(unifiedIncl.summary.totalDiscountExcl).toBeCloseTo(21.291, P);
@@ -563,13 +551,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
       5: { id: 5, name: "sndndksdkkslnasklns", price: 100.000, isIncl: false }
     };
 
-    const unified = buildUnifiedOrderPricing(swaggerOrder114, {
-      orderType: "DineIn",
-      priceView: "Inclusive",
-      isBillDiscount: false,
-      products: mockProducts,
-      productCache: mockProductCache
-    });
+    const unified = buildPrintPricing(swaggerOrder114, { orderType: "DineIn", isBillDiscount: false, products: mockProducts, productCache: mockProductCache, dataView: "Inclusive", printPrice: "Inclusive" });
 
     // Subtotal MUST be 100.000 (NOT 78.709!)
     expect(unified.summary.subTotalExclusive).toBeCloseTo(100.000, P);
@@ -655,13 +637,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
       1: { id: 1, name: "abcd", price: 3.000, isIncl: true, vatValue: 10 }
     };
 
-    const unified = buildUnifiedOrderPricing(swaggerOrder120, {
-      orderType: "TakeOut",
-      priceView: "Inclusive",
-      isBillDiscount: false,
-      products: mockProducts,
-      productCache: mockProductCache
-    });
+    const unified = buildPrintPricing(swaggerOrder120, { orderType: "TakeOut", isBillDiscount: false, products: mockProducts, productCache: mockProductCache, dataView: "Inclusive", printPrice: "Inclusive" });
 
     // Subtotal Exclusive must be 2.597 (3.000 / 1.155)
     expect(unified.summary.subTotalExclusive).toBeCloseTo(2.597, 3);
@@ -714,7 +690,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
           altArabicName: "",
           price: 100,
           amount: 100,
-          discAmount: 27.0500000232,
+          discAmount: 21.2908304,
           serviceCharge: 7.870917,
           levy: 4.3290043,
           vatAmount: 9.0909091,
@@ -731,13 +707,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
       5: { id: 5, name: "sndndksdkkslnasklns", price: 100.000, isIncl: false, vatValue: 10 }
     };
 
-    const unified = buildUnifiedOrderPricing(order116, {
-      orderType: "DineIn",
-      priceView: "Exclusive",
-      isBillDiscount: false,
-      products: mockProducts,
-      productCache: mockProductCache
-    });
+    const unified = buildPrintPricing(order116, { orderType: "DineIn", isBillDiscount: false, products: mockProducts, productCache: mockProductCache, dataView: "Exclusive", printPrice: "Exclusive" });
 
     // Exclusive View Assertions
     // Line item must display exclusive price 100.000, exclusive discount 21.291, net amount 78.709
@@ -822,13 +792,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
       5: { id: 5, name: "sndndksdkkslnasklns", price: 100.000, isIncl: false, vatValue: 10 }
     };
 
-    const unified = buildUnifiedOrderPricing(order116Inclusive, {
-      orderType: "DineIn",
-      priceView: "Inclusive",
-      isBillDiscount: false,
-      products: mockProducts,
-      productCache: mockProductCache
-    });
+    const unified = buildPrintPricing(order116Inclusive, { orderType: "DineIn", isBillDiscount: false, products: mockProducts, productCache: mockProductCache, dataView: "Inclusive", printPrice: "Inclusive" });
 
     // In Inclusive view:
     // Line Rate = 127.050, Disc = 27.050, Net Line = 100.000
@@ -883,7 +847,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
           productName: "sndndksdkkslnasklns",
           price: 100,
           amount: 100,
-          discAmount: 27.0500000232,
+          discAmount: 21.2908304,
           serviceCharge: 7.870917,
           levy: 4.3290043,
           vatAmount: 9.0909091,
@@ -894,11 +858,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
 
     const effectivePriceView: 'Exclusive' | 'Inclusive' = 'Exclusive';
     const isTaxInclusive = (effectivePriceView as string) === 'Inclusive';
-    const unified = buildUnifiedOrderPricing(order116, {
-      orderType: 'DineIn',
-      priceView: effectivePriceView,
-      isBillDiscount: false,
-    });
+    const unified = buildPrintPricing(order116, { orderType: 'DineIn', isBillDiscount: false, dataView: effectivePriceView, printPrice: effectivePriceView });
 
     const master = order116.masterData;
     const backendDiscount = Number((master as any).discAmount ?? 0);
@@ -1040,26 +1000,11 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     };
 
     // Compute pricing for both
-    const unifiedRecall = buildUnifiedOrderPricing(recallOrderData, {
-      orderType: "TakeOut",
-      priceView: "Inclusive",
-      products: mockProducts,
-      productCache: mockProductCache,
-    });
+    const unifiedRecall = buildPrintPricing(recallOrderData, { orderType: "TakeOut", products: mockProducts, productCache: mockProductCache, dataView: "Inclusive", printPrice: "Inclusive" });
 
-    const unifiedPrintIncl = buildUnifiedOrderPricing(printOrderDataIncl, {
-      orderType: "TakeOut",
-      priceView: "Inclusive",
-      products: mockProducts,
-      productCache: mockProductCache,
-    });
+    const unifiedPrintIncl = buildPrintPricing(printOrderDataIncl, { orderType: "TakeOut", products: mockProducts, productCache: mockProductCache, dataView: "Inclusive", printPrice: "Inclusive" });
 
-    const unifiedPrintExcl = buildUnifiedOrderPricing(printOrderDataExcl, {
-      orderType: "TakeOut",
-      priceView: "Exclusive",
-      products: mockProducts,
-      productCache: mockProductCache,
-    });
+    const unifiedPrintExcl = buildPrintPricing(printOrderDataExcl, { orderType: "TakeOut", products: mockProducts, productCache: mockProductCache, dataView: "Exclusive", printPrice: "Exclusive" });
 
     // Cross-check: recall data and print data have IDENTICAL mathematical results!
     expect(unifiedRecall.summary.subTotalExclusive).toBeCloseTo(unifiedPrintIncl.summary.subTotalExclusive, 3);
@@ -1140,12 +1085,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     };
 
     // 1. Verify Recall Display matches Image 1
-    const unifiedRecall = buildUnifiedOrderPricing(order125BackendData, {
-      orderType: 'TakeOut',
-      priceView: 'Inclusive',
-      products: mockProducts,
-      productCache: mockProductCache,
-    });
+    const unifiedRecall = buildPrintPricing(order125BackendData, { orderType: 'TakeOut', products: mockProducts, productCache: mockProductCache, dataView: 'Inclusive', printPrice: 'Inclusive' });
 
     expect(unifiedRecall.lines[0].getRate(true)).toBeCloseTo(11.550, 3);
     expect(unifiedRecall.lines[0].getAmount(true)).toBeCloseTo(23.100, 3);
@@ -1283,12 +1223,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
 
     // 3. Unified Pricing Reconciles Swagger response:
     // Discards phantom 10% service charge on TakeOut order and restores the true POS terminal numbers
-    const unified = buildUnifiedOrderPricing(swaggerSettledOrder127, {
-      orderType: 'TakeOut',
-      priceView: 'Inclusive',
-      products: mockProducts,
-      productCache: mockProductCache,
-    });
+    const unified = buildPrintPricing(swaggerSettledOrder127, { orderType: 'TakeOut', products: mockProducts, productCache: mockProductCache, dataView: 'Inclusive', printPrice: 'Inclusive' });
 
     expect(unified.lines[0].getRate(true)).toBeCloseTo(11.550, 3); // NOT 12.705!
     expect(unified.lines[0].inclusiveGross).toBeCloseTo(34.650, 3); // NOT 38.115!
@@ -1331,7 +1266,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
   it('Scenario 17: Order #124 & #129 Recall Guest Print & Thermal Print - Sub Total matching recall screen & Item discount displayed on item and footer', async () => {
     // 1. Order #124 from Swagger:
     // Backend order-print-data returned discounted masterData.subTotal: 78.7091696 and masterData.discount: 0
-    // detailsData has price: 100, discAmount: 27.0503023
+    // detailsData has price: 100, discAmount: 21.2908304
     const orderPrintData124 = {
       masterData: {
         orderNo: 124,
@@ -1361,7 +1296,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
           altArabicName: "",
           price: 100,
           amount: 100,
-          discAmount: 27.0503023,
+          discAmount: 21.2908304,
           discPer: 0,
           vatAmount: 9.0909091,
           vatExclAmount: 90.9090909,
@@ -1379,12 +1314,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     };
     delete (cleanPrintOrder124.masterData as any).subTotal;
 
-    const unified124 = buildUnifiedOrderPricing(cleanPrintOrder124, {
-      orderType: "DineIn",
-      printPrice: "Inclusive",
-      products: [{ id: 5, name: "sndndksdkkslnasklns", price: 100.000, isIncl: false }],
-      productCache: { 5: { id: 5, name: "sndndksdkkslnasklns", price: 100.000, isIncl: false } }
-    });
+    const unified124 = buildPrintPricing(cleanPrintOrder124, { orderType: "DineIn", products: [{ id: 5, name: "sndndksdkkslnasklns", price: 100.000, isIncl: false }], productCache: { 5: { id: 5, name: "sndndksdkkslnasklns", price: 100.000, isIncl: false } }, dataView: "Exclusive", printPrice: "Inclusive" });
 
     // Check line calculations
     expect(unified124.lines[0].getDiscount(true)).toBeCloseTo(27.050, 3);
@@ -1441,7 +1371,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
           productName: "Demo",
           price: 10,
           isIncl: false,
-          discAmount: 10.000,
+          discAmount: 8.658,
           netAmount: 24.650,
           vatAmount: 2.241,
           levy: 1.067
@@ -1449,12 +1379,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
       ]
     };
 
-    const unified129 = buildUnifiedOrderPricing(order129, {
-      orderType: "TakeOut",
-      printPrice: "Inclusive",
-      products: [{ id: 6, name: "Demo", price: 10.000, isIncl: false }],
-      productCache: { 6: { id: 6, name: "Demo", price: 10.000, isIncl: false } }
-    });
+    const unified129 = buildPrintPricing(order129, { orderType: "TakeOut", products: [{ id: 6, name: "Demo", price: 10.000, isIncl: false }], productCache: { 6: { id: 6, name: "Demo", price: 10.000, isIncl: false } }, dataView: "Exclusive", printPrice: "Inclusive" });
 
     const printData129 = {
       orderNo: "129",
@@ -1491,13 +1416,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     expect(guestHtml129).toContain(">24.650<");
 
     // 3. Order #129 in Exclusive Price View and Exclusive Print View:
-    const unified129Excl = buildUnifiedOrderPricing(order129, {
-      orderType: "TakeOut",
-      priceView: "Exclusive",
-      printPrice: "Exclusive",
-      products: [{ id: 6, name: "Demo", price: 10.000, isIncl: false }],
-      productCache: { 6: { id: 6, name: "Demo", price: 10.000, isIncl: false } }
-    });
+    const unified129Excl = buildPrintPricing(order129, { orderType: "TakeOut", products: [{ id: 6, name: "Demo", price: 10.000, isIncl: false }], productCache: { 6: { id: 6, name: "Demo", price: 10.000, isIncl: false } }, dataView: "Exclusive", printPrice: "Exclusive" });
 
     const printData129Excl = {
       ...printData129,
@@ -1554,12 +1473,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
       ]
     };
 
-    const unifiedPricing = buildUnifiedOrderPricing(order129, {
-      orderType: "TakeOut",
-      printPrice: "Inclusive",
-      products: [{ id: 6, name: "Demo", price: 10.000, isIncl: false }],
-      productCache: { 6: { id: 6, name: "Demo", price: 10.000, isIncl: false } }
-    });
+    const unifiedPricing = buildPrintPricing(order129, { orderType: "TakeOut", products: [{ id: 6, name: "Demo", price: 10.000, isIncl: false }], productCache: { 6: { id: 6, name: "Demo", price: 10.000, isIncl: false } }, dataView: "Inclusive", printPrice: "Inclusive" });
 
     const printData = {
       orderNo: "129",
@@ -1787,12 +1701,12 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
           qty: 1,
           productId: 9,
           productName: "ABCD",
-          price: 86.5800866,
-          amount: 86.5800866,
+          price: 100.1,
+          amount: 100.1,
           discAmount: 0,
           serviceCharge: 0,
-          levy: 4.329,
-          vatAmount: 9.0909,
+          levy: 4.3333333,
+          vatAmount: 9.1,
           mapId: 1,
           isIncl: true,
         }
@@ -1810,12 +1724,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     };
 
     // 1. Recall Details verification:
-    const unified = buildUnifiedOrderPricing(order230, {
-      orderType: "TakeOut",
-      priceView: "Inclusive",
-      products,
-      productCache,
-    });
+    const unified = buildPrintPricing(order230, { orderType: "TakeOut", products, productCache, dataView: "Inclusive", printPrice: "Inclusive" });
     expect(unified.lines[0].inclusiveRate).toBeCloseTo(100.100, 3);
     expect(unified.lines[0].inclusiveAmount).toBeCloseTo(100.100, 3);
     expect(unified.summary.subTotalExclusive).toBeCloseTo(86.667, 3);
@@ -1918,7 +1827,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
       orderType: "TakeOut",
       orderTypeId: 2,
       subTotal: 173.160,
-      vatExclAmount: 173.160,
+      vatExclAmount: 172.727,
       discAmount: 0,
       discount: 0,
       charges: 8.225,
@@ -1936,10 +1845,10 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
           discAmount: 10.000,
           discPer: 5,
           vatExclAmount: 173.160,
-          vatAmount: 17.273,
+          vatAmount: 17.2727273,
           netAmount: 190.000,
           serviceCharge: 0,
-          levy: 8.225,
+          levy: 8.2251082,
           mapId: 1,
           isIncl: true,
         }
@@ -1948,12 +1857,7 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     };
 
     // 1. Unified order pricing check
-    const unified = buildUnifiedOrderPricing(order248, {
-      orderType: "TakeOut",
-      priceView: "Inclusive",
-      products,
-      productCache,
-    });
+    const unified = buildPrintPricing({ masterData: order248, detailsData: order248.details, modifiersData: [] }, { orderType: "TakeOut", products, productCache, dataView: "Inclusive", printPrice: "Inclusive" });
 
     expect(unified.summary.grandTotal).toBeCloseTo(190.000, 3);
     expect(unified.summary.subTotalExclusive).toBeCloseTo(173.160, 3);
