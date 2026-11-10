@@ -133,54 +133,6 @@ export const getDiscountCalculation = (override?: string): "Inclusive" | "Exclus
   return getPriceView();
 };
 
-/**
- * Calculates the display unit price for a product based on the POS configuration (Inclusive vs Exclusive).
- * Converts the product's stored catalog price:
- * - If target is Exclusive and product is stored as Inclusive: divides by (1 + vatRate).
- * - If target is Inclusive and product is stored as Exclusive: multiplies by (1 + vatRate).
- * - Otherwise returns the stored price.
- */
-export const getDisplayPriceForProduct = (
-  rawPrice: number,
-  isProductIncl?: boolean,
-  vatRate?: number,
-  targetView?: "Inclusive" | "Exclusive",
-  orderType: string = "DineIn"
-): number => {
-  const view = targetView || getPriceView();
-  const isVatEnabled = getVatStatus();
-  const rate = (vatRate !== undefined && vatRate !== null && !isNaN(Number(vatRate)))
-    ? Number(vatRate) / 100
-    : 0.10;
-
-  if (!isVatEnabled || !rawPrice || rawPrice <= 0) {
-    return rawPrice || 0;
-  }
-
-  const config = getBillingConfig(orderType);
-  const isDineIn = (orderType || '').toLowerCase().includes('dine');
-  const scRate = (isDineIn && config.serviceChargeRate > 0) ? config.serviceChargeRate : 0;
-  const levyRate = config.levyRate > 0 ? config.levyRate : 0;
-  const vatFactor = (isVatEnabled && rate > 0) ? (1 + rate) : 1;
-  const levyFactor = levyRate > 0 ? (1 + levyRate) : 1;
-  const scFactor = scRate > 0 ? (1 + scRate) : 1;
-  const combinedFactor = vatFactor * levyFactor * scFactor;
-
-  const isStoredIncl = isProductIncl === true;
-
-  if (view === "Exclusive") {
-    if (isStoredIncl) {
-      return roundCalc(rawPrice / combinedFactor, CALC_PRECISION);
-    }
-    return rawPrice;
-  } else {
-    if (!isStoredIncl) {
-      return roundCalc(rawPrice * combinedFactor, CALC_PRECISION);
-    }
-    return rawPrice;
-  }
-};
-
 export const getStoredServiceChargeRate = (): number => {
   try {
     for (const key of ['serviceCharges', 'serviceCharge', 'ServiceCharges', 'ServiceCharge']) {
@@ -933,36 +885,6 @@ export const sanitizeTaxExclusiveDetail = (d: any, config?: BillingConfig) => {
     netAmount: finalNetAmount,
   };
 };
-
-/**
- * Returns the tax-exclusive price for extra/modifier rows.
- * Retains high precision (CALC_PRECISION = 7 decimals).
- */
-export const getTaxExclusiveExtraPrice = (
-  extraPrice: number,
-  vatRatePercent: number,
-  _isInclusive?: boolean,
-  config?: BillingConfig
-): number => {
-  const p = Number(extraPrice) || 0;
-  if (p === 0) return 0;
-  const isVatEnabled = getVatStatus();
-  const rateFraction = vatRatePercent / 100;
-  if (!isVatEnabled || rateFraction <= 0) {
-    return roundCalc(p, CALC_PRECISION);
-  }
-  const fallbackOrderType = (typeof localStorage !== 'undefined' ? localStorage.getItem('pos_selected_order_type') || localStorage.getItem('defaultOrderType') : '') || 'TakeOut';
-  const resolvedConfig = config || getBillingConfig(fallbackOrderType);
-  const isDineIn = (resolvedConfig.orderType || '').toLowerCase().includes('dine');
-  const scRate = (isDineIn && resolvedConfig.serviceChargeRate > 0) ? resolvedConfig.serviceChargeRate : 0;
-  const levyRate = resolvedConfig.levyRate > 0 ? resolvedConfig.levyRate : 0;
-  const vatFactor = (isVatEnabled && rateFraction > 0) ? (1 + rateFraction) : 1;
-  const levyFactor = levyRate > 0 ? (1 + levyRate) : 1;
-  const scFactor = scRate > 0 ? (1 + scRate) : 1;
-  const combinedFactor = vatFactor * levyFactor * scFactor;
-  return roundCalc(p / combinedFactor, CALC_PRECISION);
-};
-
 
 /**
  * Billing config for an order being edited: the order keeps the service charge / levy it was SAVED
