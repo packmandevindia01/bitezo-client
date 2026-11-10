@@ -79,14 +79,14 @@ describe.each(FORMS)("$name form", (form) => {
   const open = async () => {
     const view = renderHook(form.useDocument, { wrapper });
     await waitFor(() => expect(form.options(view.result.current).length).toBeGreaterThan(0));
-    await waitFor(() => expect(labels(form.options(view.result.current))).toContain("All"));
+    await waitFor(() => expect(labels(form.options(view.result.current))).toContain("Mall"));
     await settle();
     return view.result;
   };
 
-  it("lists each branch once, the branch master first", async () => {
+  it("lists each real branch once, the branch master first, with no All", async () => {
     const result = await open();
-    expect(labels(form.options(result.current))).toEqual(["Main", "Mall", "All"]);
+    expect(labels(form.options(result.current))).toEqual(["Main", "Mall"]);
   });
 
   it("a new document starts on its default branch", async () => {
@@ -98,7 +98,7 @@ describe.each(FORMS)("$name form", (form) => {
     const normal = http.get.getMockImplementation() as (url: string) => Promise<unknown>;
     http.get.mockImplementation(async (url: string) => (url === "/Branch/list" ? ok(WITH_ALL) : normal(url)));
     const result = await open();
-    expect(labels(form.options(result.current))[0]).toBe("All");
+    expect(labels(form.options(result.current))).toEqual(["Main", "Mall"]);
     expect(result.current.methods.getValues(form.field)).toBe("2");
   });
 
@@ -132,7 +132,7 @@ describe.each(FORMS)("$name form", (form) => {
       return normal(url);
     });
     const result = await open();
-    expect(labels(form.options(result.current)).sort()).toEqual(["All", "Mall", "Main"].sort());
+    expect(labels(form.options(result.current)).sort()).toEqual(["Mall", "Main"].sort());
   });
 
   it("a branch already in the store is listed", async () => {
@@ -198,6 +198,30 @@ describe("Physical Entry and the branch store", () => {
     await waitFor(() => expect(labels(result.current.branches)).toContain("Main"));
     await settle();
     expect(result.current.methods.getValues("branch")).toBe("2");
+  });
+});
+
+describe("All on the forms", () => {
+  it("To Branch has no All, even when the API offers it", async () => {
+    const normal = http.get.getMockImplementation() as (url: string) => Promise<unknown>;
+    http.get.mockImplementation(async (url: string) => (url.endsWith("/transfer-to-branches") ? ok(WITH_ALL) : normal(url)));
+    const { result } = renderHook(() => useInternalStockTransfer() as any, { wrapper });
+    await waitFor(() => expect(result.current.methods.getValues("fromBranch")).toBe("2"));
+    await settle();
+    expect(labels(result.current.masterData.toBranches)).toEqual(["Mall"]);
+  });
+
+  it.each([
+    ["Stock Adjustment", () => useStockAdjustment("1") as any, "branch", (r: any) => r.masterData.branches],
+    ["Physical Entry", () => usePhysicalEntry("1") as any, "branch", (r: any) => r.branches],
+    ["Stock Transfer", () => useInternalStockTransfer("1") as any, "fromBranch", (r: any) => r.masterData.fromBranches],
+  ] as const)("%s saved under All still shows it", async (_name, useDocument, field, options) => {
+    const normal = http.get.getMockImplementation() as (url: string) => Promise<unknown>;
+    http.get.mockImplementation(async (url: string) =>
+      url.includes("/data/") ? ok({ masterData: { transDate: "2026-11-05T00:00:00", refNo: "R1", branchId: 1, fromBranchId: 1, toBranchId: 3, employeeId: 4 }, detailsData: [] }) : normal(url));
+    const { result } = renderHook(useDocument, { wrapper });
+    await waitFor(() => expect(result.current.methods.getValues(field)).toBe("1"));
+    await waitFor(() => expect(labels(options(result.current))).toContain("All"));
   });
 });
 

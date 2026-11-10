@@ -51,6 +51,10 @@ const toBranchOptions = (branches: readonly RawBranch[]): BranchOption[] => {
 export const firstRealBranch = (branches: readonly BranchOption[]): BranchOption | undefined =>
   branches.find((b) => !isAllBranch({ id: b.value, name: b.label }));
 
+/** A form's branch list: no All row, unless an old document is already saved under it, so its branch still shows. */
+export const formBranchOptions = (branches: readonly BranchOption[], currentValue: unknown): BranchOption[] =>
+  branches.filter((b) => !isAllBranch({ id: b.value, name: b.label }) || b.value === String(currentValue ?? ""));
+
 /** The branch list of the stock documents, from every source that knows branches, kept up to date. */
 export const useStockBranches = ({ queryPrefix, getBranchList, navbarFirst = false, seedFromStore = true }: StockBranchesConfig) => {
   const dispatch = useAppDispatch();

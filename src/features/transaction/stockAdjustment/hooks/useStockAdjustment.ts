@@ -23,7 +23,7 @@ import { generateUUID } from "../../../../utils/uuid";
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 import { getEmployeeNames } from "../../../general/employee/services/employeeService";
 import { stockLineAmount, stockBaseQty, stockNetAmount } from "../../shared/stockCalc";
-import { firstRealBranch, useStockBranches } from "../../shared/useStockBranches";
+import { firstRealBranch, formBranchOptions, useStockBranches } from "../../shared/useStockBranches";
 import { useCategoryUnits, useClosingStock, useStockUnitChange } from "../../shared/useStockLineUnits";
 import { searchStockProducts, toProductOption, uniqueProductOptions, useStockBarcodeScan, withStoredProduct } from "../../shared/stockProductLookup";
 import { getLineUnitValue, type RawUnit } from "../../shared/lineUnits";
@@ -574,7 +574,7 @@ export const useStockAdjustment = (id?: string | null) => {
     totals,
     handleReset,
     onSubmit,
-    masterData: { branches: resolvedBranches, employees, types: typesData.options, typesRaw: typesData.raw, units: typesData.units || [] },
+    masterData: { branches: formBranchOptions(resolvedBranches, watchedBranch), employees, types: typesData.options, typesRaw: typesData.raw, units: typesData.units || [] },
     loadingMaster,
     masterError: null, // React Query handles separate error states or transparent fallback
     productOptions,

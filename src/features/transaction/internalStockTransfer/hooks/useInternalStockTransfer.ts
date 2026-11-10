@@ -16,7 +16,7 @@ import {
   type InternalStockTransferUpdatePayload
 } from "../types";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
-import { firstRealBranch, useStockBranches } from "../../shared/useStockBranches";
+import { firstRealBranch, formBranchOptions, useStockBranches } from "../../shared/useStockBranches";
 import { useCategoryUnits, useClosingStock, useStockUnitChange } from "../../shared/useStockLineUnits";
 import { stockBaseQty, stockLineAmount, stockNetAmount } from "../../shared/stockCalc";
 import { getLineUnitValue, type RawUnit } from "../../shared/lineUnits";
@@ -66,6 +66,7 @@ export const useInternalStockTransfer = (id?: string) => {
   });
 
   const watchedBranch = watch("fromBranch");
+  const watchedToBranch = watch("toBranch");
   const watchedItems = useWatch({ control, name: "items" }) || [];
   
   const { branches: resolvedBranches, loadingBranches } = useStockBranches({
@@ -355,11 +356,11 @@ export const useInternalStockTransfer = (id?: string) => {
         map.set(id, label);
       }
     });
-    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
-  }, [branchSpecificData?.toBranches, resolvedBranches, watchedBranch]);
+    return formBranchOptions(Array.from(map.entries()).map(([value, label]) => ({ value, label })), watchedToBranch);
+  }, [branchSpecificData?.toBranches, resolvedBranches, watchedBranch, watchedToBranch]);
 
   const masterData = {
-    fromBranches: resolvedBranches,
+    fromBranches: formBranchOptions(resolvedBranches, watchedBranch),
     toBranches: toBranchOptions,
     employees: branchSpecificData?.employees || [],
     products: masterLookupData?.products || [],

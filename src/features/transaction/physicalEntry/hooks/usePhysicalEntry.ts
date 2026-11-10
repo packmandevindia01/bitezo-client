@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { physicalEntryApi, formatDateOnly } from "../services/physicalEntryApi";
 import { createEmptyPhysicalEntryForm } from "../constants";
-import { firstRealBranch, useStockBranches } from "../../shared/useStockBranches";
+import { firstRealBranch, formBranchOptions, useStockBranches } from "../../shared/useStockBranches";
 import { useCategoryUnits, useStockUnitChange } from "../../shared/useStockLineUnits";
 import { searchStockProducts, useStockBarcodeScan, withStoredProduct } from "../../shared/stockProductLookup";
 import { physicalEntrySchema } from "../types";
@@ -108,11 +108,12 @@ export const usePhysicalEntry = (id?: string | null) => {
     };
   }, [watchedItems]);
 
-  const { branches, loadingBranches } = useStockBranches({
+  const { branches: allBranches, loadingBranches } = useStockBranches({
     queryPrefix: "physicalEntry",
     getBranchList: physicalEntryApi.getBranchList,
     seedFromStore: false,
   });
+  const branches = useMemo(() => formBranchOptions(allBranches, watchedBranch), [allBranches, watchedBranch]);
 
   // Determine effective branch ID for API calls
   const effectiveBranchId = useMemo(() => {
