@@ -54,6 +54,8 @@ beforeEach(() => {
   http.get.mockImplementation(async (url: string) => {
     if (url === "/Branch/list") return ok([{ branchId: 2, branchName: "Main" }]);
     if (url.includes("/unit-cost/")) return unitCost();
+    if (url.includes("as-on-date-stock")) return ok({ stock: 8 });
+    if (url.includes("/physical-entry/data/")) return ok({ masterData: { transDate: "2026-11-05T00:00:00", refNo: "R1", branchId: 2, employeeId: 4 }, detailsData: [] });
     if (url.includes("product-cost-data")) return ok({ productId: 5, productCode: "P5", productName: "Rice", baseUnitId: 1, cost: 1, unitCategory: "Count" });
     if (url.includes("unit-list")) {
       if (unitListFails) throw new Error("down");
@@ -138,6 +140,64 @@ describe.each(WITH_GUARD)("$name unit change", ({ useDocument, base, field }) =>
     await act(async () => { await result.current.handleUnitChange(0, "2"); });
     await settle();
     expect(value(result, "stock")).toBe("Error");
+  });
+});
+
+describe("Physical Entry unit change", () => {
+  const open = async (id?: string) => {
+    const view = renderHook(() => usePhysicalEntry(id) as any, { wrapper });
+    await waitFor(() => expect(view.result.current.methods.getValues("branch")).toBe("2"));
+    await settle();
+    act(() => {
+      view.result.current.methods.setValue("items.0.id", "L1");
+      view.result.current.methods.setValue("items.0.product", "5");
+      view.result.current.methods.setValue("items.0.cost", "1.000");
+      view.result.current.methods.setValue("items.0.stock", "4");
+    });
+    return view.result;
+  };
+  const value = (result: { current: any }, name: string) => result.current.methods.getValues(`items.0.${name}`);
+
+  it("loads the cost and the as-on-date stock on a new entry", async () => {
+    const result = await open();
+    await act(async () => { await result.current.handleUnitChange(0, "2"); });
+    await settle();
+    expect(value(result, "cost")).toBe("2.500");
+    expect(value(result, "stock")).toBe(8);
+  });
+
+  it("leaves the stock alone on a saved entry", async () => {
+    const result = await open("1");
+    await act(async () => { await result.current.handleUnitChange(0, "2"); });
+    await settle();
+    expect(value(result, "cost")).toBe("2.500");
+    expect(value(result, "stock")).toBe("4");
+  });
+
+  it("a reply without a cost keeps the cost", async () => {
+    const result = await open();
+    unitCost = async () => ok({});
+    await act(async () => { await result.current.handleUnitChange(0, "2"); });
+    expect(value(result, "cost")).toBe("1.000");
+  });
+
+  it("a slow reply does not change a line whose unit has moved on", async () => {
+    const result = await open();
+    let release: (v: unknown) => void = () => {};
+    unitCost = () => new Promise((r) => { release = r; });
+    let pending: Promise<unknown> = Promise.resolve();
+    act(() => { pending = result.current.handleUnitChange(0, "2"); });
+    await settle();
+    act(() => result.current.methods.setValue("items.0.unit", "3"));
+    await act(async () => { release(ok({ cost: 9 })); await pending; });
+    expect(value(result, "cost")).toBe("1.000");
+  });
+
+  it("a failed reply warns", async () => {
+    const result = await open();
+    unitCost = async () => { throw new Error("down"); };
+    await act(async () => { await result.current.handleUnitChange(0, "2"); });
+    expect(showToast).toHaveBeenCalledWith(WARNING, "warning");
   });
 });
 

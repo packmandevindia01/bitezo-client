@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { physicalEntryApi, formatDateOnly } from "../services/physicalEntryApi";
 import { createEmptyPhysicalEntryForm } from "../constants";
 import { firstRealBranch, useStockBranches } from "../../shared/useStockBranches";
-import { useCategoryUnits } from "../../shared/useStockLineUnits";
+import { useCategoryUnits, useStockUnitChange } from "../../shared/useStockLineUnits";
 import { searchStockProducts, useStockBarcodeScan, withStoredProduct } from "../../shared/stockProductLookup";
 import { physicalEntrySchema } from "../types";
 import type {
@@ -39,6 +39,9 @@ export const calculateLine = (item: PhysicalEntryLineItem) => {
   const amount = stockLineAmount(qty, cost);
   return { amount };
 };
+
+const getUnitCost = async (productId: number, unitId: number): Promise<number | null | undefined> =>
+  (await physicalEntryApi.getUnitCost(productId, unitId))?.cost;
 
 export const usePhysicalEntry = (id?: string | null) => {
   const queryClient = useQueryClient();
@@ -404,22 +407,12 @@ export const usePhysicalEntry = (id?: string | null) => {
 
   const handleBarcodeScan = useStockBarcodeScan({ api: physicalEntryApi, setValue, setProductOptions, loadCategoryUnits, formatAmount, loadStock });
 
-  const handleUnitChange = useCallback(async (index: number, unitId: string) => {
-    setValue(`items.${index}.unit`, unitId);
-    setValue(`items.${index}.unitId`, Number(unitId));
-    const productId = getValues(`items.${index}.product`);
-    if (!productId || !unitId) return;
-    try {
-      const result: any = await physicalEntryApi.getUnitCost(Number(productId), Number(unitId));
-      if (result && result.cost !== undefined && result.cost !== null) {
-        setValue(`items.${index}.cost`, formatAmount(result.cost));
-      }
+  /** A saved entry keeps the stock it shows when its unit changes. */
+  const loadNewEntryStock = useCallback((index: number, productId: number) => {
+    if (!id) loadStock(index, productId);
+  }, [id, loadStock]);
 
-      if (!id) loadStock(index, Number(productId));
-    } catch (error) {
-      console.error("Failed to fetch unit cost", error);
-    }
-  }, [id, setValue, getValues, formatAmount, loadStock]);
+  const handleUnitChange = useStockUnitChange({ getUnitCost, getValues, setValue, formatAmount, showToast, loadStock: loadNewEntryStock });
 
   const handleReset = useCallback(() => {
     if (id && recordData) {

@@ -55,7 +55,8 @@ export const useClosingStock = (branchField: string, getValues: GetValue, setVal
   );
 
 export interface StockUnitChangeConfig {
-  getUnitCost: (productId: number, unitId: number) => Promise<number>;
+  /** Nothing returned keeps the line's cost. */
+  getUnitCost: (productId: number, unitId: number) => Promise<number | null | undefined>;
   getValues: GetValue;
   setValue: SetValue;
   formatAmount: (value: number) => string;
@@ -81,7 +82,7 @@ export const useStockUnitChange = ({ getUnitCost, getValues, setValue, formatAmo
       try {
         const cost = await getUnitCost(Number(productId), Number(unitId));
         if (!isSameLine()) return;
-        setValue(`items.${index}.cost`, formatAmount(cost));
+        if (cost !== null && cost !== undefined) setValue(`items.${index}.cost`, formatAmount(cost));
         loadStock(index, Number(productId));
       } catch (error) {
         console.error("Failed to fetch unit cost", error);
