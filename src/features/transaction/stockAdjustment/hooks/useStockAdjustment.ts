@@ -24,6 +24,7 @@ import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/empl
 import { getEmployeeNames } from "../../../general/employee/services/employeeService";
 import { stockLineAmount, stockBaseQty, stockNetAmount } from "../../shared/stockCalc";
 import { firstRealBranch, useStockBranches } from "../../shared/useStockBranches";
+import { searchStockProducts, toProductOption, uniqueProductOptions, useStockBarcodeScan, withStoredProduct } from "../../shared/stockProductLookup";
 import { getLineUnitValue, type RawUnit } from "../../shared/lineUnits";
 
 const toNumber = (value: string | number | undefined) => {
@@ -226,18 +227,7 @@ export const useStockAdjustment = (id?: string | null) => {
       try {
         const results = await stockAdjustmentApi.getProductListByName("");
         if (Array.isArray(results) && results.length > 0) {
-          const mapped = results.map((r: any) => ({
-            label: r.code ? `[${r.code}] ${r.productName}` : r.productName,
-            value: r.productId.toString(),
-            code: r.code || "",
-            barcode: r.barcode || "",
-          }));
-          const seenIds = new Set<string>();
-          return mapped.filter((item: any) => {
-            if (seenIds.has(item.value)) return false;
-            seenIds.add(item.value);
-            return true;
-          });
+          return uniqueProductOptions(results.map(toProductOption));
         }
         return [];
       } catch (err) {
@@ -419,14 +409,8 @@ export const useStockAdjustment = (id?: string | null) => {
   // Build per-row options: always include the stored product label so the
   // combobox can display the name even before/after a barcode scan
   const getRowOptions = useCallback((index: number) => {
-    const stored = (watchedItems[index] as any);
-    const storedValue = stored?.product;
-    const storedName = stored?.productName;
     const baseOptions = productOptions.length > 0 ? productOptions : defaultProductOptionsRef.current;
-    if (!storedValue || !storedName) return baseOptions;
-    const alreadyPresent = baseOptions.some((o: any) => o.value === storedValue);
-    if (alreadyPresent) return baseOptions;
-    return [{ label: storedName, value: storedValue }, ...baseOptions];
+    return withStoredProduct(baseOptions, watchedItems[index]);
   }, [productOptions, watchedItems]);
 
   // 5. Product Search with Barcode Fallback and deduplication
@@ -440,36 +424,7 @@ export const useStockAdjustment = (id?: string | null) => {
     }
     setSearchingProducts(true);
     try {
-      // When query is empty, fetch all products so the dropdown is populated on first click
-      const [nameResults, costDetail] = await Promise.all([
-        stockAdjustmentApi.getProductListByName(trimmed).catch(() => []),
-        trimmed ? stockAdjustmentApi.getPurchaseCostData(trimmed).catch(() => null) : Promise.resolve(null)
-      ]);
-
-      let mapped = (nameResults || []).map((r) => ({
-        label: r.code ? `[${r.code}] ${r.productName}` : r.productName,
-        value: r.productId.toString(),
-        code: r.code || "",
-        barcode: r.barcode || "",
-      }));
-
-      if (costDetail) {
-        const costOption = {
-          label: costDetail.productCode ? `[${costDetail.productCode}] ${costDetail.productName}` : costDetail.productName,
-          value: costDetail.productId.toString(),
-          code: costDetail.productCode || "",
-          barcode: trimmed,
-        };
-        // Prepend matched code result for instant display at the top of options list
-        mapped = [costOption, ...mapped];
-      }
-      
-      const seenIds = new Set<string>();
-      mapped = mapped.filter(item => {
-        if (seenIds.has(item.value)) return false;
-        seenIds.add(item.value);
-        return true;
-      });
+      const mapped = await searchStockProducts(stockAdjustmentApi, trimmed);
 
       if (!trimmed && defaultProductOptionsRef.current.length === 0 && mapped.length > 0) {
         defaultProductOptionsRef.current = mapped;
@@ -482,6 +437,14 @@ export const useStockAdjustment = (id?: string | null) => {
       setSearchingProducts(false);
     }
   }, []);
+
+  const loadStock = useCallback((index: number, productId: number) => {
+    const branchIdStr = getValues("branch");
+    if (!branchIdStr || !productId) return;
+    productService.getClosingStock(productId, Number(branchIdStr))
+      .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
+      .catch(() => setValue(`items.${index}.stock`, "Error"));
+  }, [getValues, setValue]);
 
   // 6. Select details from product
   const handleProductSelect = async (index: number, val: string, barcode: string) => {
@@ -497,87 +460,14 @@ export const useStockAdjustment = (id?: string | null) => {
       if (details.unitCategory) {
         loadCategoryUnits(details.unitCategory);
       }
-      const branchIdStr = getValues("branch");
-      if (branchIdStr && val) {
-        productService.getClosingStock(Number(val), Number(branchIdStr))
-          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-          .catch(() => setValue(`items.${index}.stock`, "Error"));
-      }
+      loadStock(index, Number(val));
     } catch (error) {
       console.error("Failed to load product details", error);
       setValue(`items.${index}.stock`, "Error");
     }
   };
 
-  const handleBarcodeScan = useCallback(async (index: number, barcode: string) => {
-    try {
-      setValue(`items.${index}.stock`, "...");
-      // Try barcode/code via cost-data endpoint first
-      let details = await stockAdjustmentApi.getPurchaseCostData(barcode).catch(() => null);
-
-      // Fallback: search by name/code if cost-data returns nothing
-      if (!details) {
-        const nameResults = await stockAdjustmentApi.getProductListByName(barcode).catch(() => []);
-        if (nameResults && nameResults.length > 0) {
-          // Use the first match, then fetch its cost data using its barcode
-          const first = nameResults[0];
-          const barcodeToUse = first.barcode || first.code || barcode;
-          details = await stockAdjustmentApi.getPurchaseCostData(barcodeToUse).catch(() => null);
-          // If still no cost data, create a minimal details object
-          if (!details) {
-            setProductOptions(prev => {
-              if (prev.find(o => o.value === String(first.productId))) return prev;
-              const lbl = first.code ? `[${first.code}] ${first.productName}` : first.productName;
-              return [...prev, { label: lbl, value: String(first.productId), code: first.code || "", barcode: first.barcode || "" }];
-            });
-            setValue(`items.${index}.product`, String(first.productId));
-            setValue(`items.${index}.productName`, first.code ? `[${first.code}] ${first.productName}` : first.productName);
-            setValue(`items.${index}.code`, first.code || "");
-
-            const branchIdStr = getValues("branch");
-            if (branchIdStr && first.productId) {
-              productService.getClosingStock(first.productId, Number(branchIdStr))
-                .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-                .catch(() => setValue(`items.${index}.stock`, "Error"));
-            }
-
-            return true;
-          }
-        }
-      }
-
-      if (details) {
-        const labelWithCode = details.productCode ? `[${details.productCode}] ${details.productName}` : details.productName;
-        setProductOptions(prev => {
-          if (prev.find(o => o.value === String(details!.productId))) return prev;
-          return [...prev, { label: labelWithCode, value: String(details!.productId), code: details!.productCode || "", barcode }];
-        });
-        setValue(`items.${index}.product`, String(details.productId));
-        setValue(`items.${index}.productName`, labelWithCode);
-        setValue(`items.${index}.code`, details.productCode || "");
-        setValue(`items.${index}.unitCategory`, details.unitCategory || "");
-        setValue(`items.${index}.unitId`, details.baseUnitId);
-        setValue(`items.${index}.unit`, String(details.baseUnitId));
-        setValue(`items.${index}.cost`, formatAmount(details.cost));
-        if (details.unitCategory) {
-          loadCategoryUnits(details.unitCategory);
-        }
-
-        const branchIdStr = getValues("branch");
-        if (branchIdStr && details.productId) {
-          productService.getClosingStock(details.productId, Number(branchIdStr))
-            .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-            .catch(() => setValue(`items.${index}.stock`, "Error"));
-        }
-
-        return true;
-      }
-    } catch (e) {
-      console.error("Instant barcode lookup failed", e);
-      setValue(`items.${index}.stock`, "Error");
-    }
-    return false;
-  }, [setValue, loadCategoryUnits, formatAmount]);
+  const handleBarcodeScan = useStockBarcodeScan({ api: stockAdjustmentApi, setValue, setProductOptions, loadCategoryUnits, formatAmount, loadStock });
 
   const handleTypeSelect = (index: number, typeIdStr: string) => {
     const t = typesData.raw.find((t: any) => String(t.typeId) === typeIdStr);
@@ -607,20 +497,14 @@ export const useStockAdjustment = (id?: string | null) => {
       const cost = await stockAdjustmentApi.getUnitCost(Number(productId), Number(unitId));
       if (!isSameLine()) return;
       setValue(`items.${index}.cost`, formatAmount(cost));
-
-      const branchIdStr = getValues("branch");
-      if (branchIdStr && productId) {
-        productService.getClosingStock(Number(productId), Number(branchIdStr))
-          .then(res => setValue(`items.${index}.stock`, res.stock || "0"))
-          .catch(() => setValue(`items.${index}.stock`, "Error"));
-      }
+      loadStock(index, Number(productId));
     } catch (error) {
       console.error("Failed to fetch unit cost", error);
       if (isSameLine()) {
         showToast("Could not load the cost for this unit. Please check the Cost before saving.", "warning");
       }
     }
-  }, [setValue, getValues, formatAmount, showToast]);
+  }, [setValue, getValues, formatAmount, showToast, loadStock]);
 
   const handleReset = useCallback(() => {
     if (id && recordData) {

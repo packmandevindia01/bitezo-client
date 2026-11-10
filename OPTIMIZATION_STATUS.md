@@ -24,6 +24,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Payment and Receipt Against Vouchers share one form hook, list hook, API, schema and types.
 - Stock Adjustment and Physical Entry share one list page, list hook and the read requests of their API (`shared/components/StockDocumentListPage.tsx`, `shared/useStockDocumentList.ts`, `shared/stockDocumentApi.ts`). Test: `stockDocumentList`. Not yet opened in the real app.
 - Stock Adjustment, Physical Entry and Stock Transfer forms and lists load branches through one hook (`shared/useStockBranches.ts`). New-document payloads and branch defaults are covered by `stockFormBranches`.
+- Stock Adjustment and Physical Entry share product search and barcode scan (`shared/stockProductLookup.ts`). Test: `stockProductLookup`.
 - 38 `unwrap` and 5 `formatDateOnly` exact copies replaced by `shared/api/unwrap.ts` and `shared/lib/date.ts`.
 - Payload snapshots: `purchasePayloadGolden`, `voucherPayloadGolden`, `againstVoucherPayloadGolden`, `stockDocumentPayloadGolden`.
 
@@ -31,7 +32,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 
 | Work | Size | Note |
 |---|---|---|
-| Stock Adjustment, Physical Entry, Transfer hooks | About 2,300 lines left, roughly a third still overlapping | Next: product search and selection (Adjustment and Physical Entry). Production shares only 9%, so leave it separate |
+| Stock Adjustment, Physical Entry, Transfer hooks | About 2,100 lines left | Next: compare Stock Transfer's product lookup with the shared one. Production shares only 9%, so leave it separate |
 | Transfer and Production APIs and list pages | Different method names and filters from the shared stock document code (From/To branch; Production number, BOM and product lists) | Compare first; share only what really matches |
 | `DocumentForm`: shared form page and line grid | About 3,000+ lines of form pages | Needs a visual check of each screen |
 | Voucher form pages | 4 pages | Field behaviour differs; decide which behaviour to keep |
