@@ -21,7 +21,7 @@ General project rules (git, shared components, architecture) live in `GEMINI.md`
 - TanStack Query for menu / config fetching
 - axios (`axiosInstance`, JWT from `localStorage.accessToken`)
 - Printing: own **Bitezo Printer Agent** (`PrinterAgent.exe`, WebSocket) on web/Windows; Capacitor native `BitezoPrinterPlugin` (raw ESC/POS TCP :9100) on Android. **QZ Tray is NOT used** (only legacy names `qzService.ts` / `connectQZ` remain)
-- Vitest (`src/tests/`, 106 files / 1397 tests, all passing on 2026-11-10; node by default, jsdom + Testing Library only where a file asks for it)
+- Vitest (`src/tests/`, 106 files / 1365 tests, all passing on 2026-11-10; node by default, jsdom + Testing Library only where a file asks for it)
 
 Verify every change with:
 ```
@@ -458,7 +458,7 @@ cart keep the price and name they were added with.
 - `invoicePayloadMapper` recomputes `vatExclAmount` from details (+ modifiers when not already combined)
   and VAT as the sum of line VAT.
 - ~~`useSplitOrderData` remainder rule~~: the hook was unused and was deleted on 2026-11-05.
-- `terminal/utils/pos-calc.ts`: different charge cascade; only `allocate` is used.
+- `terminal/utils/pos-calc.ts` now holds only `allocate`. `utils/orderLineItems.ts` reads a line's extras, modifiers and messages without calculating; it is what replaces the non-money part of `orderPricing.ts`.
 - `getBillingConfig` falls back to a 10% VAT rate when the config has none — confirm the menu
   `/products` API sends `vatValue` per product.
 - Not yet verified in the real app: print templates, split/combine and bulk settle after the engine refactor.
