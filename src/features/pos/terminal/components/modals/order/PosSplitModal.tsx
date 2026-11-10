@@ -7,7 +7,7 @@ import { orderApi } from "../../../../services/orderApi";
 import { useAppSelector } from "../../../../../../app/hooks";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { PosSplitTableModal } from "./PosSplitTableModal";
-import { calculateLineItem, calculateOrder, roundCalc, CALC_PRECISION, getTaxExclusivePrice, getBillingConfigForOrder, getPriceView, getDiscountCalculation, toPricingSettings } from "../../../utils/billing";
+import { calculateLineItem, calculateOrder, roundCalc, CALC_PRECISION, getBillingConfigForOrder, getPriceView, getDiscountCalculation, toPricingSettings } from "../../../utils/billing";
 import { storedLineToCartPricing, deriveOrderChargeRatesFromMaster, ORDER_TYPE_NAMES, priceLine } from "../../../../pricing";
 import { useCashierLog } from "../../../../cashier";
 import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
@@ -542,9 +542,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       const pId = item.detail?.productId ?? item.detail?.ProductId ?? item.detail?.itemId ?? item.detail?.ItemId;
 
       // Backend convention: detail price = exclusive unit price INCLUDING extras (amount / qty).
-      const exclPrice = lineCalc
-        ? roundCalc(lineCalc.amount / Math.max(1, item.currentQty), CALC_PRECISION)
-        : roundCalc(getTaxExclusivePrice(item));
+      const exclPrice = roundCalc(lineCalc.amount / Math.max(1, item.currentQty), CALC_PRECISION);
       const lineNet = roundCalc(lineCalc?.lineNetAmount ?? (exclPrice * item.currentQty + (lineCalc?.vatAmount || 0)));
 
       const itemDiscPer = item.discountType === 'percentage' ? (item.discountValue || 0) : 0;

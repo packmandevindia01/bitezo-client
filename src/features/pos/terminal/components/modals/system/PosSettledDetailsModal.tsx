@@ -26,7 +26,6 @@ import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts
 import { loadSettledOrderIntoCart } from "../../../utils/loadSettledOrderIntoCart";
 import { menuApi } from "../../../../services/menuApi";
 import { t, getLocalizedName } from "../../../../utils/posLocalization";
-import { buildUnifiedOrderPricing } from "../../../../utils/orderPricing";
 import { checkOrderHasBillDiscount } from "../../../utils/orderDiscountCheck";
 
 interface PosSettledDetailsModalProps {
@@ -1122,7 +1121,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
   const isTaxInclusive = effectivePriceView === "Inclusive";
 
   const isBillLevelDiscount = order ? checkOrderHasBillDiscount(order) : false;
-  const unified = order ? buildUnifiedOrderPricing(order, { orderType: orderTypeName, priceView: effectivePriceView, allExtras, modifierTypes, products, productCache, isBillDiscount: isBillLevelDiscount }) : null;
+  const unified = order ? buildPrintPricing(order, { dataView: effectivePriceView, printPrice: effectivePriceView, orderType: orderTypeName, allExtras, modifierTypes, products, productCache, isBillDiscount: isBillLevelDiscount }) : null;
   const isVatActive = Boolean(isEnableVatGuestPrint(master as any) || getVatStatus() || unified?.summary?.isVatActive);
 
   const rawVatExcl = Number(
