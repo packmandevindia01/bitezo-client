@@ -81,7 +81,7 @@ export const shiftEndReport: ReportDefinition = {
   columns: SHIFT_FIXED,
   filters: [
     { kind: "branch", key: "branch" },
-    { kind: "lookup", key: "user", label: "User", allLabel: "All Users", queryKey: "shiftEndUsers", load: async () => asArray(await getUserList()).map((u) => ({ value: str(u.userId), label: str(u.userName) })) },
+    { kind: "lookup", key: "user", label: "User", allLabel: "All Users", queryKey: "shiftEndUsers", dependsOn: ["branch"], load: async (f) => asArray(await getUserList(toReportBranchId(f.branch))).map((u) => ({ value: str(u.userId), label: str(u.userName) })) },
     {
       kind: "lookup", key: "counter", label: "Counter", allLabel: "All Counters", queryKey: "shiftEndCounters", dependsOn: ["branch"],
       // Counters belong to a real branch, not "All".

@@ -76,6 +76,19 @@ describe.each([
   });
 });
 
+describe("Shift End users", () => {
+  it("are loaded for All with branch 1", async () => {
+    show(createElement(ShiftEndReportPage));
+    await waitFor(() => expect(getUserList).toHaveBeenCalledWith(1));
+  });
+
+  it("are loaded for a real branch", async () => {
+    sessionStorage.setItem("backoffice_activeBranchId", "3");
+    show(createElement(ShiftEndReportPage));
+    await waitFor(() => expect(getUserList).toHaveBeenCalledWith(3));
+  });
+});
+
 describe("Shift End counters", () => {
   it("are not loaded for All, which has none", async () => {
     show(createElement(ShiftEndReportPage));

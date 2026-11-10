@@ -19,9 +19,9 @@ export const getShiftEndReport = async (
   );
 };
 
-export const getUserList = async (): Promise<UserOption[]> => {
+export const getUserList = async (branchId: number): Promise<UserOption[]> => {
   const data = await unwrap(
-    axiosInstance.get<ApiResponse<UserOption[]>>("/user/userlist")
+    axiosInstance.get<ApiResponse<UserOption[]>>(`/user/branches/${branchId}/userlist`)
   );
   return ((data as any[]) ?? []).map((u: any) => ({
     userId: Number(u.userId),

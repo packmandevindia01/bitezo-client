@@ -63,9 +63,8 @@ export const fetchUsers = async (branchId?: number | null) => {
     : Number(localStorage.getItem("activeBranchId")) || null;
   const effectiveBranchId = branchId ?? fallbackBranch;
 
-  const url = effectiveBranchId
-    ? `/user/branches/${effectiveBranchId}/userlist`
-    : "/user/userlist";
+  // The API only lists users per branch; 1 is its All branch.
+  const url = `/user/branches/${effectiveBranchId || 1}/userlist`;
 
   const { data } = await axiosInstance.get<ApiResponse<UserApiRecord[]>>(url);
   if (!data.isSuccess) {
