@@ -1,12 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDateOnly } from "@shared/lib/date";
 import { toReportBranchId, useBranchScope } from "../../../hooks/useBranchScope";
-import { useAppDispatch, useAppSelector } from "../../../app/hooks";
-import { fetchBranches, fetchBranchNames } from "../../inventory/branches/services/branchApi";
-import { subscribeToBranchUpdates } from "../../inventory/branches/utils/branchSync";
-import { fetchGlobalBranches } from "../../inventory/shared/store/masterDataSlice";
 import type { StockDocumentBranch, StockDocumentListParams, StockDocumentRow } from "./stockDocumentApi";
+import { useStockBranches } from "./useStockBranches";
 
 export interface StockDocumentListConfig {
   /** Prefix of the query keys, e.g. stockAdjustment */
@@ -14,33 +11,6 @@ export interface StockDocumentListConfig {
   getDetails: (params: StockDocumentListParams) => Promise<StockDocumentRow[]>;
   getBranchList: () => Promise<StockDocumentBranch[]>;
 }
-
-interface RawBranch {
-  id?: number | string;
-  branchId?: number | string;
-  BranchId?: number | string;
-  Id?: number | string;
-  branchName?: string;
-  BranchName?: string;
-  name?: string;
-  Name?: string;
-}
-
-interface BranchOption {
-  label: string;
-  value: string;
-}
-
-/** Keeps the first name seen for each id and ignores rows without an id or a name. */
-const toBranchOptions = (branches: readonly RawBranch[]): BranchOption[] => {
-  const byId = new Map<string, string>();
-  branches.forEach((b) => {
-    const id = String(b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
-    const name = String(b.branchName ?? b.BranchName ?? b.name ?? b.Name ?? "");
-    if (id && id !== "0" && name && !byId.has(id)) byId.set(id, name);
-  });
-  return Array.from(byId, ([value, label]) => ({ label, value }));
-};
 
 const newestFirst = (a: StockDocumentRow, b: StockDocumentRow) => {
   const dateA = new Date(a.transDate ?? "").getTime();
@@ -51,8 +21,6 @@ const newestFirst = (a: StockDocumentRow, b: StockDocumentRow) => {
 
 /** Filters, branch list and rows of the saved Stock Adjustment and Physical Entry lists. */
 export const useStockDocumentList = ({ queryPrefix, getDetails, getBranchList }: StockDocumentListConfig) => {
-  const dispatch = useAppDispatch();
-  const reduxBranches = useAppSelector((state) => state.masterData.branches) as readonly RawBranch[];
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const [filters, setFilters] = useState({
     branchId: initialBranchId ? String(initialBranchId) : "",
@@ -61,39 +29,7 @@ export const useStockDocumentList = ({ queryPrefix, getDetails, getBranchList }:
     toDate: formatDateOnly(new Date()),
   });
 
-  const { data: fetchedBranches = [], refetch: refetchBranches } = useQuery({
-    queryKey: [`${queryPrefix}Branches`],
-    queryFn: async () => {
-      const results = await Promise.allSettled([fetchBranchNames(true), fetchBranches(), fetchBranchNames(false), getBranchList()]);
-      const fetched = results.flatMap((r) => (r.status === "fulfilled" && Array.isArray(r.value) ? (r.value as readonly RawBranch[]) : []));
-      return toBranchOptions([...fetched, ...reduxBranches]);
-    },
-    initialData: () => toBranchOptions(reduxBranches),
-    initialDataUpdatedAt: 0,
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-  });
-
-  // A branch added elsewhere can reach Redux after the query has run.
-  const branches = useMemo(() => {
-    const seen = new Set(fetchedBranches.map((b) => b.value));
-    return [...fetchedBranches, ...toBranchOptions(reduxBranches).filter((b) => !seen.has(b.value))];
-  }, [fetchedBranches, reduxBranches]);
-
-  useEffect(() => {
-    void dispatch(fetchGlobalBranches());
-  }, [dispatch]);
-
-  useEffect(
-    () =>
-      subscribeToBranchUpdates(() => {
-        void dispatch(fetchGlobalBranches());
-        void refetchBranches();
-      }),
-    [dispatch, refetchBranches]
-  );
+  const { branches } = useStockBranches({ queryPrefix, getBranchList, navbarFirst: true });
 
   const { data: records = [], isLoading: loading, error } = useQuery({
     queryKey: [`${queryPrefix}List`, filters.branchId, filters.fromDate, filters.toDate],

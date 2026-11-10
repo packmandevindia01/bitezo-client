@@ -23,6 +23,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Payment and Receipt Vouchers share one hook, API, schema and list page.
 - Payment and Receipt Against Vouchers share one form hook, list hook, API, schema and types.
 - Stock Adjustment and Physical Entry share one list page, list hook and the read requests of their API (`shared/components/StockDocumentListPage.tsx`, `shared/useStockDocumentList.ts`, `shared/stockDocumentApi.ts`). Test: `stockDocumentList`. Not yet opened in the real app.
+- Stock Adjustment, Physical Entry and Stock Transfer forms and lists load branches through one hook (`shared/useStockBranches.ts`). New-document payloads and branch defaults are covered by `stockFormBranches`.
 - 38 `unwrap` and 5 `formatDateOnly` exact copies replaced by `shared/api/unwrap.ts` and `shared/lib/date.ts`.
 - Payload snapshots: `purchasePayloadGolden`, `voucherPayloadGolden`, `againstVoucherPayloadGolden`, `stockDocumentPayloadGolden`.
 
@@ -30,7 +31,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 
 | Work | Size | Note |
 |---|---|---|
-| Stock Adjustment, Physical Entry, Transfer, Production hooks | 2,900 lines | About half the lines overlap at most; snapshots cover editing only, so add new-document cases first |
+| Stock Adjustment, Physical Entry, Transfer hooks | About 2,300 lines left, roughly a third still overlapping | Next: product search and selection (Adjustment and Physical Entry). Production shares only 9%, so leave it separate |
 | Transfer and Production APIs and list pages | Different method names and filters from the shared stock document code (From/To branch; Production number, BOM and product lists) | Compare first; share only what really matches |
 | `DocumentForm`: shared form page and line grid | About 3,000+ lines of form pages | Needs a visual check of each screen |
 | Voucher form pages | 4 pages | Field behaviour differs; decide which behaviour to keep |
@@ -52,6 +53,13 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | Reports | A cleared Branch filter sent `BranchId=0` |
 | Purchase Return report | Bill Date was blank: the API sends `purchaseReturnDate` |
 | Reports and vouchers | Receipt Against and both plain vouchers did not refresh open reports |
+
+## Bugs fixed on 2026-11-10
+
+| Screen | Bug |
+|---|---|
+| Stock Adjustment (new) | The form looped and reset itself while the product list was loading |
+| Stock Adjustment, Physical Entry, Stock Transfer (new) | A new document could start on the API's All row; it now starts on the first real branch. **Check saved Stock Adjustments with branch 1 (All).** |
 
 ## Behaviour changes to check
 

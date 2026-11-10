@@ -1,0 +1,61 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`'Physical Entry' form > saving a new document sends this payload 1`] = `
+{
+  "branchId": 2,
+  "details": [
+    {
+      "amount": 3.3,
+      "baseQty": 3,
+      "price": 1.1,
+      "productId": 5,
+      "qty": 3,
+      "unitId": 2,
+    },
+  ],
+  "employeeId": 4,
+  "narration": "note",
+  "netAmount": 3.3,
+}
+`;
+
+exports[`'Stock Adjustment' form > saving a new document sends this payload 1`] = `
+{
+  "branchId": 2,
+  "details": [
+    {
+      "amount": 3.3,
+      "baseQty": 3,
+      "effect": "-",
+      "price": 1.1,
+      "productId": 5,
+      "qty": 3,
+      "typeId": 1,
+      "unitId": 2,
+    },
+  ],
+  "employeeId": 4,
+  "narration": "note",
+  "netAmount": -3.3,
+}
+`;
+
+exports[`'Stock Transfer' form > saving a new document sends this payload 1`] = `
+{
+  "details": [
+    {
+      "amount": 3.3,
+      "baseQty": 3,
+      "price": 1.1,
+      "productId": 5,
+      "qty": 3,
+      "unitId": 2,
+    },
+  ],
+  "employeeId": 4,
+  "fromBranchId": 2,
+  "narration": "note",
+  "netAmount": 3.3,
+  "toBranchId": 3,
+}
+`;

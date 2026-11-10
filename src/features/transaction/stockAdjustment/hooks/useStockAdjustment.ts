@@ -22,12 +22,8 @@ import type { SearchableOption } from "../../../../components/common/Searchables
 import { generateUUID } from "../../../../utils/uuid";
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
 import { getEmployeeNames } from "../../../general/employee/services/employeeService";
-import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
-import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
-import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
-import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
-import axiosInstance from "../../../../api/axiosInstance";
 import { stockLineAmount, stockBaseQty, stockNetAmount } from "../../shared/stockCalc";
+import { firstRealBranch, useStockBranches } from "../../shared/useStockBranches";
 import { getLineUnitValue, type RawUnit } from "../../shared/lineUnits";
 
 const toNumber = (value: string | number | undefined) => {
@@ -42,10 +38,11 @@ export const calculateLine = (item: StockAdjustmentLineItem) => {
   return { amount };
 };
 
+/** One shared array: a new [] on every render made the reset effect below loop until the products arrived. */
+const NO_PRODUCTS: SearchableOption[] = [];
+
 export const useStockAdjustment = (id?: string | null) => {
   const queryClient = useQueryClient();
-  const dispatch = useAppDispatch();
-  const reduxBranches = useAppSelector((state: any) => state.masterData.branches);
   const { formatAmount } = useCurrency();
   const { isBranchLocked, initialBranchId } = useBranchScope();
   const { showToast } = useToast();
@@ -120,112 +117,10 @@ export const useStockAdjustment = (id?: string | null) => {
     };
   }, [watchedItems]);
 
-  // 1. React Query: Fetch Branches
-  const { data: branches = [], isLoading: loadingBranches, refetch: refetchBranches } = useQuery({
-    queryKey: ["stockAdjustmentBranches"],
-    queryFn: async () => {
-      const branchMap = new Map<string, string>();
-
-      const addBranch = (rawId: any, rawName: any) => {
-        const id = String(rawId ?? "");
-        const name = String(rawName ?? "");
-        if (id && id !== "0" && name && !branchMap.has(id)) {
-          branchMap.set(id, name);
-        }
-      };
-
-      const [branchMasterRes, directBranchesTrueRes, directBranchesFalseRes, saBranchesRes, directAxiosRes, directAxiosListRes] = await Promise.allSettled([
-        fetchBranches(),
-        fetchBranchNames(true),
-        fetchBranchNames(false),
-        stockAdjustmentApi.getBranchList(),
-        axiosInstance.get<any>("/Branch/true/list-name"),
-        axiosInstance.get<any>("/Branch/list"),
-      ]);
-
-      if (branchMasterRes.status === "fulfilled" && Array.isArray(branchMasterRes.value)) {
-        branchMasterRes.value.forEach((b: any) => {
-          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
-        });
-      }
-
-      if (directBranchesTrueRes.status === "fulfilled" && Array.isArray(directBranchesTrueRes.value)) {
-        directBranchesTrueRes.value.forEach((b: any) => {
-          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
-        });
-      }
-
-      if (directBranchesFalseRes.status === "fulfilled" && Array.isArray(directBranchesFalseRes.value)) {
-        directBranchesFalseRes.value.forEach((b: any) => {
-          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
-        });
-      }
-
-      if (saBranchesRes.status === "fulfilled" && Array.isArray(saBranchesRes.value)) {
-        saBranchesRes.value.forEach((b: any) => {
-          addBranch(b.branchId ?? b.BranchId ?? b.id ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
-        });
-      }
-
-      if (directAxiosRes.status === "fulfilled") {
-        const list = Array.isArray(directAxiosRes.value?.data) ? directAxiosRes.value.data : Array.isArray(directAxiosRes.value?.data?.data) ? directAxiosRes.value.data.data : [];
-        list.forEach((b: any) => {
-          addBranch(b.branchId ?? b.BranchId ?? b.id ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
-        });
-      }
-
-      if (directAxiosListRes.status === "fulfilled") {
-        const list = Array.isArray(directAxiosListRes.value?.data) ? directAxiosListRes.value.data : Array.isArray(directAxiosListRes.value?.data?.data) ? directAxiosListRes.value.data.data : [];
-        list.forEach((b: any) => {
-          addBranch(b.branchId ?? b.BranchId ?? b.id ?? b.Id, b.branchName ?? b.BranchName ?? b.name ?? b.Name);
-        });
-      }
-
-      // Merge Redux branches (from addMasterBranch)
-      if (Array.isArray(reduxBranches)) {
-        reduxBranches.forEach((b: any) => {
-          addBranch(b.id ?? b.branchId ?? b.BranchId ?? b.Id, b.name ?? b.branchName ?? b.BranchName ?? b.Name);
-        });
-      }
-
-      return Array.from(branchMap.entries()).map(([value, label]) => ({
-        label,
-        value,
-      }));
-    },
-    initialData: () => {
-      if (Array.isArray(reduxBranches) && reduxBranches.length > 0) {
-        return reduxBranches
-          .map((b: any) => ({
-            label: b.name || b.branchName || b.BranchName || b.Name || "",
-            value: String(b.id || b.branchId || b.BranchId || b.Id || ""),
-          }))
-          .filter((b: any) => b.value && b.value !== "0");
-      }
-      return [];
-    },
-    initialDataUpdatedAt: 0,
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
+  const { branches: resolvedBranches, loadingBranches } = useStockBranches({
+    queryPrefix: "stockAdjustment",
+    getBranchList: stockAdjustmentApi.getBranchList,
   });
-
-  // Always re-fetch branches on mount so newly created branches appear immediately
-  useEffect(() => {
-    void dispatch(fetchGlobalBranches());
-    void queryClient.invalidateQueries({ queryKey: ["stockAdjustmentBranches"], refetchType: "all" });
-    void refetchBranches();
-  }, [dispatch, queryClient, refetchBranches]);
-
-  // Real-time synchronization for branch creation/updates across tabs and same window
-  useEffect(() => {
-    return subscribeToBranchUpdates(() => {
-      void dispatch(fetchGlobalBranches());
-      void queryClient.invalidateQueries({ queryKey: ["stockAdjustmentBranches"], refetchType: "all" });
-      void refetchBranches();
-    });
-  }, [dispatch, queryClient, refetchBranches]);
 
   // 2. React Query: Fetch Stock Adjustment Types
   const { data: typesData = { options: [], raw: [] }, isLoading: loadingTypes } = useQuery({
@@ -325,7 +220,7 @@ export const useStockAdjustment = (id?: string | null) => {
   }, [queryClient, refetchBranchData]);
 
   // 3a. React Query: Fetch Initial Default Products
-  const { data: defaultProductList = [] } = useQuery({
+  const { data: defaultProductList = NO_PRODUCTS } = useQuery({
     queryKey: ["stockAdjustmentDefaultProducts"],
     queryFn: async () => {
       try {
@@ -470,50 +365,21 @@ export const useStockAdjustment = (id?: string | null) => {
     }
   }, [id, recordData, reset, initialForm, defaultProductList]);
 
-  const fallbackBranches = useMemo(() => {
-    if (Array.isArray(reduxBranches) && reduxBranches.length > 0) {
-      return reduxBranches
-        .map((b: any) => ({
-          label: b.name || b.branchName || b.BranchName || b.Name || "",
-          value: String(b.id || b.branchId || b.BranchId || b.Id || "")
-        }))
-        .filter((b: any) => b.value && b.value !== "0");
-    }
-    return [];
-  }, [reduxBranches]);
-
-  const resolvedBranches = useMemo(() => {
-    const branchMap = new Map<string, string>();
-    (branches || []).forEach((b: any) => {
-      const id = String(b.value ?? b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
-      const label = String(b.label ?? b.name ?? b.branchName ?? b.BranchName ?? b.Name ?? "");
-      if (id && id !== "0" && label) {
-        branchMap.set(id, label);
-      }
-    });
-    (fallbackBranches || []).forEach((b: any) => {
-      const id = String(b.value ?? b.id ?? b.branchId ?? b.BranchId ?? b.Id ?? "");
-      const label = String(b.label ?? b.name ?? b.branchName ?? b.BranchName ?? b.Name ?? "");
-      if (id && id !== "0" && label && !branchMap.has(id)) {
-        branchMap.set(id, label);
-      }
-    });
-    return Array.from(branchMap.entries()).map(([value, label]) => ({ value, label }));
-  }, [branches, fallbackBranches]);
+  const defaultBranch = useMemo(
+    () => resolvedBranches.find(b => b.label.toLowerCase() === "branch 1") ?? firstRealBranch(resolvedBranches),
+    [resolvedBranches]
+  );
 
   // Pre-select first branch when branches finish loading (Add Mode)
   useEffect(() => {
     if (!id && resolvedBranches.length > 0 && !getValues("branch")) {
-      const branch1 = resolvedBranches.find(b => b.value === "1" || b.label.toLowerCase() === "branch 1");
       if (isBranchLocked && initialBranchId) {
         setValue("branch", String(initialBranchId));
-      } else if (branch1) {
-        setValue("branch", branch1.value);
-      } else {
-        setValue("branch", resolvedBranches[0].value);
+      } else if (defaultBranch) {
+        setValue("branch", defaultBranch.value);
       }
     }
-  }, [resolvedBranches, id, setValue, getValues, isBranchLocked, initialBranchId]);
+  }, [resolvedBranches, defaultBranch, id, setValue, getValues, isBranchLocked, initialBranchId]);
 
   // Set refNo and salesman when branch details finish loading (Add Mode)
   useEffect(() => {
@@ -762,15 +628,10 @@ export const useStockAdjustment = (id?: string | null) => {
       setProductOptions(recordData.productOptions);
     } else {
       const resetForm = { ...initialForm };
-      const branch1 = resolvedBranches.find(b => b.value === "1" || b.label.toLowerCase() === "branch 1");
       if (isBranchLocked && initialBranchId) {
         resetForm.branch = String(initialBranchId);
-      } else if (branch1) {
-        resetForm.branch = branch1.value;
-      } else if (resolvedBranches.length > 0) {
-        resetForm.branch = resolvedBranches[0].value;
-      } else {
-        resetForm.branch = "1";
+      } else if (defaultBranch) {
+        resetForm.branch = defaultBranch.value;
       }
       if (branchData.refNo) resetForm.refNo = branchData.refNo;
       if (branchData.employees.length > 0) resetForm.salesman = branchData.employees[0].value;
@@ -778,7 +639,7 @@ export const useStockAdjustment = (id?: string | null) => {
       reset(resetForm);
       setProductOptions([]);
     }
-  }, [id, recordData, reset, initialForm, isBranchLocked, initialBranchId, resolvedBranches, branchData]);
+  }, [id, recordData, reset, initialForm, isBranchLocked, initialBranchId, defaultBranch, branchData]);
 
   // Submit / Save handler
   const onSubmit = async (data: StockAdjustmentForm): Promise<boolean> => {

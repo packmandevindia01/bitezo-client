@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { physicalEntryApi, formatDateOnly } from "../services/physicalEntryApi";
 import { createEmptyPhysicalEntryForm } from "../constants";
+import { firstRealBranch, useStockBranches } from "../../shared/useStockBranches";
 import { physicalEntrySchema } from "../types";
 import type {
   PhysicalEntryForm,
@@ -17,10 +18,6 @@ import { useBranchScope } from "../../../../hooks/useBranchScope";
 import type { SearchableOption } from "../../../../components/common/Searchableselect";
 import { generateUUID } from "../../../../utils/uuid";
 import { subscribeToEmployeeUpdates } from "../../../general/employee/utils/employeeSync";
-import { fetchBranches, fetchBranchNames } from "../../../inventory/branches/services/branchApi";
-import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
-import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
-import { fetchGlobalBranches } from "../../../inventory/shared/store/masterDataSlice";
 import { stockLineAmount } from "../../shared/stockCalc";
 
 const toNumber = (value: string | number | undefined) => {
@@ -121,99 +118,11 @@ export const usePhysicalEntry = (id?: string | null) => {
     };
   }, [watchedItems]);
 
-  const dispatch = useAppDispatch();
-  const reduxBranches = useAppSelector((state: any) => state.masterData.branches);
-
-  // Master Data Queries — Concurrently query endpoints to ensure newly created branches are always present
-  const { data: branches = [], isLoading: loadingBranches, refetch: refetchBranches } = useQuery<SearchableOption[]>({
-    queryKey: ["physicalEntryBranches"],
-    queryFn: async () => {
-      const branchMap = new Map<string, string>();
-
-      const [branchMasterRes, directBranchesTrueRes, directBranchesFalseRes, peBranchesRes] = await Promise.allSettled([
-        fetchBranches(),
-        fetchBranchNames(true),
-        fetchBranchNames(false),
-        physicalEntryApi.getBranchList(),
-      ]);
-
-      if (branchMasterRes.status === "fulfilled" && Array.isArray(branchMasterRes.value)) {
-        branchMasterRes.value.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? "");
-          const name = String(b.branchName ?? b.name ?? "");
-          if (id && id !== "0" && name) {
-            branchMap.set(id, name);
-          }
-        });
-      }
-
-      if (directBranchesTrueRes.status === "fulfilled" && Array.isArray(directBranchesTrueRes.value)) {
-        directBranchesTrueRes.value.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? "");
-          const name = String(b.branchName ?? b.name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
-        });
-      }
-
-      if (directBranchesFalseRes.status === "fulfilled" && Array.isArray(directBranchesFalseRes.value)) {
-        directBranchesFalseRes.value.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? "");
-          const name = String(b.branchName ?? b.name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
-        });
-      }
-
-      if (peBranchesRes.status === "fulfilled" && Array.isArray(peBranchesRes.value)) {
-        peBranchesRes.value.forEach((b: any) => {
-          const id = String(b.branchId ?? b.id ?? "");
-          const name = String(b.branchName ?? b.name ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
-        });
-      }
-
-      // Merge Redux branches (from addMasterBranch)
-      if (Array.isArray(reduxBranches)) {
-        reduxBranches.forEach((b: any) => {
-          const id = String(b.id ?? b.branchId ?? "");
-          const name = String(b.name ?? b.branchName ?? "");
-          if (id && id !== "0" && name && !branchMap.has(id)) {
-            branchMap.set(id, name);
-          }
-        });
-      }
-
-      return Array.from(branchMap.entries()).map(([value, label]) => ({
-        label,
-        value,
-      }));
-    },
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: "always",
-    refetchOnWindowFocus: true,
+  const { branches, loadingBranches } = useStockBranches({
+    queryPrefix: "physicalEntry",
+    getBranchList: physicalEntryApi.getBranchList,
+    seedFromStore: false,
   });
-
-  // Always re-fetch branches on mount so newly created branches appear immediately
-  useEffect(() => {
-    void dispatch(fetchGlobalBranches());
-    queryClient.removeQueries({ queryKey: ["physicalEntryBranches"] });
-    void refetchBranches();
-  }, [dispatch, queryClient, refetchBranches]);
-
-  // Real-time synchronization for branch creation/updates across tabs and same window
-  useEffect(() => {
-    return subscribeToBranchUpdates(() => {
-      void dispatch(fetchGlobalBranches());
-      queryClient.removeQueries({ queryKey: ["physicalEntryBranches"] });
-      void refetchBranches();
-    });
-  }, [dispatch, queryClient, refetchBranches]);
 
   // Determine effective branch ID for API calls
   const effectiveBranchId = useMemo(() => {
@@ -224,10 +133,10 @@ export const usePhysicalEntry = (id?: string | null) => {
         const lockedExists = branches.some((b: any) => b.value === String(initialBranchId));
         if (lockedExists) return String(initialBranchId);
       }
-      return branches[0].value;
+      return firstRealBranch(branches)?.value ?? watchedBranch;
     }
     const exists = branches.some((b: any) => b.value === watchedBranch);
-    return exists ? watchedBranch : branches[0].value;
+    return exists ? watchedBranch : (firstRealBranch(branches)?.value ?? watchedBranch);
   }, [watchedBranch, branches, isBranchLocked, initialBranchId]);
 
   const { data: branchData = { employees: [], refNo: "" }, isLoading: loadingBranchDetails } = useQuery({
@@ -650,8 +559,8 @@ export const usePhysicalEntry = (id?: string | null) => {
       const resetForm = { ...initialForm };
       if (isBranchLocked && initialBranchId) {
         resetForm.branch = String(initialBranchId);
-      } else if (branches.length > 0) {
-        resetForm.branch = branches[0].value;
+      } else {
+        resetForm.branch = firstRealBranch(branches)?.value ?? resetForm.branch;
       }
       resetForm.refNo = branchData.refNo || "";
       if (branchData.employees.length > 0) {
