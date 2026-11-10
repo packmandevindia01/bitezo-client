@@ -87,5 +87,6 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Statements total the Balance column as the old pages did. If it is a running balance, that total means nothing.
 - Production: the finished product's `baseQty` falls back to qty if its units have not loaded when saving.
 - Performance: the charts library no longer loads at app start (start 327 → 229 kB gzip, POS terminal 480 → 382 kB, plan target under 400 kB). `jspdf` loads only on Purchase Export PDF. The menu grid was already virtualised with memoised tiles, so it needed no work.
-- Not started: other performance items (re-render measurements), Playwright smoke tests, CI, report column chooser and saved filters, Ctrl+K search, unsaved-changes guard, new dashboard, empty catches and `alert()`, font bundling.
+- Fonts: Outfit and Inter ship in `public/fonts/ui` (`shared/styles/fonts.css`), and interface and receipt fonts are in the offline cache. Nothing is requested from Google.
+- Not started: other performance items (re-render measurements), Playwright smoke tests, CI, report column chooser and saved filters, Ctrl+K search, unsaved-changes guard, new dashboard, empty catches and `alert()`.
 - A login token was pasted into chat on 2026-11-07. Ask the backend team to revoke it if possible.
