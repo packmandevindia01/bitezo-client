@@ -1,32 +1,37 @@
-import { Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, Modal, PageShell, RecordTableCard, ListHeader, StatusBadge } from "../../../../components/common";
+import { Modal, StatusBadge } from "../../../../components/common";
+import MasterListPage, { MasterLoadError, type MasterColumn } from "../../../../components/common/MasterListPage";
 import GroupForm from "../components/GroupForm";
 import { useGroupManager } from "../hooks/useGroupManager";
-import type { GroupRecord } from "../types";
-import { usePermissions } from "../../../../hooks/usePermissions";
+import type { GroupListItem } from "../types";
 
-// ─── Component ────────────────────────────────────────────────────────────────
+const isActive = (row: GroupListItem) => ["active", "true"].includes(String(row.isActive).toLowerCase());
+
+const COLUMNS: MasterColumn<GroupListItem>[] = [
+  { header: "S.No", accessor: "sNo" },
+  { header: "Code", accessor: "code" },
+  { header: "Name", accessor: "name" },
+  {
+    header: "Status",
+    accessor: "isActive",
+    render: (row) => <StatusBadge status={isActive(row) ? "active" : "inactive"} label={isActive(row) ? "Active" : "Inactive"} />,
+  },
+];
 
 const GroupPage = () => {
-  const { hasPermission } = usePermissions();
   const {
     filteredGroups,
     listLoading,
     listError,
     fetchGroups,
-
     search,
     setSearch,
-
     isOpen,
     isEditMode,
     editDetail,
     detailLoading,
-
     saving,
     deleting,
     mutationError,
-
     openCreateModal,
     openEditModal,
     closeModal,
@@ -37,130 +42,57 @@ const GroupPage = () => {
     cancelDelete,
   } = useGroupManager();
 
-  const canAdd = hasPermission("Group Master", "Add");
-  const canEdit = hasPermission("Group Master", "Edit");
-  const canDelete = hasPermission("Group Master", "Delete");
-
   return (
-    <PageShell title="Group Master">
-      <ListHeader
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search groups..."
-        autoFocusSearch
-        canAdd={canAdd}
-        onAdd={openCreateModal}
-      />
-
-      {/* List-level error (fetch failure) */}
-      {listError && (
-        <div className="mb-4 flex items-center justify-between rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <span>{listError}</span>
-          <button
-            type="button"
-            onClick={fetchGroups}
-            className="ml-4 underline hover:no-underline"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-
-      {/* Inline delete error (FK constraint etc.) shown above the table */}
-      {mutationError && !isOpen && (
-        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {mutationError}
-        </div>
-      )}
-
-      <RecordTableCard
-        title="Saved Group List"
-        rowKey="grpId"
-        data={filteredGroups}
-        loading={listLoading}
-        columns={[
-          { header: "S.No", accessor: "sNo" },
-          { header: "Code", accessor: "code" },
-          { header: "Name", accessor: "name" },
-          { 
-            header: "Status", 
-            accessor: "isActive",
-            render: (row: GroupRecord) => (
-              <StatusBadge 
-                status={row.isActive ? "active" : "inactive"} 
-                label={row.isActive ? "Active" : "Inactive"} 
-              />
-            ),
-          },
-          {
-            header: "Actions",
-            accessor: "grpId",
-            render: (row: GroupRecord) => (
-              <div className="flex gap-2">
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => openEditModal(row)}
-                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                    aria-label={`Edit ${row.name}`}
-                  >
-                    <Pencil size={16} />
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => requestDelete(row)}
-                    disabled={deleting === row.grpId}
-                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-40"
-                    aria-label={`Delete ${row.name}`}
-                  >
-                    {deleting === row.grpId ? (
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
-                    ) : (
-                      <Trash2 size={16} />
-                    )}
-                  </button>
-                )}
-              </div>
-            ),
-          },
-        ]}
-      />
-
-      <Modal 
-        isOpen={isOpen} 
-        onClose={closeModal} 
-        title={isEditMode ? "Edit Group" : "Add Group"}
-      >
-        <GroupForm
-          key={isEditMode ? `edit-${editDetail?.grpId}` : "new-group"}
-          initialData={editDetail}
-          detailLoading={detailLoading}
-          saving={saving}
-          onSubmit={handleSave}
-          onDelete={editDetail && canDelete ? () => {
-            if (editDetail) {
-              requestDelete(editDetail);
-              closeModal();
+    <MasterListPage<GroupListItem>
+      moduleName="Group Master"
+      title="Group Master"
+      tableTitle="Saved Group List"
+      searchPlaceholder="Search groups..."
+      rowKey="grpId"
+      getName={(row) => row.name}
+      columns={COLUMNS}
+      records={filteredGroups}
+      loading={listLoading}
+      search={search}
+      onSearchChange={setSearch}
+      onAdd={openCreateModal}
+      onEdit={openEditModal}
+      editingId={editDetail?.grpId ?? null}
+      closeForm={closeModal}
+      notices={
+        <>
+          {listError && <MasterLoadError message={listError} onRetry={fetchGroups} />}
+          {mutationError && !isOpen && (
+            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{mutationError}</div>
+          )}
+        </>
+      }
+      deletingKey={deleting}
+      deleteFlow={{ candidate: deleteCandidate as GroupListItem | null, request: requestDelete, confirm: confirmDelete, cancel: cancelDelete }}
+      deleteDialog={{
+        title: "Delete Group",
+        message: (row) => `Are you sure you want to delete "${row.name}"? This action cannot be undone.`,
+      }}
+      renderForm={(_, canDelete) => (
+        <Modal isOpen={isOpen} onClose={closeModal} title={isEditMode ? "Edit Group" : "Add Group"}>
+          <GroupForm
+            key={isEditMode ? `edit-${editDetail?.grpId}` : "new-group"}
+            initialData={editDetail}
+            detailLoading={detailLoading}
+            saving={saving}
+            onSubmit={handleSave}
+            onDelete={
+              editDetail && canDelete
+                ? () => {
+                    requestDelete(editDetail);
+                    closeModal();
+                  }
+                : undefined
             }
-          } : undefined}
-        />
-      </Modal>
-
-      {/* Delete confirmation dialog */}
-      {deleteCandidate && (
-        <ConfirmDialog
-          isOpen
-          title="Delete Group"
-          message={`Are you sure you want to delete "${deleteCandidate.name}"? This action cannot be undone.`}
-          confirmLabel="Delete"
-          cancelLabel="Cancel"
-          onConfirm={confirmDelete}
-          onCancel={cancelDelete}
-        />
+          />
+        </Modal>
       )}
-    </PageShell>
+    />
   );
 };
 

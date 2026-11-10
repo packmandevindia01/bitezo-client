@@ -16,6 +16,9 @@ import PaymodePage from "../features/general/paymode/pages/PaymodePage";
 import UserRolePage from "../features/general/userRole/pages/UserRolePage";
 import ProviderPage from "../features/general/provider/pages/ProviderPage";
 import VoucherSeriesPage from "../features/inventory/voucherSeries/pages/VoucherSeriesPage";
+import UnitPage from "../features/inventory/unit/pages/UnitPage";
+import TaxPage from "../features/inventory/tax/pages/TaxPage";
+import GroupPage from "../features/inventory/group/pages/GroupPage";
 
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }));
 const perms = vi.hoisted(() => ({ denied: new Set<string>(), asked: new Set<string>() }));
@@ -312,6 +315,147 @@ describe("Voucher Series form", () => {
     fireEvent.click(document.querySelectorAll("tbody tr")[0].querySelector('svg[class*="pencil"]')?.closest("button") as HTMLElement);
     await waitFor(() => expect(screen.getByRole("button", { name: /^\s*Clear\s*$/ })).toBeTruthy());
     expect(screen.queryByRole("button", { name: /^\s*Delete\s*$/ })).toBeNull();
+  });
+});
+
+const message = 'Are you sure you want to delete "Front"? This action cannot be undone.';
+const HOOK_DELETE_DOCS: (Doc & { headers: string[]; firstCells: string[]; secondCells: string[] })[] = [
+  {
+    name: "Unit", Page: UnitPage, module: "Unit Master", table: "Saved Unit List", placeholder: "Search units...",
+    list: "/unit/unit-list",
+    rows: [{ sNo: 1, unitId: 5, name: "Front", category: "Count", currentValue: 12 }, { sNo: 2, unitId: 6, name: "Bar", category: "Weight", currentValue: 0 }],
+    detail: "/unit/5/unitid-data", detailData: { unitId: 5, name: "Front", category: "Count", conversion: 1, currentValue: 12, parentId: 0 },
+    remove: "/unit/5", message, dialogTitle: "Delete Unit",
+    headers: ["S.No", "Name", "Category", "Value", "Actions"], firstCells: ["1", "Front", "Count", "12"], secondCells: ["2", "Bar", "Weight", "0"],
+  },
+  {
+    name: "Tax", Page: TaxPage, module: "Tax Master", table: "Saved Tax List", placeholder: "Search taxes...",
+    list: "/vat/vat-list",
+    rows: [{ sNo: 7, id: 5, name: "Front", value: 10 }, { sNo: 8, id: 6, name: "Bar", value: 5 }],
+    detail: "/vat/5/vatid-data", detailData: { id: 5, name: "Front", value: 10, expireAt: "2099-01-01T00:00:00" },
+    remove: "/vat/5", message, dialogTitle: "Delete Tax",
+    headers: ["S.No", "Name", "Value (%)", "Actions"], firstCells: ["1", "Front", "10%"], secondCells: ["2", "Bar", "5%"],
+  },
+  {
+    name: "Group", Page: GroupPage, module: "Group Master", table: "Saved Group List", placeholder: "Search groups...",
+    list: "/group/group-list",
+    rows: [{ sNo: 1, grpId: 5, code: "G5", name: "Front", isActive: "Active" }, { sNo: 2, grpId: 6, code: "G6", name: "Bar", isActive: "Inactive" }],
+    detail: "/group/5/grpid-data", detailData: { grpId: 5, code: "G5", name: "Front", arabicName: "", isActive: true },
+    remove: "/group/5", message, dialogTitle: "Delete Group",
+    headers: ["S.No", "Code", "Name", "Status", "Actions"], firstCells: ["1", "G5", "Front", "Active"], secondCells: ["2", "G6", "Bar", "Inactive"],
+  },
+];
+
+describe.each(HOOK_DELETE_DOCS)("$name master list", (doc) => {
+  const rowOf = (row: number) => Array.from(document.querySelectorAll("tbody tr")).find((tr) => tr.textContent?.includes(row === 0 ? "Front" : "Bar")) as HTMLElement;
+  const icon = (row: number, name: string) => rowOf(row).querySelector(`svg[class*="${name}"]`)?.closest("button") as HTMLElement | undefined;
+  const cells = (row: number) => Array.from(rowOf(row).querySelectorAll("td")).map((td) => td.textContent?.trim());
+
+  beforeEach(() => {
+    http.get.mockImplementation(async (url: string) => {
+      if (url === doc.list) return ok(doc.rows);
+      if (url === doc.detail) return ok(doc.detailData);
+      return ok([]);
+    });
+  });
+
+  it("shows its columns and the permission it checks", async () => {
+    show(doc.Page);
+    await loaded();
+    expect(screen.getByText(doc.table)).toBeTruthy();
+    expect(Array.from(document.querySelectorAll("th")).map((th) => th.textContent?.trim().replace(/\s+/g, " "))).toEqual(doc.headers);
+    expect(cells(0).slice(0, doc.firstCells.length)).toEqual(doc.firstCells);
+    expect(cells(1).slice(0, doc.secondCells.length)).toEqual(doc.secondCells);
+    expect([...perms.asked]).toEqual([doc.module]);
+  });
+
+  it("search narrows the list", async () => {
+    show(doc.Page);
+    await loaded();
+    fireEvent.change(screen.getByPlaceholderText(doc.placeholder), { target: { value: "bar" } });
+    await waitFor(() => {
+      expect(rowTexts()).toHaveLength(1);
+      expect(rowTexts()[0]).toContain("Bar");
+    });
+  });
+
+  it("Add, Edit and Delete follow their permissions", async () => {
+    perms.denied.add("Add");
+    perms.denied.add("Edit");
+    show(doc.Page);
+    await loaded();
+    expect(screen.queryByText("Add New")).toBeNull();
+    expect(icon(0, "pencil")).toBeUndefined();
+    expect(icon(0, "trash")).toBeTruthy();
+    cleanup();
+    perms.denied.clear();
+    perms.denied.add("Delete");
+    show(doc.Page);
+    await loaded();
+    expect(screen.getByText("Add New")).toBeTruthy();
+    expect(icon(0, "pencil")).toBeTruthy();
+    expect(icon(0, "trash")).toBeUndefined();
+  });
+
+  it("deleting asks first, Cancel keeps it, confirming deletes", async () => {
+    show(doc.Page);
+    await loaded();
+    fireEvent.click(icon(0, "trash") as HTMLElement);
+    expect(screen.getByText(doc.message)).toBeTruthy();
+    expect(screen.getByText(doc.dialogTitle)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^\s*Cancel\s*$/ }));
+    await waitFor(() => expect(screen.queryByText(doc.message)).toBeNull());
+    expect(http.delete).not.toHaveBeenCalled();
+    fireEvent.click(icon(0, "trash") as HTMLElement);
+    fireEvent.click(plainDelete());
+    await waitFor(() => expect(http.delete).toHaveBeenCalledWith(doc.remove));
+    await waitFor(() => expect(screen.queryByText(doc.message)).toBeNull());
+  });
+
+  it("Edit loads the record, and Delete in the form asks first", async () => {
+    show(doc.Page);
+    await loaded();
+    fireEvent.click(icon(0, "pencil") as HTMLElement);
+    await waitFor(() => expect(http.get).toHaveBeenCalledWith(doc.detail));
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /^\s*Delete\s*$/ }).length).toBeGreaterThan(0));
+    fireEvent.click(plainDelete());
+    await waitFor(() => expect(screen.getByText(doc.message)).toBeTruthy());
+    expect(http.delete).not.toHaveBeenCalled();
+  });
+
+  it("a failed load shows the reason and Retry loads again", async () => {
+    http.get.mockImplementation(async (url: string) => (url === doc.list ? { data: { isSuccess: false, message: "Server said no" } } : ok([])));
+    show(doc.Page);
+    await waitFor(() => expect(screen.getByText("Retry")).toBeTruthy());
+    expect(document.body.textContent).toContain("Server said no");
+    http.get.mockImplementation(async (url: string) => (url === doc.list ? ok(doc.rows) : ok([])));
+    fireEvent.click(screen.getByText("Retry"));
+    await loaded();
+    expect(screen.queryByText("Retry")).toBeNull();
+  });
+});
+
+describe("what only one of them does", () => {
+  it("Unit locks its core rows with a reason", async () => {
+    http.get.mockImplementation(async (url: string) => (url === "/unit/unit-list" ? ok([{ sNo: 1, unitId: 4, name: "Front", category: "Count", currentValue: 1 }]) : ok([])));
+    show(UnitPage);
+    await loaded();
+    const button = (name: string) => document.querySelector(`tbody svg[class*="${name}"]`)?.closest("button") as HTMLButtonElement;
+    expect(button("pencil").disabled).toBe(true);
+    expect(button("pencil").title).toBe("Core system unit cannot be edited");
+    expect(button("trash").disabled).toBe(true);
+    expect(button("trash").title).toBe("Core system unit cannot be deleted");
+  });
+
+  it("a Group that cannot be deleted says why above the list", async () => {
+    const doc = HOOK_DELETE_DOCS[2];
+    http.get.mockImplementation(async (url: string) => (url === doc.list ? ok(doc.rows) : ok([])));
+    http.delete.mockResolvedValue({ data: { isSuccess: false, message: "Group is in use" } });
+    show(GroupPage);
+    await loaded();
+    fireEvent.click(Array.from(document.querySelectorAll("tbody tr")).find((tr) => tr.textContent?.includes("Front"))?.querySelector('svg[class*="trash"]')?.closest("button") as HTMLElement);
+    fireEvent.click(plainDelete());
+    await waitFor(() => expect(document.body.textContent).toContain("Group is in use"));
   });
 });
 

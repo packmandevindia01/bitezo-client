@@ -1,158 +1,86 @@
-import { AlertCircle, Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, Modal, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
+import { Modal } from "../../../../components/common";
+import MasterListPage, { MasterLoadError, type MasterColumn } from "../../../../components/common/MasterListPage";
 import TaxForm from "../components/TaxForm";
 import { useTaxManager } from "../hooks/useTaxManager";
-import { usePermissions } from "../../../../hooks/usePermissions";
+import type { TaxListItem } from "../types";
+
+const COLUMNS: MasterColumn<TaxListItem>[] = [
+  { header: "S.No", accessor: "sNo", render: (_, index) => index + 1 },
+  { header: "Name", accessor: "name" },
+  { header: "Value (%)", accessor: "value", render: (row) => `${row.value}%` },
+];
 
 const TaxPage = () => {
-  const { hasPermission } = usePermissions();
   const {
     filteredTaxes,
     listLoading,
     listError,
     fetchTaxes,
-
     search,
     setSearch,
-
     isOpen,
     isEditMode,
     editDetail,
     detailLoading,
-
     saving,
     deleting,
     mutationError,
-
     openCreateModal,
     openEditModal,
     closeModal,
     handleSave,
-
     deleteCandidate,
     requestDelete,
     confirmDelete,
     cancelDelete,
   } = useTaxManager();
 
-  const canAdd = hasPermission("Tax Master", "Add");
-  const canEdit = hasPermission("Tax Master", "Edit");
-  const canDelete = hasPermission("Tax Master", "Delete");
-
   return (
-    <PageShell title="Tax Master">
-      <ListHeader
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search taxes..."
-        autoFocusSearch
-        canAdd={canAdd}
-        onAdd={openCreateModal}
-      />
-
-      {/* Error banner for initial list loading */}
-      {listError && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-          <AlertCircle size={16} className="mt-0.5 shrink-0" />
-          <span className="flex-1">{listError}</span>
-          <button
-            type="button"
-            onClick={fetchTaxes}
-            className="shrink-0 rounded p-0.5 hover:bg-amber-100"
-          >
-            <span className="underline">Retry</span>
-          </button>
-        </div>
-      )}
-
-      <RecordTableCard
-        title="Saved Tax List"
-        rowKey="id"
-        data={filteredTaxes}
-        loading={listLoading}
-        columns={[
-          { 
-            header: "S.No", 
-            accessor: "sNo",
-            render: (_, index) => index + 1,
-          },
-          { header: "Name", accessor: "name" },
-          { 
-            header: "Value (%)", 
-            accessor: "value",
-            render: (row) => `${row.value}%`
-          },
-          {
-            header: "Actions",
-            accessor: "id",
-            render: (row) => (
-              <div className="flex gap-2">
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => openEditModal(row)}
-                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                    title={`Edit ${row.name}`}
-                  >
-                    <Pencil size={16} />
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => requestDelete(row)}
-                    disabled={deleting === row.id}
-                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title={`Delete ${row.name}`}
-                  >
-                    {deleting === row.id ? (
-                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
-                    ) : (
-                      <Trash2 size={16} />
-                    )}
-                  </button>
-                )}
-              </div>
-            ),
-          },
-        ]}
-      />
-
-      <Modal 
-        isOpen={isOpen} 
-        onClose={closeModal} 
-        title={isEditMode ? "Edit Tax" : "Add Tax"}
-      >
-        <TaxForm
-          key={isEditMode ? `edit-${editDetail?.id}` : "new-tax"}
-          initialData={editDetail}
-          saving={saving || detailLoading}
-          error={mutationError}
-          onSubmit={handleSave}
-          onCancel={closeModal}
-          onDelete={editDetail && canDelete ? () => {
-            if (editDetail) {
-              requestDelete({ id: editDetail.id, name: editDetail.name } as any);
-              closeModal();
+    <MasterListPage<TaxListItem>
+      moduleName="Tax Master"
+      title="Tax Master"
+      tableTitle="Saved Tax List"
+      searchPlaceholder="Search taxes..."
+      rowKey="id"
+      getName={(row) => row.name}
+      columns={COLUMNS}
+      records={filteredTaxes}
+      loading={listLoading}
+      search={search}
+      onSearchChange={setSearch}
+      onAdd={openCreateModal}
+      onEdit={openEditModal}
+      editingId={editDetail?.id ?? null}
+      closeForm={closeModal}
+      notices={listError && <MasterLoadError message={listError} onRetry={fetchTaxes} />}
+      deletingKey={deleting}
+      deleteFlow={{ candidate: deleteCandidate, request: requestDelete, confirm: confirmDelete, cancel: cancelDelete }}
+      deleteDialog={{
+        title: "Delete Tax",
+        message: (row) => `Are you sure you want to delete "${row.name}"? This action cannot be undone.`,
+      }}
+      renderForm={(_, canDelete) => (
+        <Modal isOpen={isOpen} onClose={closeModal} title={isEditMode ? "Edit Tax" : "Add Tax"}>
+          <TaxForm
+            key={isEditMode ? `edit-${editDetail?.id}` : "new-tax"}
+            initialData={editDetail}
+            saving={saving || detailLoading}
+            error={mutationError}
+            onSubmit={handleSave}
+            onCancel={closeModal}
+            onDelete={
+              editDetail && canDelete
+                ? () => {
+                    requestDelete({ id: editDetail.id, name: editDetail.name } as TaxListItem);
+                    closeModal();
+                  }
+                : undefined
             }
-          } : undefined}
-          onClear={openCreateModal}
-        />
-      </Modal>
-
-      {/* Delete confirmation dialog */}
-      {deleteCandidate && (
-        <ConfirmDialog
-          isOpen
-          title="Delete Tax"
-          message={`Are you sure you want to delete "${deleteCandidate.name}"? This action cannot be undone.`}
-          confirmLabel="Delete"
-          cancelLabel="Cancel"
-          onConfirm={confirmDelete}
-          onCancel={cancelDelete}
-        />
+            onClear={openCreateModal}
+          />
+        </Modal>
       )}
-    </PageShell>
+    />
   );
 };
 

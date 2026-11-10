@@ -26,7 +26,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Stock Adjustment, Physical Entry and Stock Transfer forms and lists load branches through one hook (`shared/useStockBranches.ts`). New-document payloads and branch defaults are covered by `stockFormBranches`.
 - Stock Adjustment and Physical Entry share product search and barcode scan (`shared/stockProductLookup.ts`). Test: `stockProductLookup`.
 - All four stock forms load unit lists through one hook; Stock Adjustment and Stock Transfer also share unit change and closing stock (`shared/useStockLineUnits.ts`). Test: `stockLineUnits`.
-- Counter, Section, Paymode, User Role, Provider and Voucher Series use one list screen (`components/common/MasterListPage.tsx`). Their hooks and forms stay separate because their rules differ. Test: `masterListPages`.
+- Counter, Section, Paymode, User Role, Provider, Voucher Series, Unit, Tax and Group use one list screen (`components/common/MasterListPage.tsx`). Their hooks and forms stay separate because their rules differ. Test: `masterListPages`.
 - 38 `unwrap` and 5 `formatDateOnly` exact copies replaced by `shared/api/unwrap.ts` and `shared/lib/date.ts`.
 - Payload snapshots: `purchasePayloadGolden`, `voucherPayloadGolden`, `againstVoucherPayloadGolden`, `stockDocumentPayloadGolden`.
 
@@ -38,7 +38,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | Production list page and the Transfer and Production APIs | Production filters by branch, product and unit, has no dates and shows other columns, so it stays separate. The APIs use different paths and method names | Leave unless they change |
 | `DocumentForm`: shared form page and line grid | About 3,000+ lines of form pages | Needs a visual check of each screen |
 | Voucher form pages | 4 pages | Field behaviour differs; decide which behaviour to keep |
-| More list screens on `MasterListPage` | 6 of the 23 list pages done | Tax, Unit and Group are possible but differ more. Add tests before each |
+| More list screens on `MasterListPage` | 9 of the 23 list pages done | Compare the rest first; add tests before each |
 | Remaining `unwrap` variants | 11 services with their own rules | Compare one by one |
 
 ## Bugs fixed on 2026-11-07
@@ -63,6 +63,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 |---|---|
 | Physical Entry | A slow unit-cost reply could change a line whose unit had moved on, and a failed one was silent |
 | Stock Transfer list | Cancelling did not refresh the stock reports |
+| Group master | An Inactive group showed as Active in the list |
 | POS close day | If the pending-orders check failed, the day closed with no warning; it now asks to try again or close anyway |
 | POS locked items | If the list failed to load, items could sell as unlocked with no warning; the last saved list stays in force and a warning shows |
 | Stock Adjustment and Stock Transfer prints | Number, branch and date were blank, and Stock Adjustment printed the product id instead of its name |
@@ -106,5 +107,6 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Performance: the charts library no longer loads at app start (start 327 → 229 kB gzip, POS terminal 480 → 382 kB, plan target under 400 kB). `jspdf` loads only on Purchase Export PDF. The menu grid was already virtualised with memoised tiles, so it needed no work.
 - Fonts: Outfit and Inter ship in `public/fonts/ui` (`shared/styles/fonts.css`), and interface and receipt fonts are in the offline cache. Nothing is requested from Google.
 - Stock Adjustment, Physical Entry and Stock Transfer forms do not offer All as a branch or To Branch; a document already saved under All still shows it. Saved lists and reports keep All.
+- Payment and Receipt Against Voucher forms use the compact input size of the other transaction forms.
 - Not started: other performance items (re-render measurements), Playwright smoke tests, CI, report column chooser and saved filters, Ctrl+K search, unsaved-changes guard, new dashboard, empty catches and `alert()`.
 - A login token was pasted into chat on 2026-11-07. Ask the backend team to revoke it if possible.

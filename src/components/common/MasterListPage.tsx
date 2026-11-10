@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { AlertCircle, Pencil, Trash2 } from "lucide-react";
 import ConfirmDialog from "./ConfirmDialog";
 import ListHeader from "./ListHeader";
 import PageShell from "./PageShell";
@@ -40,13 +40,33 @@ export interface MasterListPageProps<T> {
   onSearchChange: (value: string) => void;
   onAdd: () => void;
   onEdit: (row: T) => unknown;
-  onDelete: (row: T) => unknown;
+  /** Called after the confirm. Not needed with `deleteFlow`. */
+  onDelete?: (row: T) => unknown;
   editingId: unknown;
   closeForm: () => void;
   deleteDialog: MasterDeleteDialog<T>;
+  /** Banners between the search box and the table. */
+  notices?: ReactNode;
+  /** What the row is, when it must not be changed, e.g. "Core system unit". */
+  lockedAs?: (row: T) => string | undefined;
+  /** Key of the row being deleted: its button shows a spinner. */
+  deletingKey?: unknown;
+  /** For hooks that hold the record being deleted themselves. */
+  deleteFlow?: { candidate: T | null; request: (row: T) => void; confirm: () => unknown; cancel: () => void };
   /** The add / edit form. `deleteEditing` asks to delete the record being edited. */
   renderForm: (deleteEditing: () => void, canDelete: boolean) => ReactNode;
 }
+
+/** A list that failed to load: the reason, and a way to try again. */
+export const MasterLoadError = ({ message, onRetry }: { message: string; onRetry: () => void }) => (
+  <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+    <AlertCircle size={16} className="mt-0.5 shrink-0" />
+    <span className="flex-1">{message}</span>
+    <button type="button" onClick={onRetry} className="shrink-0 rounded p-0.5 hover:bg-amber-100">
+      <span className="underline">Retry</span>
+    </button>
+  </div>
+);
 
 /** List screen of a simple master: search, table, edit and delete by permission, and a confirm before deleting. */
 const MasterListPage = <T,>({
@@ -67,6 +87,10 @@ const MasterListPage = <T,>({
   editingId,
   closeForm,
   deleteDialog,
+  notices,
+  lockedAs,
+  deletingKey,
+  deleteFlow,
   renderForm,
 }: MasterListPageProps<T>) => {
   const { hasPermission } = usePermissions();
@@ -75,6 +99,8 @@ const MasterListPage = <T,>({
   const canAdd = hasPermission(moduleName, "Add");
   const canEdit = hasPermission(moduleName, "Edit");
   const canDelete = hasPermission(moduleName, "Delete");
+
+  const pendingDelete = deleteFlow ? deleteFlow.candidate : deleteRecord;
 
   const deleteEditing = () => {
     if (!canDelete) return;
@@ -89,6 +115,8 @@ const MasterListPage = <T,>({
     <PageShell title={title}>
       <ListHeader search={search} onSearchChange={onSearchChange} searchPlaceholder={searchPlaceholder} autoFocusSearch canAdd={canAdd} onAdd={onAdd} />
 
+      {notices}
+
       <RecordTableCard<T>
         title={tableTitle}
         rowKey={rowKey}
@@ -99,30 +127,42 @@ const MasterListPage = <T,>({
           {
             header: "Actions",
             accessor: rowKey,
-            render: (row) => (
-              <div className="flex gap-2">
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => void onEdit(row)}
-                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                    aria-label={`Edit ${getName(row)}`}
-                  >
-                    <Pencil size={16} />
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => setDeleteRecord(row)}
-                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                    aria-label={`Delete ${getName(row)}`}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
-            ),
+            render: (row) => {
+              const locked = lockedAs?.(row);
+              const deleting = deletingKey !== undefined && deletingKey !== null && row[rowKey] === deletingKey;
+              return (
+                <div className="flex gap-2">
+                  {canEdit && (
+                    <button
+                      type="button"
+                      onClick={() => void onEdit(row)}
+                      disabled={!!locked}
+                      className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label={`Edit ${getName(row)}`}
+                      title={locked ? `${locked} cannot be edited` : `Edit ${getName(row)}`}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => (deleteFlow ? deleteFlow.request(row) : setDeleteRecord(row))}
+                      disabled={!!locked || deleting}
+                      className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed"
+                      aria-label={`Delete ${getName(row)}`}
+                      title={locked ? `${locked} cannot be deleted` : `Delete ${getName(row)}`}
+                    >
+                      {deleting ? (
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-red-400 border-t-transparent" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
+                  )}
+                </div>
+              );
+            },
           },
         ]}
       />
@@ -130,18 +170,21 @@ const MasterListPage = <T,>({
       {renderForm(deleteEditing, canDelete)}
 
       <ConfirmDialog
-        isOpen={deleteRecord !== null}
+        isOpen={pendingDelete !== null}
         title={deleteDialog.title}
-        message={deleteRecord ? deleteDialog.message(deleteRecord) : ""}
+        message={pendingDelete ? deleteDialog.message(pendingDelete) : ""}
         confirmLabel={deleteDialog.confirmLabel}
         cancelLabel={deleteDialog.cancelLabel}
         loading={deleteDialog.loading}
         onCancel={() => {
-          if (!deleteDialog.lockCancel) setDeleteRecord(null);
+          if (deleteFlow) deleteFlow.cancel();
+          else if (!deleteDialog.lockCancel) setDeleteRecord(null);
         }}
         onConfirm={() => {
-          if (deleteRecord) {
-            void onDelete(deleteRecord);
+          if (deleteFlow) {
+            void deleteFlow.confirm();
+          } else if (deleteRecord) {
+            void onDelete?.(deleteRecord);
             setDeleteRecord(null);
           }
         }}
