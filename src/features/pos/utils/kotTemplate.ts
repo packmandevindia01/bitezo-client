@@ -7,7 +7,8 @@ import { printLineHtml } from "../../inventory/branches/utils/lineHelpers";
 import { isKotArabicEnabled, isOtherKitchenItemEnabled, isCompanyNameKotEnabled, getAlternativeArabicName, containsArabic, formatItemDisplayName } from "./alternativeHelpers";
 import { getDecimalPart } from "../../../utils/currency";
 import { roundCalc } from "../terminal/utils/billing";
-import { applyCartPricingToUnified } from "./printPricing";
+import { buildLiveCartPricing } from "./printPricing";
+import { orderHasBillDiscount } from "./orderLineShape";
 import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
 
 export interface KotPrintData {
@@ -290,15 +291,12 @@ export const generateKotHtml = async (
   const printTaxSetting = resolveKotPrintTaxSetting(data);
   const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
 
-  // Single Source of Truth: Unified deterministic order pricing
-  const unified: UnifiedOrderPricingResult = (cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary)
+  // Already priced, or a live cart from the engine. The old pricing only remains for plain rows that are neither.
+  const isPrecomputed = Boolean(cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary);
+  const unified: UnifiedOrderPricingResult = isPrecomputed
     ? (cartDetails as any)
-    : buildUnifiedOrderPricing(cartDetails, data);
-  const isOrderBillDiscount = unified.summary.isBillDiscount;
-
-  // Live cart (not a saved order): amounts come straight from the cart engine, in the Print Price view.
-  const cartPricing = applyCartPricingToUnified(unified, cartDetails as any[], { printPrice: printTaxSetting, orderType: data.orderType });
-  if (cartPricing) unified.lines = cartPricing.lines;
+    : (buildLiveCartPricing(cartDetails as any[], { printPrice: printTaxSetting, orderType: data.orderType }) ?? buildUnifiedOrderPricing(cartDetails, data));
+  const isOrderBillDiscount = isPrecomputed ? unified.summary.isBillDiscount : orderHasBillDiscount(cartDetails, data);
 
   let itemsHtml = "";
 

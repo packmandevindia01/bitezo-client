@@ -122,6 +122,7 @@ export const buildOrderLineShapes = (order: any, options?: OrderShapeOptions): O
   const rows = dedupeJoinedModifiers(modifiers);
 
   return details.map((d: any) => {
+    if (d?.isUnifiedPricingLine === true) return d as OrderLineShape;
     const mapId = d.mapId ?? d.MapId ?? d.mapID;
     const itemMods = mapId !== undefined ? rows.filter((m: any) => Number(m.mapId ?? m.MapId ?? m.mapID) === Number(mapId)) : [];
     const { extras, modifiers: lineModifiers, messages } = extractOrderLineItems(d, itemMods, options);

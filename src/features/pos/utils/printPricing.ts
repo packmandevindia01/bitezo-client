@@ -263,3 +263,16 @@ export const applyCartPricingToUnified = (
     },
   } as UnifiedOrderPricingResult;
 };
+
+/**
+ * A live cart priced by the cart engine alone, with no old pricing underneath.
+ * Returns null when the lines are not a live cart.
+ */
+export const buildLiveCartPricing = (
+  cartItems: any[],
+  options: { printPrice: View; deliveryCharge?: number; orderType?: string }
+): UnifiedOrderPricingResult | null => {
+  if (!Array.isArray(cartItems) || cartItems.length === 0) return null;
+  const base = { lines: buildOrderLineShapes(cartItems, options), summary: { isVatActive: orderHasVat(cartItems, options) } } as unknown as UnifiedOrderPricingResult;
+  return applyCartPricingToUnified(base, cartItems, options);
+};
