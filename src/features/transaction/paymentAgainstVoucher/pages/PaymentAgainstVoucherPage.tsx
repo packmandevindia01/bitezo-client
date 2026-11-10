@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useFieldArray } from "react-hook-form";
 import { Save, RotateCcw, Trash2, X, Plus, Printer } from "lucide-react";
 
-import { PageShell, Button, FormInput, SearchableSelect, SelectInput } from "../../../../components/common";
+import { PageShell, Button, FormInput, SearchableSelect } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { useToast } from "../../../../app/providers/useToast";
 import type { InvoiceRecord } from "../../shared/components/MultiInvoiceSelectionModal";
@@ -315,16 +315,16 @@ const PaymentAgainstVoucherPage = () => {
         <button 
           type="button" 
           onClick={() => navigate("/dashboard/payment-against-voucher")} 
-          className="absolute top-2 right-2 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-20" 
+          className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-20" 
           title="Close"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
-        <div className="flex-1 overflow-hidden p-3 md:p-4 pt-10 md:pt-12 flex flex-col">
-          <form id="pav-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="flex flex-col h-full gap-4">
+        <div className="flex-1 overflow-hidden p-2 md:p-3 flex flex-col">
+          <form id="pav-form" onSubmit={form.handleSubmit(onSubmit, onInvalid)} className="flex flex-col h-full gap-2">
             
-            <div className="grid gap-x-3 gap-y-2 md:grid-cols-3 xl:grid-cols-6 flex-none">
-              <SearchableSelect
+            <div className="grid gap-x-2 gap-y-2 md:grid-cols-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,2.5fr)] flex-none items-end pr-8">
+              <SearchableSelect className="!h-8 !px-2 !text-xs"
                 id="pav-page-branch"
                 label="Branch"
                 placeholder="Select Branch"
@@ -342,7 +342,6 @@ const PaymentAgainstVoucherPage = () => {
               />
 
               <div
-                className="h-full flex flex-col justify-end"
                 onMouseDownCapture={(e) => {
                   if (!form.watch("branchId")) {
                     e.stopPropagation();
@@ -351,18 +350,17 @@ const PaymentAgainstVoucherPage = () => {
                   }
                 }}
               >
-                <SelectInput 
-                  id="pav-page-series" 
-                  label="Series" 
+                <SearchableSelect className="!h-8 !px-2 !text-xs"
+                  id="pav-page-series"
+                  label="Series"
+                  placeholder="Select Series"
                   required
                   options={masterData?.series?.map((s: any) => ({ value: String(s.seriesId), label: s.seriesName })) || []}
                   value={String(form.watch("seriesId") || "")}
-                  {...form.register("seriesId", { 
-                    onChange: (e) => {
-                      form.setValue("seriesId", Number(e.target.value) || 0, { shouldValidate: true });
-                      setTimeout(() => document.getElementById("pav-page-date")?.focus(), 50);
-                    } 
-                  })}
+                  onChange={(val) => {
+                    form.setValue("seriesId", Number(val) || 0, { shouldValidate: true });
+                    setTimeout(() => document.getElementById("pav-page-date")?.focus(), 50);
+                  }}
                   onKeyDown={(e) => handleKeyDown(e, "pav-page-date")}
                   disabled={!!transId}
                   error={form.formState.errors.seriesId?.message}
@@ -370,14 +368,14 @@ const PaymentAgainstVoucherPage = () => {
                 />
               </div>
 
-              <FormInput 
+              <FormInput inputClassName="!h-8 !px-2 !text-xs" 
                 id="pav-page-vchNo" 
                 label="Vch No" 
                 {...form.register("vchNo")} 
                 disabled 
               />
               
-              <FormInput 
+              <FormInput inputClassName="!h-8 !px-2 !text-xs" 
                 id="pav-page-date" 
                 label="Date" 
                 required
@@ -390,7 +388,7 @@ const PaymentAgainstVoucherPage = () => {
                 error={form.formState.errors.voucherDate?.message}
               />
 
-              <SearchableSelect
+              <SearchableSelect className="!h-8 !px-2 !text-xs"
                 id="pav-page-employee"
                 label="Employee"
                 placeholder="Select Employee"
@@ -406,9 +404,9 @@ const PaymentAgainstVoucherPage = () => {
                 error={form.formState.errors.employeeId?.message}
               />
               
-              <div className="flex items-end gap-2 h-full translate-y-[2px]">
-                <div className="flex-1 min-w-0 h-full flex flex-col justify-end">
-                  <SearchableSelect
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
+                  <SearchableSelect className="!h-8 !px-2 !text-xs"
                     id="pav-page-supplier"
                     label="Supplier"
                     required
@@ -427,7 +425,7 @@ const PaymentAgainstVoucherPage = () => {
                   <Button 
                     type="button"
                     variant="secondary" 
-                    className="h-9 px-3 text-xs font-bold" 
+                    className="h-8 px-3 text-xs font-bold" 
                     onClick={() => {
                       if (!form.watch("accountId")) {
                         showToast("Please select a supplier first", "error", "Error");
@@ -461,7 +459,7 @@ const PaymentAgainstVoucherPage = () => {
                     }
                   }}
                 >
-                  <SearchableSelect
+                  <SearchableSelect className="!h-8 !px-2 !text-xs"
                     id="pav-manual-vchNo"
                     label="INV NO"
                     options={availablePendingInvoices.map((inv: any) => ({ value: inv.invoiceNo, label: `${inv.invoiceNo} | ${inv.voucherType}` }))}
@@ -503,10 +501,10 @@ const PaymentAgainstVoucherPage = () => {
                     }}
                   />
                 </div>
-                <FormInput id="pav-manual-vchType" label="INV TYPE" value={manualItem.voucherType} disabled inputClassName="bg-gray-50 cursor-not-allowed text-xs" />
-                <FormInput id="pav-manual-invAmnt" label="Inv Amnt" value={manualItem.invoiceAmount ? formatAmount(Number(manualItem.invoiceAmount)) : ""} placeholder={formatAmount(0)} disabled inputClassName="text-right font-mono bg-gray-50 cursor-not-allowed text-xs" />
-                <FormInput id="pav-manual-paid" label="Paid" value={manualItem.paid ? formatAmount(Number(manualItem.paid)) : ""} placeholder={formatAmount(0)} disabled inputClassName="text-right font-mono bg-gray-50 cursor-not-allowed text-xs" />
-                <FormInput id="pav-manual-balance" label="Balance" value={manualItem.balance ? formatAmount(Number(manualItem.balance)) : ""} placeholder={formatAmount(0)} disabled inputClassName="text-right font-mono bg-gray-50 cursor-not-allowed text-xs" />
+                <FormInput id="pav-manual-vchType" label="INV TYPE" value={manualItem.voucherType} disabled inputClassName="!h-8 !px-2 !text-xs bg-gray-50 cursor-not-allowed" />
+                <FormInput id="pav-manual-invAmnt" label="Inv Amnt" value={manualItem.invoiceAmount ? formatAmount(Number(manualItem.invoiceAmount)) : ""} placeholder={formatAmount(0)} disabled inputClassName="!h-8 !px-2 !text-xs text-right font-mono bg-gray-50 cursor-not-allowed" />
+                <FormInput id="pav-manual-paid" label="Paid" value={manualItem.paid ? formatAmount(Number(manualItem.paid)) : ""} placeholder={formatAmount(0)} disabled inputClassName="!h-8 !px-2 !text-xs text-right font-mono bg-gray-50 cursor-not-allowed" />
+                <FormInput id="pav-manual-balance" label="Balance" value={manualItem.balance ? formatAmount(Number(manualItem.balance)) : ""} placeholder={formatAmount(0)} disabled inputClassName="!h-8 !px-2 !text-xs text-right font-mono bg-gray-50 cursor-not-allowed" />
                 <FormInput 
                   id="pav-manual-amount" 
                   label="Amount" 
@@ -514,7 +512,7 @@ const PaymentAgainstVoucherPage = () => {
                   inputMode="decimal"
                   value={manualItem.amount} 
                   placeholder={formatAmount(0)} 
-                  inputClassName="text-right font-bold font-mono text-[#49293e] text-xs" 
+                  inputClassName="!h-8 !px-2 !text-xs text-right font-bold font-mono text-[#49293e]" 
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val === "" || /^\d*\.?\d*$/.test(val)) {
@@ -540,7 +538,7 @@ const PaymentAgainstVoucherPage = () => {
                     id="pav-manual-add-btn"
                     onClick={handleManualAdd}
                     type="button"
-                    className="h-9 w-full"
+                    className="h-8 w-full"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
@@ -557,7 +555,7 @@ const PaymentAgainstVoucherPage = () => {
 
             <div className="mt-2 overflow-hidden rounded-xl border border-gray-200 bg-white flex-1 flex flex-col min-h-0">
               <div className="overflow-auto flex-1 relative">
-                <table className="w-full text-left border-collapse text-sm">
+                <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-gray-200 bg-gray-50/50">
                       {["INV NO", "INV TYPE", "Invoice Date", "Inv Amnt", "Balance", "Amount"].map(
@@ -583,13 +581,13 @@ const PaymentAgainstVoucherPage = () => {
                     ) : (
                       fields.map((item, index) => (
                         <tr key={item.id} className="hover:bg-[#49293e]/5">
-                          <td className="border-l-[3px] border-l-[#49293e] px-4 py-3 font-medium text-gray-900 text-center">
+                          <td className="border-l-[3px] border-l-[#49293e] px-3 py-1.5 font-medium text-gray-900 text-center">
                             {item.invoiceNo}
                           </td>
-                          <td className="px-4 py-3 text-center">{item.voucherType}</td>
-                          <td className="px-4 py-3 text-gray-500 text-center">{item.invoiceDate ? formatDateOnly(item.invoiceDate) : ""}</td>
-                          <td className="px-4 py-3 text-right font-mono">{formatAmount(item.invoiceAmount || 0)}</td>
-                          <td className="px-4 py-3 text-right font-mono">{formatAmount(item.balance || 0)}</td>
+                          <td className="px-3 py-1.5 text-center">{item.voucherType}</td>
+                          <td className="px-3 py-1.5 text-gray-500 text-center">{item.invoiceDate ? formatDateOnly(item.invoiceDate) : ""}</td>
+                          <td className="px-3 py-1.5 text-right font-mono">{formatAmount(item.invoiceAmount || 0)}</td>
+                          <td className="px-3 py-1.5 text-right font-mono">{formatAmount(item.balance || 0)}</td>
                           <td className="px-2 py-2">
                             <input
                               id={`pav-table-amount-${index}`}
@@ -613,7 +611,7 @@ const PaymentAgainstVoucherPage = () => {
                               }}
                             />
                           </td>
-                          <td className="px-4 py-3 text-center">
+                          <td className="px-3 py-1.5 text-center">
                             <button
                               type="button"
                               onClick={() => remove(index)}
@@ -631,15 +629,21 @@ const PaymentAgainstVoucherPage = () => {
               </div>
             </div>
 
-            <div className="grid gap-3 lg:grid-cols-[1fr_300px] flex-none">
-              <div className="grid gap-x-3 gap-y-1 md:grid-cols-2">
-                <FormInput 
+            <div className="flex-none">
+              <FormInput inputClassName="!h-8 !px-2 !text-xs" 
                   id="pav-page-narration" 
                   label="Narration" 
                   {...form.register("narration")} 
                   onKeyDown={(e) => handleKeyDown(e, "pav-page-paymode")}
                 />
-                <SearchableSelect 
+            </div>
+
+          </form>
+        </div>
+
+        <div className="flex flex-wrap items-end gap-4 border-t border-gray-100 bg-white px-3 py-2 rounded-b-3xl">
+          <div className="w-48">
+            <SearchableSelect className="!h-8 !px-2 !text-xs" 
                   id="pav-page-paymode" 
                   label="Paymode" 
                   placeholder="Select Paymode"
@@ -654,25 +658,13 @@ const PaymentAgainstVoucherPage = () => {
                   disabled={!!transId}
                   error={form.formState.errors.paymodeId?.message}
                 />
-              </div>
-              <div className="flex justify-end mt-2 px-2">
-              <div className="flex flex-col items-end">
-                <div className="text-gray-500 text-[10px] font-bold uppercase tracking-wider mb-1">
-                  <span>Total Amount</span>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold font-mono tracking-tight text-[#49293e]">
-                    {formatAmount(totalAmount)}
-                  </p>
-                </div>
-              </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-4 justify-end flex-1">
+            <div className="flex items-baseline gap-2 bg-white px-4 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Total Amount</span>
+              <span className="text-xl font-bold text-[#49293e] leading-none">{formatAmount(totalAmount)}</span>
             </div>
-            </div>
-
-          </form>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-end gap-3 border-t border-gray-100 bg-white px-6 py-4 rounded-b-3xl">
+            <div className="flex items-center gap-1.5 sm:border-l border-gray-300 sm:pl-4">
           {transId && (
             <Button
               type="button"
@@ -681,28 +673,29 @@ const PaymentAgainstVoucherPage = () => {
                 showToast("Voucher deleted successfully", "success", "Success");
                 navigate("/dashboard/payment-against-voucher");
               })}
-              className="w-32"
+              isAction
               icon={<Trash2 size={16} />}
             >
               Delete
             </Button>
           )}
           <Button
-            type="button"
-            variant="secondary"
-            onClick={handleClearClick}
-            className="w-32"
-            tabIndex={-1}
-            icon={<RotateCcw size={16} />}
+            id="pav-save-btn"
+            type="submit"
+            form="pav-form"
+            disabled={isSaving}
+            variant="primary"
+            isAction
+            icon={<Save size={16} />}
           >
-            Clear
+            {isSaving ? "Saving..." : "Save"}
           </Button>
           <Button
             id="pav-print"
             type="button"
             variant="secondary"
             onClick={() => setIsPrintModalOpen(true)}
-            className="w-32"
+            isAction
             tabIndex={-1}
             disabled={!transId || isSaving}
             icon={<Printer size={16} />}
@@ -710,16 +703,17 @@ const PaymentAgainstVoucherPage = () => {
             Print
           </Button>
           <Button
-            id="pav-save-btn"
-            type="submit"
-            form="pav-form"
-            disabled={isSaving}
-            variant="primary"
-            className="w-32"
-            icon={<Save size={16} />}
+            type="button"
+            variant="secondary"
+            onClick={handleClearClick}
+            isAction
+            tabIndex={-1}
+            icon={<RotateCcw size={16} />}
           >
-            {isSaving ? "Saving..." : "Save"}
+            Clear
           </Button>
+            </div>
+          </div>
         </div>
       </div>
 
