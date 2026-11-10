@@ -1,6 +1,6 @@
 # Optimization status
 
-Last updated 2026-11-07, branch `refactor/pricing-engine`, not merged to `main`.
+Last updated 2026-11-10, branch `refactor/pricing-engine`, not merged to `main`.
 The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11).
 
 ## Phases
@@ -22,6 +22,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Purchase Invoice and Return share totals, paymodes, bill discount percent, suppliers and payment mapping. They stay two hooks because their rules differ.
 - Payment and Receipt Vouchers share one hook, API, schema and list page.
 - Payment and Receipt Against Vouchers share one form hook, list hook, API, schema and types.
+- Stock Adjustment and Physical Entry share one list page, list hook and the read requests of their API (`shared/components/StockDocumentListPage.tsx`, `shared/useStockDocumentList.ts`, `shared/stockDocumentApi.ts`). Test: `stockDocumentList`. Not yet opened in the real app.
 - 38 `unwrap` and 5 `formatDateOnly` exact copies replaced by `shared/api/unwrap.ts` and `shared/lib/date.ts`.
 - Payload snapshots: `purchasePayloadGolden`, `voucherPayloadGolden`, `againstVoucherPayloadGolden`, `stockDocumentPayloadGolden`.
 
@@ -30,7 +31,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | Work | Size | Note |
 |---|---|---|
 | Stock Adjustment, Physical Entry, Transfer, Production hooks | 2,900 lines | About half the lines overlap at most; snapshots cover editing only, so add new-document cases first |
-| Their APIs and list pages | Stock Adjustment and Physical Entry list pages are nearly identical | Quickest next step |
+| Transfer and Production APIs and list pages | Different method names and filters from the shared stock document code (From/To branch; Production number, BOM and product lists) | Compare first; share only what really matches |
 | `DocumentForm`: shared form page and line grid | About 3,000+ lines of form pages | Needs a visual check of each screen |
 | Voucher form pages | 4 pages | Field behaviour differs; decide which behaviour to keep |
 | `MasterPage` and `createResourceApi` | 38 master pages, about 37,000 lines in `general` and `inventory` | Largest part of Phase 5; no safety net yet |

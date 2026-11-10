@@ -64,11 +64,3 @@ export type PhysicalEntryPayload = PhysicalEntryCreatePayload & {
   transId?: number;
   updatedAt?: string;
 };
-
-export interface PhysicalEntryDetailParams {
-  BranchId?: number;
-  FromDate?: string;
-  ToDate?: string;
-  RefNo?: string;
-  Decimals?: number;
-}

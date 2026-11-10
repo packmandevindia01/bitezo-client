@@ -69,11 +69,3 @@ export interface StockAdjustmentUpdatePayload {
 }
 
 export type StockAdjustmentPayload = StockAdjustmentCreatePayload | StockAdjustmentUpdatePayload;
-
-export interface StockAdjustmentDetailParams {
-  BranchId?: number;
-  FromDate?: string;
-  ToDate?: string;
-  RefNo?: string;
-  Decimals?: number;
-}

@@ -21,7 +21,7 @@ General project rules (git, shared components, architecture) live in `GEMINI.md`
 - TanStack Query for menu / config fetching
 - axios (`axiosInstance`, JWT from `localStorage.accessToken`)
 - Printing: own **Bitezo Printer Agent** (`PrinterAgent.exe`, WebSocket) on web/Windows; Capacitor native `BitezoPrinterPlugin` (raw ESC/POS TCP :9100) on Android. **QZ Tray is NOT used** (only legacy names `qzService.ts` / `connectQZ` remain)
-- Vitest (`src/tests/`, 76 files / 778 tests, all passing on 2026-11-06; node by default, jsdom + Testing Library only where a file asks for it)
+- Vitest (`src/tests/`, 95 files / 1186 tests, all passing on 2026-11-10; node by default, jsdom + Testing Library only where a file asks for it)
 
 Verify every change with:
 ```
@@ -942,6 +942,7 @@ visible error banner (403 / network — was "No records found"), live refresh on
 - Adding a report: write a definition (fetch + table mapping), a comparison test against the old page logic, a 3-line page, switch the route.
 ### 11.11 Phase 5 — Back Office forms (started 2026-11-07)
 Purchase Invoice and Purchase Return stay two hooks: their load, save, invoice selection and balance rules really differ. What they do the same way lives in `transaction/shared/`: `purchaseDocument.ts` (pure: dates, stock value, stored payments, save paymodes) and `usePurchaseFormCommon.ts` (totals, paymodes, bill discount percent, suppliers). Change shared behaviour there, once. Purchase Return's gross total now uses the invoice's exact-decimal sum. `purchasePayloadGolden.test.tsx` snapshots what both forms send: a change there means saved data changes.
+- Stock Adjustment and Physical Entry share one list page, list hook and read requests: `shared/components/StockDocumentListPage.tsx`, `shared/useStockDocumentList.ts`, `shared/stockDocumentApi.ts`. The branch list is what the API sends, including its All row (id 1); the page adds no All of its own. They differ on purpose only in unit cost parsing and the saved timestamps, which stay in each API.
 - Payment and Receipt Vouchers share one hook, API, schema and list page: `shared/useVoucherForm.ts`, `voucherApi.ts`, `voucherTypes.ts`, `components/VoucherListPage.tsx`. Each passes a small config; their form pages stay separate. `voucherPayloadGolden.test.tsx` snapshots URL and body.
 - Payment and Receipt Against Vouchers share `useAgainstVoucherForm.ts`, `useAgainstVoucherList.ts`, `againstVoucherApi.ts`, `againstVoucherSchema.ts`, `againstVoucherTypes.ts`; their pages stay separate. `againstVoucherPayloadGolden.test.tsx` snapshots URL and body.
 - Exact copies of `unwrap` and `formatDateOnly` now come from `shared/api/unwrap.ts` and `shared/lib/date.ts`: pick the variant that matches a service's error rules, do not add copies.
