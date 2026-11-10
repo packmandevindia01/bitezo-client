@@ -9,7 +9,7 @@
  */
 import { buildUnifiedOrderPricing } from "./orderPricing";
 import { buildOrderLineShapes, orderHasBillDiscount, orderHasVat } from "./orderLineShape";
-import type { UnifiedOrderPricingResult, BuildUnifiedPricingOptions } from "./orderPricing";
+import type { UnifiedOrderLine, UnifiedOrderPricingResult, BuildUnifiedPricingOptions } from "./orderPricing";
 import { calculateOrder } from "../terminal/utils/billing";
 import { storedLineRates, dedupeModifierRows, storedOrderCharges } from "../pricing";
 import { round } from "../pricing/money";
@@ -276,3 +276,30 @@ export const buildLiveCartPricing = (
   const base = { lines: buildOrderLineShapes(cartItems, options), summary: { isVatActive: orderHasVat(cartItems, options) } } as unknown as UnifiedOrderPricingResult;
   return applyCartPricingToUnified(base, cartItems, options);
 };
+
+/**
+ * KOT rows that are not a live cart. Rows already priced from the saved order stay exactly as they are.
+ * Any other row prints the amounts it carries: lineTotal (or amount, or price x quantity) exclusive, netAmount
+ * inclusive. Nothing is worked out from tax settings.
+ */
+export const buildKotRowLines = (rows: any[], options?: Record<string, any>): UnifiedOrderLine[] =>
+  buildOrderLineShapes(rows, options).map((shape: any, i) => {
+    const row = rows[i];
+    if (row?.isUnifiedPricingLine === true) return row as UnifiedOrderLine;
+    const qty = shape.quantity;
+    const exclusive = n(row?.lineTotal) || n(row?.amount) || n(row?.price) * qty;
+    const inclusive = n(row?.netAmount) || exclusive;
+    const exclusiveRate = r14(exclusive / qty);
+    const inclusiveRate = r14(inclusive / qty);
+    return {
+      ...shape,
+      exclusiveRate, inclusiveRate,
+      exclusiveGross: exclusive, inclusiveGross: inclusive,
+      exclusiveAmount: exclusive, inclusiveAmount: inclusive,
+      lineDiscount: 0, lineDiscountExcl: 0, lineDiscountIncl: 0,
+      vatAmount: n(row?.vatAmount), vatRate: 0,
+      getRate: (incl: boolean) => (incl ? inclusiveRate : exclusiveRate),
+      getAmount: (incl: boolean) => (incl ? inclusive : exclusive),
+      getDiscount: () => 0,
+    } as UnifiedOrderLine;
+  });

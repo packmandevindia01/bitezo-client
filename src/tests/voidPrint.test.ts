@@ -11,6 +11,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { calculateOrder, getBillingConfigForOrder, toPricingSettings } from "../features/pos/terminal/utils/billing";
 import { priceVoidedPortion, sumPricedLines } from "../features/pos/pricing";
 import { generateKotHtml } from "../features/pos/utils/kotTemplate";
+import { buildKotRowLines } from "../features/pos/utils/printPricing";
 import reducer, { addVoidProduct } from "../features/pos/terminal/store/posSlice";
 
 const ABCD = { id: 9, name: "ABCd", price: 100, vatValue: 10, isIncl: true };
@@ -110,5 +111,41 @@ describe("VOID ITEMS print follows Print Price", () => {
       orderNo: "1", ticketNo: "1", waiter: "w", orderType: "DineIn", printPrice: "Exclusive", headerTitle: "VOID ITEMS",
     } as any);
     expect(html).toMatch(/>\s*157\.418\s*</);
+  });
+});
+
+describe("KOT rows that are not a live cart", () => {
+  const row = (over: Record<string, unknown>) => ({ productId: 9, quantity: 2, product: { id: 9, name: "ABCd" }, extras: [], modifiers: [], messages: [], ...over });
+
+  it("a void without an engine result prints the amounts it carries", () => {
+    const [line] = buildKotRowLines([row({ price: 5, lineTotal: 10, netAmount: 11.55 })]);
+    expect(line.getAmount(false)).toBe(10);
+    expect(line.getAmount(true)).toBe(11.55);
+    expect(line.quantity).toBe(2);
+    expect(line.productName).toBe("ABCd");
+  });
+
+  it("works out nothing from tax: with no netAmount both views print the same", () => {
+    const [line] = buildKotRowLines([row({ price: 5, lineTotal: 10 })]);
+    expect(line.getAmount(true)).toBe(10);
+  });
+
+  it("uses price x quantity when the row has no total", () => {
+    expect(buildKotRowLines([row({ price: 5 })])[0].getAmount(false)).toBe(10);
+  });
+
+  it("rows already priced from the saved order stay exactly as they are", () => {
+    const priced = { isUnifiedPricingLine: true, productId: 9, quantity: 2, productName: "ABCd", getAmount: () => 42, extras: [], modifiers: [], messages: [] };
+    expect(buildKotRowLines([priced])[0]).toBe(priced);
+  });
+
+  it("an empty list gives no lines", () => {
+    expect(buildKotRowLines([])).toEqual([]);
+  });
+
+  it("the recall reprint prints the saved amount", async () => {
+    const priced = { isUnifiedPricingLine: true, productId: 9, quantity: 2, productName: "ABCd", getAmount: () => 42, extras: [], modifiers: [], messages: [] };
+    const html = await generateKotHtml([priced] as any, { orderNo: "1", ticketNo: "1", waiter: "w", orderType: "DineIn", printPrice: "Exclusive" } as any);
+    expect(html).toMatch(/>\s*42\.000\s*</);
   });
 });
