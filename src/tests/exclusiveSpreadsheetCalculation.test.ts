@@ -188,7 +188,8 @@ describe('Exclusive Price View & Internal Calculation (Exact Spreadsheet Verific
       priceView: 'Exclusive',
     };
 
-    const html = await generateGuestPrintHtml(spreadsheetItems as any, printData);
+    const liveCart = calculateOrder(spreadsheetItems, { config: dineInConfig, orderType: 'DineIn' }).lines;
+    const html = await generateGuestPrintHtml(liveCart as any, printData);
 
     // Line rates and amounts
     expect(html).toContain('11.000');

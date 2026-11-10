@@ -12,7 +12,7 @@ const barWidths = (html: string) => [...html.matchAll(/flex:none; width:([\d.]+)
 const hasBars = (html: string) => html.includes("flex:none");
 
 const print = (extra: Record<string, unknown>) =>
-  generateGuestPrintHtml([] as never, {
+  generateGuestPrintHtml([{ uniqueId: "a", productId: 1, quantity: 1, price: 1, lineTotal: 1, product: { id: 1, name: "ITEM", price: 1 } }] as never, {
     orderNo: "9001", ticketNo: "1", waiter: "Ali", counter: "C1", orderType: "TAKE OUT", subTotal: 0, vatAmount: 0,
     netAmount: 0, showCompanyHeader: false, ...extra,
   } as never);

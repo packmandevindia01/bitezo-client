@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
 import { generateGuestPrintHtml } from '../features/pos/utils/guestPrintTemplate';
+import { buildPrintPricing } from '../features/pos/utils/printPricing';
 import { generateBillMarkup } from '../features/pos/utils/escPosGenerator';
 import { mapOrderDetailsToCartItems } from '../features/pos/terminal/mappers/orderDetailToCartMapper';
 
@@ -41,6 +42,9 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       }
     ]
   };
+
+  // The backend stores a bill discount on the lines too; the bill reads it from there.
+  const savedOrder84 = { ...backendSettledOrder84, detailsData: [{ ...backendSettledOrder84.detailsData[0], discAmount: 13 }] };
 
   it('Order #84: when printPrice is Inclusive, HTML settled print must have exact Sub Total 33.000, Discount -13.000, VAT 1.818, Grand Total 20.000', async () => {
     const unified = buildUnifiedOrderPricing(backendSettledOrder84, {
@@ -132,41 +136,14 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
     expect(markup).not.toContain('19.364');
   });
 
-  it('Order #84: simulating PosSettledDetailsModal flow passing mappedItems array directly to generateGuestPrintHtml', async () => {
-    const isTaxInclusive = true;
+  it('Order #84: the settled screen prints the pricing built from the saved order', async () => {
     const printPriceSetting = 'Inclusive';
-    const isBillLevelDiscount = true;
-
-    const unified = buildUnifiedOrderPricing(backendSettledOrder84, {
-      orderType: 'TakeOut',
+    const unified = buildPrintPricing(savedOrder84, {
+      dataView: 'Inclusive',
       printPrice: printPriceSetting,
-      priceView: printPriceSetting,
-      isBillDiscount: isBillLevelDiscount,
+      orderType: 'TakeOut',
+      isBillDiscount: true,
     });
-
-    const mappedItems = unified.lines.map((l) => ({
-      ...l,
-      isUnifiedPricingLine: true,
-      productId: l.productId,
-      quantity: l.quantity,
-      price: l.getRate(isTaxInclusive),
-      baseAmount: l.exclusiveGross,
-      variantName: l.variantName,
-      variantArabic: l.variantArabic,
-      product: {
-        name: l.productName,
-        price: l.getRate(isTaxInclusive),
-        arabicName: l.productArabicName,
-      },
-      extras: l.extras,
-      modifiers: l.modifiers,
-      messages: l.messages,
-      itemDiscount: 0,
-      lineTotal: l.getAmount(isTaxInclusive, true),
-      lineNetAmount: l.inclusiveAmount,
-      basePrice: l.exclusiveRate,
-      vatAmount: l.vatAmount,
-    }));
 
     const printData = {
       orderNo: 84,
@@ -184,7 +161,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       priceView: 'Inclusive',
     };
 
-    const html = await generateGuestPrintHtml(mappedItems as any, printData as any);
+    const html = await generateGuestPrintHtml(unified as any, printData as any);
 
     expect(html).toContain('>33.000<'); // row amount (inclusive)
     expect(html).toContain('>30.000<'); // footer Sub Total (exclusive)
@@ -213,7 +190,8 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       enableVat: true,
     };
 
-    const html = await generateGuestPrintHtml(backendSettledOrder84 as any, printData as any);
+    const unified = buildPrintPricing(savedOrder84, { dataView: 'Inclusive', printPrice: 'Exclusive', orderType: 'TakeOut', isBillDiscount: true });
+    const html = await generateGuestPrintHtml(unified as any, printData as any);
 
     // Exclusive item rate = 10.000, Amt = 30.000
     expect(html).toContain('10.000');
