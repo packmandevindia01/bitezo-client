@@ -360,6 +360,7 @@ export const PosTerminalPage = () => {
                   unitId,
                   qty: voidDiff,
                   amount: roundCalc((item.price || 0) * voidDiff),
+                  pricedLine: voidFlow.priceVoidedUnits(item, voidDiff, voidExtras),
                   mapId,
                   variantName: item.variantName,
                   variantArabic: item.variantArabic,

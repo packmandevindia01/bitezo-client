@@ -19,6 +19,7 @@ import { isItemSeperationEnabled } from "../../../services/posConfigApi";
 import { productDataCache } from "../usePosProducts";
 import { roundCalc } from "../../utils/billing";
 import type { PosCartItem } from "../../../types";
+import type { PricedLine } from "../../../pricing";
 
 const hasCustomizations = (item: any): boolean => {
   const hasExtras = Array.isArray(item.extras) && item.extras.length > 0;
@@ -276,6 +277,7 @@ export const useCartMutations = () => {
       modifiers?: any[];
       messages?: any[];
       note?: string;
+      pricedLine?: PricedLine;
     }) => dispatch(addVoidProduct(payload)),
     addVoidModifier: (payload: {
       mapId: number;
