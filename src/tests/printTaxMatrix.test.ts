@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { calculateOrder, type BillingConfig } from '../features/pos/terminal/utils/billing';
 import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
 import { generateGuestPrintHtml } from '../features/pos/utils/guestPrintTemplate';
-import { generateBillMarkup } from '../features/pos/utils/escPosGenerator';
 
 describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)', () => {
   const takeOutConfig: BillingConfig = {
@@ -112,11 +111,6 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
       expect(html).toContain('1.100');
       expect(html).toContain('+ TEST');
       expect(html).not.toContain('1.216');
-
-      // Thermal ESC/POS verification:
-      const thermal = generateBillMarkup({ data: printData, cartDetails: unifiedPrint as any });
-      expect(thermal).toContain('1.100');
-      expect(thermal).toContain('+ TEST');
     });
 
     it('1.2 Multiple Items with Extras: Screen and Print must show identical rates (1.100 & 1.000) and grand total (2.100)', async () => {

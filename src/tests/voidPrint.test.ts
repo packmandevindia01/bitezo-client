@@ -11,7 +11,8 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { calculateOrder, getBillingConfigForOrder, toPricingSettings } from "../features/pos/terminal/utils/billing";
 import { priceVoidedPortion, sumPricedLines } from "../features/pos/pricing";
 import { generateKotHtml } from "../features/pos/utils/kotTemplate";
-import { buildKotRowLines } from "../features/pos/utils/printPricing";
+import { buildPrintPricing, buildRowLines, buildRowPricing } from "../features/pos/utils/printPricing";
+import { generateGuestPrintHtml } from "../features/pos/utils/guestPrintTemplate";
 import reducer, { addVoidProduct } from "../features/pos/terminal/store/posSlice";
 
 const ABCD = { id: 9, name: "ABCd", price: 100, vatValue: 10, isIncl: true };
@@ -118,7 +119,7 @@ describe("KOT rows that are not a live cart", () => {
   const row = (over: Record<string, unknown>) => ({ productId: 9, quantity: 2, product: { id: 9, name: "ABCd" }, extras: [], modifiers: [], messages: [], ...over });
 
   it("a void without an engine result prints the amounts it carries", () => {
-    const [line] = buildKotRowLines([row({ price: 5, lineTotal: 10, netAmount: 11.55 })]);
+    const [line] = buildRowLines([row({ price: 5, lineTotal: 10, netAmount: 11.55 })]);
     expect(line.getAmount(false)).toBe(10);
     expect(line.getAmount(true)).toBe(11.55);
     expect(line.quantity).toBe(2);
@@ -126,26 +127,53 @@ describe("KOT rows that are not a live cart", () => {
   });
 
   it("works out nothing from tax: with no netAmount both views print the same", () => {
-    const [line] = buildKotRowLines([row({ price: 5, lineTotal: 10 })]);
+    const [line] = buildRowLines([row({ price: 5, lineTotal: 10 })]);
     expect(line.getAmount(true)).toBe(10);
   });
 
   it("uses price x quantity when the row has no total", () => {
-    expect(buildKotRowLines([row({ price: 5 })])[0].getAmount(false)).toBe(10);
+    expect(buildRowLines([row({ price: 5 })])[0].getAmount(false)).toBe(10);
   });
 
   it("rows already priced from the saved order stay exactly as they are", () => {
     const priced = { isUnifiedPricingLine: true, productId: 9, quantity: 2, productName: "ABCd", getAmount: () => 42, extras: [], modifiers: [], messages: [] };
-    expect(buildKotRowLines([priced])[0]).toBe(priced);
+    expect(buildRowLines([priced])[0]).toBe(priced);
   });
 
   it("an empty list gives no lines", () => {
-    expect(buildKotRowLines([])).toEqual([]);
+    expect(buildRowLines([])).toEqual([]);
   });
 
   it("the recall reprint prints the saved amount", async () => {
     const priced = { isUnifiedPricingLine: true, productId: 9, quantity: 2, productName: "ABCd", getAmount: () => 42, extras: [], modifiers: [], messages: [] };
     const html = await generateKotHtml([priced] as any, { orderNo: "1", ticketNo: "1", waiter: "w", orderType: "DineIn", printPrice: "Exclusive" } as any);
     expect(html).toMatch(/>\s*42\.000\s*</);
+  });
+});
+
+describe("guest bill when the stored pricing could not be built", () => {
+  const row = { productId: 9, quantity: 2, price: 11, baseAmount: 20, lineNetAmount: 22, lineTotal: 22, vatAmount: 2, product: { id: 9, name: "ABCd" }, extras: [], modifiers: [], messages: [] };
+  const data = { orderNo: "1", ticketNo: "1", waiter: "w", orderType: "TakeOut", enableVat: true, vatAmount: 2, netAmount: 22 };
+
+  it("rows print the amounts they carry and the Sub Total adds them up", () => {
+    const pricing = buildRowPricing([row], { printPrice: "Exclusive" });
+    expect(pricing.lines[0].getAmount(false)).toBe(20);
+    expect(pricing.lines[0].getAmount(true)).toBe(22);
+    expect(pricing.summary.subTotalExclusive).toBe(20);
+    expect(pricing.summary.subTotalInclusive).toBe(22);
+  });
+
+  it("the bill's VAT and Grand Total come from the print data", async () => {
+    const html = await generateGuestPrintHtml([row] as any, { ...data, printPrice: "Exclusive" } as any);
+    expect(html).toMatch(/>\s*20\.000\s*</);
+    expect(html).toMatch(/>\s*2\.000\s*</);
+    expect(html).toMatch(/>\s*22\.000\s*</);
+  });
+
+  it("an order with no lines keeps its saved totals and prints no rows", () => {
+    const pricing = buildPrintPricing({ masterData: { netAmount: 5, vatAmount: 0.5 }, detailsData: [] }, { dataView: "Exclusive", printPrice: "Exclusive" });
+    expect(pricing.lines).toEqual([]);
+    expect(pricing.summary.grandTotal).toBe(5);
+    expect(pricing.summary.vatAmount).toBe(0.5);
   });
 });

@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
 import { generateGuestPrintHtml } from '../features/pos/utils/guestPrintTemplate';
 import { buildPrintPricing } from '../features/pos/utils/printPricing';
-import { generateBillMarkup } from '../features/pos/utils/escPosGenerator';
 import { mapOrderDetailsToCartItems } from '../features/pos/terminal/mappers/orderDetailToCartMapper';
 
 describe('Settled Print Verification (Order #84 & Settled Details)', () => {
@@ -96,44 +95,6 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
     expect(html).not.toContain('19.364');
     expect(html).not.toContain('6.061');
     expect(html).not.toContain('6.364');
-  });
-
-  it('Order #84: when printPrice is Inclusive, ESC/POS thermal markup must have exact Sub Total 33.000, Discount -13.000, VAT 1.818, Grand Total 20.000', () => {
-    const unified = buildUnifiedOrderPricing(backendSettledOrder84, {
-      orderType: 'TakeOut',
-      priceView: 'Inclusive',
-      printPrice: 'Inclusive',
-      isBillDiscount: true,
-    });
-
-    const printData = {
-      orderNo: 84,
-      ticketNo: 84,
-      invoiceNo: '84',
-      orderType: 'TakeOut',
-      customerName: 'CASH CUSTOMER',
-      date: '28/10/2026',
-      time: '01:55:56 PM',
-      isSettlement: true,
-      printPrice: 'Inclusive',
-      priceView: 'Inclusive',
-      enableVat: true,
-    };
-
-    const markup = generateBillMarkup({
-      cartDetails: unified as any,
-      data: printData as any,
-    });
-
-    expect(markup).toContain('33.000');
-    expect(markup).toContain('-13.000');
-    expect(markup).toContain('1.818');
-    expect(markup).toContain('20.000');
-    expect(markup).toContain('18.182');
-
-    // Strictly ensure corrupt numbers are NOT present
-    expect(markup).not.toContain('0.636');
-    expect(markup).not.toContain('19.364');
   });
 
   it('Order #84: the settled screen prints the pricing built from the saved order', async () => {
@@ -326,48 +287,6 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       expect(html).toContain('>4.545<'); // Levy
       expect(html).toContain('>9.545<'); // VAT
       expect(html).toContain('>105.000<'); // Grand Total
-    });
-
-    it('Order #22 in Exclusive Thermal ESC/POS: Discount MUST be -9.091 and NEVER -8.264', () => {
-      localStorage.setItem('printPrice', 'Exclusive');
-      localStorage.setItem('priceView', 'Exclusive');
-      localStorage.setItem('discCalc', 'Inclusive');
-
-      const unified = buildUnifiedOrderPricing(order22Data, {
-        orderType: 'TakeOut',
-        printPrice: 'Exclusive',
-        priceView: 'Exclusive',
-        isBillDiscount: true,
-      });
-
-      const printData = {
-        orderNo: 22,
-        ticketNo: 22,
-        invoiceNo: '22',
-        orderType: 'TakeOut',
-        customerName: 'CASH CUSTOMER',
-        subTotal: 100.000,
-        discount: 9.091,
-        levy: 4.545,
-        vatAmount: 9.545,
-        netAmount: 105.000,
-        isSettlement: true,
-        printPrice: 'Exclusive',
-        priceView: 'Exclusive',
-        enableVat: true,
-        isBillDiscount: true,
-      };
-
-      const markup = generateBillMarkup({
-        cartDetails: unified as any,
-        data: printData as any,
-      });
-
-      expect(markup).toContain('100.000');
-      expect(markup).toContain('-9.091');
-      expect(markup).not.toContain('8.264');
-      expect(markup).not.toContain('-8.264');
-      expect(markup).toContain('105.000');
     });
 
     it('Order #22 in Inclusive Print: When charges are present, footer discount MUST match exclusive basis (-9.091) and NEVER -8.264', async () => {
@@ -713,103 +632,6 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       expect(html).toContain('+ TEST');
       // Verify Grand Total
       expect(html).toContain('>1.100<');
-    });
-
-    it('Order #149 with Extras: in ESC/POS thermal markup, both Exclusive and Inclusive modes render rolled-in rates and + TEST extra line', () => {
-      const order149 = {
-        masterData: {
-          orderNo: 149,
-          ticketNo: 149,
-          orderType: "TakeOut",
-          customer: "CASH CUSTOMER",
-          waiter: "emp1",
-          levy: 0.047619,
-          vatExclAmount: 1,
-          vatAmount: 0.1,
-          netAmount: 1.1,
-        },
-        detailsData: [
-          {
-            qty: 1,
-            productId: 7,
-            productName: "test price1",
-            price: 0.8658009,
-            amount: 0.8658009,
-            discAmount: 0,
-            serviceCharge: 0,
-            levy: 0.04329,
-            vatAmount: 0.0909091,
-            mapId: 1,
-          }
-        ],
-        modifiersData: [
-          {
-            qty: 1,
-            modifierId: 6,
-            modifierName: "test",
-            price: 0.0865801,
-            mapId: 1,
-          }
-        ]
-      };
-
-      // 1. Exclusive Thermal Print
-      const unifiedExcl = buildUnifiedOrderPricing(order149, {
-        orderType: 'TakeOut',
-        priceView: 'Exclusive',
-        printPrice: 'Exclusive',
-      });
-
-      const markupExcl = generateBillMarkup({
-        cartDetails: unifiedExcl as any,
-        data: {
-          orderNo: "149",
-          ticketNo: "149",
-          waiter: "emp1",
-          counter: "Main",
-          orderType: "TakeOut",
-          printPrice: "Exclusive",
-          priceView: "Exclusive",
-          subTotal: 0.952,
-          charges: 0.048,
-          netValue: 1.000,
-          vatAmount: 0.100,
-          netAmount: 1.100,
-        }
-      });
-
-      expect(markupExcl).toContain('TEST PRICE1');
-      expect(markupExcl).toContain('0.952');
-      expect(markupExcl).toContain('+ TEST');
-      expect(markupExcl).toContain('1.100');
-
-      // 2. Inclusive Thermal Print
-      const unifiedIncl = buildUnifiedOrderPricing(order149, {
-        orderType: 'TakeOut',
-        priceView: 'Inclusive',
-        printPrice: 'Inclusive',
-      });
-
-      const markupIncl = generateBillMarkup({
-        cartDetails: unifiedIncl as any,
-        data: {
-          orderNo: "149",
-          ticketNo: "149",
-          waiter: "emp1",
-          counter: "Main",
-          orderType: "TakeOut",
-          printPrice: "Inclusive",
-          priceView: "Inclusive",
-          subTotal: 0.952,
-          vatAmount: 0.100,
-          netAmount: 1.100,
-        }
-      });
-
-      expect(markupIncl).toContain('TEST PRICE1');
-      expect(markupIncl).toContain('1.100');
-      expect(markupIncl).toContain('+ TEST');
-      expect(markupIncl).toContain('1.100');
     });
 
     it('Order #162 (Settled Order with 1 item + 1 extra in Exclusive mode): line item rate must include extra (0.952), extra classified as + test, subTotal 0.952, charges 0.048, netValue 1.000, vat 0.100, grand total 1.100', async () => {

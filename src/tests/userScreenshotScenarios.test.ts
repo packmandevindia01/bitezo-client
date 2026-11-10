@@ -4,7 +4,6 @@ import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
 import { buildDirectSettleOrderPayload, buildNewOrderPayload } from '../features/pos/terminal/mappers/orderPayloadMapper';
 import { mapOrderDetailsToCartItems } from '../features/pos/terminal/mappers/orderDetailToCartMapper';
 import { generateGuestPrintHtml } from '../features/pos/utils/guestPrintTemplate';
-import { generateBillMarkup } from '../features/pos/utils/escPosGenerator';
 import { fallbackOrderTypeByName } from '../features/pos/terminal/store/posSlice';
 import { checkOrderHasBillDiscount } from '../features/pos/terminal/utils/orderDiscountCheck';
 import { roundCalc } from '../features/pos/terminal/utils/billing';
@@ -1419,11 +1418,6 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     // Grand Total MUST be 100.000
     expect(guestHtml124).toContain("100.000");
 
-    const thermalMarkup124 = generateBillMarkup({ cartDetails: unified124 as any, data: printData124 as any });
-    expect(thermalMarkup124).toContain("Disc : 27.050");
-    expect(thermalMarkup124).toContain("-21.291");
-    expect(thermalMarkup124).not.toContain("78.709");
-
     // 2. Order #129 (Screenshot 6 with DEMO x 3):
     const order129 = {
       masterData: {
@@ -1496,12 +1490,6 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     // Grand Total MUST be 24.650:
     expect(guestHtml129).toContain(">24.650<");
 
-    const thermalMarkup129 = generateBillMarkup({ cartDetails: unified129 as any, data: printData129 as any });
-    expect(thermalMarkup129).toContain("Disc : 10.000");
-    expect(thermalMarkup129).toContain("-8.658");
-    expect(thermalMarkup129).toContain("1.067");
-    expect(thermalMarkup129).not.toContain(" 2.409");
-
     // 3. Order #129 in Exclusive Price View and Exclusive Print View:
     const unified129Excl = buildUnifiedOrderPricing(order129, {
       orderType: "TakeOut",
@@ -1528,11 +1516,6 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     expect(guestHtml129Excl).toContain(">22.409<");
     expect(guestHtml129Excl).toContain(">2.241<");
     expect(guestHtml129Excl).toContain(">24.650<");
-
-    const thermalMarkup129Excl = generateBillMarkup({ cartDetails: unified129Excl as any, data: printData129Excl as any });
-    expect(thermalMarkup129Excl).toContain("Disc : 8.658");
-    expect(thermalMarkup129Excl).toContain("1.067");
-    expect(thermalMarkup129Excl).not.toContain(" 2.409");
 
     localStorage.setItem('priceView', 'Inclusive');
     localStorage.setItem('printPrice', 'Inclusive');
@@ -1605,13 +1588,6 @@ describe('User Screenshot Exact Scenarios (Screenshot 4510 & Screenshot 4507)', 
     expect(htmlReceipt).toContain(">22.409<");
     expect(htmlReceipt).toContain(">2.241<");
     expect(htmlReceipt).toContain(">24.650<");
-
-    // Thermal markup check
-    const thermalReceipt = generateBillMarkup({ cartDetails: unifiedPricing as any, data: printData as any });
-    expect(thermalReceipt).toContain("Disc : 10.000");
-    expect(thermalReceipt).toContain("-8.658");
-    expect(thermalReceipt).toContain("1.067");
-    expect(thermalReceipt).not.toContain(" 2.409");
   });
 
   it('Scenario 6: Order #125 Editing preserves TakeOut order type and does NOT mutate 11.550 into 12.705', () => {

@@ -9,10 +9,10 @@ import { isBillArabicEnabled, getAlternativeArabicName, containsArabic } from ".
 export { isBillArabicEnabled };
 import { getDecimalPart } from "../../../utils/currency";
 import { getBillingConfig, getPriceView, getVatStatus, roundCalc } from "../terminal/utils/billing";
-import { buildLiveCartPricing } from "./printPricing";
+import { buildLiveCartPricing, buildRowPricing } from "./printPricing";
 import { balanceBillFooter, balanceToTotal } from "../../../utils/money";
 import { printChargeLines } from "./printCharges";
-import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
+import type { UnifiedOrderPricingResult } from "./orderPricing";
 
 export interface GuestPrintData {
   orderNo: string;
@@ -344,11 +344,11 @@ export const generateGuestPrintHtml = async (
 
   const isInputPrecomputed = Boolean(cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary);
 
-  // Already priced, or a live cart priced by the engine. The old pricing only remains for plain rows that are neither.
+  // Already priced, a live cart priced by the engine, or rows that carry their own amounts.
   const printOptions = { ...data, printPrice: printTaxSetting, priceView: printTaxSetting };
   const unified: UnifiedOrderPricingResult = isInputPrecomputed
     ? (cartDetails as any)
-    : (buildLiveCartPricing(rawLines, printOptions) ?? buildUnifiedOrderPricing(cartDetails, printOptions));
+    : (buildLiveCartPricing(rawLines, printOptions) ?? buildRowPricing(rawLines, printOptions));
 
   // Footer Sub Total and Discount are ALWAYS exclusive — exactly what the cart / recall screen footer shows,
   // whatever the Print Price. (Rows still follow Print Price.) Previously an Inclusive print without

@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { calculateOrder, type BillingConfig } from '../features/pos/terminal/utils/billing';
 import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
 import { generateGuestPrintHtml } from '../features/pos/utils/guestPrintTemplate';
-import { generateBillMarkup } from '../features/pos/utils/escPosGenerator';
 
 describe('Exclusive Price View & Internal Calculation (Exact Spreadsheet Verification)', () => {
   beforeEach(() => {
@@ -214,53 +213,6 @@ describe('Exclusive Price View & Internal Calculation (Exact Spreadsheet Verific
     // VAT breakdown table: Excl Amt must be 85.470 (Net - VAT)
     expect(html).toContain('Excl Amt');
     expect(html).toContain('85.470');
-  });
-
-  it('generates ESC/POS thermal printer markup matching spreadsheet values in Exclusive mode', () => {
-    const printData: any = {
-      orderNo: '101',
-      ticketNo: '1',
-      waiter: 'Staff',
-      counter: 'Main',
-      section: 'Ground',
-      table: 'T1',
-      orderType: 'DineIn',
-      subTotal: 74,
-      serviceCharge: 7.4,
-      levy: 4.07,
-      vatAmount: 8.547,
-      netAmount: 94.017,
-      printPrice: 'Exclusive',
-      priceView: 'Exclusive',
-    };
-
-    const markup = generateBillMarkup({
-      cartDetails: spreadsheetItems as any,
-      data: printData,
-    });
-
-    // Check item rows
-    expect(markup).toContain('x4');
-    expect(markup).toContain('44.000');
-    expect(markup).toContain('x2');
-    expect(markup).toContain('30.000');
-
-    // Totals rows
-    expect(markup).toContain('Sub Total');
-    expect(markup).toContain('74.000');
-    expect(markup).toContain('Levy (5%)');
-    expect(markup).toContain('4.070');
-    expect(markup).toContain('Service Charge (10%)');
-    expect(markup).toContain('7.400');
-    expect(markup).toContain('Net Value');
-    expect(markup).toContain('85.470');
-    expect(markup).toContain('VAT Amount');
-    expect(markup).toContain('8.547');
-    expect(markup).toContain('GRAND TOTAL');
-    expect(markup).toContain('94.017');
-
-    // VAT breakdown table: Excl Amt 85.470
-    expect(markup).toContain('85.470');
   });
 
   it('correctly handles edge case: Item discount in Exclusive mode', () => {

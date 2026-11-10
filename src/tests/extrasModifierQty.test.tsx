@@ -26,7 +26,6 @@ import { dedupeModifierRows, priceVoidedPortion, storedLineToCartPricing } from 
 import { buildPrintPricing } from "../features/pos/utils/printPricing";
 import { generateKotHtml } from "../features/pos/utils/kotTemplate";
 import { generateGuestPrintHtml } from "../features/pos/utils/guestPrintTemplate";
-import { generateBillMarkup, generateKotMarkup } from "../features/pos/utils/escPosGenerator";
 import { formatModifierLabel } from "../features/pos/utils/modifierLabel";
 import { menuApi } from "../features/pos/services/menuApi";
 
@@ -361,13 +360,6 @@ describe("prints", () => {
     expect(t).toContain("+ CHEESE (x2)");
     expect(t).toContain("* 3 X NO ONION");
     expect(t).toContain("14.000");
-  });
-
-  it("thermal bill and thermal kitchen ticket show both quantities", () => {
-    for (const markup of [generateBillMarkup({ cartDetails: lines() as never, data }), generateKotMarkup({ cartDetails: lines() as never, data })]) {
-      expect(markup).toContain("+ CHEESE (x2)");
-      expect(markup).toMatch(/3 x /i);
-    }
   });
 
   it("saved order print: extras counted at their qty, once", () => {

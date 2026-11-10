@@ -7,7 +7,7 @@ import { printLineHtml } from "../../inventory/branches/utils/lineHelpers";
 import { isKotArabicEnabled, isOtherKitchenItemEnabled, isCompanyNameKotEnabled, getAlternativeArabicName, containsArabic, formatItemDisplayName } from "./alternativeHelpers";
 import { getDecimalPart } from "../../../utils/currency";
 import { roundCalc } from "../terminal/utils/billing";
-import { buildKotRowLines, buildLiveCartPricing } from "./printPricing";
+import { buildLiveCartPricing, buildRowLines } from "./printPricing";
 import { orderHasBillDiscount } from "./orderLineShape";
 import type { UnifiedOrderPricingResult } from "./orderPricing";
 
@@ -295,7 +295,7 @@ export const generateKotHtml = async (
   const precomputed = cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary ? (cartDetails as unknown as UnifiedOrderPricingResult) : null;
   const kotLines = precomputed
     ? precomputed.lines
-    : (buildLiveCartPricing(cartDetails as any[], { printPrice: printTaxSetting, orderType: data.orderType })?.lines ?? buildKotRowLines(cartDetails as any[], data));
+    : (buildLiveCartPricing(cartDetails as any[], { printPrice: printTaxSetting, orderType: data.orderType })?.lines ?? buildRowLines(cartDetails as any[], data));
   const isOrderBillDiscount = precomputed ? precomputed.summary.isBillDiscount : orderHasBillDiscount(cartDetails, data);
 
   let itemsHtml = "";

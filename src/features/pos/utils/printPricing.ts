@@ -7,7 +7,6 @@
  *
  * Names, extras, modifiers and messages come from orderLineShape, which calculates nothing.
  */
-import { buildUnifiedOrderPricing } from "./orderPricing";
 import { buildOrderLineShapes, orderHasBillDiscount, orderHasVat } from "./orderLineShape";
 import type { UnifiedOrderLine, UnifiedOrderPricingResult, BuildUnifiedPricingOptions } from "./orderPricing";
 import { calculateOrder } from "../terminal/utils/billing";
@@ -73,16 +72,12 @@ export interface PrintPricingOptions extends BuildUnifiedPricingOptions {
 }
 
 /**
- * Build the pricing a print template consumes. Same shape as buildUnifiedOrderPricing, with
- * summary.printPrice set so the template uses it directly.
+ * Build the pricing a print template consumes, with summary.printPrice set so the template uses it directly.
  */
 export const buildPrintPricing = (order: any, options: PrintPricingOptions): UnifiedOrderPricingResult => {
   const { dataView, printPrice, ...unifiedOptions } = options;
-  const details: any[] = order?.detailsData || order?.details || [];
-  if (!Array.isArray(details) || details.length === 0) {
-    // Not a saved order (or unexpected shape): keep the previous behaviour.
-    return buildUnifiedOrderPricing(order, { ...unifiedOptions, priceView: printPrice, printPrice });
-  }
+  const rawDetails = order?.detailsData || order?.details;
+  const details: any[] = Array.isArray(rawDetails) ? rawDetails : [];
 
   const master = masterOf(order);
   const isBill = Boolean(orderHasBillDiscount(order, unifiedOptions) || n(pickField(master, "discAmount", "DiscAmount")) > 0);
@@ -90,7 +85,7 @@ export const buildPrintPricing = (order: any, options: PrintPricingOptions): Uni
 
   let subEx = 0, subIn = 0, discEx = 0, discIn = 0;
 
-  const lines = buildOrderLineShapes(order, unifiedOptions).map((line, i) => {
+  const lines = (details.length > 0 ? buildOrderLineShapes(order, unifiedOptions) : []).map((line, i) => {
     const d = details[i];
     const s = lineNumbers(order, d, dataView);
     const exclusiveRate = r14(s.amount / s.qty);
@@ -278,17 +273,17 @@ export const buildLiveCartPricing = (
 };
 
 /**
- * KOT rows that are not a live cart. Rows already priced from the saved order stay exactly as they are.
- * Any other row prints the amounts it carries: lineTotal (or amount, or price x quantity) exclusive, netAmount
- * inclusive. Nothing is worked out from tax settings.
+ * Rows that are not a live cart. Rows already priced from the saved order stay exactly as they are.
+ * Any other row prints the amounts it carries: baseAmount (or lineTotal, amount, price x quantity) exclusive,
+ * netAmount (or lineNetAmount) inclusive. Nothing is worked out from tax settings.
  */
-export const buildKotRowLines = (rows: any[], options?: Record<string, any>): UnifiedOrderLine[] =>
+export const buildRowLines = (rows: any[], options?: Record<string, any>): UnifiedOrderLine[] =>
   buildOrderLineShapes(rows, options).map((shape: any, i) => {
     const row = rows[i];
     if (row?.isUnifiedPricingLine === true) return row as UnifiedOrderLine;
     const qty = shape.quantity;
-    const exclusive = n(row?.lineTotal) || n(row?.amount) || n(row?.price) * qty;
-    const inclusive = n(row?.netAmount) || exclusive;
+    const exclusive = n(row?.baseAmount) || n(row?.lineTotal) || n(row?.amount) || n(row?.price) * qty;
+    const inclusive = n(row?.netAmount) || n(row?.lineNetAmount) || exclusive;
     const exclusiveRate = r14(exclusive / qty);
     const inclusiveRate = r14(inclusive / qty);
     return {
@@ -303,3 +298,23 @@ export const buildKotRowLines = (rows: any[], options?: Record<string, any>): Un
       getDiscount: () => 0,
     } as UnifiedOrderLine;
   });
+
+/**
+ * A guest bill for rows that are not a live cart: the rows print their own amounts. Only the Sub Total is summed here;
+ * the bill takes discount, charges, VAT and Grand Total from its print data, which holds the saved order's totals.
+ */
+export const buildRowPricing = (rows: any[], options: { printPrice: View; [key: string]: any }): UnifiedOrderPricingResult => {
+  const lines = buildRowLines(rows, options);
+  return {
+    lines,
+    summary: {
+      isVatActive: orderHasVat(rows, options),
+      printPrice: options.printPrice,
+      priceView: options.printPrice,
+      isTaxInclusive: options.printPrice === "Inclusive",
+      subTotalExclusive: r14(lines.reduce((sum, l) => sum + n(l.exclusiveGross), 0)),
+      subTotalInclusive: r14(lines.reduce((sum, l) => sum + n(l.inclusiveGross), 0)),
+      isBillDiscount: orderHasBillDiscount(rows, options),
+    },
+  } as unknown as UnifiedOrderPricingResult;
+};

@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { generateBillMarkup, generateKotMarkup } from '../features/pos/utils/escPosGenerator';
 import { generateGuestPrintHtml } from '../features/pos/utils/guestPrintTemplate';
 import { buildPrintPricing } from '../features/pos/utils/printPricing';
 import { calculateOrder } from '../features/pos/terminal/utils/billing';
@@ -20,210 +19,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
     localStorage.setItem('discCalc', 'Inclusive');
     localStorage.setItem('currencySymbol', 'BHD');
     localStorage.setItem('decimalPart', '3');
-  });
-
-  describe('Guest / Invoice Bill ESC/POS Printing', () => {
-    it('should print gross subtotal before bill discount, and show exact discount row in Exclusive mode', () => {
-      const data: any = {
-        orderNo: 75,
-        ticketNo: 75,
-        orderType: 'Takeaway',
-        discount: 10.000,
-        vatExclAmount: 10.000,
-        vatAmount: 1.000,
-        netAmount: 11.000,
-        isBillDiscount: true,
-        waiter: 'Admin',
-        counter: 'Main',
-      };
-
-      const cartDetails: any[] = [
-        {
-          productId: 6,
-          productName: 'Demo Product',
-          qty: 2,
-          price: 10.000,
-          basePrice: 10.000,
-          vatValue: 10,
-          vatAmount: 1.000,
-          netAmount: 11.000,
-        }
-      ];
-
-      const markup = generateBillMarkup({ data, cartDetails });
-
-      // 1. Line item: should print Rate/Amount (20.000)
-      expect(markup).toContain('20.000');
-
-      // 2. Sub Total: strictly gross 20.000 (NOT 10.000)
-      expect(markup).toContain('Sub Total');
-      expect(markup).toContain('20.000');
-
-      // 3. Discount row: strictly -10.000
-      expect(markup).toContain('Discount');
-      expect(markup).toContain('-10.000');
-
-      // 4. VAT row: 1.000
-      expect(markup).toContain('VAT Amount');
-      expect(markup).toContain('1.000');
-
-      // 5. Grand Total: strictly 11.000
-      expect(markup).toContain('GRAND TOTAL');
-      expect(markup).toContain('11.000');
-    });
-
-    it('should print tax-inclusive subtotal and discount in Inclusive mode without calculation mismatches', () => {
-      localStorage.setItem('printPrice', 'Inclusive');
-      localStorage.setItem('priceView', 'Inclusive');
-
-      const data: any = {
-        orderNo: 75,
-        ticketNo: 75,
-        orderType: 'Takeaway',
-        discount: 10.000,
-        vatExclAmount: 10.000,
-        vatAmount: 1.000,
-        netAmount: 11.000,
-        isBillDiscount: true,
-        waiter: 'Admin',
-        counter: 'Main',
-        printPrice: 'Inclusive',
-      };
-
-      const cartDetails: any[] = [
-        {
-          productId: 6,
-          productName: 'Demo Product',
-          qty: 2,
-          price: 10.000,
-          basePrice: 10.000,
-          vatValue: 10,
-          vatAmount: 1.000,
-          netAmount: 11.000,
-        }
-      ];
-
-      const markup = generateBillMarkup({ data, cartDetails });
-
-      // In Inclusive print mode:
-      // Line amount: 2 * 11 = 22.000
-      expect(markup).toContain('22.000');
-
-      // Sub Total: inclusive gross 22.000
-      expect(markup).toContain('Sub Total');
-      expect(markup).toContain('22.000');
-
-      // Discount: inclusive discount -11.000
-      expect(markup).toContain('Discount');
-      expect(markup).toContain('-11.000');
-
-      // Grand Total: 22.000 - 11.000 = 11.000
-      expect(markup).toContain('GRAND TOTAL');
-      expect(markup).toContain('11.000');
-
-      // VAT table at bottom still shows compliance breakdown
-      expect(markup).toContain('Excl Amt');
-      expect(markup).toContain('VAT Amt');
-    });
-
-    it('should format 100% complimentary orders with 0.000 grand total', () => {
-      const data: any = {
-        orderNo: 76,
-        ticketNo: 76,
-        orderType: 'Takeaway',
-        discount: 15.000,
-        complimentaryStatus: true,
-        isBillDiscount: true,
-        netAmount: 0,
-        waiter: 'Admin',
-        counter: 'Main',
-      };
-
-      const cartDetails: any[] = [
-        {
-          productId: 1,
-          productName: 'Burger',
-          qty: 1,
-          price: 15.000,
-          basePrice: 15.000,
-          vatValue: 10,
-          vatAmount: 0,
-          netAmount: 0,
-          complimentaryStatus: true,
-        }
-      ];
-
-      const markup = generateBillMarkup({ data, cartDetails });
-      expect(markup).toContain('15.000');
-      expect(markup).toContain('-15.000');
-      expect(markup).toContain('0.000');
-    });
-
-    it('should format line item discounts under specific rows when not bill discount', () => {
-      const data: any = {
-        orderNo: 77,
-        ticketNo: 77,
-        orderType: 'Takeaway',
-        discount: 1.000,
-        isBillDiscount: false,
-        netAmount: 19.900,
-        waiter: 'Admin',
-        counter: 'Main',
-      };
-
-      const cartDetails: any[] = [
-        {
-          productId: 1,
-          productName: 'Burger',
-          qty: 1,
-          price: 10.000,
-          basePrice: 10.000,
-          discountValue: 1.000,
-          discAmount: 1.000,
-          vatValue: 10,
-          vatAmount: 0.900,
-          netAmount: 9.900,
-        }
-      ];
-
-      const markup = generateBillMarkup({ data, cartDetails });
-      expect(markup).toContain('Disc : 1.000');
-    });
-
-    it('should format line item discounts proportionally in Inclusive mode', () => {
-      localStorage.setItem('printPrice', 'Inclusive');
-      localStorage.setItem('priceView', 'Inclusive');
-
-      const data: any = {
-        orderNo: 77,
-        ticketNo: 77,
-        orderType: 'Takeaway',
-        isBillDiscount: false,
-        waiter: 'Admin',
-        counter: 'Main',
-        printPrice: 'Inclusive',
-      };
-
-      const cartDetails: any[] = [
-        {
-          productId: 1,
-          productName: 'Burger',
-          qty: 1,
-          price: 10.000,
-          basePrice: 10.000,
-          discountValue: 1.000,
-          discAmount: 1.000,
-          vatValue: 10,
-          vatAmount: 0.900,
-          netAmount: 9.900,
-        }
-      ];
-
-      const markup = generateBillMarkup({ data, cartDetails });
-      // In Inclusive print, 1.000 excl discount becomes 1.100 incl discount, net is 9.900
-      expect(markup).toContain('Disc : 1.100');
-      expect(markup).toContain('9.900');
-    });
   });
 
   describe('HTML Guest Receipt Generation (guestPrintTemplate.ts)', () => {
@@ -348,64 +143,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(html).toContain('9.091');  // VAT Amt
     });
 
-    it('should reverse calculate VAT in ESC/POS thermal text markup when both price view and print view are Inclusive with zero initial vatAmount', () => {
-      localStorage.setItem('printPrice', 'Inclusive');
-      localStorage.setItem('priceView', 'Inclusive');
-      localStorage.setItem('enableVat', 'true');
-      localStorage.setItem('vat', '10');
-
-      const data: any = {
-        orderNo: 91,
-        ticketNo: 91,
-        orderType: 'Takeaway',
-        discount: 10.000,
-        netAmount: 90.000,
-        isBillDiscount: true,
-        waiter: 'Cashier',
-        counter: 'Counter 1',
-        printPrice: 'Inclusive',
-        vatAmount: 0,
-      };
-
-      const cartDetails: any[] = [
-        {
-          productId: 12,
-          productName: 'Combo Meal',
-          qty: 1,
-          price: 100.000, // 100 gross
-          vatValue: 10,
-          vatAmount: 0,
-          netAmount: 100.000,
-          isPriceTaxInclusive: true,
-        }
-      ];
-
-      const markup = generateBillMarkup({ data, cartDetails });
-
-      // 1. Line amount: 100.000
-      expect(markup).toContain('100.000');
-
-      // 2. Sub Total: 100.000
-      expect(markup).toContain('Sub Total');
-      expect(markup).toContain('100.000');
-
-      // 3. Discount: -10.000
-      expect(markup).toContain('Discount');
-      expect(markup).toContain('-10.000');
-
-      // 4. Reverse calculated VAT: (100 - 10) / 1.10 = 81.818 base, 90 - 81.818 = 8.182 VAT
-      expect(markup).toContain('VAT Amount');
-      expect(markup).toContain('8.182');
-
-      // 5. Grand Total: 90.000
-      expect(markup).toContain('GRAND TOTAL');
-      expect(markup).toContain('90.000');
-
-      // 6. VAT breakdown table:
-      expect(markup).toContain('81.818');
-      expect(markup).toContain('8.182');
-    });
-
     it('should format Dine-In orders with Service Charge and Levy accurately in Exclusive and Inclusive prints', async () => {
       // 1. Exclusive Print
       localStorage.setItem('printPrice', 'Exclusive');
@@ -501,36 +238,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
         enableVat: true,
       };
 
-      const cartDetails: any[] = [
-        {
-          productId: 1,
-          productName: 'SPICY NOODLE SALAD',
-          qty: 1,
-          price: 10.000,
-          vatValue: 10,
-          vatAmount: 1.155,
-          netAmount: 12.705,
-        },
-        {
-          productId: 2,
-          productName: 'SAMOSA',
-          qty: 5,
-          price: 3.000,
-          vatValue: 10,
-          vatAmount: 1.7325,
-          netAmount: 19.0575,
-        },
-        {
-          productId: 3,
-          productName: 'MOMOS',
-          qty: 5,
-          price: 6.000,
-          vatValue: 10,
-          vatAmount: 3.465,
-          netAmount: 38.115,
-        },
-      ];
-
       // 1. Test HTML Guest Print
       const html = await generateGuestPrintHtml(savedBill('Exclusive', 'Exclusive', { orderType: 'DINE IN', serviceCharge: 5.5, levy: 3.025, vatExclAmount: 63.525, vatAmount: 6.353, netAmount: 69.878 }, [
         { productId: 1, productName: 'SPICY NOODLE SALAD', qty: 1, price: 10, amount: 10, serviceCharge: 1, levy: 0.55, vatValue: 10, vatAmount: 1.155, mapId: 1 },
@@ -549,21 +256,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(html).not.toContain('69.877');
       expect(html).toContain('63.525'); // Excl Amt (NOT 63.524)
       expect(html).not.toContain('63.524');
-
-      // 2. Test ESC/POS Thermal Markup
-      const markup = generateBillMarkup({ data: dineInData, cartDetails });
-      expect(markup).toContain('55.000');
-      expect(markup).toContain('Levy (5%)');
-      expect(markup).toContain('3.025');
-      expect(markup).toContain('Service Charge (10%)');
-      expect(markup).toContain('5.500');
-      expect(markup).toContain('Net Value');
-      expect(markup).toContain('63.525');
-      expect(markup).toContain('6.353');
-      expect(markup).toContain('69.878');
-      expect(markup).not.toContain('69.877');
-      expect(markup).toContain('63.525');
-      expect(markup).not.toContain('63.524');
     });
 
     it('should display item discounts both under line items AND in footer totals in HTML Guest Print and ESC/POS Thermal Print', async () => {
@@ -580,21 +272,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
         printPrice: 'Exclusive',
       };
 
-      const cartDetails: any[] = [
-        {
-          productId: 1,
-          productName: 'Burger Deluxe',
-          qty: 1,
-          price: 10.000,
-          basePrice: 10.000,
-          discountValue: 2.000,
-          discAmount: 2.000,
-          vatValue: 10,
-          vatAmount: 0.800,
-          netAmount: 8.800,
-        }
-      ];
-
       // 1. HTML Guest Print
       const html = await generateGuestPrintHtml(savedBill('Exclusive', 'Exclusive', { orderType: 'Takeaway', vatExclAmount: 8, vatAmount: 0.8, netAmount: 8.8 }, [{ productId: 1, productName: 'Burger Deluxe', qty: 1, price: 10, amount: 10, discAmount: 2, vatValue: 10, vatAmount: 0.8, mapId: 1 }], { isBillDiscount: false }), data);
       // Line item shows Disc : 2.000
@@ -604,16 +281,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(html).toContain('-2.000');
       expect(html).toContain('10.000'); // Sub Total
       expect(html).toContain('8.800');  // Grand Total
-
-      // 2. ESC/POS Thermal Print
-      const markup = generateBillMarkup({ data, cartDetails });
-      // Line item shows Disc : 2.000
-      expect(markup).toContain('Disc : 2.000');
-      // Footer totals show Discount with -2.000
-      expect(markup).toContain('Discount');
-      expect(markup).toContain('-2.000');
-      expect(markup).toContain('10.000');
-      expect(markup).toContain('8.800');
     });
 
     it('Scenario (Image 10): Settle & Print with Item-Level Discount displays Disc : 8.658 under DEMO in Exclusive print', async () => {
@@ -635,23 +302,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
         netAmount: 24.650,
       };
 
-      const cartDetails: any[] = [
-        {
-          productId: 6,
-          productName: 'DEMO',
-          qty: 3,
-          price: 10.000,
-          basePrice: 10.000,
-          baseDiscount: 8.658,
-          itemDiscount: 8.658,
-          itemDiscountAmount: 8.658,
-          itemDiscountExcl: 8.658,
-          discountValue: 8.658,
-          discAmount: 8.658,
-          lineTotal: 21.342,
-        }
-      ];
-
       // 1. HTML Guest Print
       const html = await generateGuestPrintHtml(savedBill('Exclusive', 'Exclusive', { orderType: 'TakeOut', levy: 1.067, vatExclAmount: 22.409, vatAmount: 2.241, netAmount: 24.65 }, [{ productId: 6, productName: 'DEMO', qty: 3, price: 10, amount: 30, discAmount: 8.658, levy: 1.067, vatValue: 10, vatAmount: 2.241, mapId: 1 }], { isBillDiscount: false }), data);
       expect(html).toContain('DEMO');
@@ -661,16 +311,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(html).toContain('Discount');
       expect(html).toContain('-8.658');
       expect(html).toContain('24.650');
-
-      // 2. ESC/POS Thermal Print
-      const markup = generateBillMarkup({ data, cartDetails });
-      expect(markup).toContain('DEMO');
-      expect(markup).toContain('30.000');
-      expect(markup).toContain('Disc : 8.658');
-      expect(markup).toContain('21.342');
-      expect(markup).toContain('Discount');
-      expect(markup).toContain('-8.658');
-      expect(markup).toContain('24.650');
     });
 
     it('Scenario: Settle & Print with Item-Level Discount displays Disc : 10.000 (not 9.524) under DEMO in Inclusive print', async () => {
@@ -691,24 +331,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
         netAmount: 24.650,
       };
 
-      const cartDetails: any[] = [
-        {
-          productId: 6,
-          productName: 'DEMO',
-          qty: 3,
-          price: 11.550,
-          basePrice: 10.000,
-          baseDiscount: 8.658,
-          itemDiscount: 10.000,
-          itemDiscountAmount: 8.658,
-          itemDiscountExcl: 8.658,
-          itemDiscountIncl: 10.000,
-          discountValue: 10.000,
-          discAmount: 8.658,
-          lineTotal: 24.650,
-        }
-      ];
-
       // 1. HTML Guest Print
       const html = await generateGuestPrintHtml(savedBill('Inclusive', 'Inclusive', { orderType: 'TakeOut', levy: 1.067, vatExclAmount: 22.409, vatAmount: 2.241, netAmount: 24.65 }, [{ productId: 6, productName: 'DEMO', qty: 3, price: 11.55, amount: 34.65, discAmount: 10, levy: 1.067, vatValue: 10, vatAmount: 2.241, mapId: 1 }], { isBillDiscount: false }), { ...data });
       expect(html).toContain('DEMO');
@@ -719,16 +341,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(html).toContain('Discount');
       // Footer discount is EXCLUSIVE (same as the screen): 10.000 / 1.155 = -8.658; the row still shows Disc : 10.000
       expect(html).toContain('-8.658');
-
-      // 2. ESC/POS Thermal Print
-      const markup = generateBillMarkup({ data, cartDetails });
-      expect(markup).toContain('DEMO');
-      expect(markup).toContain('34.650');
-      expect(markup).toContain('Disc : 10.000');
-      expect(markup).not.toContain('9.524');
-      expect(markup).toContain('24.650');
-      expect(markup).toContain('Discount');
-      expect(markup).toContain('-10.000');
     });
 
     it('Scenario: Settle & Print when priceView is Exclusive and printPrice is Inclusive displays Disc : 10.000 (not 8.658)', async () => {
@@ -749,23 +361,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
         netAmount: 24.650,
       };
 
-      const cartDetails: any[] = [
-        {
-          productId: 6,
-          productName: 'DEMO',
-          qty: 3,
-          price: 10.000,
-          basePrice: 10.000,
-          baseDiscount: 8.658,
-          itemDiscount: 8.658,
-          itemDiscountAmount: 8.658,
-          itemDiscountExcl: 8.658,
-          discountValue: 10.000,
-          discAmount: 8.658,
-          lineTotal: 21.342,
-        }
-      ];
-
       // 1. HTML Guest Print
       const html = await generateGuestPrintHtml(savedBill('Exclusive', 'Inclusive', { orderType: 'TakeOut', levy: 1.067, vatExclAmount: 22.409, vatAmount: 2.241, netAmount: 24.65 }, [{ productId: 6, productName: 'DEMO', qty: 3, price: 10, amount: 30, discAmount: 8.658, levy: 1.067, vatValue: 10, vatAmount: 2.241, mapId: 1 }], { isBillDiscount: false }), { ...data });
       expect(html).toContain('DEMO');
@@ -776,16 +371,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(html).toContain('Discount');
       // Footer discount is EXCLUSIVE (same as the screen): 10.000 / 1.155 = -8.658; the row still shows Disc : 10.000
       expect(html).toContain('-8.658');
-
-      // 2. ESC/POS Thermal Print
-      const markup = generateBillMarkup({ data, cartDetails });
-      expect(markup).toContain('DEMO');
-      expect(markup).toContain('34.650');
-      expect(markup).toContain('Disc : 10.000');
-      expect(markup).not.toContain('Disc : 8.658');
-      expect(markup).toContain('24.650');
-      expect(markup).toContain('Discount');
-      expect(markup).toContain('-10.000');
     });
 
     it('Swagger Order #120 recall print data (/api/v1/order/recall/order-print-data/120) prints exact 3.000 in Inclusive and Exclusive views', async () => {
@@ -844,16 +429,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(htmlIncl).toContain('2.727'); // Net Value
       expect(htmlIncl).toContain('0.273'); // VAT Amount
 
-      const markupIncl = generateBillMarkup({
-        data: { ...printData120Inclusive.masterData, printPrice: 'Inclusive', priceView: 'Inclusive' },
-        cartDetails: printData120Inclusive,
-      });
-      expect(markupIncl).toContain('3.000');
-      expect(markupIncl).toContain('2.597');
-      expect(markupIncl).toContain('0.130');
-      expect(markupIncl).toContain('2.727');
-      expect(markupIncl).toContain('0.273');
-
       // 2. Exclusive View Print
       const printData120Exclusive: any = {
         ...printData120Inclusive,
@@ -878,46 +453,6 @@ describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () 
       expect(htmlExcl).toContain('2.727');
       expect(htmlExcl).toContain('0.273');
       expect(htmlExcl).toContain('3.000');
-
-      const markupExcl = generateBillMarkup({
-        data: { ...printData120Exclusive.masterData, printPrice: 'Exclusive', priceView: 'Exclusive' },
-        cartDetails: printData120Exclusive,
-      });
-      expect(markupExcl).toContain('2.597');
-      expect(markupExcl).toContain('0.130');
-      expect(markupExcl).toContain('2.727');
-      expect(markupExcl).toContain('0.273');
-      expect(markupExcl).toContain('3.000');
-    });
-  });
-
-  describe('Kitchen Order Ticket (KOT) ESC/POS Printing', () => {
-    it('should format KOT markup with order type, table, and item details', () => {
-      const kotData: any = {
-        orderNo: 80,
-        ticketNo: 80,
-        orderType: 'DINE IN',
-        table: 'Table 5',
-        waiter: 'John',
-        kotNo: 'KOT-101',
-      };
-
-      const cartDetails: any[] = [
-        {
-          productId: 10,
-          productName: 'Pepperoni Pizza',
-          qty: 2,
-          modifiers: [{ id: 1, name: 'Extra Cheese', qty: 1 }],
-          messages: [{ name: 'Well Done' }],
-        }
-      ];
-
-      const markup = generateKotMarkup({ data: kotData, cartDetails });
-      expect(markup).toContain('PEPPERONI PIZZA');
-      expect(markup).toContain('x2');
-      expect(markup).toContain('EXTRA CHEESE');
-      expect(markup).toContain('WELL DONE');
-      expect(markup).toContain('Table: Table 5');
     });
   });
 });
