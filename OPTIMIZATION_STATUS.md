@@ -26,6 +26,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Stock Adjustment, Physical Entry and Stock Transfer forms and lists load branches through one hook (`shared/useStockBranches.ts`). New-document payloads and branch defaults are covered by `stockFormBranches`.
 - Stock Adjustment and Physical Entry share product search and barcode scan (`shared/stockProductLookup.ts`). Test: `stockProductLookup`.
 - All four stock forms load unit lists through one hook; Stock Adjustment and Stock Transfer also share unit change and closing stock (`shared/useStockLineUnits.ts`). Test: `stockLineUnits`.
+- Counter, Section, Paymode and User Role use one list screen (`components/common/MasterListPage.tsx`). Their hooks and forms stay separate because their rules differ. Test: `masterListPages`.
 - 38 `unwrap` and 5 `formatDateOnly` exact copies replaced by `shared/api/unwrap.ts` and `shared/lib/date.ts`.
 - Payload snapshots: `purchasePayloadGolden`, `voucherPayloadGolden`, `againstVoucherPayloadGolden`, `stockDocumentPayloadGolden`.
 
@@ -37,7 +38,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | Production list page and the Transfer and Production APIs | Production filters by branch, product and unit, has no dates and shows other columns, so it stays separate. The APIs use different paths and method names | Leave unless they change |
 | `DocumentForm`: shared form page and line grid | About 3,000+ lines of form pages | Needs a visual check of each screen |
 | Voucher form pages | 4 pages | Field behaviour differs; decide which behaviour to keep |
-| `MasterPage` and `createResourceApi` | 38 master pages, about 37,000 lines in `general` and `inventory` | Largest part of Phase 5; no safety net yet |
+| More list screens on `MasterListPage` | 4 of the 23 list pages done | Next candidates: Provider and Voucher Series, then Tax, Unit and Group. Add tests before each |
 | Remaining `unwrap` variants | 11 services with their own rules | Compare one by one |
 
 ## Bugs fixed on 2026-11-07
@@ -62,6 +63,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 |---|---|
 | Physical Entry | A slow unit-cost reply could change a line whose unit had moved on, and a failed one was silent |
 | Stock Transfer list | Cancelling did not refresh the stock reports |
+| Stock Adjustment | A product list arriving late wiped the branch, Ref No and anything already typed |
 | Stock Adjustment (new) | The form looped and reset itself while the product list was loading |
 | Stock Adjustment, Physical Entry, Stock Transfer (new) | A new document could start on the API's All row; it now starts on the first real branch. **Check saved Stock Adjustments with branch 1 (All).** |
 

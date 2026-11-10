@@ -1,13 +1,26 @@
-import React from "react";
-import { Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
+import MasterListPage, { type MasterColumn } from "../../../../components/common/MasterListPage";
 import PaymodeModal from "../components/PaymodeModal";
 import { usePaymodeManager } from "../hooks/usePaymodeManager";
 import type { PaymodeRecord } from "../types";
-import { usePermissions } from "../../../../hooks/usePermissions";
+
+const isActive = (row: PaymodeRecord) => row.isActive === "Active" || row.isActive === true;
+
+const COLUMNS: MasterColumn<PaymodeRecord>[] = [
+  { header: "S.No", accessor: "sNo", render: (_, index) => index + 1 },
+  { header: "Code", accessor: "code" },
+  { header: "Paymode", accessor: "paymodeName" },
+  {
+    header: "Status",
+    accessor: "isActive",
+    render: (row) => (
+      <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${isActive(row) ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+        {isActive(row) ? "Active" : "Inactive"}
+      </span>
+    ),
+  },
+];
 
 const PaymodePage = () => {
-  const { hasPermission } = usePermissions();
   const {
     form,
     open,
@@ -26,113 +39,42 @@ const PaymodePage = () => {
     handleEdit,
     handleDelete,
   } = usePaymodeManager();
-  const [deleteRecord, setDeleteRecord] = React.useState<PaymodeRecord | null>(null);
-
-  const canAdd = hasPermission("Paymode Master", "Add");
-  const canEdit = hasPermission("Paymode Master", "Edit");
-  const canDelete = hasPermission("Paymode Master", "Delete");
 
   return (
-    <PageShell title="Paymode Master">
-      <ListHeader
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search paymodes..."
-        canAdd={canAdd}
-        onAdd={openCreateModal}
-        autoFocusSearch
-      />
-
-      <RecordTableCard
-        title="Saved Paymode List"
-        rowKey="paymodeId"
-        data={filteredRecords}
-        loading={loading}
-        columns={[
-          { 
-            header: "S.No", 
-            accessor: "sNo",
-            render: (_, index) => index + 1,
-          },
-          { header: "Code", accessor: "code" },
-          { header: "Paymode", accessor: "paymodeName" },
-          { 
-            header: "Status", 
-            accessor: "isActive",
-            render: (row) => (
-              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                row.isActive === "Active" || row.isActive === true
-                  ? "bg-green-100 text-green-800"
-                  : "bg-red-100 text-red-800"
-              }`}>
-                {row.isActive === "Active" || row.isActive === true ? "Active" : "Inactive"}
-              </span>
-            )
-          },
-          {
-            header: "Actions",
-            accessor: "paymodeId",
-            render: (row) => (
-              <div className="flex gap-2">
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(row)}
-                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                    aria-label={`Edit ${row.paymodeName}`}
-                  >
-                    <Pencil size={16} />
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => setDeleteRecord(row)}
-                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                    aria-label={`Delete ${row.paymodeName}`}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
-            ),
-          },
-        ]}
-      />
-
-      <PaymodeModal
-        isOpen={open}
-        editingId={editingId}
-        form={form}
-        saving={saving}
-        selectedCounterIds={form.watch("counterIds")}
-        counterOptions={counterOptions}
-        onOpenCounters={refetchCounters}
-        onClose={closeModal}
-        onClear={handleClear}
-        onSave={handleSave}
-        onDelete={() => {
-          if (!canDelete) return;
-          const record = filteredRecords.find(r => r.paymodeId === editingId);
-          if (record) {
-            setDeleteRecord(record);
-            closeModal();
-          }
-        }}
-      />
-
-      <ConfirmDialog
-        isOpen={deleteRecord !== null}
-        onCancel={() => setDeleteRecord(null)}
-        onConfirm={() => {
-          if (deleteRecord) {
-            handleDelete(deleteRecord.paymodeId);
-            setDeleteRecord(null);
-          }
-        }}
-        message={`Are you sure you want to delete paymode "${deleteRecord?.paymodeName}"?`}
-      />
-    </PageShell>
+    <MasterListPage<PaymodeRecord>
+      moduleName="Paymode Master"
+      title="Paymode Master"
+      tableTitle="Saved Paymode List"
+      searchPlaceholder="Search paymodes..."
+      rowKey="paymodeId"
+      getName={(row) => row.paymodeName}
+      columns={COLUMNS}
+      records={filteredRecords}
+      loading={loading}
+      search={search}
+      onSearchChange={setSearch}
+      onAdd={openCreateModal}
+      onEdit={handleEdit}
+      onDelete={(row) => handleDelete(row.paymodeId)}
+      editingId={editingId}
+      closeForm={closeModal}
+      deleteDialog={{ message: (row) => `Are you sure you want to delete paymode "${row.paymodeName}"?` }}
+      renderForm={(deleteEditing) => (
+        <PaymodeModal
+          isOpen={open}
+          editingId={editingId}
+          form={form}
+          saving={saving}
+          selectedCounterIds={form.watch("counterIds")}
+          counterOptions={counterOptions}
+          onOpenCounters={refetchCounters}
+          onClose={closeModal}
+          onClear={handleClear}
+          onSave={handleSave}
+          onDelete={deleteEditing}
+        />
+      )}
+    />
   );
 };
 
