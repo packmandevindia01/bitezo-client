@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
-import { Modal } from "../../../../../../components/common";
+import { Modal, ConfirmDialog } from "../../../../../../components/common";
 import { formatCurrency } from "../../../../../../utils/currency";
 import { usePosProducts } from "../../../hooks/usePosProducts";
 import { orderApi } from "../../../../services/orderApi";
@@ -12,7 +12,11 @@ import { storedLineToCartPricing, deriveOrderChargeRatesFromMaster, ORDER_TYPE_N
 import { useCashierLog } from "../../../../cashier";
 import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { mapOrderDetailToCartItem } from "../../../mappers/orderDetailToCartMapper";
-import { checkOrderAllowsSplitOrCombine } from "../../../utils/orderDiscountCheck";
+import {
+  splitCombineDiscountStatus,
+  billDiscountRevertMessage,
+  COMPLIMENTARY_SPLIT_COMBINE_MESSAGE,
+} from "../../../utils/orderDiscountCheck";
 
 interface PosSplitModalProps {
   isOpen: boolean;
@@ -64,6 +68,10 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
 
   const lastClickRef = useRef<{ id: string, time: number }>({ id: "", time: 0 });
   const rawOrderResRef = useRef<any>(null);
+  // Bill discount: the cashier is warned first; on Yes the split bills are saved without it.
+  const cartBillDiscount = useAppSelector((state) => Number(state.pos.billDiscountValue || 0));
+  const [billDiscountPrompt, setBillDiscountPrompt] = useState(false);
+  const [revertBillDiscount, setRevertBillDiscount] = useState(false);
 
   useEffect(() => {
     if (isOpen && orderId) {
@@ -72,6 +80,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       setBuckets([]);
       setOriginalOrder(null);
       rawOrderResRef.current = null;
+      setBillDiscountPrompt(false);
+      setRevertBillDiscount(false);
     }
   }, [isOpen, orderId]);
 
@@ -79,26 +89,44 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     try {
       const res = await orderApi.getOrderDetails(orderId);
       rawOrderResRef.current = res;
-      
+
+      const rawMaster = res.data?.masterData || res.masterData || {};
+      const masterData = Array.isArray(rawMaster) ? rawMaster[0] : (rawMaster || {});
+      const detailsData = res.data?.detailsData || res.detailsData || [];
+
+      // Complimentary orders cannot be split. A bill discount (saved, or applied in the cart) is removed
+      // after the cashier confirms. Orders with item discounts only are split as before.
+      const discountStatus = splitCombineDiscountStatus(res, { masterData, detailsData });
+      if (discountStatus === "complimentary") {
+        showToast(COMPLIMENTARY_SPLIT_COMBINE_MESSAGE, "error");
+        onClose();
+        return;
+      }
+      if (discountStatus === "billDiscount" || cartBillDiscount > 0) {
+        setBillDiscountPrompt(true);
+        return;
+      }
+      loadBuckets(res, false);
+    } catch (err: any) {
+      console.error(err);
+      showToast("Failed to load order details", "error");
+      onClose();
+    }
+  };
+
+  const handleRevertBillDiscount = () => {
+    setBillDiscountPrompt(false);
+    setRevertBillDiscount(true);
+    loadBuckets(rawOrderResRef.current, true);
+  };
+
+  /** Fill the split buckets from the saved order. `stripBillDiscount`: drop the bill discount from every line. */
+  const loadBuckets = (res: any, stripBillDiscount: boolean) => {
+    try {
       const rawMaster = res.data?.masterData || res.masterData || {};
       const masterData = Array.isArray(rawMaster) ? rawMaster[0] : (rawMaster || {});
       const detailsData = res.data?.detailsData || res.detailsData || [];
       const rawModifiersData = res.data?.modifiersData || res.modifiersData || [];
-
-      // Business Rule: Only item discounts allowed in split. No bill discount or complimentary.
-      const checkResult = checkOrderAllowsSplitOrCombine(res);
-      const masterCheck = checkOrderAllowsSplitOrCombine({ masterData, detailsData });
-      const masterHasBillDisc =
-        Number(masterData.billDiscountValue || masterData.billDiscount || 0) > 0 ||
-        Boolean(masterData.isBillDiscount) ||
-        Boolean(masterData.complimentaryStatus) ||
-        Number(masterData.discPer || 0) > 0;
-
-      if (!checkResult.allowed || !masterCheck.allowed || masterHasBillDisc) {
-        showToast("Split is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
-        onClose();
-        return;
-      }
 
       // Deduplicate modifiersData (backend SQL JOIN Cartesian product fix)
       const seenMods = new Set<string>();
@@ -147,7 +175,9 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
         const pricing = storedLineToCartPricing(storedOrder, d, dataView, {
           productIsInclusive,
           discountCalc,
-          isBillDiscount: false,
+          // A bill-discount order's line discounts are the bill discount (saved data cannot separate an
+          // item discount from it — same rule as Recall → Edit), so all of them go when it is reverted.
+          isBillDiscount: stripBillDiscount,
         });
         let pricedIdx = 0;
         const pricedMods = itemMods.map((m: any) => {
@@ -165,7 +195,8 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
           currentQty: d.qty || 1,
           discountValue: pricing.discount ? pricing.discount.value : 0,
           discountType: pricing.discount ? pricing.discount.type : 'percentage',
-          complimentaryStatus: Boolean(cartItem.complimentaryStatus),
+          // Bill complimentary flags every line complimentary: removed together with the bill discount.
+          complimentaryStatus: stripBillDiscount ? false : Boolean(cartItem.complimentaryStatus),
           detail: {
             ...d,
             vatValue: pricing.savedVatRate ?? cartItem.vatValue,
@@ -470,19 +501,16 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     }
 
     const allBucketDetails = buckets.flatMap(b => b.items.map(i => i.detail));
-    const checkResult = checkOrderAllowsSplitOrCombine(rawOrderResRef.current);
-    const bucketCheck = checkOrderAllowsSplitOrCombine({
+    const discountStatus = splitCombineDiscountStatus(rawOrderResRef.current, {
       masterData: originalOrder,
       detailsData: allBucketDetails
     });
-    const masterHasBillDisc =
-      Number(originalOrder?.billDiscountValue || originalOrder?.billDiscount || 0) > 0 ||
-      Boolean(originalOrder?.isBillDiscount) ||
-      Boolean(originalOrder?.complimentaryStatus) ||
-      Number(originalOrder?.discPer || 0) > 0;
-
-    if (!checkResult.allowed || !bucketCheck.allowed || masterHasBillDisc) {
-      showToast("Split is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
+    if (discountStatus === "complimentary") {
+      showToast(COMPLIMENTARY_SPLIT_COMBINE_MESSAGE, "error");
+      return;
+    }
+    if (discountStatus === "billDiscount" && !revertBillDiscount) {
+      setBillDiscountPrompt(true);
       return;
     }
 
@@ -672,7 +700,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
 
   return (
     <>
-      <Modal 
+      <Modal
         isOpen={isOpen} 
         onClose={onClose} 
         size="2xl"
@@ -833,6 +861,21 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
           onConfirm={(assignments) => submitSplitOrder(assignments)}
         />
       )}
+
+      {/* After the split window so it shows on top of it */}
+      <ConfirmDialog
+        isOpen={billDiscountPrompt}
+        title="Remove Bill Discount?"
+        message={billDiscountRevertMessage("Split")}
+        confirmLabel="Yes, Remove"
+        cancelLabel="No"
+        confirmVariant="danger"
+        onConfirm={handleRevertBillDiscount}
+        onCancel={() => {
+          setBillDiscountPrompt(false);
+          onClose();
+        }}
+      />
     </>
   );
 };

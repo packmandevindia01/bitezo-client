@@ -368,8 +368,18 @@ Existing lines keep their `mapId`; new lines get `max(mapId)+1…`. Removed/decr
 Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set) → re-settle updates the invoice.
 
 ### 6.7 Split / Combine / Void
-- **Split / Combine are blocked** for orders with a bill discount or complimentary status
-  (`checkOrderAllowsSplitOrCombine`). Only item discounts are allowed.
+- Discounts (`splitCombineDiscountStatus` in `utils/orderDiscountCheck.ts`, 2026-11-11):
+  - Business rule: an order has **either** a bill discount **or** item discounts, never both.
+  - **Bill discount or bill complimentary** (bill complimentary = 100 % bill discount, saved as master
+    `discPer` 100; `checkOrderIsBillComplimentary`), saved on the order or applied in the cart: a warning
+    "… will remove it. Continue?". Yes → it is reverted; No → nothing changes. Split asks when the window
+    opens; Combine asks on open for the current order and again on Done if a chosen order has one.
+    That order's line discounts (and the complimentary flag bill complimentary puts on every line) are the
+    bill discount, so they are removed: split via `storedLineToCartPricing(isBillDiscount: true)` +
+    `complimentaryStatus: false`, combine via `stripBillDiscountFromCombinedLines` (by the line's `orderId`).
+    Lines of the other orders keep their item discounts.
+  - **Item complimentary** (master `discPer` 0, line `complimentaryStatus` / 100 %): blocked.
+  - **Item discounts**: unchanged.
 - Split (`PosSplitModal`, `useSplitBuckets`): lines are moved between buckets;
   item discount moves pro-rata per unit; each bucket priced with `calculateOrder` and the saved rates;
   `POST /order-split`.

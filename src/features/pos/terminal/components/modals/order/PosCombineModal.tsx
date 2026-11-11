@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ORDER_TYPE_NAMES, deriveOrderChargeRatesFromMaster } from "../../../../pricing";
 import { applyStoredPricingToCartItems } from "../../../../services/storedOrderView";
 import { getPriceView } from "../../../utils/billing";
-import { Modal, Button } from "../../../../../../components/common";
+import { Modal, Button, ConfirmDialog } from "../../../../../../components/common";
 import { orderApi } from "../../../../services/orderApi";
 import { usePosProducts } from "../../../hooks/usePosProducts";
 import { useAppSelector, useAppDispatch } from "../../../../../../app/hooks";
@@ -13,7 +13,15 @@ import { loadRecalledOrder, setCombinedOrderIds } from "../../../store/posSlice"
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { useCashierLog } from "../../../../cashier";
 import { mapOrderDetailsToCartItems } from "../../../mappers/orderDetailToCartMapper";
-import { checkOrderHasBillDiscount, extractMasterAndDetails, checkOrderAllowsSplitOrCombine } from "../../../utils/orderDiscountCheck";
+import {
+  checkOrderHasBillDiscount,
+  checkOrderIsBillComplimentary,
+  extractMasterAndDetails,
+  splitCombineDiscountStatus,
+  stripBillDiscountFromCombinedLines,
+  billDiscountRevertMessage,
+  COMPLIMENTARY_SPLIT_COMBINE_MESSAGE,
+} from "../../../utils/orderDiscountCheck";
 
 interface CombineOrder {
   orderId: number;
@@ -57,13 +65,15 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
   const dayId = status?.dayId || 0;
   const decimals = getDecimalPart();
 
+  // Bill discount: the cashier is warned (on open for the current order, on Done for the chosen ones);
+  // on Yes the combined order is built without it. Complimentary orders cannot be combined.
+  const [billDiscountPrompt, setBillDiscountPrompt] = useState<"open" | "done" | null>(null);
+  const revertAcceptedRef = useRef(false);
+
   useEffect(() => {
     if (isOpen && editingOrderId) {
-      if (Number(billDiscountValue || 0) > 0) {
-        showToast("Combine is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
-        onClose();
-        return;
-      }
+      revertAcceptedRef.current = false;
+      setBillDiscountPrompt(null);
       fetchAvailableOrders();
       setSelectedOrders([]);
       setSelectedAvailableId(null);
@@ -78,14 +88,16 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       if (editingOrderId) {
         try {
           const curRes = await orderApi.getOrderDetails(editingOrderId as number);
-          const checkCur = checkOrderAllowsSplitOrCombine(curRes);
-          if (!checkCur.allowed) {
-            showToast("Combine is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
+          const status = splitCombineDiscountStatus(curRes);
+          if (status === "complimentary") {
+            showToast(COMPLIMENTARY_SPLIT_COMBINE_MESSAGE, "error");
             onClose();
             return;
           }
+          if (status === "billDiscount" || Number(billDiscountValue || 0) > 0) setBillDiscountPrompt("open");
         } catch (e) {
           console.warn("Could not check current order discount status:", e);
+          if (Number(billDiscountValue || 0) > 0) setBillDiscountPrompt("open");
         }
       }
 
@@ -139,33 +151,48 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       return;
     }
 
-    // STRICT CHECK: Neither current order NOR any selected order can have a bill discount or complimentary status!
-    if (Number(billDiscountValue || 0) > 0) {
-      showToast("Combine is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
-      return;
-    }
-
+    // Complimentary orders cannot be combined; a bill discount on any of them needs the cashier's Yes.
     setIsCombining(true);
     try {
       const orderIdsToCombine = [editingOrderId as number, ...selectedOrders.map(o => o.orderId)];
       const individualResponses = await Promise.all(
         orderIdsToCombine.map((id) => orderApi.getOrderDetails(id).catch(() => null))
       );
-
-      for (const res of individualResponses) {
-        if (!res) continue;
-        const checkResult = checkOrderAllowsSplitOrCombine(res);
-        if (!checkResult.allowed) {
-          showToast("Combine is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
-          setIsCombining(false);
-          return;
-        }
+      if (splitCombineDiscountStatus(...individualResponses) === "complimentary") {
+        showToast(COMPLIMENTARY_SPLIT_COMBINE_MESSAGE, "error");
+        setIsCombining(false);
+        return;
+      }
+      // The Yes given on open covers the current order only; a chosen order with a bill discount asks again.
+      const currentHasBillDiscount =
+        splitCombineDiscountStatus(individualResponses[0]) === "billDiscount" || Number(billDiscountValue || 0) > 0;
+      const chosenHaveBillDiscount = splitCombineDiscountStatus(...individualResponses.slice(1)) === "billDiscount";
+      if (chosenHaveBillDiscount || (currentHasBillDiscount && !revertAcceptedRef.current)) {
+        setBillDiscountPrompt("done");
+        setIsCombining(false);
+        return;
       }
     } catch (err) {
       console.warn("Could not verify orders for discounts:", err);
     }
 
     await executeCombine();
+  };
+
+  const handleRevertConfirmed = () => {
+    const from = billDiscountPrompt;
+    revertAcceptedRef.current = true;
+    setBillDiscountPrompt(null);
+    if (from === "done") void executeCombine();
+  };
+  const revertPromptMessage =
+    billDiscountPrompt === "done" ? billDiscountRevertMessage("Combine", true) : billDiscountRevertMessage("Combine");
+
+  const handleRevertDeclined = () => {
+    const from = billDiscountPrompt;
+    setBillDiscountPrompt(null);
+    // No on open: nothing to combine. No on Done: stay, so other orders can be chosen.
+    if (from === "open") onClose();
   };
 
   const executeCombine = async () => {
@@ -180,84 +207,17 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
         orderIdsToCombine.map((id) => orderApi.getOrderDetails(id).catch(() => null))
       );
 
-      const knownItemDiscountsById = new Map<number | string, { discValue: number; discType: "percentage" | "amount"; isComplimentary: boolean }>();
-      const inheritedBillDetailIds = new Set<number | string>();
-      const billDiscountPercentages = new Set<number>();
-
-      individualResponses.forEach((res) => {
-        if (!res) return;
-        const { master, details } = extractMasterAndDetails(res);
-        const orderHasBillDisc = checkOrderHasBillDiscount(res);
-        const masterDiscPer = Number(master?.discPer ?? master?.DiscPer ?? master?.billDiscountPer ?? 0);
-        const isMasterComplimentary = Boolean(master?.complimentaryStatus || master?.ComplimentaryStatus || masterDiscPer === 100);
-
-        if (orderHasBillDisc) {
-          if (masterDiscPer > 0) billDiscountPercentages.add(masterDiscPer);
-          if (isMasterComplimentary) billDiscountPercentages.add(100);
-        }
-
-        details.forEach((d: any) => {
-          const dId = d.id ?? d.detailId ?? d.orderDetailId ?? d.OrderDetailId;
-          const dDiscPer = Number(d.discPer ?? d.DiscPer ?? 0);
-          const dDiscAmount = Number(d.discAmount ?? d.DiscAmount ?? 0);
-          const isComplimentary = Boolean(d.complimentaryStatus || d.ComplimentaryStatus);
-
-          let isItemDiscount = false;
-          let itemDiscValue = 0;
-          let itemDiscType: "percentage" | "amount" = "percentage";
-
-          if (orderHasBillDisc) {
-            if (isMasterComplimentary) {
-              // Inherited complimentary bill discount
-              if (dId !== undefined && dId !== null) {
-                inheritedBillDetailIds.add(Number(dId));
-                inheritedBillDetailIds.add(String(dId));
-              }
-            } else if (masterDiscPer > 0) {
-              if (dDiscPer > 0 && Math.abs(dDiscPer - masterDiscPer) < 0.01) {
-                // Inherited bill discount percentage
-                if (dId !== undefined && dId !== null) {
-                  inheritedBillDetailIds.add(Number(dId));
-                  inheritedBillDetailIds.add(String(dId));
-                }
-              } else if (dDiscPer > 0) {
-                isItemDiscount = true;
-                itemDiscValue = dDiscPer;
-                itemDiscType = "percentage";
-              } else if (dDiscAmount > 0) {
-                isItemDiscount = true;
-                itemDiscValue = dDiscAmount;
-                itemDiscType = "amount";
-              }
-            } else {
-              if (dDiscPer > 0) {
-                isItemDiscount = true;
-                itemDiscValue = dDiscPer;
-                itemDiscType = "percentage";
-              }
-            }
-          } else {
-            // Order had NO bill discount: ANY discount on this line is a genuine ITEM discount!
-            if (isComplimentary || dDiscPer === 100) {
-              isItemDiscount = true;
-              itemDiscValue = 100;
-              itemDiscType = "percentage";
-            } else if (dDiscPer > 0) {
-              isItemDiscount = true;
-              itemDiscValue = dDiscPer;
-              itemDiscType = "percentage";
-            } else if (dDiscAmount > 0) {
-              isItemDiscount = true;
-              itemDiscValue = dDiscAmount;
-              itemDiscType = "amount";
-            }
-          }
-
-          if (isItemDiscount && dId !== undefined && dId !== null) {
-            const info = { discValue: itemDiscValue, discType: itemDiscType, isComplimentary };
-            knownItemDiscountsById.set(Number(dId), info);
-            knownItemDiscountsById.set(String(dId), info);
-          }
+      // Orders with a bill discount (the cashier confirmed its removal): their line discounts are the bill
+      // discount — saved data cannot separate an item discount from it (same rule as Recall → Edit) — so
+      // those lines lose their discount. Lines of the other orders keep their item discounts.
+      const billDiscountOrderIds = new Set<number>();
+      const billDiscountDetailIds = new Set<number>();
+      individualResponses.forEach((res, i) => {
+        if (!res || !(checkOrderHasBillDiscount(res) || checkOrderIsBillComplimentary(res))) return;
+        billDiscountOrderIds.add(Number(orderIdsToCombine[i]));
+        extractMasterAndDetails(res).details.forEach((d: any) => {
+          const dId = Number(d.id ?? d.detailId ?? d.orderDetailId ?? d.OrderDetailId ?? 0);
+          if (dId > 0) billDiscountDetailIds.add(dId);
         });
       });
 
@@ -265,50 +225,14 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
       const combinedData = response?.data || response;
 
       if (combinedData && (combinedData.detailsData || combinedData.details)) {
-        const detailsData = sortOrderDetailsBySequence(combinedData.detailsData || combinedData.details || []);
+        const detailsData = stripBillDiscountFromCombinedLines(
+          sortOrderDetailsBySequence(combinedData.detailsData || combinedData.details || []),
+          billDiscountOrderIds,
+          billDiscountDetailIds
+        );
         const modifiersData = combinedData.modifiersData || combinedData.modifiers || [];
 
-        // Clean detailsData: strip inherited bill discounts, but strictly PRESERVE item discounts!
-        const cleanedDetailsData = detailsData.map((d: any) => {
-          const dId = d.id ?? d.detailId ?? d.orderDetailId ?? d.OrderDetailId;
-          const dDiscPer = Number(d.discPer ?? d.DiscPer ?? 0);
-
-          const knownItem = dId !== undefined ? knownItemDiscountsById.get(dId) : undefined;
-          if (knownItem) {
-            return {
-              ...d,
-              discPer: knownItem.discType === 'percentage' ? knownItem.discValue : 0,
-              DiscPer: knownItem.discType === 'percentage' ? knownItem.discValue : 0,
-              discAmount: knownItem.discType === 'amount' ? knownItem.discValue : 0,
-              DiscAmount: knownItem.discType === 'amount' ? knownItem.discValue : 0,
-              discountValue: knownItem.discValue,
-              complimentaryStatus: knownItem.isComplimentary,
-              ComplimentaryStatus: knownItem.isComplimentary,
-            };
-          }
-
-          const isInheritedBill =
-            (dId !== undefined && inheritedBillDetailIds.has(dId)) ||
-            (billDiscountPercentages.size > 0 && billDiscountPercentages.has(dDiscPer)) ||
-            (billDiscountPercentages.has(100) && (d.complimentaryStatus || d.ComplimentaryStatus));
-
-          if (isInheritedBill) {
-            return {
-              ...d,
-              discPer: 0,
-              DiscPer: 0,
-              discAmount: 0,
-              DiscAmount: 0,
-              discountValue: 0,
-              complimentaryStatus: false,
-              ComplimentaryStatus: false,
-            };
-          }
-
-          return d;
-        });
-
-        const rawMappedCartItems = mapOrderDetailsToCartItems(cleanedDetailsData, modifiersData, {
+        const rawMappedCartItems = mapOrderDetailsToCartItems(detailsData, modifiersData, {
           products,
           productCache,
         });
@@ -508,6 +432,18 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
 
       </div>
     </Modal>
+
+    {/* After the combine window so it shows on top of it */}
+    <ConfirmDialog
+      isOpen={billDiscountPrompt !== null}
+      title="Remove Bill Discount?"
+      message={revertPromptMessage}
+      confirmLabel="Yes, Remove"
+      cancelLabel="No"
+      confirmVariant="danger"
+      onConfirm={handleRevertConfirmed}
+      onCancel={handleRevertDeclined}
+    />
   </>
   );
 };

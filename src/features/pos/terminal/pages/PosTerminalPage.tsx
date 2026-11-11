@@ -111,6 +111,17 @@ export const PosTerminalPage = () => {
   }, [terminal.tenderOptions, selectedTender, terminal.selectedCustomerId]);
 
   const billDiscountValue = useAppSelector((state) => state.pos.billDiscountValue);
+  const billDiscountType = useAppSelector((state) => state.pos.billDiscountType);
+  /**
+   * Item complimentary: split / combine are not allowed. Bill complimentary (a 100 % bill discount) is
+   * allowed like any bill discount — the split / combine window warns and removes it. A recalled
+   * bill-complimentary order shows its lines as complimentary too; that is the bill, not items.
+   */
+  const cartIsComplimentary = () =>
+    !(billDiscountType === "percentage" && Number(billDiscountValue) === 100) &&
+    terminal.cartDetails.some((i) =>
+      Boolean((i as any).complimentaryStatus || (i.discountType === 'percentage' && Number(i.discountValue) === 100))
+    );
   const { productCache } = useAppSelector((state) => state.pos);
   const isSettling = useAppSelector((state) => state.pos.isSettling);
   const deliveryCharge = useAppSelector(selectDeliveryCharge);
@@ -932,24 +943,20 @@ export const PosTerminalPage = () => {
                 }}
                 onWaiter={() => modals.setIsWaiterModalOpen(true)}
                 selectedWaiterName={terminal.waiterName}
+                // Complimentary orders cannot be split / combined. A bill discount is allowed: the split /
+                // combine window warns that it will be removed and goes ahead on Yes.
                 onSplit={() => {
-                  const hasBillDisc = Number(billDiscountValue || terminal.billDiscountValue || 0) > 0;
-                  const hasComp = terminal.cartDetails.some((i) =>
-                    Boolean((i as any).complimentaryStatus || (i.discountType === 'percentage' && Number(i.discountValue) === 100))
-                  );
-                  if (hasBillDisc || hasComp) {
-                    showToast("Split is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
+                  const hasComp = cartIsComplimentary();
+                  if (hasComp) {
+                    showToast("Split is not allowed for orders with item complimentary.", "error");
                     return;
                   }
                   modals.setIsSplitOpen(true);
                 }}
                 onCombine={() => {
-                  const hasBillDisc = Number(billDiscountValue || terminal.billDiscountValue || 0) > 0;
-                  const hasComp = terminal.cartDetails.some((i) =>
-                    Boolean((i as any).complimentaryStatus || (i.discountType === 'percentage' && Number(i.discountValue) === 100))
-                  );
-                  if (hasBillDisc || hasComp) {
-                    showToast("Combine is not allowed for orders with bill discount or complimentary. Only item discounts are allowed.", "error");
+                  const hasComp = cartIsComplimentary();
+                  if (hasComp) {
+                    showToast("Combine is not allowed for orders with item complimentary.", "error");
                     return;
                   }
                   modals.setIsCombineOpen(true);
