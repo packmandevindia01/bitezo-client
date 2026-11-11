@@ -71,13 +71,16 @@ export const useReport = (def: ReportDefinition) => {
     lookups[f.key] = [{ label: f.allLabel ?? "All", value: "0" }, ...opts];
   });
 
-  const requiredValue = def.requires ? filters[def.requires.key] : undefined;
+  // Nothing loads until View is pressed; the table shows the filters applied by the last View.
+  // A report opened from a link with filters in the URL (drill-down) loads straight away.
+  const [applied, setApplied] = useState<FilterValues | null>(() =>
+    Object.values(def.urlParams ?? {}).some((param) => searchParams.get(param)) ? filters : null);
+  const requiredValue = def.requires && applied ? applied[def.requires.key] : undefined;
   const waiting = !!def.requires && (!requiredValue || requiredValue === "0");
-  const queryKey = [def.id, filters];
   const query = useQuery({
-    queryKey,
-    queryFn: () => def.fetch(filters),
-    enabled: !waiting,
+    queryKey: [def.id, applied],
+    queryFn: () => def.fetch(applied as FilterValues),
+    enabled: !!applied && !waiting,
     meta: { silentError: true }, // shown inside the report (error banner), not as a toast
     staleTime: 0,
     gcTime: 0,
@@ -96,29 +99,27 @@ export const useReport = (def: ReportDefinition) => {
   const loaded = query.data ?? placeholder;
   const table = useMemo(() => applyReportSearch(loaded, search, def.search?.match), [loaded, search, def.search?.match]);
 
-  const reset = useCallback(() => {
-    setSearch("");
-    setFilters((f) => {
-      const next = { ...initial };
-      // A branch locked by the user's scope stays as it is.
-      if (isBranchLocked) def.filters.filter((d) => d.kind === "branch").forEach((d) => { next[d.key] = f[d.key]; });
-      return next;
-    });
-  }, [initial, isBranchLocked, def.filters]);
+  // View: load the report for the filters on screen. Pressing it again with the same filters reloads.
+  const { refetch } = query;
+  const view = useCallback(() => {
+    if (applied && JSON.stringify(applied) === JSON.stringify(filters)) void refetch();
+    else setApplied({ ...filters });
+  }, [applied, filters, refetch]);
 
   return {
     filters,
+    /** Filters of the report on screen — use for the subtitle and print header. */
+    appliedFilters: applied ?? filters,
     setFilter,
-    reset,
+    view,
     branches: branches as { id: number | string; branchName: string }[],
     isBranchLocked,
     lookups,
     table,
     search,
     setSearch,
-    isLoading: query.isLoading || query.isFetching,
-    waitingMessage: waiting ? def.requires?.message ?? "" : "",
+    isLoading: query.isFetching,
+    waitingMessage: !applied ? "Choose the filters and press View to load the report." : waiting ? def.requires?.message ?? "" : "",
     error: query.error ? reportErrorMessage(query.error) : "",
-    refetch: query.refetch,
   };
 };
