@@ -1,6 +1,6 @@
 # Optimization status
 
-Last updated 2026-11-11, branch `refactor/pricing-engine`, not merged to `main`.
+Last updated 2026-11-11. `refactor/pricing-engine` merged into `main` on 2026-11-11 (merge 8a07d3c), before the real-terminal test.
 The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11).
 
 ## Phases
