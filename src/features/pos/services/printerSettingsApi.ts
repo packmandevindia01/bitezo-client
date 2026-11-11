@@ -52,7 +52,7 @@ export const printerSettingsApi = {
             ordertypePrinter: orderTypeData
           }
         };
-      } catch (fallbackErr) {
+      } catch {
         throw e;
       }
     }

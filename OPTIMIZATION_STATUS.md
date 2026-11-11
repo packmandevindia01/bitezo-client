@@ -1,6 +1,6 @@
 # Optimization status
 
-Last updated 2026-11-10, branch `refactor/pricing-engine`, not merged to `main`.
+Last updated 2026-11-11, branch `refactor/pricing-engine`, not merged to `main`.
 The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11).
 
 ## Phases
@@ -12,8 +12,41 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | 4 | Report framework | Done, 31 of 31 reports; 6 reports not seen with real rows |
 | 5 | Back Office forms | **Partly done** (below) |
 | 1 | Design system | Not started, needs approval to move `components/common` |
-| 3 | POS UI | Not started |
-| 6 | Clean-up | Not started |
+| 3 | POS UI | **Started** 2026-11-11: Recall, Settled details and Dine-In table orders windows split (below) |
+| 6 | Clean-up | **Partly done** 2026-11-11 (below) |
+
+## Phase 3 (2026-11-11)
+
+### Done
+
+- Recall details (1,112 → 610 lines) and Settled details (1,434 → 411) windows split. Shared ticket view in `components/modals/savedOrder/`; settled loader, settled print, recall KOT and the list-text fallback moved to `terminal/utils/` (`loadSettledOrder.ts`, `printSettledOrder.ts`, `printRecallKot.ts`, `recallListText.ts`), moved verbatim.
+- Safety net: `savedOrderWindowsSnapshot` renders both windows (dine-in item discount; delivery bill discount) and matched the old HTML exactly after the split. Unit tests: `savedOrderPieces`.
+- Two deliberate changes: the Settled window no longer shows a duplicated modifier row the backend sometimes sends (the Recall window already dropped it); it no longer fetches extras and modifier types twice on open, and a different order now opens in a fresh window (`key` per order in `PosSettledModal`).
+- Not checked in the real app: open, PRINT and EDIT from Settled; KOT, GUEST, EDIT and SETTLE from Recall.
+- Terminal settle hook `usePosCheckoutFlow`: 1,264 → 486 lines. The 775 lines that build the receipt data after the invoice is saved moved verbatim to `utils/settleReceiptData.ts` (`buildSettleReceiptPayload`, with the saved-line mapping and the driver lookup as their own functions). Safety net `terminalSettleSnapshot` (new cart cash; recalled Dine-In with item discount; delivery with bill discount, address, driver, keep change; combined order; settled bill update) records the invoice and every page printed and matched before and after; `settleReceiptLines` covers the saved-line mapping. No intended change. Not checked in the real app: terminal settle cash / card / multi-pay, recall settle, settled edit.
+- Dine-In table orders window: 1,306 → 664 lines. Order loader, invoice building, settle receipt, guest bill, the shared bill figures, the reserved / row-text / payment-type helpers and the row component moved out (`loadDineInOrder.ts`, `dineInSettlement.ts`, `printDineInOrder.ts`, `dineInBillFigures.ts`, `dineInTable.ts`, `TableOrderRow.tsx`). The guest bill and the settle receipt had the same line and totals code twice; now one helper (settle receipt still shows a discount only for a bill discount). The terminal uses the same Cash-first payment order helper. Safety net `dineInTableOrdersSnapshot` (list, invoice, both receipts, cart after Edit) matched before and after; unit tests `dineInHelpers`. No intended change. Not checked in the real app: table list, row PRINT, SETTLE (receipt, drawer) and EDIT.
+
+### Not done
+
+- `PosCashierSessionModal` (1,169), `PosTerminalPage` (1,101). The employee choice before settling is written out three times in the Dine-In window (left as is).
+- Printing module (P5) and the 3-zone layout.
+
+## Phase 6 (2026-11-11)
+
+### Done
+
+- Old pricing: `terminal/utils/pos-calc.ts` deleted. Its one helper moved unchanged to `shared/lib/money.ts` as `allocateThousandths` (save safety net in `orderApi` / `salesInvoiceApi`). Not swapped for the engine's `allocateProportionally`, which rounds differently and would change saved amounts.
+- Unused files deleted: `app/store/index.ts`, the old `BranchCreationPage` and `BranchModal`, `inventory/lockProduct/types.ts`, `pos/services/posService.ts` and its index, `useSplitBuckets.ts`, `useCashierShift.ts`, the `utils/print.ts` re-export. Feature `index.ts` files kept as agreed.
+- `console.log`: already removed from production builds (`manualPureFunctions` in `vite.config.ts`); confirmed in a build. No real `alert()` is left.
+- Empty catches (74): reviewed; almost all are deliberate fallbacks. Fixed two that hid problems: POS Configuration save now warns when this device's copy could not be updated; Stock Transfer barcode Enter now says "not found" or "could not look up".
+- Lint: `prefer-const`, redundant `Boolean()` and unused `catch (e)` fixed; `no-unused-vars` accepts `_name` and `{ dropped, ...rest }`. 3,388 → 2,971 errors, baseline locked. Left: 2,840 `no-explicit-any`, 72 `no-empty` (the deliberate fallbacks), React hooks rules. `components/common/TouchKeyboard.tsx` not touched (protected folder).
+- Day End and Shift End report tests press View (they broke when reports stopped loading on open).
+- Employee names: the `posEmpNameMap` cache and the waiter-name lookups (two full 5-step copies, two 3-step copies, recall and reprint copies, ~5 cache writers) moved into `pos/utils/employeeNames.ts`; about 335 lines less. Same order of lookups and the same fallbacks as before; two small differences: a name found by id lookup on the table-orders print is now also cached (the settled print already did), and POS Configuration no longer writes the list a second time (a failed refresh used to wipe the cache). Test: `employeeNames`.
+
+### Not done
+
+- Move tests next to the code (109 files): no behaviour gain, large diff.
+- `any` down to under 500: a typing job, file by file.
 
 ## Phase 5
 
@@ -64,6 +97,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | Physical Entry | A slow unit-cost reply could change a line whose unit had moved on, and a failed one was silent |
 | Stock Transfer list | Cancelling did not refresh the stock reports |
 | Group master | An Inactive group showed as Active in the list |
+| POS recall / edit | In Exclusive view an inclusive product showed a wrong rate on the cart rows (order 285: 82.645 instead of the saved 90.909) |
 | POS close day | If the pending-orders check failed, the day closed with no warning; it now asks to try again or close anyway |
 | POS locked items | If the list failed to load, items could sell as unlocked with no warning; the last saved list stays in force and a warning shows |
 | Stock Adjustment and Stock Transfer prints | Number, branch and date were blank, and Stock Adjustment printed the product id instead of its name |
@@ -108,5 +142,6 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Fonts: Outfit and Inter ship in `public/fonts/ui` (`shared/styles/fonts.css`), and interface and receipt fonts are in the offline cache. Nothing is requested from Google.
 - Stock Adjustment, Physical Entry and Stock Transfer forms do not offer All as a branch or To Branch; a document already saved under All still shows it. Saved lists and reports keep All.
 - Payment and Receipt Against Voucher forms use the compact input size of the other transaction forms.
+- POS pricing replacement: done. `utils/orderPricing.ts` and the tax guessing in saving are removed; prints use `utils/printPricing.ts`, line details `utils/orderLineItems.ts` and `utils/orderLineShape.ts`.
 - Not started: other performance items (re-render measurements), Playwright smoke tests, CI, report column chooser and saved filters, Ctrl+K search, unsaved-changes guard, new dashboard, empty catches and `alert()`.
 - A login token was pasted into chat on 2026-11-07. Ask the backend team to revoke it if possible.

@@ -21,7 +21,8 @@ General project rules (git, shared components, architecture) live in `GEMINI.md`
 - TanStack Query for menu / config fetching
 - axios (`axiosInstance`, JWT from `localStorage.accessToken`)
 - Printing: own **Bitezo Printer Agent** (`PrinterAgent.exe`, WebSocket) on web/Windows; Capacitor native `BitezoPrinterPlugin` (raw ESC/POS TCP :9100) on Android. **QZ Tray is NOT used** (only legacy names `qzService.ts` / `connectQZ` remain)
-- Vitest (`src/tests/`, 106 files / 1397 tests, all passing on 2026-11-10; node by default, jsdom + Testing Library only where a file asks for it)
+  - When no agent address answers, `utils/printAgentDiagnosis.ts` says why (2026-11-11): Chrome's Local Network Access permission set to Block, the POS opened from an internet address (Chrome then blocks `ws://localhost`, error `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`), or the agent not running. Printer settings shows it as a notice with Check again (`checkPrintAgent`). Permanent fix for tills: Chrome policy `LocalNetworkAccessAllowedForUrls` with the POS server addresses — `scripts/chrome-printer-access/` (`allow-pos-printing.reg`, `allow-pos-address.ps1`, README), set once per till.
+- Vitest (`src/tests/`, 109 files / 1375 tests, all passing on 2026-11-10; node by default, jsdom + Testing Library only where a file asks for it)
 
 Verify every change with:
 ```
@@ -68,7 +69,7 @@ src/features/pos/
     components/            UI only (cart, menu, modals/*)
   utils/
     printPricing.ts        numbers for every print (saved order or live cart)
-    orderPricing.ts        LEGACY unified pricing — now used only for names/extras/modifiers
+    printPricing.ts        Print pricing: saved orders, live carts, plain rows
     guestPrintTemplate.ts, kotTemplate.ts, escPosGenerator.ts, deliverySettlePrintTemplate.ts
     printBarcode.ts, cashDrawer.ts, settlePrintConfig.ts   receipt barcode, drawer rule, Settle Print setting
   bulkSettlement/, cashier/, customer/, lockItem/, payInOut/   (other POS modules)
@@ -342,17 +343,33 @@ Never print a guessed number; templates use `toDisplayNo` so a missing value pri
 ### 6.4 Recall & edit
 Recall list `GET /order/recall` → details (merged endpoints, Exclusive) → `PosRecallDetailsModal`
 shows `storedOrderFooter`.
+The Recall details and Settled details windows share their ticket view: `components/modals/savedOrder/`
+(`SavedOrderTicket.tsx`: window frame, meta fields, item-discount row, extras / modifiers / messages,
+delivery block, totals, buttons; `lineModifiers.ts`: dedupe + split of a line's modifier rows). Their big
+routines live in `terminal/utils/`: `loadSettledOrder.ts` (settled details + invoice + print data + order merge),
+`printSettledOrder.ts` (settled PRINT), `printRecallKot.ts` (recall KOT), `printRecallOrder.ts` (recall GUEST),
+`recallListText.ts` (list-row text fallback). Test `savedOrderWindowsSnapshot` renders both windows: a
+change to what they show must update its snapshot on purpose.
 Dine-In table orders (`DineInTableOrdersModal`): `GET /menu/dine-in/tables/{tableId}/orders` (fetched
 Exclusive) gives the table's orders, shown as Recall-style rows (row text = the Recall list's own text for
 that orderId, from `GET /order/recall?OrderTypeId=1`). Clicking a row opens `PosRecallDetailsModal`; its
 Edit / Settle are routed back to the table screen's Dine-In flows via `onEditRequest` / `onSettleRequest`. Edit → `loadRecalledOrder` (see §5.8).
+The table screen's code outside the window (2026-11-11): `utils/loadDineInOrder.ts` (order → cart items),
+`utils/dineInSettlement.ts` (`buildDineInSettleOrder`: invoice order from the STORED order; `printDineInSettleReceipt`),
+`utils/printDineInOrder.ts` (row PRINT guest bill), `utils/dineInBillFigures.ts` (footer figures shared by both prints),
+`utils/dineInTable.ts` (reserved check, row text, `paymodesToTenderOptions` — also used by the terminal),
+`dining/TableOrderRow.tsx`. Test `dineInTableOrdersSnapshot` records the list, the invoice, both receipts and the
+cart after Edit.
 Save → `buildUpdateOrderPayload` → `PUT /menu/order/{id}` with `prevUpdatedAt` concurrency token
 (fetched fresh before the update). Combined groups update the highest order id.
 Existing lines keep their `mapId`; new lines get `max(mapId)+1…`. Removed/decreased lines go to
 `voidProducts` / `voidModifiers`.
 
 ### 6.5 Settle
-`usePosCheckoutFlow`:
+`usePosCheckoutFlow` (validation, invoice, save with the ticket-clash fallback, drawer, KOT, print question,
+settle lock). After the save, the receipt data comes from `utils/settleReceiptData.ts` `buildSettleReceiptPayload`
+(settled order read back with fallbacks, line mapping, delivery / driver fields, totals) — split out 2026-11-11;
+test `terminalSettleSnapshot` records the invoice and every page printed for five settles.
 - Direct settle (new cart) or settle a recalled order.
 - `buildDirectSettleOrderPayload` → `buildSalesInvoicePayload` → `POST /sales-invoices`
   (or `PUT /sales-invoices/{saleId}` when editing a settled order).
@@ -368,9 +385,19 @@ Existing lines keep their `mapId`; new lines get `max(mapId)+1…`. Removed/decr
 Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set) → re-settle updates the invoice.
 
 ### 6.7 Split / Combine / Void
-- **Split / Combine are blocked** for orders with a bill discount or complimentary status
-  (`checkOrderAllowsSplitOrCombine`). Only item discounts are allowed.
-- Split (`PosSplitModal`, `useSplitBuckets`): lines are moved between buckets;
+- Discounts (`splitCombineDiscountStatus` in `utils/orderDiscountCheck.ts`, 2026-11-11):
+  - Business rule: an order has **either** a bill discount **or** item discounts, never both.
+  - **Bill discount or bill complimentary** (bill complimentary = 100 % bill discount, saved as master
+    `discPer` 100; `checkOrderIsBillComplimentary`), saved on the order or applied in the cart: a warning
+    "… will remove it. Continue?". Yes → it is reverted; No → nothing changes. Split asks when the window
+    opens; Combine asks on open for the current order and again on Done if a chosen order has one.
+    That order's line discounts (and the complimentary flag bill complimentary puts on every line) are the
+    bill discount, so they are removed: split via `storedLineToCartPricing(isBillDiscount: true)` +
+    `complimentaryStatus: false`, combine via `stripBillDiscountFromCombinedLines` (by the line's `orderId`).
+    Lines of the other orders keep their item discounts.
+  - **Item complimentary** (master `discPer` 0, line `complimentaryStatus` / 100 %): blocked.
+  - **Item discounts**: unchanged.
+- Split (`PosSplitModal`): lines are moved between buckets;
   item discount moves pro-rata per unit; each bucket priced with `calculateOrder` and the saved rates;
   `POST /order-split`.
 - Combine (`PosCombineModal`): `GET /order/combine` → `/order/combine/combined-orders` → loaded into cart
@@ -421,7 +448,7 @@ so change forms and rules there. The More tile asks for an employee PIN; any val
 `SkipPermissionsContext` (`hooks/usePermissions.ts`), and the same pages in the Back Office still follow user roles. Inside the POS, `PosAllocationScopeContext` gives the Extras and Modifier forms
 categories from POS master data (`/category/category-list` can return 403 for a POS login, and `getCategories` turns that into an empty list),
 hides Branch Allocation and sets the branch to `getTerminalBranchId()`; an edit keeps the record's other branches (`posBranchIds`), so a name or price change applies to every branch that has the record (user decision 2026-11-06). Leaving the screen calls
-`menuApi.refreshAllExtras()`: never clear that cache, `orderPricing` uses it to recognise extras on saved orders. Lines already in the
+`menuApi.refreshAllExtras()`: never clear that cache, `orderLineItems` uses it to recognise extras on saved orders. Lines already in the
 cart keep the price and name they were added with.
 
 ---
@@ -446,19 +473,17 @@ cart keep the price and name they were added with.
 
 ## 8. Known legacy / tech debt (do not extend)
 
-- `utils/orderPricing.ts` (`buildUnifiedOrderPricing`): old heuristic pricing; now only supplies
-  names/extras/modifiers to `printPricing` and some modals. Its numbers are replaced.
-- `billing.ts` `getTaxExclusivePrice` / `sanitizeTaxExclusiveDetail` / `getTaxExclusiveExtraPrice` /
-  `getDisplayPriceForProduct`: tolerance-based guessing (0.03 / 0.05). Engine output is flagged
-  `isPriceTaxExclusive: true`, so they pass it through unchanged — keep that flag on every payload detail.
-- `orderApi.submitOrder/updateOrder` re-derive `vatExclAmount`/`vatAmount` only when missing; they must
-  **not** re-sanitize engine details (that caused order #288's rounded VAT).
+- A saved order with a bill discount only on the order total: `pricing/storedOrder.ts` `withBillDiscountOnLines` spreads it
+  over the lines from the saved totals. Older orders whose line amount leaves out extras, or whose discount is stored in the
+  other view, can't be told apart without guessing: their rows and Sub Total can be wrong, Grand Total stays right.
+- Saving sends engine values as they are: order, update, invoice and split lines are never re-derived from tax
+  settings. `orderApi.submitOrder/updateOrder` only fill `vatExclAmount`/`vatAmount` when missing.
 - `orderPayloadMapper` "useStoredTotals": an unmodified recalled order without a bill discount keeps the
   selector's (authoritative) `netAmount`/`vatAmount`. Transitional.
 - `invoicePayloadMapper` recomputes `vatExclAmount` from details (+ modifiers when not already combined)
   and VAT as the sum of line VAT.
 - ~~`useSplitOrderData` remainder rule~~: the hook was unused and was deleted on 2026-11-05.
-- `terminal/utils/pos-calc.ts`: different charge cascade; only `allocate` is used.
+- `terminal/utils/pos-calc.ts` now holds only `allocate`. `utils/orderLineItems.ts` reads a line's extras, modifiers and messages without calculating.
 - `getBillingConfig` falls back to a 10% VAT rate when the config has none — confirm the menu
   `/products` API sends `vatValue` per product.
 - Not yet verified in the real app: print templates, split/combine and bulk settle after the engine refactor.
@@ -479,7 +504,7 @@ cart keep the price and name they were added with.
 | Regressions | `posRegressions` (bulk settlement allocation, amount bill discount on settled edit), `productionHardening` |
 | **Safety net (golden master)** | `posFlowSafetyNet` + `__snapshots__/posFlowSafetyNet.test.ts.snap` — 7 store-driven flows (Take-Out with extras/modifier/message + item discounts, Dine-In SC+levy + amount bill discount, Delivery + custom charge + % bill discount, complimentary, manual price / qty / remove in Exclusive view, VAT off, saved → settled edit → update payload). Snapshots the screen totals + lines, new-order / direct-settle / invoice payloads, update payload and bill + KOT text. Run `npm run test:pos-safety` before and after every refactor step. **Update snapshots (`npx vitest run -u src/tests/posFlowSafetyNet.test.ts`) only for an intended, reviewed change** — show the diff in the PR. |
 | Back office | `backofficeCalc` (currency decimals, no invented country/currency IDs, happy hour %/discount/promo incl. 500 random cases, vouchers: half-up, header = Σ lines, balance ≥ 0, multi-pay by name, production / stock exact amounts, purchase bill-discount cap + 300 random invoices), `purchaseCalc`, `unitParent`, `productTransactionLog`, `openingStockCost`, `lineUnits`, `tableLayout`, `cartLineDisplay` |
-| Legacy | `orderPricing`, `pos-calc` |
+| Legacy | `pos-calc` |
 
 ---
 
@@ -541,7 +566,7 @@ All routes are under `/dashboard/…` (`app/routes/AppRoutes.tsx`). Sidebar grou
 | Modifiers, modifier types, extras, extras types | `inventory/modifier`, `modifierType`, `extrasMaster`, `extrasType` | |
 | Taxes (VAT) | `inventory/tax` | `/vat` |
 | Voucher series | `inventory/voucherSeries` | `/voucherseries` |
-| Lock product | `inventory/lockProduct` | `/lock-product` |
+| Lock product | `pos/lockItem` (`services/lockProductService.ts`) | `/lock-product` |
 | Stock adjustment types | `inventory/stockAdjustmentType` | `/stock-adjustment-type` |
 | Recipes, BOM | `general/recipe`, `general/bom` | `/recipe`, `/bom`, `/recipe/product-cost-data/{id}` |
 | Configuration, back-office configuration | `general/configuration` | `/backoffice-config/…` (POS config itself: `/pos-config`, edited at `/pos/configuration`) |
@@ -656,7 +681,7 @@ Main market: Bahrain / GCC (3-decimal currencies, see R8).
 | `features/company`, `systemRegistration` | tenant onboarding, company profile, terminal/system registration |
 | `features/dashboard` | back-office home |
 | `features/general` | bom, configuration, counter, denomination, employee(+role), happyHour, menuSettings, paymode, provider(+settings), recipe, section, supplier, tableMaster, user, userRole |
-| `features/inventory` | branches, category, subcategory, group, extras(+type), modifier(+type), product, lockProduct, tax, unit, stockAdjustmentType, voucherSeries |
+| `features/inventory` | branches, category, subcategory, group, extras(+type), modifier(+type), product, tax, unit, stockAdjustmentType, voucherSeries |
 | `features/transaction` | purchase invoice/return, stock adjustment, physical entry, production, internal stock transfer, vouchers (`shared/purchaseCalc.ts`) |
 | `features/reports` | ~31 report modules (sales, VAT, levy, margin, stock, statements, day-end, shift-end …) |
 | `features/pos` | see §2 |
@@ -665,9 +690,9 @@ Main market: Bahrain / GCC (3-decimal currencies, see R8).
 | `tests/` | Vitest, mostly POS pricing (see §9) |
 | `shared/` (Phase 0) | used by POS and Back Office, may not import features (ESLint): `api/http.ts` (axios client; old path `api/axiosInstance.ts` re-exports), `api/unwrap.ts` (`unwrapBody` / `unwrapData` / `unwrapEnvelope` / `unwrapStrict`), `lib/` money, date, html, print, currency (old `utils/*` paths re-export), `config/settings.ts` (typed safe reads of localStorage settings — use in new code) |
 
-Size: ~84k lines of TS/TSX. Files over 1,000 lines (hard to change safely): `PosRecallDetailsModal.tsx`,
-`escPosGenerator.ts`, `PosSettledDetailsModal.tsx`, `DineInTableOrdersModal.tsx`, `orderPricing.ts`,
-`usePosCheckoutFlow.ts`, `endReportTemplate.ts`, `usePurchaseReturn.ts`, `PosCashierSessionModal.tsx`,
+Size: ~84k lines of TS/TSX. Files over 1,000 lines (hard to change safely):
+`escPosGenerator.ts`,
+`endReportTemplate.ts`, `usePurchaseReturn.ts`, `PosCashierSessionModal.tsx`,
 `posSlice.ts`, `PosTerminalPage.tsx`.
 
 ### 11.3 Commands
@@ -700,7 +725,7 @@ back-office tokens in `sessionStorage` (`backoffice_*`). `systemType` / `tempSys
 
 PWA: `vite-plugin-pwa` with `registerType: 'prompt'` (update banner in `src/app/AppStatusBanner.tsx`), precaches js/css/html/png/svg (not `config.json`).
 Android: `com.bitezo.admin`, `androidScheme: http`, cleartext allowed, `allowBackup=false`, versionCode 1, minify off.
-HTTP: `axiosInstance` timeout 60 s (`API_TIMEOUT_MS`). Dates: always `src/utils/date.ts` (never `toISOString().split("T")[0]`). Print HTML: always `escapeHtml` (`src/utils/html.ts`) for text values; print fragments with `printHtmlInIframe` (`src/utils/print.ts`).
+HTTP: `axiosInstance` timeout 60 s (`API_TIMEOUT_MS`). Dates: always `src/utils/date.ts` (never `toISOString().split("T")[0]`). Print HTML: always `escapeHtml` (`src/utils/html.ts`) for text values; print fragments with `printHtmlInIframe` (`src/shared/lib/print.ts`). POS employee names (waiter / cashier on prints, the `posEmpNameMap` cache): only through `src/features/pos/utils/employeeNames.ts` (`resolveEmployeeNameForPrint` for saved-order prints, `findEmployeeName` for KOT / bill, `savedOrderWaiterName` for recall reprints, `mergeEmployeeNames` / `replaceEmployeeNames` to fill the cache).
 
 ---
 
@@ -836,7 +861,7 @@ Tests: `src/tests/productionHardening.test.ts` (local dates, `escapeHtml`, guest
   (`esbuild.drop` / `pure`).
 - 1,036 direct `localStorage` reads/writes; settings are read from several keys with fallbacks (§3). Prefer one
   typed settings module.
-- Legacy pricing code listed in §8 (`orderPricing.ts`, `pos-calc.ts`, tolerance-based `getTaxExclusive*`).
+- Legacy pricing code listed in §8 (`pos-calc.ts`).
 - The back office has almost no automated tests (§10.6). The giant components (§11.2) need splitting before more
   features are added.
 - `ProtectedRoute` calls `clearAuthStorage()` during render (side effect in render).

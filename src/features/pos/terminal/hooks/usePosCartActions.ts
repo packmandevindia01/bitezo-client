@@ -1,4 +1,3 @@
-import { getTerminalBranchId } from "@shared/config/device";
 import { useState, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { useToast } from "../../../../app/providers/useToast";
@@ -42,6 +41,7 @@ import {
 import { getVatStatus, roundCalc, getPriceView, getPrintPrice } from "../utils/billing";
 import { buildReorderItems } from "../utils/reorderItems";
 import { useCartMutations } from "./cart/useCartMutations";
+import { findEmployeeName } from "../../utils/employeeNames";
 import {
   buildDirectSettleOrderPayload,
   buildNewOrderPayload,
@@ -436,47 +436,8 @@ export const usePosCartActions = () => {
       let orderNoStr = replyRef?.orderNo ?? "";
       let ticketNoStr = replyRef?.ticketNo ?? "";
       let orderTypeStr = selectedOrderTypeName || "DINE IN";
-      const resolveEmployeeName = async (empId?: number | string | null): Promise<string | null> => {
-        if (!empId) return null;
-        const idStr = String(empId).trim();
-        if (!idStr || idStr === "0" || idStr === "NaN") return null;
-
-        try {
-          const mapRaw = localStorage.getItem("posEmpNameMap");
-          if (mapRaw) {
-            const map = JSON.parse(mapRaw);
-            if (map[idStr]) return map[idStr];
-          }
-        } catch {}
-
-        if (idStr === localStorage.getItem("authorizedEmployeeId")) {
-          const authName = localStorage.getItem("authorizedEmployeeName");
-          if (authName) return authName;
-        }
-
-        try {
-          const branchId =
-            getTerminalBranchId() || 0;
-          const { getEmployeeNames } = await import("../../../general/employee/services/employeeService");
-          const list = await getEmployeeNames(branchId);
-          if (Array.isArray(list) && list.length > 0) {
-            const map: Record<string, string> = {};
-            try {
-              const existing = localStorage.getItem("posEmpNameMap");
-              if (existing) Object.assign(map, JSON.parse(existing));
-            } catch {}
-            list.forEach((e: any) => {
-              const id = e.empId ?? e.id;
-              const name = e.empName ?? e.name;
-              if (id && name) map[String(id)] = name;
-            });
-            localStorage.setItem("posEmpNameMap", JSON.stringify(map));
-            if (map[idStr]) return map[idStr];
-          }
-        } catch {}
-
-        return null;
-      };
+      // Name: cache → authorized employee → branch list (utils/employeeNames.ts).
+      const resolveEmployeeName = (empId?: number | string | null) => findEmployeeName(empId);
 
       const targetEmpId = session.employeeId || waiterId;
       let waiterStr = (await resolveEmployeeName(targetEmpId))
@@ -553,16 +514,16 @@ export const usePosCartActions = () => {
       const { executeKotRouting } = await import("../../utils/printerRouting");
       const { isKotArabicEnabled, isBillArabicEnabled, isCompanyNameKotEnabled } = await import("../../utils/alternativeHelpers");
 
-      let resolvedContactNo = (masterData as any)?.mobileNo || (masterData as any)?.contactNo || contactNo || "";
-      let resolvedCallBack = (masterData as any)?.callBack || (masterData as any)?.callback || callBack || deliveryDetails?.callBack || "";
-      let resolvedChange = (masterData as any)?.change || (masterData as any)?.keepChanges || change || (deliveryDetails as any)?.change || "";
+      const resolvedContactNo = (masterData as any)?.mobileNo || (masterData as any)?.contactNo || contactNo || "";
+      const resolvedCallBack = (masterData as any)?.callBack || (masterData as any)?.callback || callBack || deliveryDetails?.callBack || "";
+      const resolvedChange = (masterData as any)?.change || (masterData as any)?.keepChanges || change || (deliveryDetails as any)?.change || "";
       let resolvedCustomerName = (masterData as any)?.deliveryCustomerName || (masterData as any)?.vehicleCustomerName || (masterData as any)?.customerName || customerNameStr || "";
       let resolvedFlatNo = (masterData as any)?.flatNo || (masterData as any)?.flat || (masterData as any)?.flatNumber || flatNo || "";
       let resolvedBuildingNo = (masterData as any)?.buildingNo || (masterData as any)?.building || (masterData as any)?.buildingNumber || buildingNo || "";
       let resolvedBlockNo = (masterData as any)?.blockNo || (masterData as any)?.block || (masterData as any)?.blockNumber || blockNo || "";
       let resolvedRoadNo = (masterData as any)?.roadNo || (masterData as any)?.road || (masterData as any)?.roadNumber || (masterData as any)?.street || roadNo || "";
       let resolvedArea = (masterData as any)?.area || (masterData as any)?.areaName || area || "";
-      let resolvedAddress = (masterData as any)?.address || (masterData as any)?.customerAddress || (masterData as any)?.deliveryAddress || "";
+      const resolvedAddress = (masterData as any)?.address || (masterData as any)?.customerAddress || (masterData as any)?.deliveryAddress || "";
 
       const isDeliveryOrder = orderTypeStr.toLowerCase().includes("delivery");
       if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {

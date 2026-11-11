@@ -472,7 +472,7 @@ const StockAdjustmentPage = () => {
                                 onFocus={(e) => {
                                   try {
                                     e.target.showPicker();
-                                  } catch (err) {
+                                  } catch {
                                     // Fallback for older browsers
                                   }
                                 }}

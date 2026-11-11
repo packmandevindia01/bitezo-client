@@ -20,7 +20,7 @@ import { applyStoredPricingToCartItems, resolveRecalledBillDiscount } from "../.
 import { deriveOrderChargeRatesFromMaster, storedOrderFooter } from "../../pricing";
 import { mapOrderDetailsToCartItems } from "../mappers/orderDetailToCartMapper";
 import { getBillingConfig, getVatStatus, roundCalc, getPriceView } from "./billing";
-import { buildUnifiedOrderPricing } from "../../utils/orderPricing";
+import { buildPrintPricing } from "../../utils/printPricing";
 import { checkOrderHasBillDiscount } from "./orderDiscountCheck";
 import { getCachedExtras } from "../../services/menuApi";
 import { loadRecalledOrder, setDeliveryDetails, setTableNo, setSelectedCustomer, fallbackOrderTypeByName } from "../store/posSlice";
@@ -168,8 +168,8 @@ export const buildSavedOrderLoad = (orderData: any, options: SavedOrderLoadOptio
   const priceView = getPriceView();
   const isTaxInclusive = priceView === "Inclusive";
 
-  const unifiedPricing = buildUnifiedOrderPricing(orderData, {
-    orderType: orderTypeName, priceView, modifierTypes, allExtras, isBillDiscount: isBillLevelDiscount, products, productCache,
+  const unifiedPricing = buildPrintPricing(orderData, {
+    dataView: priceView, printPrice: priceView, orderType: orderTypeName, modifierTypes, allExtras, isBillDiscount: isBillLevelDiscount, products, productCache,
   });
   const rawMappedCartItems = mapOrderDetailsToCartItems(details, modifiersData, {
     products, productCache, priceView, allExtras,

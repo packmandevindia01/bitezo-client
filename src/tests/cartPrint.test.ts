@@ -4,8 +4,7 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { calculateOrder, getBillingConfigForOrder } from "../features/pos/terminal/utils/billing";
-import { buildUnifiedOrderPricing } from "../features/pos/utils/orderPricing";
-import { applyCartPricingToUnified } from "../features/pos/utils/printPricing";
+import { buildLiveCartPricing } from "../features/pos/utils/printPricing";
 import { generateKotHtml } from "../features/pos/utils/kotTemplate";
 
 const ABCD = { id: 9, name: "ABCd", price: 100, vatValue: 10, isIncl: true };
@@ -24,10 +23,7 @@ beforeEach(() => {
   localStorage.setItem("kotArabic", "Disable");
 });
 
-const printOf = (lines: any[], printPrice: "Inclusive" | "Exclusive") => {
-  const unified = buildUnifiedOrderPricing(lines, { orderType: "DineIn" });
-  return applyCartPricingToUnified(unified, lines, { printPrice, orderType: "DineIn" })!;
-};
+const printOf = (lines: any[], printPrice: "Inclusive" | "Exclusive") => buildLiveCartPricing(lines, { printPrice, orderType: "DineIn" })!;
 
 describe("cart prints use the cart engine values in the Print Price view", () => {
   it("Inclusive print while the screen is Exclusive", () => {
@@ -73,5 +69,10 @@ describe("cart prints use the cart engine values in the Print Price view", () =>
       orderNo: "1", ticketNo: "1", waiter: "w", orderType: "DineIn", printPrice: "Inclusive",
     } as any);
     expect(html).toMatch(/>\s*205\.000\s*</);
+  });
+
+  it("is not used for rows that are not a live cart", () => {
+    expect(buildLiveCartPricing([{ productId: 1, qty: 2, price: 3 }], { printPrice: "Inclusive" })).toBeNull();
+    expect(buildLiveCartPricing([], { printPrice: "Inclusive" })).toBeNull();
   });
 });

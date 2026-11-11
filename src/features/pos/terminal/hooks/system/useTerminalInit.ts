@@ -11,6 +11,7 @@ import { subscribeToEmployeeUpdates } from "../../../../general/employee/utils/e
 import { menuApi } from "../../../services/menuApi";
 import { validateDefaultEmployeeAgainstList } from "../../../utils/defaultEmployee";
 import type { PosOrderType } from "../../../types";
+import { mergeEmployeeNames } from "../../../utils/employeeNames";
 
 interface UseTerminalInitProps {
   status: any;
@@ -162,19 +163,7 @@ export const useTerminalInit = ({
       getEmployeeNames(branchId)
         .then((employees) => {
           if (Array.isArray(employees) && employees.length > 0) {
-            const empMap: Record<string, string> = {};
-            try {
-              const existing = localStorage.getItem("posEmpNameMap");
-              if (existing) Object.assign(empMap, JSON.parse(existing));
-            } catch {}
-            employees.forEach((emp: any) => {
-              const id = emp.empId ?? emp.id;
-              const name = emp.empName ?? emp.name;
-              if (id && name) {
-                empMap[String(id)] = name;
-              }
-            });
-            localStorage.setItem("posEmpNameMap", JSON.stringify(empMap));
+            const empMap = mergeEmployeeNames(employees);
 
             // Validate if default employee exists in this branch's employees
             const isDefaultValid = validateDefaultEmployeeAgainstList(employees);
@@ -200,7 +189,7 @@ export const useTerminalInit = ({
           }
         })
         .catch((err) => {
-          console.warn("Failed to load employee names for posEmpNameMap:", err);
+          console.warn("Failed to load employee names:", err);
         });
     };
 

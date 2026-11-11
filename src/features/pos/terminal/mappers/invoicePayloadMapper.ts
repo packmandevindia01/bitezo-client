@@ -1,5 +1,5 @@
 import { formatDateOnly } from "@shared/lib/date";
-import { roundCalc, sanitizeTaxExclusiveDetail, getVatStatus } from "../utils/billing";
+import { roundCalc, getVatStatus } from "../utils/billing";
 import type { SalesInvoicePayload, PaymodeItem } from "../../types";
 import { dec, sumDec, toNum } from "../../../../utils/money";
 import type { DirectSettleOrderBase } from "./orderPayloadMapper";
@@ -105,25 +105,24 @@ export const buildSalesInvoicePayload = (options: BuildInvoiceOptions): SalesInv
     );
 
     const sanitizedDetails = (orderPayload.details || []).map((d: any) => {
-      const sanitized = sanitizeTaxExclusiveDetail(d);
       return {
-        productId: sanitized.productId,
-        unitId: sanitized.unitId || 1,
-        vatId: sanitized.vatId || 1,
-        qty: sanitized.qty,
-        price: sanitized.price,
-        basePrice: sanitized.basePrice,
-        exclusivePrice: sanitized.exclusivePrice,
+        productId: d.productId,
+        unitId: d.unitId || 1,
+        vatId: d.vatId || 1,
+        qty: d.qty,
+        price: d.price,
+        basePrice: d.basePrice,
+        exclusivePrice: d.exclusivePrice,
         isPriceTaxExclusive: true,
-        discPer: sanitized.discPer || 0,
-        discAmount: sanitized.discAmount || 0,
-        serviceCharge: sanitized.serviceCharge || 0,
-        levy: sanitized.levy || 0,
-        vatAmount: sanitized.vatAmount || 0,
-        netAmount: sanitized.netAmount,
-        baseQty: sanitized.baseQty || sanitized.qty || 1,
-        mapId: sanitized.mapId,
-        complimentaryStatus: sanitized.complimentaryStatus || false,
+        discPer: d.discPer || 0,
+        discAmount: d.discAmount || 0,
+        serviceCharge: d.serviceCharge || 0,
+        levy: d.levy || 0,
+        vatAmount: d.vatAmount || 0,
+        netAmount: d.netAmount,
+        baseQty: d.baseQty || d.qty || 1,
+        mapId: d.mapId,
+        complimentaryStatus: d.complimentaryStatus || false,
       };
     });
 

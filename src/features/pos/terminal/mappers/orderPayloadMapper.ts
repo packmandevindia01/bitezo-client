@@ -1,10 +1,8 @@
 import {
   roundCalc,
   CALC_PRECISION,
-  getBillingConfig,
   calculateOrder,
   getBillingConfigForOrder,
-  sanitizeTaxExclusiveDetail,
 } from "../utils/billing";
 import { formatDateOnly } from "./invoicePayloadMapper";
 import { sumMoney } from "../../../../utils/money";
@@ -485,23 +483,21 @@ export const buildUpdateOrderPayload = (
     sessionStorage.getItem(`order_prevUpdatedAt_${orderId}`) ||
     undefined;
 
-  const billingConfig = getBillingConfig(session.providerId ? "Provider" : (context.selectedOrderTypeName || "DineIn"));
   const cleanedDetails: MenuOrderDetail[] = base.details.map((d) => {
-    const sanitized = sanitizeTaxExclusiveDetail(d, billingConfig);
     return {
-      productId: Number(sanitized.productId),
-      unitId: Number(sanitized.unitId || 1),
-      qty: Number(sanitized.qty || 1),
-      price: sanitized.price,
-      discPer: roundCalc(sanitized.discPer || 0),
-      discAmount: roundCalc(sanitized.discAmount || 0),
-      serviceCharge: roundCalc(sanitized.serviceCharge || 0),
-      levy: roundCalc(sanitized.levy || 0),
-      vatId: Number(sanitized.vatId || 1),
-      vatAmount: roundCalc(sanitized.vatAmount || 0),
-      netAmount: sanitized.netAmount,
-      mapId: Number(sanitized.mapId || 1),
-      complimentaryStatus: Boolean(sanitized.complimentaryStatus),
+      productId: Number(d.productId),
+      unitId: Number(d.unitId || 1),
+      qty: Number(d.qty || 1),
+      price: d.price,
+      discPer: roundCalc(d.discPer || 0),
+      discAmount: roundCalc(d.discAmount || 0),
+      serviceCharge: roundCalc(d.serviceCharge || 0),
+      levy: roundCalc(d.levy || 0),
+      vatId: Number(d.vatId || 1),
+      vatAmount: roundCalc(d.vatAmount || 0),
+      netAmount: d.netAmount,
+      mapId: Number(d.mapId || 1),
+      complimentaryStatus: Boolean(d.complimentaryStatus),
     };
   });
 

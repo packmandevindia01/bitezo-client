@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { roundCalc, calculateOrder, CALC_PRECISION } from '../features/pos/terminal/utils/billing';
 import { formatAmount as formatCurrencyAmount, formatCurrency } from '../utils/currency';
 import { formatAmount as formatFormatterAmount, roundToDecimals } from '../utils/formatters';
-import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
+import { buildPrintPricing } from '../features/pos/utils/printPricing';
 
 describe('High-Precision Rounding & Dynamic Decimal Display Engine', () => {
   beforeEach(() => {
@@ -165,7 +165,7 @@ describe('High-Precision Rounding & Dynamic Decimal Display Engine', () => {
         ],
       };
 
-      const unified = buildUnifiedOrderPricing(orderData, { orderType: 'DineIn', priceView: 'Exclusive' });
+      const unified = buildPrintPricing(orderData, { orderType: 'DineIn', dataView: 'Exclusive', printPrice: 'Exclusive' });
 
       expect(unified.summary.subTotalExclusive).toBe(55);
       expect(unified.summary.serviceCharge).toBe(5.5);

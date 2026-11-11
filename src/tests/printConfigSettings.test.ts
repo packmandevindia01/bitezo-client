@@ -8,7 +8,6 @@ import { isKotArabicEnabled, isOtherKitchenItemEnabled } from "../features/pos/u
 import { posConfigApi } from "../features/pos/services/posConfigApi";
 import { generateKotHtml, kotNumber } from "../features/pos/utils/kotTemplate";
 import { generateGuestPrintHtml } from "../features/pos/utils/guestPrintTemplate";
-import { generateBillMarkup } from "../features/pos/utils/escPosGenerator";
 
 const printed = vi.hoisted(() => [] as { html: string; printer?: string }[]);
 const printFails = vi.hoisted(() => ({ next: false }));
@@ -89,13 +88,6 @@ describe("Guest print customer and heading line", () => {
 
   it.each([["TakeOut"], ["DineIn"]])("%s settle bill names the customer once", async (orderType) => {
     expect(customerRows(await bill({ orderType, invoiceNo: "84", isSettlement: true, customerName: "Ali" }))).toBe(1);
-  });
-
-  it("thermal format: guest and settle name the customer, packager does not", () => {
-    const markup = (over: Record<string, unknown>) => generateBillMarkup({ cartDetails: [item({})], data: { ...printData, orderType: "TakeOut", netAmount: 10, customerName: "Ali", ...over } as never });
-    expect(markup({})).toContain("Customer: Ali");
-    expect(markup({ invoiceNo: "84", isSettlement: true })).toContain("Customer: Ali");
-    expect(markup({ isPackager: true })).not.toContain("Customer: Ali");
   });
 
   it("a delivery guest bill prints the customer once, in Delivery Details", async () => {

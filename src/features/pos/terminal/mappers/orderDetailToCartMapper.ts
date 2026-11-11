@@ -119,9 +119,9 @@ export const mapOrderDetailToCartItem = ({
   const fallbackBillingConfig = getBillingConfig(orderType || "DineIn");
   const isVatEnabled = getVatStatus();
   const rawVatAmt = Number(detail.vatAmount ?? detail.VatAmount ?? 0);
-  let rawDiscAmount = Number(detail.discAmount ?? detail.DiscAmount ?? 0);
+  const rawDiscAmount = Number(detail.discAmount ?? detail.DiscAmount ?? 0);
   const qty = Number(detail.qty ?? detail.Qty ?? detail.quantity ?? detail.orderQty ?? detail.OrderQty ?? 1);
-  let rawPrice = Number(detail.price ?? detail.Price ?? realProduct.price ?? 0);
+  const rawPrice = Number(detail.price ?? detail.Price ?? realProduct.price ?? 0);
 
   const isBackendSavedDetail = Boolean(
     detail.mapId !== undefined ||

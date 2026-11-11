@@ -12,6 +12,7 @@ import { roundCalc, getPrintPrice, getPriceView } from "./billing";
 import { isBillArabicEnabled } from "../../utils/alternativeHelpers";
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../utils/printHeadingUtils";
 import { alternativesCache } from "../hooks/usePosProducts";
+import { savedOrderWaiterName } from "../../utils/employeeNames";
 
 export interface PrintRecallOrderOptions {
   orderId: number;
@@ -237,7 +238,7 @@ export const printRecallOrderGuestReceipt = async (
       timeFromDetails,
     ];
 
-    let resolvedDateStr = candidateDates.find(isValidDateStr);
+    const resolvedDateStr = candidateDates.find(isValidDateStr);
     let date: string | undefined;
     let time: string | undefined;
 
@@ -359,8 +360,8 @@ export const printRecallOrderGuestReceipt = async (
     let resolvedBlockNo = master.blockNo || master.block || master.blockNumber || "";
     let resolvedRoadNo = master.roadNo || master.road || master.roadNumber || master.street || "";
     let resolvedArea = master.area || master.areaName || "";
-    let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
-    let resolvedContactNo =
+    const resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
+    const resolvedContactNo =
       master.contactNo ||
       master.mobileNo ||
       master.phone ||
@@ -371,7 +372,7 @@ export const printRecallOrderGuestReceipt = async (
       (order as any)?.orderMaster?.mobileNo ||
       "";
 
-    let resolvedCallBack = isDeliveryOrder
+    const resolvedCallBack = isDeliveryOrder
       ? (master.callBack ||
         master.callback ||
         master.callBackNo ||
@@ -456,26 +457,7 @@ export const printRecallOrderGuestReceipt = async (
     const printData = {
       orderNo: master.orderNo ?? String(orderId),
       ticketNo: toDisplayNo(master.ticketNo) ?? "",
-      waiter: (() => {
-        const rawName = master.employeeName ?? master.waiter ?? order?.employeeName;
-        if (rawName && !["waiter", "cashier", "null", "undefined"].includes(String(rawName).trim().toLowerCase())) {
-          return String(rawName).trim();
-        }
-        try {
-          const mapRaw = localStorage.getItem("posEmpNameMap");
-          if (mapRaw) {
-            const m = JSON.parse(mapRaw);
-            const n = m[String(master.employeeId ?? master.empId ?? "")];
-            if (n && !["waiter", "cashier"].includes(String(n).trim().toLowerCase())) return String(n).trim();
-          }
-        } catch {}
-        return (
-          localStorage.getItem("defaultEmployeeName") ||
-          localStorage.getItem("authorizedEmployeeName") ||
-          localStorage.getItem("employeeName") ||
-          "Waiter"
-        );
-      })(),
+      waiter: savedOrderWaiterName(master.employeeName ?? master.waiter ?? order?.employeeName, master.employeeId ?? master.empId),
       counter: "Main",
       section: master.sectionName || "DINE IN",
       table: master.tableNo || "",

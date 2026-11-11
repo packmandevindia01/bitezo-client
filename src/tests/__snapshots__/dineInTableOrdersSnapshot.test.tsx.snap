@@ -1,0 +1,1783 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Dine-In table orders window > list 1`] = `
+"<div><div class="fixed inset-0 z-50 flex items-center justify-center px-3 py-3 sm:px-4" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div class="absolute inset-0 bg-black/40 backdrop-blur-sm"></div><div style="transform: scale(1); transform-origin: center center;" class="
+          relative flex flex-col w-full max-w-6xl
+          rounded-xl bg-white shadow-lg z-10
+          animate-[fadeIn_0.2s_ease-in-out]
+          p-0
+          bg-[#f8f9fa] border-none shadow-2xl h-[85vh] max-h-[900px] flex flex-col
+        "><div class="flex-1 min-h-0 flex flex-col overflow-hidden  text-sm md:text-base "><div class="flex items-stretch bg-[#49293e] text-white shrink-0"><div class="flex-1 flex items-center gap-3 px-4 py-2.5 min-w-0"><span class="text-xs font-bold uppercase tracking-wider truncate">Table Orders · T9</span></div><button class="px-5 py-2.5 flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider transition-colors shrink-0 disabled:opacity-40"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>New Order</button><button tabindex="-1" aria-label="Close table orders" class="px-6 py-2.5 flex items-center justify-center bg-red-700 hover:bg-red-800 text-white transition-colors shrink-0"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x" aria-hidden="true"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg></button></div><div class="flex-1 overflow-y-auto p-3 space-y-2 bg-[#f0f2f5] relative min-h-[300px]"><div role="button" tabindex="0" class="
+                  flex items-stretch bg-white rounded-xl overflow-hidden shadow-sm border border-transparent cursor-pointer
+                  hover:border-[#f48120]/30 hover:shadow-md transition-all group
+                  ring-2 ring-[#f48120] shadow-lg translate-x-1
+                "><div class="
+                  flex-1 min-w-0 p-4 flex flex-col justify-center gap-1.5 transition-colors
+                  bg-[#f48120] text-white
+                "><div class="flex flex-wrap items-center gap-x-4 gap-y-1"><div class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20"><span class="text-[10px] font-bold uppercase tracking-tighter text-white">Printed</span></div></div><div class="flex items-start gap-2 min-w-0"><div class="mt-1.5 shrink-0 h-1.5 w-1.5 rounded-full bg-white"></div><p class="text-sm font-bold leading-snug italic break-words [overflow-wrap:anywhere] [word-break:break-word] min-w-0 text-white">"Order : 41 Ticket : 5 09:25:00 AM (DineIn) (CASH CUSTOMER) (Ali) Section : Hall TableNo : T9 Amnt : 12.320"</p></div></div><div class="w-[100px] shrink-0"><button class="
+                      w-full h-full flex flex-col items-center justify-center gap-1 transition-all text-white
+                      bg-[#3e4d22] hover:bg-[#34411c]
+                    "><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-printer" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"></path><rect x="6" y="14" width="12" height="8" rx="1"></rect></svg><div class="font-black text-[10px] uppercase tracking-widest">Print</div></button></div></div><div role="button" tabindex="0" class="
+                  flex items-stretch bg-white rounded-xl overflow-hidden shadow-sm border border-transparent cursor-pointer
+                  hover:border-[#f48120]/30 hover:shadow-md transition-all group
+                  
+                "><div class="
+                  flex-1 min-w-0 p-4 flex flex-col justify-center gap-1.5 transition-colors
+                  group-hover:bg-gray-50
+                "><div class="flex items-start gap-2 min-w-0"><div class="mt-1.5 shrink-0 h-1.5 w-1.5 rounded-full bg-[#f48120]"></div><p class="text-sm font-bold leading-snug italic break-words [overflow-wrap:anywhere] [word-break:break-word] min-w-0 text-gray-800">"Order : 42 Ticket : 6 (DineIn) Section : Hall TableNo : T9 Amnt : 19.800"</p></div></div><div class="w-[100px] shrink-0"><button class="
+                      w-full h-full flex flex-col items-center justify-center gap-1 transition-all text-white
+                      bg-[#556b2f] hover:bg-[#4a5d29]
+                    "><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-printer" aria-hidden="true"><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6"></path><rect x="6" y="14" width="12" height="8" rx="1"></rect></svg><div class="font-black text-[10px] uppercase tracking-widest">Print</div></button></div></div></div><div class="p-4 bg-white border-t border-gray-200 flex justify-between items-center shrink-0"><div class="text-xs font-bold text-gray-400 uppercase tracking-widest">Total Records: 2</div></div></div></div></div></div>"
+`;
+
+exports[`Dine-In table orders window > order 0 (item discount) > EDIT: cart > cart 1`] = `
+{
+  "billDiscountType": "amount",
+  "billDiscountValue": 0,
+  "editingOrderId": 41,
+  "items": [
+    {
+      "authoritativeDiscount": 0.5,
+      "authoritativeLineTotal": 10,
+      "authoritativeOriginalLineTotal": 10.5,
+      "authoritativePrice": 5.25,
+      "authoritativeVatAmount": 1.1,
+      "basePrice": 5.125,
+      "complimentaryStatus": false,
+      "discountType": "amount",
+      "discountValue": 0.5,
+      "exclusivePrice": 5.125,
+      "extras": [
+        {
+          "id": 11,
+          "name": "Cheese",
+          "price": 0.3025,
+          "qty": 1,
+          "typeId": 2,
+        },
+      ],
+      "isExisting": true,
+      "isIncl": false,
+      "lineTotal": 10,
+      "mapId": 1,
+      "messages": [],
+      "modifiers": [
+        {
+          "arabicName": "",
+          "id": 12,
+          "name": "Less salt",
+          "qty": 1,
+          "typeId": 1,
+          "typeName": "",
+        },
+      ],
+      "originalLineTotal": 10.5,
+      "originalQty": 2,
+      "price": 5.125,
+      "priceIsIncl": false,
+      "product": {
+        "arabicName": undefined,
+        "categoryId": 1,
+        "id": 1,
+        "isIncl": false,
+        "name": "Burger",
+        "price": 5.125,
+        "priceIsIncl": false,
+        "sVatId": 1,
+        "unitId": 1,
+        "vatValue": 10,
+      },
+      "productId": 1,
+      "quantity": 2,
+      "savedVatRate": 10,
+      "unitId": 1,
+      "variantArabic": undefined,
+      "variantName": undefined,
+      "vatValue": 10,
+    },
+    {
+      "authoritativeDiscount": 0,
+      "authoritativeLineTotal": 1,
+      "authoritativeOriginalLineTotal": 1,
+      "authoritativePrice": 1,
+      "authoritativeVatAmount": 0.11,
+      "basePrice": 1,
+      "complimentaryStatus": false,
+      "discountType": "percentage",
+      "discountValue": 0,
+      "exclusivePrice": 1,
+      "extras": [],
+      "isExisting": true,
+      "isIncl": false,
+      "lineTotal": 1,
+      "mapId": 2,
+      "messages": [],
+      "modifiers": [],
+      "originalLineTotal": 1,
+      "originalQty": 1,
+      "price": 1,
+      "priceIsIncl": false,
+      "product": {
+        "arabicName": undefined,
+        "categoryId": 1,
+        "id": 2,
+        "isIncl": false,
+        "name": "Tea",
+        "price": 1,
+        "priceIsIncl": false,
+        "sVatId": 1,
+        "unitId": 1,
+        "vatValue": 10,
+      },
+      "productId": 2,
+      "quantity": 1,
+      "savedVatRate": 10,
+      "unitId": 1,
+      "variantArabic": undefined,
+      "variantName": undefined,
+      "vatValue": 10,
+    },
+  ],
+  "selectedOrderTypeName": "DineIn",
+  "selectedSectionId": 7,
+  "selectedTableId": 9,
+  "waiterName": "Ali",
+}
+`;
+
+exports[`Dine-In table orders window > order 0 (item discount) > SETTLE: invoice sent and settle receipt > invoice 1`] = `
+{
+  "androidStatus": false,
+  "billDiscount": 0.5,
+  "billDiscountType": "amount",
+  "billDiscountValue": 0.5,
+  "combinedOrderIds": [],
+  "complimentaryStatus": false,
+  "createdAt": "2026-11-06T07:00:00.000Z",
+  "customerId": 1,
+  "dayId": 1,
+  "deliveryCharge": 0,
+  "details": [
+    {
+      "basePrice": 5.25,
+      "baseQty": 2,
+      "complimentaryStatus": false,
+      "discAmount": 0.5,
+      "discPer": 0,
+      "exclusivePrice": 5.25,
+      "isPriceTaxExclusive": true,
+      "levy": 0,
+      "mapId": 1,
+      "netAmount": 12.1,
+      "price": 5.25,
+      "productId": 1,
+      "qty": 2,
+      "serviceCharge": 1,
+      "unitId": 1,
+      "vatAmount": 1.1,
+      "vatId": 1,
+    },
+    {
+      "basePrice": 1,
+      "baseQty": 1,
+      "complimentaryStatus": false,
+      "discAmount": 0,
+      "discPer": 0,
+      "exclusivePrice": 1,
+      "isPriceTaxExclusive": true,
+      "levy": 0,
+      "mapId": 2,
+      "netAmount": 1.21,
+      "price": 1,
+      "productId": 2,
+      "qty": 1,
+      "serviceCharge": 0.1,
+      "unitId": 1,
+      "vatAmount": 0.11,
+      "vatId": 1,
+    },
+  ],
+  "discAmount": 0.5,
+  "discPer": 0,
+  "employeeId": 1,
+  "isBillDiscount": true,
+  "levy": 0,
+  "modifiers": [
+    {
+      "amount": 0.25,
+      "arabicName": "",
+      "mapId": 1,
+      "modifierId": 11,
+      "modifierName": "Cheese",
+      "price": 0.25,
+      "qty": 1,
+      "status": "extras",
+      "typeId": 2,
+    },
+    {
+      "amount": 0,
+      "arabicName": "",
+      "mapId": 1,
+      "modifierId": 12,
+      "modifierName": "Less salt",
+      "price": 0,
+      "qty": 1,
+      "status": "modifier",
+      "typeId": 1,
+    },
+  ],
+  "netAmount": 13.31,
+  "orderId": 41,
+  "orderMaster": {
+    "addressId": 0,
+    "change": "",
+    "comingTime": "2026-11-06T07:00:00.000Z",
+    "complimentaryStatus": false,
+    "contactNo": "",
+    "driverId": 0,
+    "guestNo": 2,
+    "isComing": false,
+    "isOrderEdited": false,
+    "missedCall": false,
+    "note": "",
+    "providerNo": "",
+    "sectionId": 7,
+    "tableId": 9,
+    "vehicleCustomerName": "",
+    "vehicleNo": "",
+  },
+  "orderTypeId": 1,
+  "paymodeId": 1,
+  "paymodes": [],
+  "prefix": "",
+  "saleId": 0,
+  "seriesId": 1,
+  "serviceCharge": 1.1,
+  "shiftId": 1,
+  "transDate": "2026-11-06T07:00:00.000Z",
+  "vatAmount": 1.21,
+  "vatExclAmount": 12.1,
+  "voidModifiers": [],
+  "voidProducts": [],
+  "voucherDate": "2026-11-06",
+}
+`;
+
+exports[`Dine-In table orders window > order 0 (item discount) > SETTLE: invoice sent and settle receipt > settle receipt 1`] = `
+"
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+            margin: 0 auto;
+            padding: 2px 8px 0 8px;
+            width: 100%;
+            max-width: 576px;
+            background-color: #ffffff;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: geometricPrecision;
+            box-sizing: border-box;
+          }
+          .arabic-text {
+            direction: rtl;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
+            font-weight: normal;
+            color: #000000;
+            unicode-bidi: isolate;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+            -webkit-font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.5;
+            padding: 1px 0;
+          }
+          .text-center { text-align: center; }
+          .font-bold { font-weight: bold; }
+          .header-title { font-family: 'Roboto', 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 16px; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: 700; color: #000000; line-height: 1.3; }
+          
+          table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+          
+          /* Printed text lands low (see orderTicketHtml in kotTemplate), so a line needs more room above it than below */
+          .dashed-hr { border: none; border-top: 1px dashed #000000; margin: 11px 0 1px 0; clear: both; width: 100%; display: block; }
+          .solid-hr { border: none; border-top: 1px solid #000000; margin: 4px 0; clear: both; width: 100%; display: block; }
+          
+          table.meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #000000;
+          }
+          table.meta-table td {
+            padding: 2px 2px;
+            vertical-align: middle;
+            font-weight: 600;
+            color: #000000;
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: visible;
+          }
+          table.meta-table .arabic-text {
+            padding: 0;
+            line-height: 1.2;
+            display: inline;
+          }
+          
+          table.items-table {
+            font-weight: 600;
+            line-height: 1.15;
+            color: #000000;
+            table-layout: fixed;
+            width: 100%;
+          }
+          table.items-table th {
+            font-weight: 700;
+            color: #000000;
+            text-transform: capitalize;
+            padding-bottom: 5px;
+            line-height: 1.3;
+            text-align: left;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+          table.items-table th.col-rate,
+          table.items-table th.col-amt {
+            text-align: right;
+          }
+          table.items-table td {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 8.5pt;
+            font-weight: normal;
+            color: #000000;
+            padding: 1px 0;
+            line-height: 1.2;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+          table.items-table div {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 8.5pt;
+            font-weight: normal;
+            color: #000000;
+            margin: 0;
+            padding: 0;
+            line-height: 1.15;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+
+          
+
+          .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: 600; color: #000000; }
+          
+          .totals-table {
+            width: 100%;
+            table-layout: fixed;
+            margin-top: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+          }
+          .totals-table td {
+            padding: 1.5px 0;
+            font-weight: 600;
+            color: #000000;
+            vertical-align: middle;
+          }
+          .totals-label {
+            width: 72%;
+            text-align: left;
+            font-weight: 600;
+            color: #000000;
+            white-space: nowrap;
+          }
+          .totals-value {
+            width: 28%;
+            text-align: right;
+            font-weight: 700;
+            color: #000000;
+            white-space: nowrap;
+          }
+          
+          .grand-total {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 12pt !important;
+            font-weight: bold !important;
+            color: #000000;
+            white-space: nowrap;
+          }
+
+          .vat-table { margin-top: 6px; font-weight: 600; font-size: 12px; color: #000000; table-layout: fixed; }
+          .vat-table th { text-align: left; padding-bottom: 9px; font-weight: 700; color: #000000; border-bottom: 1px dashed #000000; }
+          .vat-table td { padding: 0 0 2px 0; font-weight: 600; color: #000000; }
+          
+          .barcode-container { margin-top: 15px; margin-bottom: 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000000; }
+        </style>
+      </head>
+      <body>
+          
+  
+          <div class="text-center header-title"><div>SIMPLIFIED TAX INVOICE</div><div style="font-size: 13px; font-weight: 700; margin-top: 3px; line-height: 1.3; letter-spacing: 0;">(DINE IN)</div></div>
+        
+        <div class="dashed-hr" style="border-top: 1px solid #000;"></div>
+
+        
+        <table class="meta-table">
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Invoice No :&nbsp;<span style="font-size: 13px; font-weight: bold;">#77</span></td>
+            <td style="width: 50%; white-space: nowrap;">Order No :&nbsp;<span style="font-size: 13px; font-weight: bold;">#41</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Ticket No :&nbsp;<span style="font-size: 13px; font-weight: bold;">#5</span></td>
+            <td style="width: 50%; white-space: nowrap;">Date :&nbsp;<span style="font-weight: normal; white-space: nowrap;">06/11/2026</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Time :&nbsp;<span style="font-weight: normal; white-space: nowrap;">12:30 PM</span></td>
+            <td style="width: 50%; white-space: nowrap;">Waiter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Ali</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Main</span></td>
+            <td style="width: 50%; white-space: nowrap;">Section :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Hall</span></td>
+          </tr>
+          
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Table :&nbsp;<span style="font-weight: normal; white-space: nowrap;">T9</span></td>
+            <td style="width: 50%;"></td>
+          </tr>
+          
+          
+          <tr>
+            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">CASH CUSTOMER</span></td>
+          </tr>
+          
+        </table>
+        
+        
+        <div class="dashed-hr"></div>
+        
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width: 14%; text-align: left;">Qty</th>
+              <th style="width: 46%; text-align: left;">Description</th>
+              <th class="col-rate" style="width: 18%; text-align: right;">Rate</th>
+              <th class="col-amt" style="width: 22%; text-align: right;">Amt</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 1px 0;">2</td>
+        <td style="width: 46%; text-align: left; vertical-align: top; padding: 1px 0;">
+          <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">BURGER</div>
+          
+        </td>
+        <td style="width: 18%; text-align: right; vertical-align: top; padding: 1px 0;">5.250</td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 1px 0;">10.500</td>
+      </tr>
+      
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+        <td colspan="2" style="text-align: right; vertical-align: top; padding: 0.5px 0; font-size: 11px; font-weight: bold; white-space: nowrap;">
+          Disc : 0.500
+        </td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0; font-weight: bold;">
+          10.000
+        </td>
+      </tr>
+      
+    
+          <tr>
+            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 46%; text-align: left; vertical-align: top; padding: 0.5px 0; font-style: italic; color: #555;">+ CHEESE</td>
+            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+          </tr>
+        
+          <tr>
+            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 46%; text-align: left; vertical-align: top; font-style: italic; padding: 0.5px 0;">* LESS SALT</td>
+            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+          </tr>
+        
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 1px 0;">1</td>
+        <td style="width: 46%; text-align: left; vertical-align: top; padding: 1px 0;">
+          <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">TEA</div>
+          
+        </td>
+        <td style="width: 18%; text-align: right; vertical-align: top; padding: 1px 0;">1.000</td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 1px 0;">1.000</td>
+      </tr>
+      
+    
+          </tbody>
+        </table>
+        
+        <div class="dashed-hr"></div>
+
+        <table class="totals-table">
+          <tr>
+            <td class="totals-label">Sub Total</td>
+            <td class="totals-value">11.500</td>
+          </tr>
+          
+          <tr>
+            <td class="totals-label">Discount</td>
+            <td class="totals-value">-0.500</td>
+          </tr>
+          
+          
+          <tr>
+            <td class="totals-label">Service Charge (10%)</td>
+            <td class="totals-value">1.100</td>
+          </tr>
+          
+          
+          <tr>
+            <td class="totals-label">Net Value</td>
+            <td class="totals-value">12.100</td>
+          </tr>
+          
+          
+          
+          <tr>
+            <td class="totals-label">VAT Amount</td>
+            <td class="totals-value">1.210</td>
+          </tr>
+          
+          <tr>
+            <td class="totals-label grand-total" style="white-space: nowrap; text-align: left;">Grand Total</td>
+            <td class="totals-value grand-total" style="white-space: nowrap; text-align: right;">13.310</td>
+          </tr>
+          
+          <tr><td colspan="2"><div class="dashed-hr" style="margin: 9px 0 1px 0;"></div></td></tr>
+          
+          <tr>
+            <td class="totals-label">Cash</td>
+            <td class="totals-value">13.310</td>
+          </tr>
+          
+          
+          
+          <tr>
+            <td class="totals-label" style="font-weight: 700;">Change</td>
+            <td class="totals-value" style="font-weight: 700;">1.000</td>
+          </tr>
+          
+        </table>
+
+        
+        <div class="dashed-hr"></div>
+        <table class="vat-table" style="margin-top: 0; width: 100%;">
+          <thead>
+            <tr>
+              
+              <th style="text-align: left; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Code</th>
+              <th style="text-align: right; width: 30%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Excl Amt</th>
+              <th style="text-align: right; width: 24%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Amt</th>
+              <th style="text-align: right; width: 26%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Net Amt</th>
+              
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              
+              <td style="text-align: left; font-weight: normal; width: 20%; padding-top: 0;">10%</td>
+              <td style="text-align: right; font-weight: normal; width: 30%; padding-top: 0;">12.100</td>
+              <td style="text-align: right; font-weight: normal; width: 24%; padding-top: 0;">1.210</td>
+              <td style="text-align: right; font-weight: normal; width: 26%; padding-top: 0;">13.310</td>
+              
+            </tr>
+          </tbody>
+        </table>
+        <div class="dashed-hr"></div>
+        
+        
+        
+
+        <div class="barcode-container"><div dir="ltr" style="display:flex; direction:ltr; width:102px; height:40px; margin-left:85px;"><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:6px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div></div><div style="text-align:center; font-size:12px; font-weight:bold; letter-spacing:1px; margin-top:2px;">105672</div></div>
+        
+        <div style="font-size: 11px; margin-top: 5px; white-space: nowrap;">Print Time : 06/11/2026 12:30 PM</div>
+
+        
+      </body>
+    </html>
+  "
+`;
+
+exports[`Dine-In table orders window > order 0 (item discount) > row PRINT: guest receipt > guest receipt 1`] = `
+"
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+            margin: 0 auto;
+            padding: 2px 8px 0 8px;
+            width: 100%;
+            max-width: 576px;
+            background-color: #ffffff;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: geometricPrecision;
+            box-sizing: border-box;
+          }
+          .arabic-text {
+            direction: rtl;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
+            font-weight: normal;
+            color: #000000;
+            unicode-bidi: isolate;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+            -webkit-font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.5;
+            padding: 1px 0;
+          }
+          .text-center { text-align: center; }
+          .font-bold { font-weight: bold; }
+          .header-title { font-family: 'Roboto', 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 16px; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: 700; color: #000000; line-height: 1.3; }
+          
+          table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+          
+          /* Printed text lands low (see orderTicketHtml in kotTemplate), so a line needs more room above it than below */
+          .dashed-hr { border: none; border-top: 1px dashed #000000; margin: 11px 0 1px 0; clear: both; width: 100%; display: block; }
+          .solid-hr { border: none; border-top: 1px solid #000000; margin: 4px 0; clear: both; width: 100%; display: block; }
+          
+          table.meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #000000;
+          }
+          table.meta-table td {
+            padding: 2px 2px;
+            vertical-align: middle;
+            font-weight: 600;
+            color: #000000;
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: visible;
+          }
+          table.meta-table .arabic-text {
+            padding: 0;
+            line-height: 1.2;
+            display: inline;
+          }
+          
+          table.items-table {
+            font-weight: 600;
+            line-height: 1.15;
+            color: #000000;
+            table-layout: fixed;
+            width: 100%;
+          }
+          table.items-table th {
+            font-weight: 700;
+            color: #000000;
+            text-transform: capitalize;
+            padding-bottom: 5px;
+            line-height: 1.3;
+            text-align: left;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+          table.items-table th.col-rate,
+          table.items-table th.col-amt {
+            text-align: right;
+          }
+          table.items-table td {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 8.5pt;
+            font-weight: normal;
+            color: #000000;
+            padding: 1px 0;
+            line-height: 1.2;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+          table.items-table div {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 8.5pt;
+            font-weight: normal;
+            color: #000000;
+            margin: 0;
+            padding: 0;
+            line-height: 1.15;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+
+          
+          table.items-table th { padding-bottom: 9px; border-bottom: 1px dashed #000000; }
+          table.items-table tbody tr:first-child td { padding-top: 4px; }
+          
+
+          .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: 600; color: #000000; }
+          
+          .totals-table {
+            width: 100%;
+            table-layout: fixed;
+            margin-top: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+          }
+          .totals-table td {
+            padding: 1.5px 0;
+            font-weight: 600;
+            color: #000000;
+            vertical-align: middle;
+          }
+          .totals-label {
+            width: 72%;
+            text-align: left;
+            font-weight: 600;
+            color: #000000;
+            white-space: nowrap;
+          }
+          .totals-value {
+            width: 28%;
+            text-align: right;
+            font-weight: 700;
+            color: #000000;
+            white-space: nowrap;
+          }
+          
+          .grand-total {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 12pt !important;
+            font-weight: bold !important;
+            color: #000000;
+            white-space: nowrap;
+          }
+
+          .vat-table { margin-top: 6px; font-weight: 600; font-size: 12px; color: #000000; table-layout: fixed; }
+          .vat-table th { text-align: left; padding-bottom: 9px; font-weight: 700; color: #000000; border-bottom: 1px dashed #000000; }
+          .vat-table td { padding: 0 0 2px 0; font-weight: 600; color: #000000; }
+          
+          .barcode-container { margin-top: 15px; margin-bottom: 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000000; }
+        </style>
+      </head>
+      <body>
+          
+  
+          <div class="text-center header-title"><div>GUEST PRINT</div><div style="font-size: 13px; font-weight: 700; margin-top: 3px; line-height: 1.3; letter-spacing: 0;">(DINE IN)</div></div>
+        
+        <div class="dashed-hr" style="border-top: 1px solid #000;"></div>
+
+        
+        <table class="meta-table">
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Order No :&nbsp;<span style="font-size: 13px; font-weight: bold;">#41</span></td>
+            <td style="width: 50%; white-space: nowrap;">Ticket No :&nbsp;<span style="font-size: 13px; font-weight: bold;">#5</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Date :&nbsp;<span style="font-weight: normal; white-space: nowrap;">04/11/2026</span></td>
+            <td style="width: 50%; white-space: nowrap;">Time :&nbsp;<span style="font-weight: normal; white-space: nowrap;">09:25 AM</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Waiter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Ali</span></td>
+            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Main</span></td>
+          </tr>
+          
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Section :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Hall</span></td>
+            <td style="width: 50%; white-space: nowrap;">Table :&nbsp;<span style="font-weight: normal; white-space: nowrap;">T9</span></td>
+          </tr>
+          
+          
+          <tr>
+            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">CASH CUSTOMER</span></td>
+          </tr>
+          
+        </table>
+        
+        
+        <div class="dashed-hr"></div>
+        
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width: 14%; text-align: left;">Qty</th>
+              <th style="width: 46%; text-align: left;">Description</th>
+              <th class="col-rate" style="width: 18%; text-align: right;">Rate</th>
+              <th class="col-amt" style="width: 22%; text-align: right;">Amt</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 1px 0;">2</td>
+        <td style="width: 46%; text-align: left; vertical-align: top; padding: 1px 0;">
+          <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">BURGER</div>
+          
+        </td>
+        <td style="width: 18%; text-align: right; vertical-align: top; padding: 1px 0;">5.250</td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 1px 0;">10.500</td>
+      </tr>
+      
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+        <td colspan="2" style="text-align: right; vertical-align: top; padding: 0.5px 0; font-size: 11px; font-weight: bold; white-space: nowrap;">
+          Disc : 0.500
+        </td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0; font-weight: bold;">
+          10.000
+        </td>
+      </tr>
+      
+    
+          <tr>
+            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 46%; text-align: left; vertical-align: top; padding: 0.5px 0; font-style: italic; color: #555;">+ CHEESE</td>
+            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+          </tr>
+        
+          <tr>
+            <td style="width: 14%; text-align: left; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 46%; text-align: left; vertical-align: top; font-style: italic; padding: 0.5px 0;">* LESS SALT</td>
+            <td style="width: 18%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+            <td style="width: 22%; text-align: right; vertical-align: top; padding: 0.5px 0;"></td>
+          </tr>
+        
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 1px 0;">1</td>
+        <td style="width: 46%; text-align: left; vertical-align: top; padding: 1px 0;">
+          <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">TEA</div>
+          
+        </td>
+        <td style="width: 18%; text-align: right; vertical-align: top; padding: 1px 0;">1.000</td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 1px 0;">1.000</td>
+      </tr>
+      
+    
+          </tbody>
+        </table>
+        
+        <div class="dashed-hr"></div>
+
+        <table class="totals-table">
+          <tr>
+            <td class="totals-label">Sub Total</td>
+            <td class="totals-value">11.500</td>
+          </tr>
+          
+          <tr>
+            <td class="totals-label">Discount</td>
+            <td class="totals-value">-0.500</td>
+          </tr>
+          
+          
+          <tr>
+            <td class="totals-label">Service Charge (10%)</td>
+            <td class="totals-value">1.100</td>
+          </tr>
+          
+          
+          <tr>
+            <td class="totals-label">Net Value</td>
+            <td class="totals-value">12.100</td>
+          </tr>
+          
+          
+          
+          <tr>
+            <td class="totals-label">VAT Amount</td>
+            <td class="totals-value">1.210</td>
+          </tr>
+          
+          <tr>
+            <td class="totals-label grand-total" style="white-space: nowrap; text-align: left;">Grand Total</td>
+            <td class="totals-value grand-total" style="white-space: nowrap; text-align: right;">13.310</td>
+          </tr>
+          
+          
+        </table>
+
+        
+        <div class="dashed-hr"></div>
+        <table class="vat-table" style="margin-top: 0; width: 100%;">
+          <thead>
+            <tr>
+              
+              <th style="text-align: left; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Code</th>
+              <th style="text-align: right; width: 30%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Excl Amt</th>
+              <th style="text-align: right; width: 24%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Amt</th>
+              <th style="text-align: right; width: 26%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Net Amt</th>
+              
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              
+              <td style="text-align: left; font-weight: normal; width: 20%; padding-top: 0;">10%</td>
+              <td style="text-align: right; font-weight: normal; width: 30%; padding-top: 0;">12.100</td>
+              <td style="text-align: right; font-weight: normal; width: 24%; padding-top: 0;">1.210</td>
+              <td style="text-align: right; font-weight: normal; width: 26%; padding-top: 0;">13.310</td>
+              
+            </tr>
+          </tbody>
+        </table>
+        <div class="dashed-hr"></div>
+        
+        
+        
+
+        <div class="barcode-container"><div dir="ltr" style="display:flex; direction:ltr; width:69px; height:40px; margin-left:101px;"><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div></div><div style="text-align:center; font-size:12px; font-weight:bold; letter-spacing:1px; margin-top:2px;">41</div></div>
+        
+        <div style="font-size: 11px; margin-top: 5px; white-space: nowrap;">Print Time : 04/11/2026 09:25 AM</div>
+
+        
+      </body>
+    </html>
+  "
+`;
+
+exports[`Dine-In table orders window > order 1 (bill discount) > EDIT: cart > cart 1`] = `
+{
+  "billDiscountType": "percentage",
+  "billDiscountValue": 10,
+  "editingOrderId": 42,
+  "items": [
+    {
+      "authoritativeDiscount": 0,
+      "authoritativeLineTotal": 12,
+      "authoritativeOriginalLineTotal": 12,
+      "authoritativePrice": 12,
+      "authoritativeVatAmount": 1.08,
+      "basePrice": 12,
+      "complimentaryStatus": false,
+      "discountType": "percentage",
+      "discountValue": 0,
+      "exclusivePrice": 12,
+      "extras": [],
+      "isExisting": true,
+      "isIncl": false,
+      "lineTotal": 12,
+      "mapId": 1,
+      "messages": [],
+      "modifiers": [],
+      "originalLineTotal": 12,
+      "originalQty": 1,
+      "price": 12,
+      "priceIsIncl": false,
+      "product": {
+        "arabicName": undefined,
+        "categoryId": 1,
+        "id": 3,
+        "isIncl": false,
+        "name": "Pizza",
+        "price": 12,
+        "priceIsIncl": false,
+        "sVatId": 1,
+        "unitId": 1,
+        "vatValue": 10,
+      },
+      "productId": 3,
+      "quantity": 1,
+      "savedVatRate": 10,
+      "unitId": 1,
+      "variantArabic": undefined,
+      "variantName": undefined,
+      "vatValue": 10,
+    },
+    {
+      "authoritativeDiscount": 0,
+      "authoritativeLineTotal": 8,
+      "authoritativeOriginalLineTotal": 8,
+      "authoritativePrice": 4,
+      "authoritativeVatAmount": 0.72,
+      "basePrice": 4,
+      "complimentaryStatus": false,
+      "discountType": "percentage",
+      "discountValue": 0,
+      "exclusivePrice": 4,
+      "extras": [],
+      "isExisting": true,
+      "isIncl": false,
+      "lineTotal": 8,
+      "mapId": 2,
+      "messages": [],
+      "modifiers": [],
+      "originalLineTotal": 8,
+      "originalQty": 2,
+      "price": 4,
+      "priceIsIncl": false,
+      "product": {
+        "arabicName": undefined,
+        "categoryId": 1,
+        "id": 4,
+        "isIncl": false,
+        "name": "Juice",
+        "price": 4,
+        "priceIsIncl": false,
+        "sVatId": 1,
+        "unitId": 1,
+        "vatValue": 10,
+      },
+      "productId": 4,
+      "quantity": 2,
+      "savedVatRate": 10,
+      "unitId": 1,
+      "variantArabic": undefined,
+      "variantName": undefined,
+      "vatValue": 10,
+    },
+  ],
+  "selectedOrderTypeName": "DineIn",
+  "selectedSectionId": 7,
+  "selectedTableId": 9,
+  "waiterName": "Ali",
+}
+`;
+
+exports[`Dine-In table orders window > order 1 (bill discount) > SETTLE: invoice sent and settle receipt > invoice 1`] = `
+{
+  "androidStatus": false,
+  "billDiscount": 2,
+  "billDiscountType": "percentage",
+  "billDiscountValue": 2,
+  "combinedOrderIds": [],
+  "complimentaryStatus": false,
+  "createdAt": "2026-11-06T07:00:00.000Z",
+  "customerId": 1,
+  "dayId": 1,
+  "deliveryCharge": 0,
+  "details": [
+    {
+      "basePrice": 12,
+      "baseQty": 1,
+      "complimentaryStatus": false,
+      "discAmount": 1.2,
+      "discPer": 10,
+      "exclusivePrice": 12,
+      "isPriceTaxExclusive": true,
+      "levy": 0,
+      "mapId": 1,
+      "netAmount": 11.88,
+      "price": 12,
+      "productId": 3,
+      "qty": 1,
+      "serviceCharge": 0,
+      "unitId": 1,
+      "vatAmount": 1.08,
+      "vatId": 1,
+    },
+    {
+      "basePrice": 4,
+      "baseQty": 2,
+      "complimentaryStatus": false,
+      "discAmount": 0.8,
+      "discPer": 10,
+      "exclusivePrice": 4,
+      "isPriceTaxExclusive": true,
+      "levy": 0,
+      "mapId": 2,
+      "netAmount": 7.92,
+      "price": 4,
+      "productId": 4,
+      "qty": 2,
+      "serviceCharge": 0,
+      "unitId": 1,
+      "vatAmount": 0.72,
+      "vatId": 1,
+    },
+  ],
+  "discAmount": 2,
+  "discPer": 10,
+  "employeeId": 1,
+  "isBillDiscount": true,
+  "levy": 0,
+  "modifiers": [],
+  "netAmount": 19.8,
+  "orderId": 42,
+  "orderMaster": {
+    "addressId": 0,
+    "change": "",
+    "comingTime": "2026-11-06T07:00:00.000Z",
+    "complimentaryStatus": false,
+    "contactNo": "",
+    "driverId": 0,
+    "guestNo": 1,
+    "isComing": false,
+    "isOrderEdited": false,
+    "missedCall": false,
+    "note": "",
+    "providerNo": "",
+    "sectionId": 7,
+    "tableId": 9,
+    "vehicleCustomerName": "",
+    "vehicleNo": "",
+  },
+  "orderTypeId": 1,
+  "paymodeId": 1,
+  "paymodes": [],
+  "prefix": "",
+  "saleId": 0,
+  "seriesId": 1,
+  "serviceCharge": 0,
+  "shiftId": 1,
+  "transDate": "2026-11-06T07:00:00.000Z",
+  "vatAmount": 1.8,
+  "vatExclAmount": 18,
+  "voidModifiers": [],
+  "voidProducts": [],
+  "voucherDate": "2026-11-06",
+}
+`;
+
+exports[`Dine-In table orders window > order 1 (bill discount) > SETTLE: invoice sent and settle receipt > settle receipt 1`] = `
+"
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+            margin: 0 auto;
+            padding: 2px 8px 0 8px;
+            width: 100%;
+            max-width: 576px;
+            background-color: #ffffff;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: geometricPrecision;
+            box-sizing: border-box;
+          }
+          .arabic-text {
+            direction: rtl;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
+            font-weight: normal;
+            color: #000000;
+            unicode-bidi: isolate;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+            -webkit-font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.5;
+            padding: 1px 0;
+          }
+          .text-center { text-align: center; }
+          .font-bold { font-weight: bold; }
+          .header-title { font-family: 'Roboto', 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 16px; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: 700; color: #000000; line-height: 1.3; }
+          
+          table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+          
+          /* Printed text lands low (see orderTicketHtml in kotTemplate), so a line needs more room above it than below */
+          .dashed-hr { border: none; border-top: 1px dashed #000000; margin: 11px 0 1px 0; clear: both; width: 100%; display: block; }
+          .solid-hr { border: none; border-top: 1px solid #000000; margin: 4px 0; clear: both; width: 100%; display: block; }
+          
+          table.meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #000000;
+          }
+          table.meta-table td {
+            padding: 2px 2px;
+            vertical-align: middle;
+            font-weight: 600;
+            color: #000000;
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: visible;
+          }
+          table.meta-table .arabic-text {
+            padding: 0;
+            line-height: 1.2;
+            display: inline;
+          }
+          
+          table.items-table {
+            font-weight: 600;
+            line-height: 1.15;
+            color: #000000;
+            table-layout: fixed;
+            width: 100%;
+          }
+          table.items-table th {
+            font-weight: 700;
+            color: #000000;
+            text-transform: capitalize;
+            padding-bottom: 5px;
+            line-height: 1.3;
+            text-align: left;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+          table.items-table th.col-rate,
+          table.items-table th.col-amt {
+            text-align: right;
+          }
+          table.items-table td {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 8.5pt;
+            font-weight: normal;
+            color: #000000;
+            padding: 1px 0;
+            line-height: 1.2;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+          table.items-table div {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 8.5pt;
+            font-weight: normal;
+            color: #000000;
+            margin: 0;
+            padding: 0;
+            line-height: 1.15;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+
+          
+
+          .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: 600; color: #000000; }
+          
+          .totals-table {
+            width: 100%;
+            table-layout: fixed;
+            margin-top: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+          }
+          .totals-table td {
+            padding: 1.5px 0;
+            font-weight: 600;
+            color: #000000;
+            vertical-align: middle;
+          }
+          .totals-label {
+            width: 72%;
+            text-align: left;
+            font-weight: 600;
+            color: #000000;
+            white-space: nowrap;
+          }
+          .totals-value {
+            width: 28%;
+            text-align: right;
+            font-weight: 700;
+            color: #000000;
+            white-space: nowrap;
+          }
+          
+          .grand-total {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 12pt !important;
+            font-weight: bold !important;
+            color: #000000;
+            white-space: nowrap;
+          }
+
+          .vat-table { margin-top: 6px; font-weight: 600; font-size: 12px; color: #000000; table-layout: fixed; }
+          .vat-table th { text-align: left; padding-bottom: 9px; font-weight: 700; color: #000000; border-bottom: 1px dashed #000000; }
+          .vat-table td { padding: 0 0 2px 0; font-weight: 600; color: #000000; }
+          
+          .barcode-container { margin-top: 15px; margin-bottom: 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000000; }
+        </style>
+      </head>
+      <body>
+          
+  
+          <div class="text-center header-title"><div>SIMPLIFIED TAX INVOICE</div><div style="font-size: 13px; font-weight: 700; margin-top: 3px; line-height: 1.3; letter-spacing: 0;">(DINE IN)</div></div>
+        
+        <div class="dashed-hr" style="border-top: 1px solid #000;"></div>
+
+        
+        <table class="meta-table">
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Invoice No :&nbsp;<span style="font-size: 13px; font-weight: bold;">#77</span></td>
+            <td style="width: 50%; white-space: nowrap;">Order No :&nbsp;<span style="font-size: 13px; font-weight: bold;">#42</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Ticket No :&nbsp;<span style="font-size: 13px; font-weight: bold;">#6</span></td>
+            <td style="width: 50%; white-space: nowrap;">Date :&nbsp;<span style="font-weight: normal; white-space: nowrap;">06/11/2026</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Time :&nbsp;<span style="font-weight: normal; white-space: nowrap;">12:30 PM</span></td>
+            <td style="width: 50%; white-space: nowrap;">Waiter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Ali</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Main</span></td>
+            <td style="width: 50%; white-space: nowrap;">Section :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Hall</span></td>
+          </tr>
+          
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Table :&nbsp;<span style="font-weight: normal; white-space: nowrap;">T9</span></td>
+            <td style="width: 50%;"></td>
+          </tr>
+          
+          
+          <tr>
+            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">CASH CUSTOMER</span></td>
+          </tr>
+          
+        </table>
+        
+        
+        <div class="dashed-hr"></div>
+        
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width: 14%; text-align: left;">Qty</th>
+              <th style="width: 46%; text-align: left;">Description</th>
+              <th class="col-rate" style="width: 18%; text-align: right;">Rate</th>
+              <th class="col-amt" style="width: 22%; text-align: right;">Amt</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 1px 0;">1</td>
+        <td style="width: 46%; text-align: left; vertical-align: top; padding: 1px 0;">
+          <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">PIZZA</div>
+          
+        </td>
+        <td style="width: 18%; text-align: right; vertical-align: top; padding: 1px 0;">12.000</td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 1px 0;">12.000</td>
+      </tr>
+      
+    
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 1px 0;">2</td>
+        <td style="width: 46%; text-align: left; vertical-align: top; padding: 1px 0;">
+          <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">JUICE</div>
+          
+        </td>
+        <td style="width: 18%; text-align: right; vertical-align: top; padding: 1px 0;">4.000</td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 1px 0;">8.000</td>
+      </tr>
+      
+    
+          </tbody>
+        </table>
+        
+        <div class="dashed-hr"></div>
+
+        <table class="totals-table">
+          <tr>
+            <td class="totals-label">Sub Total</td>
+            <td class="totals-value">20.000</td>
+          </tr>
+          
+          <tr>
+            <td class="totals-label">Discount</td>
+            <td class="totals-value">-2.000</td>
+          </tr>
+          
+          
+          
+          <tr>
+            <td class="totals-label">Net Value</td>
+            <td class="totals-value">18.000</td>
+          </tr>
+          
+          
+          
+          <tr>
+            <td class="totals-label">VAT Amount</td>
+            <td class="totals-value">1.800</td>
+          </tr>
+          
+          <tr>
+            <td class="totals-label grand-total" style="white-space: nowrap; text-align: left;">Grand Total</td>
+            <td class="totals-value grand-total" style="white-space: nowrap; text-align: right;">19.800</td>
+          </tr>
+          
+          <tr><td colspan="2"><div class="dashed-hr" style="margin: 9px 0 1px 0;"></div></td></tr>
+          
+          <tr>
+            <td class="totals-label">Cash</td>
+            <td class="totals-value">19.800</td>
+          </tr>
+          
+          
+          
+          <tr>
+            <td class="totals-label" style="font-weight: 700;">Change</td>
+            <td class="totals-value" style="font-weight: 700;">1.000</td>
+          </tr>
+          
+        </table>
+
+        
+        <div class="dashed-hr"></div>
+        <table class="vat-table" style="margin-top: 0; width: 100%;">
+          <thead>
+            <tr>
+              
+              <th style="text-align: left; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Code</th>
+              <th style="text-align: right; width: 30%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Excl Amt</th>
+              <th style="text-align: right; width: 24%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Amt</th>
+              <th style="text-align: right; width: 26%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Net Amt</th>
+              
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              
+              <td style="text-align: left; font-weight: normal; width: 20%; padding-top: 0;">10%</td>
+              <td style="text-align: right; font-weight: normal; width: 30%; padding-top: 0;">18.000</td>
+              <td style="text-align: right; font-weight: normal; width: 24%; padding-top: 0;">1.800</td>
+              <td style="text-align: right; font-weight: normal; width: 26%; padding-top: 0;">19.800</td>
+              
+            </tr>
+          </tbody>
+        </table>
+        <div class="dashed-hr"></div>
+        
+        
+        
+
+        <div class="barcode-container"><div dir="ltr" style="display:flex; direction:ltr; width:102px; height:40px; margin-left:85px;"><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:6px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div></div><div style="text-align:center; font-size:12px; font-weight:bold; letter-spacing:1px; margin-top:2px;">105672</div></div>
+        
+        <div style="font-size: 11px; margin-top: 5px; white-space: nowrap;">Print Time : 06/11/2026 12:30 PM</div>
+
+        
+      </body>
+    </html>
+  "
+`;
+
+exports[`Dine-In table orders window > order 1 (bill discount) > row PRINT: guest receipt > guest receipt 1`] = `
+"
+    <html>
+      <head>
+        <meta charset="UTF-8" />
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+            margin: 0 auto;
+            padding: 2px 8px 0 8px;
+            width: 100%;
+            max-width: 576px;
+            background-color: #ffffff;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: geometricPrecision;
+            box-sizing: border-box;
+          }
+          .arabic-text {
+            direction: rtl;
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Noto Naskh Arabic', 'Segoe UI', Tahoma, Arial, 'Traditional Arabic', sans-serif;
+            font-weight: normal;
+            color: #000000;
+            unicode-bidi: isolate;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+            -webkit-font-feature-settings: 'liga' 1, 'calt' 1, 'kern' 1;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.5;
+            padding: 1px 0;
+          }
+          .text-center { text-align: center; }
+          .font-bold { font-weight: bold; }
+          .header-title { font-family: 'Roboto', 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 16px; margin-bottom: 6px; letter-spacing: 0.5px; font-weight: 700; color: #000000; line-height: 1.3; }
+          
+          table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+          
+          /* Printed text lands low (see orderTicketHtml in kotTemplate), so a line needs more room above it than below */
+          .dashed-hr { border: none; border-top: 1px dashed #000000; margin: 11px 0 1px 0; clear: both; width: 100%; display: block; }
+          .solid-hr { border: none; border-top: 1px solid #000000; margin: 4px 0; clear: both; width: 100%; display: block; }
+          
+          table.meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin-bottom: 3px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #000000;
+          }
+          table.meta-table td {
+            padding: 2px 2px;
+            vertical-align: middle;
+            font-weight: 600;
+            color: #000000;
+            line-height: 1.4;
+            white-space: nowrap;
+            overflow: visible;
+          }
+          table.meta-table .arabic-text {
+            padding: 0;
+            line-height: 1.2;
+            display: inline;
+          }
+          
+          table.items-table {
+            font-weight: 600;
+            line-height: 1.15;
+            color: #000000;
+            table-layout: fixed;
+            width: 100%;
+          }
+          table.items-table th {
+            font-weight: 700;
+            color: #000000;
+            text-transform: capitalize;
+            padding-bottom: 5px;
+            line-height: 1.3;
+            text-align: left;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+          table.items-table th.col-rate,
+          table.items-table th.col-amt {
+            text-align: right;
+          }
+          table.items-table td {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 8.5pt;
+            font-weight: normal;
+            color: #000000;
+            padding: 1px 0;
+            line-height: 1.2;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+          table.items-table div {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 8.5pt;
+            font-weight: normal;
+            color: #000000;
+            margin: 0;
+            padding: 0;
+            line-height: 1.15;
+            word-break: break-word;
+            overflow-wrap: break-word;
+          }
+
+          
+          table.items-table th { padding-bottom: 9px; border-bottom: 1px dashed #000000; }
+          table.items-table tbody tr:first-child td { padding-top: 4px; }
+          
+
+          .meta-row { display: flex; justify-content: space-between; margin-bottom: 2px; font-weight: 600; color: #000000; }
+          
+          .totals-table {
+            width: 100%;
+            table-layout: fixed;
+            margin-top: 0;
+            font-size: 13px;
+            font-weight: 600;
+            color: #000000;
+          }
+          .totals-table td {
+            padding: 1.5px 0;
+            font-weight: 600;
+            color: #000000;
+            vertical-align: middle;
+          }
+          .totals-label {
+            width: 72%;
+            text-align: left;
+            font-weight: 600;
+            color: #000000;
+            white-space: nowrap;
+          }
+          .totals-value {
+            width: 28%;
+            text-align: right;
+            font-weight: 700;
+            color: #000000;
+            white-space: nowrap;
+          }
+          
+          .grand-total {
+            font-family: 'Cairo', 'Noto Sans Arabic', 'Segoe UI', Tahoma, Arial, sans-serif;
+            font-size: 12pt !important;
+            font-weight: bold !important;
+            color: #000000;
+            white-space: nowrap;
+          }
+
+          .vat-table { margin-top: 6px; font-weight: 600; font-size: 12px; color: #000000; table-layout: fixed; }
+          .vat-table th { text-align: left; padding-bottom: 9px; font-weight: 700; color: #000000; border-bottom: 1px dashed #000000; }
+          .vat-table td { padding: 0 0 2px 0; font-weight: 600; color: #000000; }
+          
+          .barcode-container { margin-top: 15px; margin-bottom: 5px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #000000; }
+        </style>
+      </head>
+      <body>
+          
+  
+          <div class="text-center header-title"><div>GUEST PRINT</div><div style="font-size: 13px; font-weight: 700; margin-top: 3px; line-height: 1.3; letter-spacing: 0;">(DINE IN)</div></div>
+        
+        <div class="dashed-hr" style="border-top: 1px solid #000;"></div>
+
+        
+        <table class="meta-table">
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Order No :&nbsp;<span style="font-size: 13px; font-weight: bold;">#42</span></td>
+            <td style="width: 50%; white-space: nowrap;">Ticket No :&nbsp;<span style="font-size: 13px; font-weight: bold;">#6</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Date :&nbsp;<span style="font-weight: normal; white-space: nowrap;">04/11/2026</span></td>
+            <td style="width: 50%; white-space: nowrap;">Time :&nbsp;<span style="font-weight: normal; white-space: nowrap;">10:05 AM</span></td>
+          </tr>
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Waiter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Ali</span></td>
+            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Main</span></td>
+          </tr>
+          
+          <tr>
+            <td style="width: 50%; white-space: nowrap;">Section :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Hall</span></td>
+            <td style="width: 50%; white-space: nowrap;">Table :&nbsp;<span style="font-weight: normal; white-space: nowrap;">T9</span></td>
+          </tr>
+          
+          
+          <tr>
+            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">CASH CUSTOMER</span></td>
+          </tr>
+          
+        </table>
+        
+        
+        <div class="dashed-hr"></div>
+        
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width: 14%; text-align: left;">Qty</th>
+              <th style="width: 46%; text-align: left;">Description</th>
+              <th class="col-rate" style="width: 18%; text-align: right;">Rate</th>
+              <th class="col-amt" style="width: 22%; text-align: right;">Amt</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 1px 0;">1</td>
+        <td style="width: 46%; text-align: left; vertical-align: top; padding: 1px 0;">
+          <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">PIZZA</div>
+          
+        </td>
+        <td style="width: 18%; text-align: right; vertical-align: top; padding: 1px 0;">12.000</td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 1px 0;">12.000</td>
+      </tr>
+      
+    
+      <tr>
+        <td style="width: 14%; text-align: left; vertical-align: top; padding: 1px 0;">2</td>
+        <td style="width: 46%; text-align: left; vertical-align: top; padding: 1px 0;">
+          <div style="word-break: break-word; overflow-wrap: break-word; white-space: normal; line-height: 1.25;">JUICE</div>
+          
+        </td>
+        <td style="width: 18%; text-align: right; vertical-align: top; padding: 1px 0;">4.000</td>
+        <td style="width: 22%; text-align: right; vertical-align: top; padding: 1px 0;">8.000</td>
+      </tr>
+      
+    
+          </tbody>
+        </table>
+        
+        <div class="dashed-hr"></div>
+
+        <table class="totals-table">
+          <tr>
+            <td class="totals-label">Sub Total</td>
+            <td class="totals-value">20.000</td>
+          </tr>
+          
+          <tr>
+            <td class="totals-label">Discount</td>
+            <td class="totals-value">-2.000</td>
+          </tr>
+          
+          
+          
+          <tr>
+            <td class="totals-label">Net Value</td>
+            <td class="totals-value">18.000</td>
+          </tr>
+          
+          
+          
+          <tr>
+            <td class="totals-label">VAT Amount</td>
+            <td class="totals-value">1.800</td>
+          </tr>
+          
+          <tr>
+            <td class="totals-label grand-total" style="white-space: nowrap; text-align: left;">Grand Total</td>
+            <td class="totals-value grand-total" style="white-space: nowrap; text-align: right;">19.800</td>
+          </tr>
+          
+          
+        </table>
+
+        
+        <div class="dashed-hr"></div>
+        <table class="vat-table" style="margin-top: 0; width: 100%;">
+          <thead>
+            <tr>
+              
+              <th style="text-align: left; width: 20%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Code</th>
+              <th style="text-align: right; width: 30%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Excl Amt</th>
+              <th style="text-align: right; width: 24%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">VAT Amt</th>
+              <th style="text-align: right; width: 26%; border-bottom: 1px dashed #000000; padding-bottom: 9px;">Net Amt</th>
+              
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              
+              <td style="text-align: left; font-weight: normal; width: 20%; padding-top: 0;">10%</td>
+              <td style="text-align: right; font-weight: normal; width: 30%; padding-top: 0;">18.000</td>
+              <td style="text-align: right; font-weight: normal; width: 24%; padding-top: 0;">1.800</td>
+              <td style="text-align: right; font-weight: normal; width: 26%; padding-top: 0;">19.800</td>
+              
+            </tr>
+          </tbody>
+        </table>
+        <div class="dashed-hr"></div>
+        
+        
+        
+
+        <div class="barcode-container"><div dir="ltr" style="display:flex; direction:ltr; width:69px; height:40px; margin-left:101px;"><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:3px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div><div style="flex:none; width:4.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:4.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:1.5px; height:40px; background:#000000;"></div><div style="flex:none; width:1.5px; height:40px; background:#ffffff;"></div><div style="flex:none; width:3px; height:40px; background:#000000;"></div></div><div style="text-align:center; font-size:12px; font-weight:bold; letter-spacing:1px; margin-top:2px;">42</div></div>
+        
+        <div style="font-size: 11px; margin-top: 5px; white-space: nowrap;">Print Time : 04/11/2026 10:05 AM</div>
+
+        
+      </body>
+    </html>
+  "
+`;

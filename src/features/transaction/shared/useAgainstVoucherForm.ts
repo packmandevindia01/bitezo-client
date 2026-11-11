@@ -72,15 +72,15 @@ export const useAgainstVoucherForm = (config: AgainstVoucherConfig, transId?: nu
       try {
         const data = await fetchBranchNames(false);
         if (Array.isArray(data) && data.length > 0) return data;
-      } catch (e) {}
+      } catch {}
       try {
         const data = await fetchBranchNames(true);
         if (Array.isArray(data) && data.length > 0) return data;
-      } catch (e) {}
+      } catch {}
       try {
         const data = await fetchBranches();
         if (Array.isArray(data) && data.length > 0) return data;
-      } catch (e) {}
+      } catch {}
       return [];
     },
     staleTime: 0,

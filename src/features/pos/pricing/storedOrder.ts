@@ -156,6 +156,41 @@ export const storedLineExclusiveDiscount = (detail: any, view: "Inclusive" | "Ex
   return disc / storedLineRates(order, detail, view).factor;
 };
 
+/**
+ * An order whose bill discount was saved only on the order total, with nothing on its lines: spread it over the
+ * lines by amount, so rows and footer agree. The saved totals give the discount in the view the lines are in:
+ *   Inclusive lines: lines total - (vatExclAmount + vatAmount)
+ *   Exclusive lines: lines total + charges - vatExclAmount
+ * Orders with a discount on any line are returned as they are.
+ */
+export const withBillDiscountOnLines = <T extends StoredOrderParts>(order: T, view: "Inclusive" | "Exclusive"): T => {
+  const details: any[] | undefined = order?.detailsData || (order as any)?.details;
+  if (!Array.isArray(details) || details.length === 0) return order;
+  const raw = order?.masterData || (order as any)?.master || {};
+  const master = Array.isArray(raw) ? raw[0] || {} : raw;
+  const masterDiscount = n(field(master, "discAmount", "DiscAmount", "discAmt", "DiscAmt", "discount", "Discount", "billDiscount", "BillDiscount"));
+  if (masterDiscount <= 0.0000005) return order;
+  if (details.some((d) => n(field(d, "discAmount", "DiscAmount")) > 0.0000005)) return order;
+
+  const amounts = details.map((d) => n(field(d, "amount", "Amount")) || n(field(d, "price", "Price")) * (n(field(d, "qty", "Qty", "quantity", "orderQty", "OrderQty")) || 1));
+  const linesTotal = amounts.reduce((sum, a) => sum + a, 0);
+  if (linesTotal <= 0) return order;
+
+  const storedVatExcl = field(master, "vatExclAmount", "VatExclAmount");
+  const { serviceCharge, levy } = storedOrderCharges(order);
+  const fromTotals = storedVatExcl === undefined
+    ? 0
+    : view === "Inclusive"
+    ? linesTotal - n(storedVatExcl) - n(field(master, "vatAmount", "VatAmount"))
+    : linesTotal + serviceCharge + levy - n(storedVatExcl);
+  const discount = fromTotals > 0.0000005 ? fromTotals : masterDiscount;
+
+  return {
+    ...order,
+    detailsData: details.map((d, i) => ({ ...d, discAmount: round((discount * amounts[i]) / linesTotal) })),
+  };
+};
+
 export interface StoredOrderFooter {
   subTotal: number;
   discount: number;

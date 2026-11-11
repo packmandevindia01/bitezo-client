@@ -37,7 +37,6 @@ export const physicalEntryApi = {
       })
     ),
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the form reads several stock field names
   getAsOnDateStock: (productId: number, branchId: number, asOnDate?: string) =>
     unwrap<any>(
       axiosInstance.get(`/product/as-on-date-stock/${productId}/${branchId}`, {

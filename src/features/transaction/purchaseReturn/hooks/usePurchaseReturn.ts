@@ -843,7 +843,7 @@ export const usePurchaseReturn = (invoiceId?: string) => {
         const item = productItemMap[productId];
 
         try {
-          let balanceData = await purchaseReturnApi.getPurchaseInvoiceBalanceQty(purchaseId, productId, invoiceId);
+          const balanceData = await purchaseReturnApi.getPurchaseInvoiceBalanceQty(purchaseId, productId, invoiceId);
           let balance = 0;
           if (typeof balanceData === "object" && balanceData !== null) {
             balance = Number((balanceData as any).balanceQty || (balanceData as any).balance || (balanceData as any).baseQty || 0);

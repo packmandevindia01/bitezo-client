@@ -1,9 +1,8 @@
 import { unwrapStrict as unwrap } from "../../../shared/api/unwrap";
 import axiosInstance from "../../../api/axiosInstance";
 import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
-import { sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
-import { allocate } from "../terminal/utils/pos-calc";
-import { withDetailNet7 } from "../../../utils/money";
+import { roundCalc, getVatStatus } from "../terminal/utils/billing";
+import { withDetailNet7, allocateThousandths } from "../../../utils/money";
 
 import { toLocalDateString } from "../../../utils/date";
 export interface ApiResponse<T = any> {
@@ -126,8 +125,6 @@ export const salesInvoiceApi = {
         postPayload.createdAt = now.toISOString();
 
         if (postPayload.details && Array.isArray(postPayload.details)) {
-          // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
-          postPayload.details = postPayload.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
           const totalModifierGross = Array.isArray(postPayload.modifiers)
             ? postPayload.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
             : 0;
@@ -148,7 +145,7 @@ export const salesInvoiceApi = {
               const lineBases = postPayload.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
               const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
               const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
-              const allocated = allocate(Number(postPayload.discAmount || 0), weights);
+              const allocated = allocateThousandths(Number(postPayload.discAmount || 0), weights);
               postPayload.details.forEach((d: any, idx: number) => {
                 d.discAmount = allocated[idx] ?? 0;
                 const base = Number(d.price || 0) * Number(d.qty || 1);
@@ -161,7 +158,7 @@ export const salesInvoiceApi = {
             postPayload.discPer = 0;
           }
 
-          let calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
+          const calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
           let calcVatAmt = roundCalc(postPayload.details.reduce((sum: number, d: any) => sum + Number(d.vatAmount || 0), 0));
           const isVatEnabled = getVatStatus();
           const payableBase = Math.max(0, Number(postPayload.netAmount || 0) - Number(postPayload.deliveryCharge || 0));
@@ -246,23 +243,21 @@ export const salesInvoiceApi = {
         : toLocalDateString();
 
       const cleanedDetails = (payload.details || []).map((d: any) => {
-        // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
-        const sanitized = d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d);
         return {
-          productId: Number(sanitized.productId || 0),
-          unitId: Number(sanitized.unitId || 1),
-          vatId: Number(sanitized.vatId || 1),
-          qty: Number(sanitized.qty || 0),
-          price: sanitized.price,
-          discPer: Number(sanitized.discPer || 0),
-          discAmount: sanitized.discAmount,
-          serviceCharge: sanitized.serviceCharge,
-          levy: sanitized.levy,
-          vatAmount: sanitized.vatAmount,
-          netAmount: sanitized.netAmount,
-          baseQty: Number(sanitized.baseQty || sanitized.qty || 1),
-          mapId: Number(sanitized.mapId || 0),
-          complimentaryStatus: Boolean(sanitized.complimentaryStatus),
+          productId: Number(d.productId || 0),
+          unitId: Number(d.unitId || 1),
+          vatId: Number(d.vatId || 1),
+          qty: Number(d.qty || 0),
+          price: d.price,
+          discPer: Number(d.discPer || 0),
+          discAmount: d.discAmount,
+          serviceCharge: d.serviceCharge,
+          levy: d.levy,
+          vatAmount: d.vatAmount,
+          netAmount: d.netAmount,
+          baseQty: Number(d.baseQty || d.qty || 1),
+          mapId: Number(d.mapId || 0),
+          complimentaryStatus: Boolean(d.complimentaryStatus),
         };
       });
 
@@ -284,7 +279,7 @@ export const salesInvoiceApi = {
           const lineBases = cleanedDetails.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
           const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
           const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
-          const allocated = allocate(Number(payload.discAmount || 0), weights);
+          const allocated = allocateThousandths(Number(payload.discAmount || 0), weights);
           cleanedDetails.forEach((d: any, idx: number) => {
             d.discAmount = allocated[idx] ?? 0;
             const base = Number(d.price || 0) * Number(d.qty || 1);

@@ -7,8 +7,9 @@ import { printLineHtml } from "../../inventory/branches/utils/lineHelpers";
 import { isKotArabicEnabled, isOtherKitchenItemEnabled, isCompanyNameKotEnabled, getAlternativeArabicName, containsArabic, formatItemDisplayName } from "./alternativeHelpers";
 import { getDecimalPart } from "../../../utils/currency";
 import { roundCalc } from "../terminal/utils/billing";
-import { applyCartPricingToUnified } from "./printPricing";
-import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
+import { buildLiveCartPricing, buildRowLines } from "./printPricing";
+import { orderHasBillDiscount } from "./orderLineShape";
+import type { UnifiedOrderPricingResult } from "./printPricingTypes";
 
 export interface KotPrintData {
   orderNo: string;
@@ -290,19 +291,16 @@ export const generateKotHtml = async (
   const printTaxSetting = resolveKotPrintTaxSetting(data);
   const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
 
-  // Single Source of Truth: Unified deterministic order pricing
-  const unified: UnifiedOrderPricingResult = (cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary)
-    ? (cartDetails as any)
-    : buildUnifiedOrderPricing(cartDetails, data);
-  const isOrderBillDiscount = unified.summary.isBillDiscount;
-
-  // Live cart (not a saved order): amounts come straight from the cart engine, in the Print Price view.
-  const cartPricing = applyCartPricingToUnified(unified, cartDetails as any[], { printPrice: printTaxSetting, orderType: data.orderType });
-  if (cartPricing) unified.lines = cartPricing.lines;
+  // Already priced, a live cart from the engine, or rows that carry their own amounts.
+  const precomputed = cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary ? (cartDetails as unknown as UnifiedOrderPricingResult) : null;
+  const kotLines = precomputed
+    ? precomputed.lines
+    : (buildLiveCartPricing(cartDetails as any[], { printPrice: printTaxSetting, orderType: data.orderType })?.lines ?? buildRowLines(cartDetails as any[], data));
+  const isOrderBillDiscount = precomputed ? precomputed.summary.isBillDiscount : orderHasBillDiscount(cartDetails, data);
 
   let itemsHtml = "";
 
-  unified.lines.forEach((line) => {
+  kotLines.forEach((line) => {
     const name = escapeHtml(line.productName.toUpperCase());
     const qty = line.quantity;
 

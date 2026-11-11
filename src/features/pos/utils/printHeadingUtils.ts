@@ -35,7 +35,7 @@ export const hasPrinterHeadings = (): boolean => {
         if (headers.length > 0) return true;
       }
     }
-  } catch (e) {
+  } catch {
     // Ignore JSON errors
   }
   return false;

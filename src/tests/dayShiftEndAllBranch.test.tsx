@@ -4,7 +4,7 @@ import { createElement, type ReactNode } from "react";
 import { Provider } from "react-redux";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, waitFor, cleanup } from "@testing-library/react";
+import { render, waitFor, cleanup, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { store } from "../app/store";
 import DayEndReportPage from "../features/reports/definitions/DayEndReportFrameworkPage";
@@ -37,6 +37,8 @@ const show = (page: ReactNode) => {
   }));
 };
 const branchInput = () => document.getElementById(document.getElementById("rpt-dayEndReport-branch") ? "rpt-dayEndReport-branch" : "rpt-shiftEndReport-branch") as HTMLElement;
+/** Reports load only when View is pressed. */
+const clickView = async () => fireEvent.click(await screen.findByRole("button", { name: /view/i }));
 const lastBranchId = (fn: unknown) => mock(fn).mock.calls.at(-1)?.[0]?.BranchId;
 
 beforeEach(() => {
@@ -61,8 +63,16 @@ describe.each([
     await waitFor(() => expect(branchApi.fetchBranchNames).toHaveBeenCalledWith(true));
   });
 
+  it("loads nothing until View is pressed", async () => {
+    show(createElement(Page));
+    await screen.findByRole("button", { name: /view/i });
+    await waitFor(() => expect(branchApi.fetchBranchNames).toHaveBeenCalled());
+    expect(load).not.toHaveBeenCalled();
+  });
+
   it("opens on All and asks the server for branch 1, never 0", async () => {
     show(createElement(Page));
+    await clickView();
     await waitFor(() => expect(load).toHaveBeenCalled());
     expect(lastBranchId(load)).toBe(1);
     await waitFor(() => expect(branchInput().textContent || (branchInput() as HTMLInputElement).value).toContain("All"));
@@ -71,6 +81,7 @@ describe.each([
   it("a user locked to a branch stays on it", async () => {
     sessionStorage.setItem("backoffice_activeBranchId", "3");
     show(createElement(Page));
+    await clickView();
     await waitFor(() => expect(load).toHaveBeenCalled());
     expect(lastBranchId(load)).toBe(3);
   });
@@ -92,6 +103,7 @@ describe("Shift End users", () => {
 describe("Shift End counters", () => {
   it("are not loaded for All, which has none", async () => {
     show(createElement(ShiftEndReportPage));
+    await clickView();
     await waitFor(() => expect(getShiftEndReport).toHaveBeenCalled());
     expect(getCounterList).not.toHaveBeenCalled();
   });

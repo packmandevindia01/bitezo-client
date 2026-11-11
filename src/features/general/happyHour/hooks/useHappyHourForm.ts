@@ -277,7 +277,7 @@ export const useHappyHourForm = (
       });
       
       setEntries(uniqueLoadedEntries);
-    } catch (error) {
+    } catch {
       showToast("Failed to load products", "error");
     } finally {
       setLoading(false);

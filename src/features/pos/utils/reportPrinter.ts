@@ -30,7 +30,7 @@ export const printPosReport = async (options: PrintReportOptions): Promise<boole
   try {
     const pData = JSON.parse(localStorage.getItem("posPrinterData") || "{}");
     defaultPrinter = pData?.billPrinter !== "No Printer" ? pData.billPrinter : undefined;
-  } catch (e) {}
+  } catch {}
 
   if (Capacitor.isNativePlatform()) {
     await printHtmlReceipt(html, defaultPrinter);

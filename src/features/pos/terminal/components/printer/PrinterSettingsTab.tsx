@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { getAvailablePrinters } from '../../../services/qzService';
+import { getAvailablePrinters, checkPrintAgent } from '../../../services/qzService';
 import { printerSettingsApi } from '../../../services/printerSettingsApi';
 import { SelectInput, Button } from '../../../../../components/common';
 import { useToast } from '../../../../../app/providers/useToast';
@@ -28,7 +28,7 @@ const getCachedIpMap = (): PrinterIpMapItem[] => {
     if (singleIp) {
       return [{ printerName: singleName, ipAddress: singleIp }];
     }
-  } catch (e) {
+  } catch {
     // Ignore JSON error
   }
   return [];
@@ -46,6 +46,18 @@ export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({
   const [ipMapList, setIpMapList] = useState<PrinterIpMapItem[]>(() => getCachedIpMap());
   const [loadingIpMap, setLoadingIpMap] = useState<boolean>(false);
   const [testingPrint, setTestingPrint] = useState<boolean>(false);
+  /** Why the Printer Agent cannot be reached (null = reachable / not checked). Desktop web only. */
+  const [agentProblem, setAgentProblem] = useState<string | null>(null);
+  const [checkingAgent, setCheckingAgent] = useState<boolean>(false);
+
+  const recheckAgent = async () => {
+    if (Capacitor.isNativePlatform()) return;
+    setCheckingAgent(true);
+    const problem = await checkPrintAgent();
+    setAgentProblem(problem);
+    if (!problem) setLivePrinters(await getAvailablePrinters());
+    setCheckingAgent(false);
+  };
 
   useEffect(() => {
     setSettings(data);
@@ -53,6 +65,10 @@ export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({
     // 1. Fetch live installed printers from PrintAgent for Desktop Web mode
     const loadDesktopPrinters = async () => {
       if (Capacitor.isNativePlatform()) return;
+      // Tell the cashier why the agent cannot be reached (Chrome block, internet address, agent not running).
+      const problem = await checkPrintAgent();
+      setAgentProblem(problem);
+      if (problem) return;
       try {
         const foundPrinters = await getAvailablePrinters();
         setLivePrinters(foundPrinters);
@@ -341,6 +357,26 @@ export const PrinterSettingsTab: React.FC<PrinterSettingsTabProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Printer Agent cannot be reached (desktop web): the reason and what to do */}
+        {agentProblem && (
+          <div role="alert" className="bg-amber-50 rounded-2xl p-4 border border-amber-200 flex items-start gap-3 text-amber-800">
+            <AlertTriangle className="shrink-0 mt-0.5 text-amber-600" size={18} />
+            <div className="text-xs flex-1">
+              <p className="font-bold">Printer Agent not reachable</p>
+              <p className="text-amber-700 mt-0.5">{agentProblem}</p>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => void recheckAgent()}
+              disabled={checkingAgent}
+              loading={checkingAgent}
+              className="text-[9px] font-black uppercase tracking-wider py-1 px-2.5 h-7 shrink-0"
+            >
+              Check again
+            </Button>
+          </div>
+        )}
 
         {/* Warning banner when androidPrint is enabled but no printer IP mappings exist */}
         {isAndroidMode && !loadingIpMap && ipMapList.length === 0 && (

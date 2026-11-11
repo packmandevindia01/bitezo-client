@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { X, Printer, Download, FileText } from "lucide-react";
-import { PageShell, FormInput, SearchableSelect, ResetButton, Button } from "../../../components/common";
+import { X, Printer, Download, FileText, Eye } from "lucide-react";
+import { PageShell, FormInput, SearchableSelect, Button } from "../../../components/common";
 import { formatAmount } from "../../../shared/lib/currency";
 import { useReport } from "./useReport";
 import { toMatrix, isNumericColumn, isTotalled, formatCell, isSubtotalRow, type Formatter } from "./reportMath";
@@ -10,7 +10,7 @@ import type { FilterDef, ReportColumn, ReportDefinition } from "./types";
 
 /**
  * One page for every report (Phase 4). Same look as the hand-built report pages it replaces:
- * filter panel (close + reset), table with sticky header / totals row, record count, Print / PDF / XLS.
+ * filter panel (close + View — nothing loads until View is pressed), table with sticky header / totals row, record count, Print / PDF / XLS.
  * Adds what most old pages lacked: a visible error banner (403 / network) instead of "No records found".
  */
 const summaryText = (v: number | string) => (typeof v === "number" ? formatAmount(v) : v);
@@ -36,7 +36,7 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
     return opts.some((o) => o.value === "1") ? opts : [{ label: "All", value: "1" }, ...opts];
   }, [r.branches]);
   const matrix = useMemo(() => toMatrix(table, fmt, definition.totalLabel), [table, definition.totalLabel]);
-  const subtitle = definition.subtitle?.(r.filters) ?? "";
+  const subtitle = definition.subtitle?.(r.appliedFilters) ?? "";
   const hasRows = table.rows.length > 0;
   const idPrefix = `rpt-${definition.id}`;
 
@@ -45,7 +45,7 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
     const company = localStorage.getItem("companyName");
     if (company) lines.push(["Company", company]);
     definition.filters.forEach((f) => {
-      const v = r.filters[f.key];
+      const v = r.appliedFilters[f.key];
       if (f.kind === "branch") lines.push([f.label ?? "Location", branchOptions.find((o) => o.value === v)?.label || "All"]);
       if (f.kind === "lookup") lines.push([f.label, r.lookups[f.key]?.find((o) => o.value === v)?.label || "All"]);
       if (f.kind === "select") lines.push([f.label, f.options.find((o) => o.value === v)?.label || v]);
@@ -110,7 +110,17 @@ export const ReportPage = ({ definition }: { definition: ReportDefinition }) => 
           >
             <X size={18} />
           </button>
-          <ResetButton onReset={r.reset} className="absolute top-1/2 -translate-y-1/2 right-12 !bg-blue-600 !border-blue-600 hover:!bg-blue-700 !text-white" />
+          <Button
+            type="button"
+            size="sm"
+            icon={<Eye size={14} />}
+            onClick={r.view}
+            disabled={r.isLoading}
+            title="Load the report for these filters"
+            className="absolute top-1/2 -translate-y-1/2 right-12 font-semibold !bg-blue-600 !border-blue-600 hover:!bg-blue-700 !text-white"
+          >
+            View
+          </Button>
           <div className="px-4 py-3 flex flex-col xl:flex-row xl:flex-wrap xl:items-center gap-3.5">
             {definition.filters.map(renderFilter)}
             {definition.search && (

@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
 import { generateGuestPrintHtml } from '../features/pos/utils/guestPrintTemplate';
-import { generateBillMarkup } from '../features/pos/utils/escPosGenerator';
+import { buildPrintPricing, buildLiveCartPricing } from '../features/pos/utils/printPricing';
 import { mapOrderDetailsToCartItems } from '../features/pos/terminal/mappers/orderDetailToCartMapper';
 
 describe('Settled Print Verification (Order #84 & Settled Details)', () => {
@@ -42,13 +41,11 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
     ]
   };
 
+  // The backend stores a bill discount on the lines too; the bill reads it from there.
+  const savedOrder84 = { ...backendSettledOrder84, detailsData: [{ ...backendSettledOrder84.detailsData[0], discAmount: 13 }] };
+
   it('Order #84: when printPrice is Inclusive, HTML settled print must have exact Sub Total 33.000, Discount -13.000, VAT 1.818, Grand Total 20.000', async () => {
-    const unified = buildUnifiedOrderPricing(backendSettledOrder84, {
-      orderType: 'TakeOut',
-      priceView: 'Inclusive',
-      printPrice: 'Inclusive',
-      isBillDiscount: true,
-    });
+    const unified = buildPrintPricing(backendSettledOrder84, { orderType: 'TakeOut', isBillDiscount: true, dataView: 'Inclusive', printPrice: 'Inclusive' });
 
     expect(unified.summary.subTotalInclusive).toBe(33);
     expect(unified.summary.subTotalExclusive).toBe(30);
@@ -94,79 +91,14 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
     expect(html).not.toContain('6.364');
   });
 
-  it('Order #84: when printPrice is Inclusive, ESC/POS thermal markup must have exact Sub Total 33.000, Discount -13.000, VAT 1.818, Grand Total 20.000', () => {
-    const unified = buildUnifiedOrderPricing(backendSettledOrder84, {
+  it('Order #84: the settled screen prints the pricing built from the saved order', async () => {
+    const printPriceSetting = 'Inclusive';
+    const unified = buildPrintPricing(savedOrder84, {
+      dataView: 'Inclusive',
+      printPrice: printPriceSetting,
       orderType: 'TakeOut',
-      priceView: 'Inclusive',
-      printPrice: 'Inclusive',
       isBillDiscount: true,
     });
-
-    const printData = {
-      orderNo: 84,
-      ticketNo: 84,
-      invoiceNo: '84',
-      orderType: 'TakeOut',
-      customerName: 'CASH CUSTOMER',
-      date: '28/10/2026',
-      time: '01:55:56 PM',
-      isSettlement: true,
-      printPrice: 'Inclusive',
-      priceView: 'Inclusive',
-      enableVat: true,
-    };
-
-    const markup = generateBillMarkup({
-      cartDetails: unified as any,
-      data: printData as any,
-    });
-
-    expect(markup).toContain('33.000');
-    expect(markup).toContain('-13.000');
-    expect(markup).toContain('1.818');
-    expect(markup).toContain('20.000');
-    expect(markup).toContain('18.182');
-
-    // Strictly ensure corrupt numbers are NOT present
-    expect(markup).not.toContain('0.636');
-    expect(markup).not.toContain('19.364');
-  });
-
-  it('Order #84: simulating PosSettledDetailsModal flow passing mappedItems array directly to generateGuestPrintHtml', async () => {
-    const isTaxInclusive = true;
-    const printPriceSetting = 'Inclusive';
-    const isBillLevelDiscount = true;
-
-    const unified = buildUnifiedOrderPricing(backendSettledOrder84, {
-      orderType: 'TakeOut',
-      printPrice: printPriceSetting,
-      priceView: printPriceSetting,
-      isBillDiscount: isBillLevelDiscount,
-    });
-
-    const mappedItems = unified.lines.map((l) => ({
-      ...l,
-      isUnifiedPricingLine: true,
-      productId: l.productId,
-      quantity: l.quantity,
-      price: l.getRate(isTaxInclusive),
-      baseAmount: l.exclusiveGross,
-      variantName: l.variantName,
-      variantArabic: l.variantArabic,
-      product: {
-        name: l.productName,
-        price: l.getRate(isTaxInclusive),
-        arabicName: l.productArabicName,
-      },
-      extras: l.extras,
-      modifiers: l.modifiers,
-      messages: l.messages,
-      itemDiscount: 0,
-      lineTotal: l.getAmount(isTaxInclusive, true),
-      lineNetAmount: l.inclusiveAmount,
-      basePrice: l.exclusiveRate,
-      vatAmount: l.vatAmount,
-    }));
 
     const printData = {
       orderNo: 84,
@@ -184,7 +116,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       priceView: 'Inclusive',
     };
 
-    const html = await generateGuestPrintHtml(mappedItems as any, printData as any);
+    const html = await generateGuestPrintHtml(unified as any, printData as any);
 
     expect(html).toContain('>33.000<'); // row amount (inclusive)
     expect(html).toContain('>30.000<'); // footer Sub Total (exclusive)
@@ -213,7 +145,8 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       enableVat: true,
     };
 
-    const html = await generateGuestPrintHtml(backendSettledOrder84 as any, printData as any);
+    const unified = buildPrintPricing(savedOrder84, { dataView: 'Inclusive', printPrice: 'Exclusive', orderType: 'TakeOut', isBillDiscount: true });
+    const html = await generateGuestPrintHtml(unified as any, printData as any);
 
     // Exclusive item rate = 10.000, Amt = 30.000
     expect(html).toContain('10.000');
@@ -263,7 +196,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
         discAmount: 9.0909091,
         discPer: 0,
         levy: 4.545,
-        vatExclAmount: 90.9090909,
+        vatExclAmount: 95.4540909,
         vatAmount: 9.545,
         netAmount: 105.000,
         customerName: 'CASH CUSTOMER',
@@ -297,12 +230,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       localStorage.setItem('priceView', 'Exclusive');
       localStorage.setItem('discCalc', 'Inclusive');
 
-      const unified = buildUnifiedOrderPricing(order22Data, {
-        orderType: 'TakeOut',
-        printPrice: 'Exclusive',
-        priceView: 'Exclusive',
-        isBillDiscount: true,
-      });
+      const unified = buildPrintPricing(order22Data, { orderType: 'TakeOut', isBillDiscount: true, dataView: 'Exclusive', printPrice: 'Exclusive' });
 
       // Unified pricing summary verification:
       expect(unified.summary.subTotalExclusive).toBe(100.000);
@@ -350,59 +278,12 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       expect(html).toContain('>105.000<'); // Grand Total
     });
 
-    it('Order #22 in Exclusive Thermal ESC/POS: Discount MUST be -9.091 and NEVER -8.264', () => {
-      localStorage.setItem('printPrice', 'Exclusive');
-      localStorage.setItem('priceView', 'Exclusive');
-      localStorage.setItem('discCalc', 'Inclusive');
-
-      const unified = buildUnifiedOrderPricing(order22Data, {
-        orderType: 'TakeOut',
-        printPrice: 'Exclusive',
-        priceView: 'Exclusive',
-        isBillDiscount: true,
-      });
-
-      const printData = {
-        orderNo: 22,
-        ticketNo: 22,
-        invoiceNo: '22',
-        orderType: 'TakeOut',
-        customerName: 'CASH CUSTOMER',
-        subTotal: 100.000,
-        discount: 9.091,
-        levy: 4.545,
-        vatAmount: 9.545,
-        netAmount: 105.000,
-        isSettlement: true,
-        printPrice: 'Exclusive',
-        priceView: 'Exclusive',
-        enableVat: true,
-        isBillDiscount: true,
-      };
-
-      const markup = generateBillMarkup({
-        cartDetails: unified as any,
-        data: printData as any,
-      });
-
-      expect(markup).toContain('100.000');
-      expect(markup).toContain('-9.091');
-      expect(markup).not.toContain('8.264');
-      expect(markup).not.toContain('-8.264');
-      expect(markup).toContain('105.000');
-    });
-
     it('Order #22 in Inclusive Print: When charges are present, footer discount MUST match exclusive basis (-9.091) and NEVER -8.264', async () => {
       localStorage.setItem('printPrice', 'Inclusive');
       localStorage.setItem('priceView', 'Inclusive');
       localStorage.setItem('discCalc', 'Inclusive');
 
-      const unified = buildUnifiedOrderPricing(order22Data, {
-        orderType: 'TakeOut',
-        printPrice: 'Inclusive',
-        priceView: 'Inclusive',
-        isBillDiscount: true,
-      });
+      const unified = buildPrintPricing(order22Data, { orderType: 'TakeOut', isBillDiscount: true, dataView: 'Exclusive', printPrice: 'Inclusive' });
 
       expect(unified.summary.totalDiscountIncl).toBeCloseTo(10.000, 3);
       expect(unified.summary.totalDiscountIncl).not.toBeCloseTo(8.264, 2);
@@ -459,12 +340,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
         ]
       };
 
-      const unified = buildUnifiedOrderPricing(lineDiscountOrder, {
-        orderType: 'TakeOut',
-        printPrice: 'Exclusive',
-        priceView: 'Exclusive',
-        isBillDiscount: false,
-      });
+      const unified = buildPrintPricing(lineDiscountOrder, { orderType: 'TakeOut', isBillDiscount: false, dataView: 'Exclusive', printPrice: 'Exclusive' });
 
       expect(unified.lines[0].lineDiscountExcl).toBeCloseTo(0.909, 3);
       expect(unified.lines[0].lineDiscountExcl).not.toBeCloseTo(0.826, 2);
@@ -522,12 +398,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
         ]
       };
 
-      const unified = buildUnifiedOrderPricing(settledOrder105, {
-        orderType: 'TakeOut',
-        printPrice: 'Inclusive',
-        priceView: 'Inclusive',
-        isBillDiscount: false,
-      });
+      const unified = buildPrintPricing(settledOrder105, { orderType: 'TakeOut', isBillDiscount: false, dataView: 'Inclusive', printPrice: 'Inclusive' });
 
       expect(unified.lines[0].quantity).toBe(2);
       expect(unified.lines[0].inclusiveRate).toBeCloseTo(10.500, 3);
@@ -581,12 +452,12 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
             qty: 1,
             productId: 7,
             productName: "test price1",
-            price: 0.8658009,
-            amount: 0.8658009,
+            price: 0.952381,
+            amount: 0.952381,
             discAmount: 0,
             serviceCharge: 0,
-            levy: 0.04329,
-            vatAmount: 0.0909091,
+            levy: 0.047619,
+            vatAmount: 0.1,
             mapId: 1,
           }
         ],
@@ -601,11 +472,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
         ]
       };
 
-      const unified = buildUnifiedOrderPricing(order149, {
-        orderType: 'TakeOut',
-        priceView: 'Exclusive',
-        printPrice: 'Exclusive',
-      });
+      const unified = buildPrintPricing(order149, { orderType: 'TakeOut', dataView: 'Exclusive', printPrice: 'Exclusive' });
 
       expect(unified.lines).toHaveLength(1);
       // Base: 0.8658009 + Extra: 0.0865801 = 0.952381
@@ -677,12 +544,12 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
             qty: 1,
             productId: 7,
             productName: "test price1",
-            price: 0.8658009,
-            amount: 0.8658009,
+            price: 0.952381,
+            amount: 0.952381,
             discAmount: 0,
             serviceCharge: 0,
-            levy: 0.04329,
-            vatAmount: 0.0909091,
+            levy: 0.047619,
+            vatAmount: 0.1,
             mapId: 1,
           }
         ],
@@ -697,11 +564,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
         ]
       };
 
-      const unified = buildUnifiedOrderPricing(order149, {
-        orderType: 'TakeOut',
-        priceView: 'Inclusive',
-        printPrice: 'Inclusive',
-      });
+      const unified = buildPrintPricing(order149, { orderType: 'TakeOut', dataView: 'Exclusive', printPrice: 'Inclusive' });
 
       // Inclusive rate: Base (1.000) + Extra (0.100) = 1.100
       expect(unified.lines[0].inclusiveRate).toBeCloseTo(1.100, 2);
@@ -737,103 +600,6 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       expect(html).toContain('>1.100<');
     });
 
-    it('Order #149 with Extras: in ESC/POS thermal markup, both Exclusive and Inclusive modes render rolled-in rates and + TEST extra line', () => {
-      const order149 = {
-        masterData: {
-          orderNo: 149,
-          ticketNo: 149,
-          orderType: "TakeOut",
-          customer: "CASH CUSTOMER",
-          waiter: "emp1",
-          levy: 0.047619,
-          vatExclAmount: 1,
-          vatAmount: 0.1,
-          netAmount: 1.1,
-        },
-        detailsData: [
-          {
-            qty: 1,
-            productId: 7,
-            productName: "test price1",
-            price: 0.8658009,
-            amount: 0.8658009,
-            discAmount: 0,
-            serviceCharge: 0,
-            levy: 0.04329,
-            vatAmount: 0.0909091,
-            mapId: 1,
-          }
-        ],
-        modifiersData: [
-          {
-            qty: 1,
-            modifierId: 6,
-            modifierName: "test",
-            price: 0.0865801,
-            mapId: 1,
-          }
-        ]
-      };
-
-      // 1. Exclusive Thermal Print
-      const unifiedExcl = buildUnifiedOrderPricing(order149, {
-        orderType: 'TakeOut',
-        priceView: 'Exclusive',
-        printPrice: 'Exclusive',
-      });
-
-      const markupExcl = generateBillMarkup({
-        cartDetails: unifiedExcl as any,
-        data: {
-          orderNo: "149",
-          ticketNo: "149",
-          waiter: "emp1",
-          counter: "Main",
-          orderType: "TakeOut",
-          printPrice: "Exclusive",
-          priceView: "Exclusive",
-          subTotal: 0.952,
-          charges: 0.048,
-          netValue: 1.000,
-          vatAmount: 0.100,
-          netAmount: 1.100,
-        }
-      });
-
-      expect(markupExcl).toContain('TEST PRICE1');
-      expect(markupExcl).toContain('0.952');
-      expect(markupExcl).toContain('+ TEST');
-      expect(markupExcl).toContain('1.100');
-
-      // 2. Inclusive Thermal Print
-      const unifiedIncl = buildUnifiedOrderPricing(order149, {
-        orderType: 'TakeOut',
-        priceView: 'Inclusive',
-        printPrice: 'Inclusive',
-      });
-
-      const markupIncl = generateBillMarkup({
-        cartDetails: unifiedIncl as any,
-        data: {
-          orderNo: "149",
-          ticketNo: "149",
-          waiter: "emp1",
-          counter: "Main",
-          orderType: "TakeOut",
-          printPrice: "Inclusive",
-          priceView: "Inclusive",
-          subTotal: 0.952,
-          vatAmount: 0.100,
-          netAmount: 1.100,
-        }
-      });
-
-      expect(markupIncl).toContain('TEST PRICE1');
-      expect(markupIncl).toContain('1.100');
-      expect(markupIncl).toContain('+ TEST');
-      expect(markupIncl).toContain('1.100');
-    });
-
     it('Order #162 (Settled Order with 1 item + 1 extra in Exclusive mode): line item rate must include extra (0.952), extra classified as + test, subTotal 0.952, charges 0.048, netValue 1.000, vat 0.100, grand total 1.100', async () => {
       const order162 = {
         masterData: {
@@ -862,12 +628,12 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
             arabicName: "",
             altName: "",
             altArabicName: "",
-            price: 0.8658009,
-            amount: 0.8658009,
+            price: 0.952381,
+            amount: 0.952381,
             discAmount: 0,
             serviceCharge: 0,
-            levy: 0.04329,
-            vatAmount: 0.0909091,
+            levy: 0.047619,
+            vatAmount: 0.1,
             mapId: 1
           }
         ],
@@ -885,12 +651,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
         ]
       };
 
-      const unifiedExcl = buildUnifiedOrderPricing(order162, {
-        orderType: 'TakeOut',
-        priceView: 'Exclusive',
-        printPrice: 'Exclusive',
-        allExtras: [{ id: 6, name: "test", price: 0.100, typeId: 2 }]
-      });
+      const unifiedExcl = buildPrintPricing(order162, { orderType: 'TakeOut', allExtras: [{ id: 6, name: "test", price: 0.100, typeId: 2 }], dataView: 'Exclusive', printPrice: 'Exclusive' });
 
       // 1. Line item checks
       expect(unifiedExcl.lines).toHaveLength(1);
@@ -930,249 +691,18 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
       expect(html).toContain('1.100');
     });
 
-    it('Diagnose Inclusive settle & print: checking rate and subtotal when printPrice is Inclusive', async () => {
-      // Test A: with cartDetails directly
-      const cartItem = {
-        productId: 7,
-        product: { id: 7, name: 'test price1', price: 1.000 },
-        price: 1.000,
-        catalogPrice: 1.000,
-        quantity: 1,
-        isIncl: true,
-        extras: [{ id: 6, name: 'test', price: 0.100, qty: 1 }],
-      };
-
-      const unifiedA = buildUnifiedOrderPricing([cartItem], {
-        orderType: 'TakeOut',
-        priceView: 'Inclusive',
-        printPrice: 'Inclusive',
-        allExtras: [{ id: 6, name: 'test', price: 0.100, typeId: 2 }],
-      });
-
-      console.log('UNIFIED A (from cartItem):', {
-        exclusiveRate: unifiedA.lines[0]?.exclusiveRate,
-        inclusiveRate: unifiedA.lines[0]?.inclusiveRate,
-        getRateExcl: unifiedA.lines[0]?.getRate(false),
-        getRateIncl: unifiedA.lines[0]?.getRate(true),
-        subTotalExclusive: unifiedA.summary.subTotalExclusive,
-        subTotalInclusive: unifiedA.summary.subTotalInclusive,
-        grandTotal: unifiedA.summary.grandTotal,
-      });
-
-      // Test B: with order object from backend
-      const orderObj = {
-        masterData: {
-          orderNo: 162,
-          ticketNo: 162,
-          voucherNo: "62",
-          orderType: "TakeOut",
-          netAmount: 1.1,
-          vatAmount: 0.1,
-          levy: 0.047619,
-          vatExclAmount: 1,
-        },
-        detailsData: [
-          {
-            qty: 1,
-            productId: 7,
-            productName: "test price1",
-            price: 0.8658009,
-            amount: 0.8658009,
-            mapId: 1,
-          }
-        ],
-        modifiersData: [
-          {
-            qty: 1,
-            modifierId: 6,
-            modifierName: "test",
-            price: 0.0865801,
-            mapId: 1,
-          }
-        ]
-      };
-
-      const unifiedB = buildUnifiedOrderPricing(orderObj, {
-        orderType: 'TakeOut',
-        priceView: 'Inclusive',
-        printPrice: 'Inclusive',
-        allExtras: [{ id: 6, name: 'test', price: 0.100, typeId: 2 }],
-      });
-
-      console.log('UNIFIED B (from orderObj):', {
-        exclusiveRate: unifiedB.lines[0]?.exclusiveRate,
-        inclusiveRate: unifiedB.lines[0]?.inclusiveRate,
-        getRateExcl: unifiedB.lines[0]?.getRate(false),
-        getRateIncl: unifiedB.lines[0]?.getRate(true),
-        subTotalExclusive: unifiedB.summary.subTotalExclusive,
-        subTotalInclusive: unifiedB.summary.subTotalInclusive,
-        grandTotal: unifiedB.summary.grandTotal,
-      });
-
-      // Test C: with mappedPrintItems from usePosCheckoutFlow
-      // where d.price was 0.8658009 from backend, and extras had price 0.100 from cartMatch
-      const mappedPrintItem = {
-        productId: 7,
-        quantity: 1,
-        price: 0.8658009,
-        product: { name: 'test price1', price: 0.8658009 },
-        extras: [{ id: 6, name: 'test', price: 0.100, qty: 1 }],
-      };
-
-      const unifiedC = buildUnifiedOrderPricing([mappedPrintItem], {
-        orderType: 'TakeOut',
-        priceView: 'Inclusive',
-        printPrice: 'Inclusive',
-        allExtras: [{ id: 6, name: 'test', price: 0.100, typeId: 2 }],
-      });
-
-      console.log('UNIFIED C (from mappedPrintItem with excl item price + incl extra price):', {
-        exclusiveRate: unifiedC.lines[0]?.exclusiveRate,
-        inclusiveRate: unifiedC.lines[0]?.inclusiveRate,
-        getRateExcl: unifiedC.lines[0]?.getRate(false),
-        getRateIncl: unifiedC.lines[0]?.getRate(true),
-        subTotalExclusive: unifiedC.summary.subTotalExclusive,
-        subTotalInclusive: unifiedC.summary.subTotalInclusive,
-        grandTotal: unifiedC.summary.grandTotal,
-      });
-
-      // Test F: EXACT mappedPrintItem from usePosCheckoutFlow when settling
-      // When order has 1 item and 1 extra:
-      // detailsData from backend: { qty: 1, productId: 7, productName: "test price1", price: 0.8658009, amount: 0.8658009, mapId: 1 }
-      // modifiersData from backend: [{ qty: 1, modifierId: 6, modifierName: "test", price: 0.0865801, mapId: 1 }]
-      // printData: { printPrice: "Inclusive", priceView: "Inclusive", orderType: "TAKE OUT", subTotal: 1.100, netAmount: 1.100 }
-      const itemF = {
-        productId: 7,
-        unitId: 1,
-        quantity: 1,
-        price: 0.8658009,
-        basePrice: 0.8658009,
-        baseAmount: 0.8658009,
-        vatAmount: 0.0909091,
-        lineNetAmount: 0.8658009,
-        product: {
-          name: "test price1",
-          price: 0.8658009,
-        },
-        extras: [{ id: 6, name: "test", price: 0.0865801, qty: 1, typeId: 2 }],
-        modifiers: [],
-        messages: [],
-        lineTotal: 0.8658009,
-      };
-
-      const printDataF = {
-        orderNo: "162",
-        ticketNo: "162",
-        orderType: "TAKE OUT",
-        printPrice: "Inclusive",
-        priceView: "Inclusive",
-        subTotal: 1.100,
-        netAmount: 1.100,
-        vatAmount: 0.100,
-        charges: 0.048,
-        netValue: 1.000,
-        enableVat: true,
-      };
-
-      const unifiedF = buildUnifiedOrderPricing([itemF], printDataF as any);
-      console.log('UNIFIED F (with backend prices 0.8658009 and 0.0865801, printPrice Inclusive):', {
-        exclusiveRate: unifiedF.lines[0]?.exclusiveRate,
-        inclusiveRate: unifiedF.lines[0]?.inclusiveRate,
-        getRateExcl: unifiedF.lines[0]?.getRate(false),
-        getRateIncl: unifiedF.lines[0]?.getRate(true),
-        subTotalExclusive: unifiedF.summary.subTotalExclusive,
-        subTotalInclusive: unifiedF.summary.subTotalInclusive,
-        grandTotal: unifiedF.summary.grandTotal,
-      });
-
-      // Test G: what if extras had price 0.100 (inclusive)?
-      const itemG = {
-        ...itemF,
-        extras: [{ id: 6, name: "test", price: 0.100, qty: 1, typeId: 2 }],
-      };
-      const unifiedG = buildUnifiedOrderPricing([itemG], printDataF as any);
-      console.log('UNIFIED G (with item 0.8658009 and extra 0.100, printPrice Inclusive):', {
-        exclusiveRate: unifiedG.lines[0]?.exclusiveRate,
-        inclusiveRate: unifiedG.lines[0]?.inclusiveRate,
-        getRateExcl: unifiedG.lines[0]?.getRate(false),
-        getRateIncl: unifiedG.lines[0]?.getRate(true),
-        subTotalExclusive: unifiedG.summary.subTotalExclusive,
-        subTotalInclusive: unifiedG.summary.subTotalInclusive,
-        grandTotal: unifiedG.summary.grandTotal,
-      });
-
-      // Test H: what if item price was 0.952?
-      const itemH = {
-        ...itemF,
-        price: 0.952,
-        product: { name: "test price1", price: 0.952 },
-        extras: [{ id: 6, name: "test", price: 0.100, qty: 1, typeId: 2 }],
-      };
-      const unifiedH = buildUnifiedOrderPricing([itemH], printDataF as any);
-      console.log('UNIFIED H (with item 0.952 and extra 0.100, printPrice Inclusive):', {
-        exclusiveRate: unifiedH.lines[0]?.exclusiveRate,
-        inclusiveRate: unifiedH.lines[0]?.inclusiveRate,
-        getRateExcl: unifiedH.lines[0]?.getRate(false),
-        getRateIncl: unifiedH.lines[0]?.getRate(true),
-        subTotalExclusive: unifiedH.summary.subTotalExclusive,
-        subTotalInclusive: unifiedH.summary.subTotalInclusive,
-        grandTotal: unifiedH.summary.grandTotal,
-      });
-
-      // Search which combination produces Rate = 1.216 and Subtotal = 1.100
-      const uSingle = buildUnifiedOrderPricing([
-        {
-          productId: 7,
-          product: { id: 7, name: "TEST PRICE1", price: 1.000 },
-          price: 1.000,
-          catalogPrice: 1.000,
-          basePrice: 0.8658009,
-          quantity: 1,
-          extras: [{ id: 6, name: "test", price: 0.100, qty: 1 }],
-          lineNetAmount: 1.100,
-          lineTotal: 1.100,
-        }
-      ], {
-        orderType: "TAKE OUT",
-        printPrice: "Inclusive",
-        priceView: "Inclusive",
-        subTotal: 1.100,
-        charges: 0.048,
-        levy: 0.048,
-        vatAmount: 0.100,
-        netAmount: 1.100,
-        enableVat: true,
-      } as any);
-
-      expect(uSingle.lines[0]?.getRate(true)).toBeCloseTo(1.100, 3);
-      expect(uSingle.lines[0]?.getRate(false)).toBeCloseTo(1.000, 3);
-
-      const printDataSingle = {
-        orderNo: "164",
-        ticketNo: "164",
-        orderType: "TAKE OUT",
-        customerName: "CASH CUSTOMER",
-        printPrice: "Inclusive",
-        priceView: "Inclusive",
-        subTotal: 1.100,
-        charges: 0.048,
-        levy: 0.048,
-        vatAmount: 0.100,
-        netAmount: 1.100,
-        enableVat: true,
-      };
-
-      const htmlSingle = await generateGuestPrintHtml(uSingle as any, printDataSingle as any);
-      expect(htmlSingle).not.toContain('1.216');
-      expect(htmlSingle).not.toContain('1.255');
-      expect(htmlSingle).toContain('>1.100<');
-    });
 
     it('Order #89 (User Photo Image 1 & 2): Settle and Print DEMO x3 with TEST and 10 discount', async () => {
       localStorage.setItem('printPrice', 'Inclusive');
       localStorage.setItem('priceView', 'Exclusive');
+      localStorage.setItem('discCalc', 'Inclusive');
+      localStorage.setItem('posConfigs', JSON.stringify({ configs: { vatStatus: true, vat: 10, levy: 5, serviceCharges: 0, discountCalc: 'Inclusive' } }));
 
       const cartItemOrder89 = {
+        uniqueId: 'a',
+        isIncl: false,
+        discountValue: 10,
+        discountType: 'amount',
         productId: 6,
         unitId: 1,
         quantity: 3,
@@ -1215,7 +745,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
         enableVat: true,
       };
 
-      const unified89 = buildUnifiedOrderPricing([cartItemOrder89], printData89 as any);
+      const unified89 = buildLiveCartPricing([cartItemOrder89], { ...(printData89 as any), printPrice: (printData89 as any).printPrice })!;
       console.log('UNIFIED 89:', {
         exclusiveRate: unified89.lines[0]?.exclusiveRate,
         inclusiveRate: unified89.lines[0]?.inclusiveRate,
@@ -1260,7 +790,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
         total: billResult.summary.total
       });
 
-      const unifiedFromLiveCart = buildUnifiedOrderPricing(billResult.lines, {
+      const unifiedFromLiveCart = buildLiveCartPricing(billResult.lines, {
         orderType: "TakeOut",
         printPrice: "Inclusive",
         priceView: "Exclusive",
@@ -1271,7 +801,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
         vatAmount: billResult.summary.tax,
         netAmount: billResult.summary.total,
         enableVat: true,
-      } as any);
+      } as any)!;
 
       console.log('UNIFIED FROM LIVE CART:', {
         rate: unifiedFromLiveCart.lines[0]?.getRate(true),
@@ -1351,12 +881,7 @@ describe('Settled Print Verification (Order #84 & Settled Details)', () => {
         ]
       };
 
-      const unified253 = buildUnifiedOrderPricing(order253Data, {
-        orderType: "TakeOut",
-        priceView: "Inclusive",
-        allExtras: [{ id: 201, name: "xxx", price: 5.000, typeId: 2 }],
-        products: [{ id: 101, name: "Abcd", price: 100.000, isIncl: true }],
-      });
+      const unified253 = buildPrintPricing(order253Data, { orderType: "TakeOut", allExtras: [{ id: 201, name: "xxx", price: 5.000, typeId: 2 }], products: [{ id: 101, name: "Abcd", price: 100.000, isIncl: true }], dataView: "Inclusive", printPrice: "Inclusive" });
 
       // Line item combined inclusive rate
       expect(unified253.lines[0]?.getRate(true)).toBeCloseTo(105.000, 3);

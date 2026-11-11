@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { calculateLineItem, roundCalc, CALC_PRECISION } from '../features/pos/terminal/utils/billing';
 import {
-  checkOrderAllowsSplitOrCombine,
+  splitCombineDiscountStatus,
+  stripBillDiscountFromCombinedLines,
 } from '../features/pos/terminal/utils/orderDiscountCheck';
 
 describe('Split and Combine Discount Logic', () => {
@@ -102,7 +103,7 @@ describe('Split and Combine Discount Logic', () => {
       expect(baseItem.discountValue + splitItem.discountValue).toBe(10.0);
     });
 
-    it('strictly forbids splitting an order with order-level bill discount', () => {
+    it('asks to remove the bill discount (instead of blocking) when splitting a bill-discount order', () => {
       // Scenario: Order has bill discount (Order #84 with discount 11.818)
       const billDiscountOrder = {
         data: {
@@ -123,12 +124,10 @@ describe('Split and Combine Discount Logic', () => {
         },
       };
 
-      const checkResult = checkOrderAllowsSplitOrCombine(billDiscountOrder);
-      expect(checkResult.allowed).toBe(false);
-      expect(checkResult.reason).toContain("bill discount");
+      expect(splitCombineDiscountStatus(billDiscountOrder)).toBe("billDiscount");
     });
 
-    it('strictly forbids splitting a complimentary order', () => {
+    it('treats a bill complimentary (100 % bill discount) like a bill discount', () => {
       const compOrder = {
         data: {
           masterData: [
@@ -145,9 +144,30 @@ describe('Split and Combine Discount Logic', () => {
         },
       };
 
-      const checkResult = checkOrderAllowsSplitOrCombine(compOrder);
-      expect(checkResult.allowed).toBe(false);
-      expect(checkResult.reason).toContain("complimentary");
+      expect(splitCombineDiscountStatus(compOrder)).toBe("billDiscount");
+    });
+
+    it("still blocks an order with item complimentary", () => {
+      const itemCompOrder = {
+        data: {
+          masterData: [{ orderId: 87, discAmount: 0, discPer: 0, isBillDiscount: false, complimentaryStatus: false }],
+          detailsData: [
+            { mapId: 1, productId: 10, price: 10.0, qty: 1, discPer: 100, discAmount: 10.0, complimentaryStatus: true },
+            { mapId: 2, productId: 20, price: 5.0, qty: 1, discPer: 0, discAmount: 0 },
+          ],
+        },
+      };
+      expect(splitCombineDiscountStatus(itemCompOrder)).toBe("complimentary");
+    });
+
+    it("blocks when every item was made complimentary one by one (no master discount)", () => {
+      const allItemsComp = {
+        data: {
+          masterData: [{ orderId: 88, discAmount: 0, discPer: 0, isBillDiscount: false, complimentaryStatus: true }],
+          detailsData: [{ mapId: 1, productId: 10, price: 10.0, qty: 1, discPer: 100, discAmount: 10.0, complimentaryStatus: true }],
+        },
+      };
+      expect(splitCombineDiscountStatus(allItemsComp)).toBe("complimentary");
     });
 
     it('allows splitting an order with genuine item discount', () => {
@@ -171,8 +191,7 @@ describe('Split and Combine Discount Logic', () => {
         },
       };
 
-      const checkResult = checkOrderAllowsSplitOrCombine(itemDiscountOrder);
-      expect(checkResult.allowed).toBe(true);
+      expect(splitCombineDiscountStatus(itemDiscountOrder)).toBe("ok");
     });
 
     it('merges discount back losslessly when item is moved back from split to base', () => {
@@ -267,7 +286,7 @@ describe('Split and Combine Discount Logic', () => {
   });
 
   describe('2. Combine Orders Discount Rule', () => {
-    it('strictly forbids combining orders if any order has a bill discount', () => {
+    it('asks to remove the bill discount when any order to combine has one', () => {
       const orderA = {
         data: {
           masterData: [{ orderId: 90, discAmount: 0, discPer: 0 }],
@@ -282,8 +301,9 @@ describe('Split and Combine Discount Logic', () => {
         },
       };
 
-      expect(checkOrderAllowsSplitOrCombine(orderA).allowed).toBe(true);
-      expect(checkOrderAllowsSplitOrCombine(orderB_withBillDiscount).allowed).toBe(false);
+      expect(splitCombineDiscountStatus(orderA)).toBe("ok");
+      expect(splitCombineDiscountStatus(orderB_withBillDiscount)).toBe("billDiscount");
+      expect(splitCombineDiscountStatus(orderA, orderB_withBillDiscount)).toBe("billDiscount");
     });
 
     it('strictly forbids combining orders if any order has complimentary status', () => {
@@ -294,7 +314,7 @@ describe('Split and Combine Discount Logic', () => {
         },
       };
 
-      expect(checkOrderAllowsSplitOrCombine(orderComplimentary).allowed).toBe(false);
+      expect(splitCombineDiscountStatus(orderComplimentary)).toBe("complimentary");
     });
 
     it('allows combining orders that only have item-level discounts', () => {
@@ -305,7 +325,39 @@ describe('Split and Combine Discount Logic', () => {
         },
       };
 
-      expect(checkOrderAllowsSplitOrCombine(orderWithItemDiscount).allowed).toBe(true);
+      expect(splitCombineDiscountStatus(orderWithItemDiscount)).toBe("ok");
+    });
+
+    it("removes the bill discount only from lines of the bill-discount orders", () => {
+      const combinedLines = [
+        { orderId: 90, id: 1, mapId: 1000, price: 10, qty: 1, discPer: 25, discAmount: 2.5 }, // item discount, kept
+        { orderId: 91, id: 2, mapId: 1001, price: 20, qty: 1, discPer: 10, discAmount: 2 },  // bill discount, removed
+        { orderId: 91, id: 3, mapId: 1002, price: 30, qty: 1, discPer: 10, discAmount: 3 },  // bill discount, removed
+      ];
+      const out = stripBillDiscountFromCombinedLines(combinedLines, new Set([91]));
+      expect(out[0]).toEqual(combinedLines[0]);
+      expect(out[1]).toMatchObject({ discPer: 0, discAmount: 0, price: 20, qty: 1 });
+      expect(out[2]).toMatchObject({ discPer: 0, discAmount: 0, price: 30, qty: 1 });
+    });
+
+    it("removes bill complimentary from the lines of that order", () => {
+      const lines = [
+        { orderId: 95, id: 1, mapId: 1, price: 10, qty: 1, discPer: 100, discAmount: 10, complimentaryStatus: true },
+        { orderId: 96, id: 2, mapId: 2, price: 10, qty: 1, discPer: 0, discAmount: 0, complimentaryStatus: false },
+      ];
+      const out = stripBillDiscountFromCombinedLines(lines, new Set([95]));
+      expect(out[0]).toMatchObject({ discPer: 0, discAmount: 0, complimentaryStatus: false });
+      expect(out[1]).toEqual(lines[1]);
+    });
+
+    it("falls back to detail ids when combined lines have no orderId", () => {
+      const lines = [
+        { id: 7, mapId: 1, price: 10, qty: 1, discAmount: 1 },
+        { id: 8, mapId: 2, price: 10, qty: 1, discAmount: 1 },
+      ];
+      const out = stripBillDiscountFromCombinedLines(lines, new Set(), new Set([8]));
+      expect(out[0].discAmount).toBe(1);
+      expect(out[1].discAmount).toBe(0);
     });
   });
 });

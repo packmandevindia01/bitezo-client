@@ -271,10 +271,15 @@ export const usePosVoidFlow = ({
     }
   });
 
+  // The engine result of voided units, for a void started outside this hook (Qty keypad), so its print follows Print Price.
+  const priceVoidedUnits = (item: any, voidQty: number, voidExtras: { price: number; qty: number }[]) =>
+    priceVoid(item, voidQty, voidExtras, orderTypeName, editingOrderRates).pricedLine;
+
   return {
     voidConfirmState,
     setVoidConfirmState,
     handleRemoveItem,
     handleDecrementItem,
+    priceVoidedUnits,
   };
 };

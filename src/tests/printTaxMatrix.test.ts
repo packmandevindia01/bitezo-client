@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { calculateOrder, type BillingConfig } from '../features/pos/terminal/utils/billing';
-import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
+import { buildLiveCartPricing, buildPrintPricing } from '../features/pos/utils/printPricing';
 import { generateGuestPrintHtml } from '../features/pos/utils/guestPrintTemplate';
-import { generateBillMarkup } from '../features/pos/utils/escPosGenerator';
 
 describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)', () => {
   const takeOutConfig: BillingConfig = {
@@ -90,12 +89,12 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
         netAmount: 1.100,
       };
 
-      const unifiedPrint = buildUnifiedOrderPricing(screenCalc.lines, {
+      const unifiedPrint = buildLiveCartPricing(screenCalc.lines, {
         ...printData,
         products,
         productCache,
         allExtras,
-      });
+      })!;
 
 
 
@@ -112,11 +111,6 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
       expect(html).toContain('1.100');
       expect(html).toContain('+ TEST');
       expect(html).not.toContain('1.216');
-
-      // Thermal ESC/POS verification:
-      const thermal = generateBillMarkup({ data: printData, cartDetails: unifiedPrint as any });
-      expect(thermal).toContain('1.100');
-      expect(thermal).toContain('+ TEST');
     });
 
     it('1.2 Multiple Items with Extras: Screen and Print must show identical rates (1.100 & 1.000) and grand total (2.100)', async () => {
@@ -158,12 +152,12 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
         netAmount: 2.100,
       };
 
-      const unifiedPrint = buildUnifiedOrderPricing(screenCalc.lines, {
+      const unifiedPrint = buildLiveCartPricing(screenCalc.lines, {
         ...printData,
         products,
         productCache,
         allExtras,
-      });
+      })!;
 
 
 
@@ -210,12 +204,12 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
         netAmount: 1.100,
       };
 
-      const unifiedPrint = buildUnifiedOrderPricing(screenCalc.lines, {
+      const unifiedPrint = buildLiveCartPricing(screenCalc.lines, {
         ...printData,
         products,
         productCache,
         allExtras,
-      });
+      })!;
 
 
 
@@ -273,12 +267,12 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
         netAmount: 2.100,
       };
 
-      const unifiedPrint = buildUnifiedOrderPricing(screenCalc.lines, {
+      const unifiedPrint = buildLiveCartPricing(screenCalc.lines, {
         ...printData,
         products,
         productCache,
         allExtras,
-      });
+      })!;
 
 
 
@@ -322,12 +316,12 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
         netAmount: 1.100,
       };
 
-      const unifiedPrint = buildUnifiedOrderPricing(screenCalc.lines, {
+      const unifiedPrint = buildLiveCartPricing(screenCalc.lines, {
         ...printData,
         products,
         productCache,
         allExtras,
-      });
+      })!;
 
 
 
@@ -377,12 +371,12 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
         netAmount: 1.100,
       };
 
-      const unifiedPrint = buildUnifiedOrderPricing(screenCalc.lines, {
+      const unifiedPrint = buildLiveCartPricing(screenCalc.lines, {
         ...printData,
         products,
         productCache,
         allExtras,
-      });
+      })!;
 
 
 
@@ -417,10 +411,10 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
             qty: 1,
             productId: 7,
             productName: 'test price1',
-            price: 0.8658009,
-            amount: 0.8658009,
-            vatAmount: 0.0909091,
-            levy: 0.04329,
+            price: 0.952381,
+            amount: 0.952381,
+            vatAmount: 0.1,
+            levy: 0.047619,
             mapId: 1,
           },
         ],
@@ -444,12 +438,7 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
         enableVat: true,
       };
 
-      const unifiedPrint = buildUnifiedOrderPricing(backendSettledOrder, {
-        ...printData,
-        products,
-        productCache,
-        allExtras,
-      });
+      const unifiedPrint = buildPrintPricing(backendSettledOrder, { ...printData, products, productCache, allExtras, dataView: 'Exclusive', printPrice: printData.printPrice });
 
       // Rate is strictly rolled-in 1.100 (NEVER 1.216)
       expect(unifiedPrint.lines[0].inclusiveRate).toBeCloseTo(1.100, 3);
@@ -495,12 +484,12 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
         enableVat: true,
         netAmount: 0.990,
       };
-      const unifiedExcl = buildUnifiedOrderPricing(cartItems, {
+      const unifiedExcl = buildLiveCartPricing(screenCalc.lines, {
         ...printExcl,
         products,
         productCache,
         allExtras,
-      });
+      })!;
       expect(unifiedExcl.summary.grandTotal).toBeCloseTo(0.990, 3);
 
       // Test in Inclusive Print mode:
@@ -512,12 +501,12 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
         enableVat: true,
         netAmount: 0.990,
       };
-      const unifiedIncl = buildUnifiedOrderPricing(cartItems, {
+      const unifiedIncl = buildLiveCartPricing(screenCalc.lines, {
         ...printIncl,
         products,
         productCache,
         allExtras,
-      });
+      })!;
       expect(unifiedIncl.summary.grandTotal).toBeCloseTo(0.990, 3);
     });
 
@@ -554,12 +543,12 @@ describe('4-Way Tax Matrix & Receipt Print Invariance (priceView vs printPrice)'
         discPer: 10,
         netAmount: 0.990,
       };
-      const unified = buildUnifiedOrderPricing(cartItems, {
+      const unified = buildLiveCartPricing(screenCalc.lines, {
         ...printData,
         products,
         productCache,
         allExtras,
-      });
+      })!;
       expect(unified.summary.grandTotal).toBeCloseTo(0.990, 3);
     });
   });

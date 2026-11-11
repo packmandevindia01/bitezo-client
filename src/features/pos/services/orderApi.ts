@@ -1,11 +1,10 @@
 import { unwrapBody as unwrap } from "../../../shared/api/unwrap";
 import axiosInstance from "../../../api/axiosInstance";
 import type { MenuOrderRequest, MenuOrderResponse, RecallParams, RecallResponse } from "../types";
-import { sanitizeTaxExclusiveDetail, roundCalc, getVatStatus } from "../terminal/utils/billing";
-import { allocate } from "../terminal/utils/pos-calc";
+import { roundCalc, getVatStatus } from "../terminal/utils/billing";
 import { STORED_ORDER_PARAMS, applyStoredOrderView } from "./storedOrderView";
 import { mergeStoredOrderSources } from "../pricing";
-import { withDetailNet7 } from "../../../utils/money";
+import { withDetailNet7, allocateThousandths } from "../../../utils/money";
 
 import { toLocalDateString } from "../../../utils/date";
 /**
@@ -36,10 +35,8 @@ export const orderApi = {
 
         payload.createdAt = new Date().toISOString();
 
-        // Ensure details have tax-exclusive price and tax-inclusive netAmount
+        // Details come from the pricing engine (orderPayloadMapper) and are sent as they are.
         if (payload.details && Array.isArray(payload.details)) {
-          // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
-          payload.details = payload.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
           const totalDetailGross = payload.details.reduce((sum: number, d: any) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
           const totalModifierGross = Array.isArray(payload.modifiers)
             ? payload.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
@@ -59,7 +56,7 @@ export const orderApi = {
               const lineBases = payload.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
               const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
               const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
-              const allocated = allocate(Number(payload.discAmount || 0), weights);
+              const allocated = allocateThousandths(Number(payload.discAmount || 0), weights);
               payload.details.forEach((d: any, idx: number) => {
                 d.discAmount = allocated[idx] ?? 0;
                 const base = Number(d.price || 0) * Number(d.qty || 1);
@@ -266,9 +263,7 @@ export const orderApi = {
     delete (payload as any).callBack;
 
     if (payload.details && Array.isArray(payload.details)) {
-      // Details come from buildUpdateOrderPayload: exclusive, 7-decimal engine values. They must NOT be
-      // re-sanitized here — the update DTO drops the isPriceTaxExclusive flag, and sanitizing rounded line
-      // VAT / netAmount to 3 decimals on every edited order (e.g. order #288: VAT 0.262 instead of 0.2616144).
+      // Details come from buildUpdateOrderPayload: exclusive engine values, sent as they are.
       const totalDetailGross = payload.details.reduce((sum: number, d: any) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
       const totalModifierGross = Array.isArray(payload.modifiers)
         ? payload.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
@@ -288,7 +283,7 @@ export const orderApi = {
           const lineBases = payload.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
           const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
           const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
-          const allocated = allocate(Number(payload.discAmount || 0), weights);
+          const allocated = allocateThousandths(Number(payload.discAmount || 0), weights);
           payload.details.forEach((d: any, idx: number) => {
             d.discAmount = allocated[idx] ?? 0;
             const base = Number(d.price || 0) * Number(d.qty || 1);
@@ -349,10 +344,9 @@ export const orderApi = {
     } else {
       postPayload.voucherDate = toLocalDateString();
     }
-    const sanitizeSplitBucket = (bucket: any) => {
+    const prepareSplitBucket = (bucket: any) => {
       if (!bucket) return bucket;
       if (bucket.details && Array.isArray(bucket.details)) {
-        bucket.details = bucket.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
         const totalDetailGross = bucket.details.reduce((sum: number, d: any) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
         const totalModifierGross = Array.isArray(bucket.modifiers)
           ? bucket.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
@@ -372,17 +366,15 @@ export const orderApi = {
     };
 
     if (postPayload.baseOrder) {
-      postPayload.baseOrder = sanitizeSplitBucket(postPayload.baseOrder);
+      postPayload.baseOrder = prepareSplitBucket(postPayload.baseOrder);
     }
     if (postPayload.newOrders && Array.isArray(postPayload.newOrders)) {
-      postPayload.newOrders = postPayload.newOrders.map(sanitizeSplitBucket);
+      postPayload.newOrders = postPayload.newOrders.map(prepareSplitBucket);
     }
 
     if (postPayload.orders && Array.isArray(postPayload.orders)) {
       postPayload.orders = postPayload.orders.map((ord: any) => {
         if (ord.details && Array.isArray(ord.details)) {
-          // Skip re-sanitization for details already marked as tax-exclusive (to prevent double-division by VAT)
-          ord.details = ord.details.map((d: any) => d.isPriceTaxExclusive === true ? d : sanitizeTaxExclusiveDetail(d));
           const totalDetailGross = ord.details.reduce((sum: number, d: any) => sum + Number(d.price || 0) * Number(d.qty || 1), 0);
           const totalModifierGross = Array.isArray(ord.modifiers)
             ? ord.modifiers.reduce((sum: number, m: any) => sum + Number(m.amount !== undefined ? m.amount : (Number(m.price || 0) * Number(m.qty || 1))), 0)
@@ -402,7 +394,7 @@ export const orderApi = {
               const lineBases = ord.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
               const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
               const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
-              const allocated = allocate(Number(ord.discAmount || 0), weights);
+              const allocated = allocateThousandths(Number(ord.discAmount || 0), weights);
               ord.details.forEach((d: any, idx: number) => {
                 d.discAmount = allocated[idx] ?? 0;
                 const base = Number(d.price || 0) * Number(d.qty || 1);
@@ -437,6 +429,10 @@ export const orderApi = {
     return unwrap<MenuOrderResponse>(
       axiosInstance.post("/order-split", {
         ...postPayload,
+        baseOrder: postPayload.baseOrder ? { ...postPayload.baseOrder, details: withDetailNet7(postPayload.baseOrder.details) } : postPayload.baseOrder,
+        newOrders: Array.isArray(postPayload.newOrders)
+          ? postPayload.newOrders.map((bucket: { details?: { netAmount?: number }[] }) => ({ ...bucket, details: withDetailNet7(bucket.details) }))
+          : postPayload.newOrders,
         orders: Array.isArray(postPayload.orders)
           ? postPayload.orders.map((ord: { details?: { netAmount?: number }[] }) => ({ ...ord, details: withDetailNet7(ord.details) }))
           : postPayload.orders,

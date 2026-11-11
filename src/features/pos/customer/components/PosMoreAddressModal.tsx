@@ -47,7 +47,7 @@ export const PosMoreAddressModal = ({
           setTimeout(() => {
             try {
               nextEl.setSelectionRange(0, nextEl.value.length);
-            } catch (err) {
+            } catch {
               nextEl.select?.();
             }
           }, 20);

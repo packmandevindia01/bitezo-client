@@ -438,6 +438,8 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
       />
 
       <PosSettledDetailsModal
+        // A different order starts with a fresh window (no previous order shown while the next one loads).
+        key={selectedOrderId ?? "none"}
         isOpen={isDetailsOpen}
         onClose={() => setIsDetailsOpen(false)}
         orderId={selectedOrderId}

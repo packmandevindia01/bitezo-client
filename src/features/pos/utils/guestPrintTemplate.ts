@@ -9,10 +9,10 @@ import { isBillArabicEnabled, getAlternativeArabicName, containsArabic } from ".
 export { isBillArabicEnabled };
 import { getDecimalPart } from "../../../utils/currency";
 import { getBillingConfig, getPriceView, getVatStatus, roundCalc } from "../terminal/utils/billing";
-import { applyCartPricingToUnified } from "./printPricing";
+import { buildLiveCartPricing, buildRowPricing } from "./printPricing";
 import { balanceBillFooter, balanceToTotal } from "../../../utils/money";
 import { printChargeLines } from "./printCharges";
-import { buildUnifiedOrderPricing, type UnifiedOrderPricingResult } from "./orderPricing";
+import type { UnifiedOrderPricingResult } from "./printPricingTypes";
 
 export interface GuestPrintData {
   orderNo: string;
@@ -343,28 +343,12 @@ export const generateGuestPrintHtml = async (
   const isTaxInclusive = isVatActive ? (printTaxSetting === "Inclusive") : false;
 
   const isInputPrecomputed = Boolean(cartDetails && Array.isArray((cartDetails as any).lines) && (cartDetails as any).summary);
-  const inputTaxSetting = (cartDetails as any)?.summary?.printPrice || (cartDetails as any)?.summary?.priceView;
-  const isInputMatchingSetting = isInputPrecomputed && (
-    (printTaxSetting === "Inclusive" && (cartDetails as any).summary?.isTaxInclusive === true) ||
-    (printTaxSetting === "Exclusive" && (cartDetails as any).summary?.isTaxInclusive === false) ||
-    inputTaxSetting === printTaxSetting
-  );
 
-  // Single Source of Truth: Unified deterministic order pricing
-  const unifiedBase: UnifiedOrderPricingResult = isInputMatchingSetting
+  // Already priced, a live cart priced by the engine, or rows that carry their own amounts.
+  const printOptions = { ...data, printPrice: printTaxSetting, priceView: printTaxSetting };
+  const unified: UnifiedOrderPricingResult = isInputPrecomputed
     ? (cartDetails as any)
-    : buildUnifiedOrderPricing(cartDetails, {
-        ...data,
-        printPrice: printTaxSetting,
-        priceView: printTaxSetting,
-      });
-
-  // Live cart lines (e.g. packager print): numbers straight from the cart engine, in the Print Price view.
-  const unified: UnifiedOrderPricingResult =
-    (!isInputPrecomputed && applyCartPricingToUnified(unifiedBase, rawLines, { printPrice: printTaxSetting, deliveryCharge: data.deliveryCharge, orderType: data.orderType })) ||
-    unifiedBase;
-
-
+    : (buildLiveCartPricing(rawLines, printOptions) ?? buildRowPricing(rawLines, printOptions));
 
   // Footer Sub Total and Discount are ALWAYS exclusive — exactly what the cart / recall screen footer shows,
   // whatever the Print Price. (Rows still follow Print Price.) Previously an Inclusive print without
@@ -431,7 +415,7 @@ export const generateGuestPrintHtml = async (
 
   if (isVatActive) {
     data.enableVat = true;
-    let computedVat = unified.summary.vatAmount > 0 ? unified.summary.vatAmount : Number(data.vatAmount || 0);
+    const computedVat = unified.summary.vatAmount > 0 ? unified.summary.vatAmount : Number(data.vatAmount || 0);
 
     // If both priceView and printPrice are inclusive (or VAT is 0 despite isVatActive being true), reverse calculate the correct VAT:
 

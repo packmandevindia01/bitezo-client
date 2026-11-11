@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { calculateOrder } from '../features/pos/terminal/utils/billing';
 import { buildNewOrderPayload, buildUpdateOrderPayload } from '../features/pos/terminal/mappers/orderPayloadMapper';
 import { buildSalesInvoicePayload } from '../features/pos/terminal/mappers/invoicePayloadMapper';
-import { buildUnifiedOrderPricing } from '../features/pos/utils/orderPricing';
+import { buildPrintPricing } from '../features/pos/utils/printPricing';
 import { mapOrderDetailsToCartItems } from '../features/pos/terminal/mappers/orderDetailToCartMapper';
 
 describe('Combined Product Extras Pricing Specification', () => {
@@ -155,7 +155,7 @@ describe('Combined Product Extras Pricing Specification', () => {
     expect(newOrderPayload.netAmount).toBeCloseTo(1.100000, 3);
 
     // Recall in Inclusive View displays PRICE 1.100, TOTAL 1.100, Subtotal 0.952, Charges 0.048, Net 1.000, VAT 0.100, Grand Total 1.100
-    const recallInclusive = buildUnifiedOrderPricing(
+    const recallInclusive = buildPrintPricing(
       {
         masterData: {
           orderNo: 181,
@@ -169,7 +169,7 @@ describe('Combined Product Extras Pricing Specification', () => {
         detailsData: newOrderPayload.details,
         modifiersData: newOrderPayload.modifiers,
       },
-      { orderType: 'TakeOut', priceView: 'Inclusive' }
+      { orderType: 'TakeOut', dataView: 'Exclusive', printPrice: 'Inclusive' }
     );
 
     expect(recallInclusive.lines[0].inclusiveRate).toBeCloseTo(1.100, 3);
@@ -181,7 +181,7 @@ describe('Combined Product Extras Pricing Specification', () => {
     expect(recallInclusive.summary.grandTotal).toBeCloseTo(1.100, 3);
 
     // Recall in Exclusive View displays PRICE 0.952, TOTAL 0.952, Subtotal 0.952, Charges 0.048, Net 1.000, VAT 0.100, Grand Total 1.100
-    const recallExclusive = buildUnifiedOrderPricing(
+    const recallExclusive = buildPrintPricing(
       {
         masterData: {
           orderNo: 181,
@@ -195,7 +195,7 @@ describe('Combined Product Extras Pricing Specification', () => {
         detailsData: newOrderPayload.details,
         modifiersData: newOrderPayload.modifiers,
       },
-      { orderType: 'TakeOut', priceView: 'Exclusive' }
+      { orderType: 'TakeOut', dataView: 'Exclusive', printPrice: 'Exclusive' }
     );
 
     expect(recallExclusive.lines[0].exclusiveRate).toBeCloseTo(0.952, 3);
@@ -255,10 +255,7 @@ describe('Combined Product Extras Pricing Specification', () => {
       ]
     };
 
-    const recallIncl = buildUnifiedOrderPricing(rawBackendRecall, {
-      orderType: 'TakeOut',
-      priceView: 'Inclusive',
-    });
+    const recallIncl = buildPrintPricing(rawBackendRecall, { orderType: 'TakeOut', dataView: 'Exclusive', printPrice: 'Inclusive' });
 
     // KEY ASSERTION: Must NOT double-add extras. Inclusive rate = 1.100, NOT 1.187 or 1.200
     expect(recallIncl.lines[0].inclusiveRate).toBeCloseTo(1.100, 3);
@@ -269,10 +266,7 @@ describe('Combined Product Extras Pricing Specification', () => {
     expect(recallIncl.summary.charges).toBeCloseTo(0.048, 3);
 
     // Also test Exclusive view (should be 0.952, not 1.039)
-    const recallExcl = buildUnifiedOrderPricing(rawBackendRecall, {
-      orderType: 'TakeOut',
-      priceView: 'Exclusive',
-    });
+    const recallExcl = buildPrintPricing(rawBackendRecall, { orderType: 'TakeOut', dataView: 'Exclusive', printPrice: 'Exclusive' });
 
     expect(recallExcl.lines[0].exclusiveRate).toBeCloseTo(0.952, 3);
     expect(recallExcl.lines[0].inclusiveRate).toBeCloseTo(1.100, 3);
@@ -394,19 +388,13 @@ describe('Combined Product Extras Pricing Specification', () => {
       modifiersData: updatePayload.modifiers,
     };
 
-    const recallInclusive = buildUnifiedOrderPricing(updatedBackendOrder, {
-      orderType: 'TakeOut',
-      priceView: 'Inclusive'
-    });
+    const recallInclusive = buildPrintPricing(updatedBackendOrder, { orderType: 'TakeOut', dataView: 'Exclusive', printPrice: 'Inclusive' });
 
     expect(recallInclusive.lines[0].inclusiveRate).toBeCloseTo(1.100, 3);
     expect(recallInclusive.lines[1].inclusiveRate).toBeCloseTo(1.000, 3);
     expect(recallInclusive.summary.grandTotal).toBeCloseTo(2.100, 3);
 
-    const recallExclusive = buildUnifiedOrderPricing(updatedBackendOrder, {
-      orderType: 'TakeOut',
-      priceView: 'Exclusive'
-    });
+    const recallExclusive = buildPrintPricing(updatedBackendOrder, { orderType: 'TakeOut', dataView: 'Exclusive', printPrice: 'Exclusive' });
 
     expect(recallExclusive.lines[0].exclusiveRate).toBeCloseTo(0.952, 3);
     expect(recallExclusive.lines[1].exclusiveRate).toBeCloseTo(0.866, 3);

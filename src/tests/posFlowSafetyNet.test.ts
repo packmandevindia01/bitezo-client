@@ -203,7 +203,7 @@ describe("POS flow safety net (golden master)", () => {
 
   it("S1 Take-Out: incl + excl items, qty +/−, extras, modifier, message, item % and amount discounts", async () => {
     configure({ sc: 10, levy: 5 });
-    let pos = run(freshState(), setOrderTypeByName("TakeOut"),
+    const pos = run(freshState(), setOrderTypeByName("TakeOut"),
       add("a", BURGER), incrementItem({ uniqueId: "a" }),
       add("b", FRIES, { quantity: 3 }), decrementItem({ uniqueId: "b" }),
       add("c", KARAK),
@@ -218,7 +218,7 @@ describe("POS flow safety net (golden master)", () => {
 
   it("S2 Dine-In: service charge + levy, table / section / guests, AMOUNT bill discount", async () => {
     configure({ sc: 10, levy: 5, discCalc: "Inclusive" });
-    let pos = run(freshState(), setOrderTypeByName("DineIn"),
+    const pos = run(freshState(), setOrderTypeByName("DineIn"),
       setSectionId(2), setTableId(14), setTableNo("T14"), setGuestNo(3),
       add("a", MIXGRILL), add("b", BURGER, { quantity: 2 }),
       setItemCustomizations({ uniqueId: "b", extras: [CHEESE] as any }),
@@ -231,7 +231,7 @@ describe("POS flow safety net (golden master)", () => {
 
   it("S3 Delivery: custom delivery charge (untaxed), % bill discount, customer + address", async () => {
     configure({ sc: 10, levy: 5, delivery: 1 });
-    let pos = run(freshState(), setOrderTypeByName("Delivery"), setCustomerId(55), setAddressId(77),
+    const pos = run(freshState(), setOrderTypeByName("Delivery"), setCustomerId(55), setAddressId(77),
       add("a", BURGER, { quantity: 2 }), add("b", FRIES, { quantity: 2 }),
       setCustomDeliveryCharge(0.75), setBillDiscount({ value: 10, type: "percentage" }),
     );
@@ -243,7 +243,7 @@ describe("POS flow safety net (golden master)", () => {
 
   it("S4 Complimentary: 100 % bill discount → total 0, complimentary flags", async () => {
     configure();
-    let pos = run(freshState(), setOrderTypeByName("TakeOut"), add("a", BURGER), add("b", FRIES),
+    const pos = run(freshState(), setOrderTypeByName("TakeOut"), add("a", BURGER), add("b", FRIES),
       setBillDiscount({ value: 100, type: "percentage" }));
     const r = await chain(pos, 9004);
     expect(r.screen.summary.grandTotal).toBe(0);
@@ -252,7 +252,7 @@ describe("POS flow safety net (golden master)", () => {
 
   it("S5 Manual price edit, qty keypad, remove line, Exclusive view + Exclusive discount calc", async () => {
     configure({ view: "Exclusive", discCalc: "Exclusive", sc: 0, levy: 0 });
-    let pos = run(freshState(), setOrderTypeByName("TakeOut"),
+    const pos = run(freshState(), setOrderTypeByName("TakeOut"),
       add("a", MIXGRILL), add("b", FRIES), add("c", KARAK),
       updateItemPrice({ uniqueId: "a", price: 6.5, isIncl: true }),
       updateItemQty({ uniqueId: "b", quantity: 4 }),
@@ -266,7 +266,7 @@ describe("POS flow safety net (golden master)", () => {
 
   it("S6 VAT disabled in config", async () => {
     configure({ vat: false, sc: 0, levy: 0 });
-    let pos = run(freshState(), setOrderTypeByName("TakeOut"), add("a", BURGER, { quantity: 2 }), add("b", FRIES));
+    const pos = run(freshState(), setOrderTypeByName("TakeOut"), add("a", BURGER, { quantity: 2 }), add("b", FRIES));
     const r = await chain(pos, 9006);
     assertConsistent(r);
     expect(r.screen.summary.vatAmount).toBe(0);
@@ -275,7 +275,7 @@ describe("POS flow safety net (golden master)", () => {
 
   it("S7 Saved order → settled edit (unchanged = same total) → add qty → update-order payload", async () => {
     configure({ sc: 10, levy: 5 });
-    let pos = run(freshState(), setOrderTypeByName("DineIn"), setTableId(5), setSectionId(1),
+    const pos = run(freshState(), setOrderTypeByName("DineIn"), setTableId(5), setSectionId(1),
       add("a", BURGER, { quantity: 2 }), add("b", FRIES),
       setItemCustomizations({ uniqueId: "a", extras: [CHEESE] as any }),
       setItemDiscount({ uniqueId: "b", value: 10, type: "percentage" }),

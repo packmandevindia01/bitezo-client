@@ -140,7 +140,7 @@ export const useStockAdjustmentType = () => {
     } catch (err: any) {
       const status = err?.response?.status;
       const serverMsg = err?.response?.data?.message || err?.response?.data?.title || err?.message || "Failed to save stock adjustment type";
-      let message = typeof serverMsg === "string" ? serverMsg : "Failed to save stock adjustment type";
+      const message = typeof serverMsg === "string" ? serverMsg : "Failed to save stock adjustment type";
 
       if (message.toLowerCase().includes("duplicate") || message.toLowerCase().includes("already exist") || message.toLowerCase().includes("unique")) {
         setErrors({ typeName: "Already exists" });

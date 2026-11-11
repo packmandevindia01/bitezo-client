@@ -24,7 +24,7 @@ const PremiumNumpad = ({ value, onChange, onSubmit, loading }: any) => {
       try {
         const len = value.length;
         inputRef.current.setSelectionRange(len, len);
-      } catch (e) {
+      } catch {
         // Fallback if browser ignores selection range on password fields
       }
     }

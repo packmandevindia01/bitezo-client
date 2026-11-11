@@ -254,7 +254,7 @@ export const cleanProductName = (
   variant?: string | null
 ): string => {
   if (!name) return "";
-  let base = name.trim();
+  const base = name.trim();
   if (!variant) return base;
 
   const rawAlt = variant.trim();

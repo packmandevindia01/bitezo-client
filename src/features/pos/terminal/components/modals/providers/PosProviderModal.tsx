@@ -33,7 +33,7 @@ export const PosProviderModal = ({ isOpen, onClose, onSelect, onClear }: PosProv
   };
 
   const handleSelectProvider = async (provider: MenuProvider) => {
-    let fullProvider = { ...provider };
+    const fullProvider = { ...provider };
     if (fullProvider.paymodeId === undefined || fullProvider.postAccountId === undefined) {
       try {
         const { fetchProviderById } = await import("../../../../../general/provider/services/providerService");

@@ -1,26 +1,16 @@
-import { getTerminalBranchId } from "@shared/config/device";
 import React, { useState, useEffect } from "react";
-import { modifierLabelOf } from "../../../../utils/modifierLabel";
 import { toDisplayNo } from "../../../../services/orderResponse";
-import { buildPrintPricing } from "../../../../utils/printPricing";
 import { storedOrderFooter } from "../../../../pricing";
-import Modal from "../../../../../../components/common/Modal";
-import { Loader } from "../../../../../../components/common";
 import { orderApi } from "../../../../services/orderApi";
 import { menuApi } from "../../../../services/menuApi";
-import { deliveryApi } from "../../../../customer/services/deliveryApi";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
 import { fallbackOrderTypeByName } from "../../../store/posSlice";
 import { formatAmount, getDecimalPart } from "../../../../../../utils/currency";
 import { balanceBillFooter } from "../../../../../../utils/money";
 import { isEnableVatGuestPrint } from "../../../../utils/guestPrintTemplate";
-import { generateKotHtml } from "../../../../utils/kotTemplate";
-import { executeKotRouting } from "../../../../utils/printerRouting";
-import { printHtmlReceipt } from "../../../../services/qzService";
-import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getVatStatus, roundCalc, getPriceView, getPrintPrice } from "../../../utils/billing";
-import { isKotArabicEnabled, formatItemDisplayName } from "../../../../utils/alternativeHelpers";
+import { getVatStatus, roundCalc, getPriceView } from "../../../utils/billing";
+import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { sortOrderDetailsBySequence } from "../../../utils/orderSort";
 import { checkOrderHasBillDiscount } from "../../../utils/orderDiscountCheck";
 import { printRecallOrderGuestReceipt } from "../../../utils/printRecallOrder";
@@ -28,6 +18,11 @@ import { printRecallOrderGuestReceipt } from "../../../utils/printRecallOrder";
 import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
 import { t, getLocalizedName } from "../../../../utils/posLocalization";
 import { buildSavedOrderLoad, dispatchSavedOrderLoad } from "../../../utils/savedOrderToCart";
+import { cachedEmployeeName } from "../../../../utils/employeeNames";
+import { printRecallOrderKot } from "../../../utils/printRecallKot";
+import { SavedOrderWindow, SavedOrderActions, TicketActionButton, MetaField, ItemDiscountRow, LineAddons, DeliveryDetailsBlock, SavedOrderTotals } from "../savedOrder/SavedOrderTicket";
+import { dedupeModifierRows, modifierRowsOfLine, classifyLineModifiers } from "../savedOrder/lineModifiers";
+import { parseRecallListText } from "../../../utils/recallListText";
 
 interface PosRecallDetailsModalProps {
   isOpen: boolean;
@@ -75,73 +70,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   const { products } = usePosProducts();
 
   // Parse details string as fallback in case API isn't ready or returns null/empty
-  const fallbackDetails = React.useMemo(() => {
-    if (!orderDetailsStr) return null;
-    try {
-      // E.g.: "Order : 5 Ticket : 1 07:52:49 AM (DineIn) (CASH CUSTOMER) (Waiter) Section : UPSTAIR TableNo : T1 Amnt : 9.800"
-      const details = orderDetailsStr;
-      
-      const orderNoMatch = details.match(/Order\s*:\s*(\d+)/i);
-      const ticketNoMatch = details.match(/Ticket\s*:\s*(\d+)/i);
-      const amntMatch = details.match(/Amnt\s*:\s*([\d.]+)/i);
-      const typeMatch = details.match(/\((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming)\)/i);
-      const customerMatch = details.match(/\((CASH CUSTOMER|[^)]+)\)/gi);
-      
-      // Attempt to extract customer/waiter names (usually in parentheses)
-      let customerName = "CASH CUSTOMER";
-      let employeeName = "Waiter";
-      if (customerMatch && customerMatch.length >= 2) {
-        customerName = customerMatch[1].replace(/[()]/g, "");
-        if (customerMatch.length >= 3) {
-          employeeName = customerMatch[2].replace(/[()]/g, "");
-        }
-      }
-
-      const orderNo = orderNoMatch ? orderNoMatch[1] : (orderId || "");
-      const ticketNo = ticketNoMatch ? ticketNoMatch[1] : "";
-      const netAmount = amntMatch ? parseFloat(amntMatch[1]) : 0;
-      const orderType = typeMatch ? typeMatch[1] : "DineIn";
-      
-      // Parse date/time
-      const timeMatch = details.match(/(\d{2}:\d{2}:\d{2}\s*(?:AM|PM))/i);
-      const timeStr = timeMatch ? timeMatch[1] : new Date().toLocaleTimeString();
-
-      // Create fallback lines (mocked based on total amount)
-      const mockItems = [
-        {
-          productId: 1,
-          productName: "Ordered Items",
-          qty: 1,
-          price: netAmount,
-          netAmount: netAmount,
-        }
-      ];
-
-      return {
-        orderId: orderId || 0,
-        orderNo,
-        ticketNo,
-        employeeName,
-        customerName,
-        orderTypeName: orderType,
-        netAmount,
-        voucherDate: timeStr,
-        details: mockItems,
-        deliveryDetails: details.toLowerCase().includes("delivery") ? {
-          mobile: "33000033",
-          customerName: "Delivery Customer",
-          area: "Area 1",
-          block: "10",
-          road: "20",
-          building: "30",
-          flat: "40",
-        } : undefined
-      };
-    } catch (e) {
-      console.error("Failed to parse fallback details:", e);
-      return null;
-    }
-  }, [orderDetailsStr, orderId]);
+  const fallbackDetails = React.useMemo(() => parseRecallListText(orderDetailsStr, orderId), [orderDetailsStr, orderId]);
 
   const effectiveOrderId = Number(
     orderId ||
@@ -258,280 +187,12 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   };
 
   // Deduplicate modifiersData to prevent Cartesian product duplicates from backend SQL joins
-  const modifiersData = React.useMemo(() => {
-    const rawModifiers = order?.modifiersData || order?.modifiers || order?.ModifiersData || order?.Modifiers || order?.data?.modifiersData || order?.data?.modifiers || [];
-    const seen = new Set<string>();
-    return rawModifiers.filter((m: any) => {
-      const mMapId = m.mapId ?? m.MapId ?? m.mapID ?? 0;
-      const mModId = m.modifierId ?? m.ModifierId ?? m.id ?? m.Id ?? 0;
-      const key = `${mMapId}-${mModId}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }, [order?.modifiersData, order?.modifiers, order?.ModifiersData, order?.Modifiers, order?.data]);
+  const modifiersData = React.useMemo(
+    () => dedupeModifierRows(order?.modifiersData || order?.modifiers || order?.ModifiersData || order?.Modifiers || order?.data?.modifiersData || order?.data?.modifiers || []),
+    [order?.modifiersData, order?.modifiers, order?.ModifiersData, order?.Modifiers, order?.data]
+  );
 
-  const handlePrintKOT = async () => {
-    if (!orderId || !order) return;
-    let mappedItems: any[] = [];
-    let basePrintOptions: any = null;
-    try {
-      showToast(`Preparing KOT for Order #${orderId}...`, "info");
-      
-      const rawMaster = order.masterData || order.master || order;
-      const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
-      
-      const orderTypeMap: Record<number, string> = {
-        1: "DineIn", 2: "TakeOut", 3: "DriveThru",
-        4: "Delivery", 5: "Providers", 6: "Coming"
-      };
-      const orderTypeCandidate =
-    master.orderType ||
-    orderTypeMap[master.orderTypeId] ||
-    master.orderTypeName ||
-    order?.orderTypeName ||
-    fallbackDetails?.orderTypeName ||
-    (orderDetailsStr?.match(/\((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming)\)/i)?.[1]) ||
-    "TakeOut";
-  const orderTypeName = fallbackOrderTypeByName(orderTypeCandidate).orderType;
-      
-      const printPriceSetting = getPrintPrice();
-      const isTaxInclusive = printPriceSetting === "Inclusive";
-      const isBillLevelDiscount = checkOrderHasBillDiscount(order);
-      const unified = buildPrintPricing(order, {
-        dataView: getPriceView(),
-        orderType: orderTypeName,
-        printPrice: printPriceSetting,
-        modifierTypes,
-        allExtras,
-        isBillDiscount: isBillLevelDiscount,
-        products,
-        productCache,
-      });
-
-      mappedItems = unified.lines.map((l) => {
-        let matchedProduct = l.productId ? products.find((p: any) => p.id === l.productId) : null;
-        return {
-          ...l,
-          isUnifiedPricingLine: true,
-          productId: l.productId,
-          categoryId: l.categoryId || matchedProduct?.categoryId || 0,
-          quantity: l.quantity,
-          price: l.getRate(isTaxInclusive),
-          variantName: l.variantName,
-          variantArabic: l.variantArabic,
-          product: {
-            name: matchedProduct?.name || l.productName || `Product #${l.productId}`,
-            price: l.getRate(isTaxInclusive),
-            categoryId: l.categoryId || matchedProduct?.categoryId || 0,
-            arabicName: l.productArabicName || matchedProduct?.arabicName,
-          },
-          extras: l.extras,
-          modifiers: l.modifiers,
-          messages: l.messages,
-          lineTotal: l.getAmount(isTaxInclusive, unified.summary.isBillDiscount),
-          vatAmount: l.vatAmount,
-          netAmount: l.inclusiveAmount,
-        };
-      });
-
-      let resolvedFlatNo = master.flatNo || master.flat || master.flatNumber || "";
-      let resolvedBuildingNo = master.buildingNo || master.building || master.buildingNumber || "";
-      let resolvedBlockNo = master.blockNo || master.block || master.blockNumber || "";
-      let resolvedRoadNo = master.roadNo || master.road || master.roadNumber || master.street || "";
-      let resolvedArea = master.area || master.areaName || "";
-      let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
-      let resolvedContactNo =
-        master.contactNo ||
-        master.mobileNo ||
-        master.phone ||
-        master.mobile ||
-        order?.contactNo ||
-        order?.mobileNo ||
-        (order as any)?.orderMaster?.contactNo ||
-        (order as any)?.orderMaster?.mobileNo ||
-        fallbackDetails?.deliveryDetails?.mobile ||
-        "";
-      let resolvedCallBack =
-        master.callBack ||
-        master.callback ||
-        master.callBackNo ||
-        master.callbackNo ||
-        master.callBackNumber ||
-        master.callbackNumber ||
-        (order as any)?.callBack ||
-        (order as any)?.callback ||
-        (order as any)?.orderMaster?.callBack ||
-        (order as any)?.orderMaster?.callback ||
-        (order as any)?.master?.callBack ||
-        "";
-
-      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
-      let resolvedCustomerName = master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || master.customer || "";
-
-      let rawChange =
-        master.change ??
-        master.keepChanges ??
-        (order as any)?.change ??
-        (order as any)?.keepChanges ??
-        (order as any)?.orderMaster?.change ??
-        (order as any)?.orderMaster?.keepChanges ??
-        (order as any)?.master?.change ??
-        "";
-
-      const validKeepChange = (isDeliveryOrder && rawChange !== undefined && rawChange !== null &&
-        String(rawChange).trim() !== "" &&
-        String(rawChange).trim() !== "0" &&
-        String(rawChange).trim() !== "0.00" &&
-        String(rawChange).trim() !== "0.000")
-        ? String(rawChange).trim()
-        : undefined;
-
-      if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {
-        try {
-          const addrRes = await deliveryApi.getDeliveryAddress(resolvedContactNo);
-          const addrData = Array.isArray(addrRes?.data) ? addrRes.data[0] : (addrRes?.data || addrRes);
-          if (addrData) {
-            resolvedFlatNo = addrData.flatNo || resolvedFlatNo;
-            resolvedBuildingNo = addrData.buildingNo || resolvedBuildingNo;
-            resolvedBlockNo = addrData.blockNo || resolvedBlockNo;
-            resolvedRoadNo = addrData.roadNo || resolvedRoadNo;
-            resolvedArea = addrData.area || resolvedArea;
-            if (!resolvedCustomerName || resolvedCustomerName === "CASH CUSTOMER") {
-              resolvedCustomerName = addrData.customerName || resolvedCustomerName;
-            }
-          }
-        } catch (fetchAddrErr) {
-          console.warn("[PosRecallDetailsModal] Could not fetch delivery address fallback for KOT:", fetchAddrErr);
-        }
-      }
-
-      let resolvedDriver =
-        master.driverName ||
-        master.allocatedDriverName ||
-        master.driver ||
-        master.driverEmployeeName ||
-        order?.driverName ||
-        order?.allocatedDriverName ||
-        order?.driver ||
-        order?.driverEmployeeName ||
-        "";
-
-      if (!resolvedDriver && orderDetailsStr) {
-        const match = orderDetailsStr.match(/\(Driver:\s*([^)]+)\)/i) || orderDetailsStr.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
-        if (match && match[1]) {
-          resolvedDriver = match[1].trim();
-        }
-      }
-
-      if (!resolvedDriver && typeof master.details === "string") {
-        const match = master.details.match(/\(Driver:\s*([^)]+)\)/i) || master.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
-        if (match && match[1]) {
-          resolvedDriver = match[1].trim();
-        }
-      }
-
-      const activeDriverId = master.driverId || order?.driverId;
-      if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
-        try {
-          const branchId =
-            getTerminalBranchId() || 1;
-          const { employeeService } = await import("../../../../../general/employee/services/employeeService");
-          const dList = await employeeService.getDrivers(branchId);
-          const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));
-          if (dFound) {
-            resolvedDriver = dFound.driverName;
-          }
-        } catch (err) {
-          console.warn("[PosRecallDetailsModal] Failed to resolve driver name by id for KOT:", err);
-        }
-      }
-
-      basePrintOptions = {
-        orderNo: master.orderNo ?? String(orderId),
-        ticketNo: toDisplayNo(master.ticketNo) ?? "",
-        waiter: (() => {
-          const rawName = master.employeeName ?? fallbackDetails?.employeeName;
-          if (rawName && !["waiter", "cashier", "null", "undefined"].includes(String(rawName).trim().toLowerCase())) {
-            return String(rawName).trim();
-          }
-          try {
-            const mapRaw = localStorage.getItem("posEmpNameMap");
-            if (mapRaw) {
-              const m = JSON.parse(mapRaw);
-              const n = m[String(master.employeeId ?? master.empId ?? "")];
-              if (n && !["waiter", "cashier"].includes(String(n).trim().toLowerCase())) return String(n).trim();
-            }
-          } catch {}
-          return (
-            localStorage.getItem("defaultEmployeeName") ||
-            localStorage.getItem("authorizedEmployeeName") ||
-            localStorage.getItem("employeeName") ||
-            "Waiter"
-          );
-        })(),
-        counter: "Main",
-        section: master.sectionName || "DINE IN",
-        table: master.tableNo || "",
-        orderType: orderTypeName,
-        vehicleNo: master.vehicleNo || "",
-        customerName: resolvedCustomerName,
-        driver: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
-        driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
-        contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
-        callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
-        missedCall: isDeliveryOrder ? Boolean(master.missedCall ?? master.isMissedCall) : undefined,
-        change: isDeliveryOrder ? validKeepChange : undefined,
-        keepChanges: isDeliveryOrder ? validKeepChange : undefined,
-        flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,
-        buildingNo: isDeliveryOrder ? (resolvedBuildingNo || undefined) : undefined,
-        blockNo: isDeliveryOrder ? (resolvedBlockNo || undefined) : undefined,
-        roadNo: isDeliveryOrder ? (resolvedRoadNo || undefined) : undefined,
-        area: isDeliveryOrder ? (resolvedArea || undefined) : undefined,
-        address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
-        providerNo: master.providerNo || master.providerOrderNo || "",
-        kotArabic: isKotArabicEnabled(),
-        forcedPrint: true,
-        priceView: getPriceView(),
-        printPrice: getPrintPrice(),
-        kotHeader: (localStorage.getItem("kotHeader") as any) || undefined,
-      };
-
-      await executeKotRouting(
-        mappedItems as any,
-        basePrintOptions,
-        master.sectionId || 0,
-        printerSettingsApi,
-        printHtmlReceipt,
-        generateKotHtml,
-        false
-      );
-      
-      showToast("KOT sent to printers successfully!", "success");
-    } catch (err: any) {
-      console.error("Print KOT Error:", err);
-      // Fallback: If direct printer communication fails, open browser print preview window
-      try {
-        const headerTitle = "KOT";
-        const kotHtml = await generateKotHtml(mappedItems as any, { ...basePrintOptions, headerTitle });
-        const printWindow = window.open("", "_blank", "width=400,height=600");
-        if (printWindow) {
-          printWindow.document.write(kotHtml);
-          printWindow.document.close();
-          printWindow.focus();
-          setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-          }, 300);
-          showToast("Opened KOT in print preview", "info");
-          return;
-        }
-      } catch (fallbackErr) {
-        console.error("KOT fallback window error:", fallbackErr);
-      }
-      showToast(err?.message ? `Printing KOT failed: ${err.message}` : "Printing KOT failed", "error");
-    }
-  };
+  const handlePrintKOT = () => printRecallOrderKot({ orderId, order, fallbackDetails, orderDetailsStr, allExtras, modifierTypes, products, productCache, showToast });
 
   const handlePrintGuest = async () => {
     const targetOrderId = Number(orderId || effectiveOrderId);
@@ -617,18 +278,10 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   
   const orderNo = master.orderNo ?? order?.orderNo ?? orderId ?? "";
   const ticketNo = toDisplayNo(master.ticketNo) ?? toDisplayNo(order?.ticketNo) ?? "";
-  const resolveEmpName = (empId?: number | string | null) => {
-    if (!empId) return null;
-    try {
-      const mapRaw = localStorage.getItem("posEmpNameMap");
-      if (mapRaw) { const m = JSON.parse(mapRaw); if (m[String(empId)]) return m[String(empId)]; }
-    } catch {}
-    return null;
-  };
   const rawEmpName = master.employeeName ?? master.waiter ?? order?.employeeName ?? fallbackDetails?.employeeName;
   const employeeName = (rawEmpName && !["waiter", "cashier", "null", "undefined"].includes(String(rawEmpName).trim().toLowerCase()))
     ? String(rawEmpName).trim()
-    : (resolveEmpName(master.employeeId ?? master.empId ?? master.salespersonId)
+    : (cachedEmployeeName(master.employeeId ?? master.empId ?? master.salespersonId)
       || localStorage.getItem("defaultEmployeeName")
       || localStorage.getItem("authorizedEmployeeName")
       || localStorage.getItem("employeeName")
@@ -802,337 +455,157 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   } : order?.deliveryDetails;
 
   return (
-    <Modal
+    <SavedOrderWindow
       isOpen={isOpen}
       onClose={onClose}
-      size="lg"
-      noPadding
-      className="bg-[#262626] border border-stone-800 shadow-2xl rounded-2xl overflow-hidden w-full max-w-[520px] md:max-w-[550px]"
+      loading={loading}
+      loadingText="Retrieving Ticket Data..."
+      hasOrder={Boolean(order)}
+      header={
+        <>
+          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#f48120]">RECALL DETAILS</h2>
+          <button onClick={onClose} className="p-1 hover:bg-stone-800 rounded-full transition-colors text-stone-400 hover:text-stone-100">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </>
+      }
     >
-      {/* HEADER */}
-      <div className="bg-[#1e1e1e] border-b border-stone-800 text-stone-100 py-3.5 px-6 flex justify-between items-center">
-        <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#f48120]">RECALL DETAILS</h2>
-        <button onClick={onClose} className="p-1 hover:bg-stone-800 rounded-full transition-colors text-stone-400 hover:text-stone-100">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
+      {/* LEFT SIDE: TICKET VIEW (Thermal Printer Style) */}
+      <div className="flex-1 min-w-0 p-5 bg-[#faf8f5] text-stone-900 font-mono text-xs flex flex-col justify-between select-text shadow-inner">
+        <div>
+          {/* Ticket Header */}
+          <div className="text-center font-bold border-b border-dashed border-stone-400 pb-3 mb-3">
+            <div className="text-sm font-black tracking-wide uppercase">BITEZO POS</div>
+            <div className="text-[10px] text-stone-500 font-medium">TERMINAL TICKET</div>
+          </div>
+
+          {/* Order Meta Info Grid */}
+          <div className="grid grid-cols-2 gap-y-1 text-[11px] border-b border-dashed border-stone-400 pb-3 mb-3">
+            <MetaField label="Order No">{orderNo}</MetaField>
+            <MetaField label="Ticket" className="text-right">{ticketNo}</MetaField>
+            <MetaField label="Emp">{employeeName}</MetaField>
+            <MetaField label="Type" className="text-right" valueClassName="font-bold text-[#49293e]">{orderTypeName}</MetaField>
+            <MetaField label="Customer" className="col-span-2 sm:col-span-1">
+              {master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "CASH CUSTOMER"}
+            </MetaField>
+            {orderTypeName.toLowerCase().includes("dine") && master.tableNo && (
+              <MetaField label="Table" className="col-span-2 sm:col-span-1 text-right">
+                {master.sectionName ? `${master.sectionName} - ` : ""}{master.tableNo}
+              </MetaField>
+            )}
+            {master.note && (
+              <MetaField label="Note" className="col-span-2 mt-1" valueClassName="font-bold italic text-stone-600">"{master.note}"</MetaField>
+            )}
+            {master.vehicleNo && (
+              <MetaField label="Vehicle" className="col-span-2 mt-1" valueClassName="font-bold uppercase">
+                {master.vehicleNo} {master.vehicleCustomerName ? `(${master.vehicleCustomerName})` : ""}
+              </MetaField>
+            )}
+            <div className="col-span-2 text-stone-500 text-[10px] mt-1">
+              Date: {formatVoucherDate(voucherDate)}
+            </div>
+          </div>
+
+          {/* Items Table */}
+          <div className="mb-4">
+            <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 font-bold text-stone-500 text-[10px] uppercase border-b border-stone-300 pb-1 mb-2">
+              <div className="text-center">{t("Qty")}</div>
+              <div>{t("Item")}</div>
+              <div className="text-right">{t("Price")}</div>
+              <div className="text-right">{t("Total")}</div>
+            </div>
+
+            <div className="space-y-2.5 overflow-y-auto max-h-[200px] pr-1">
+              {details.map((item: any, i: number) => {
+                const primaryName = item.productName || item.itemName || `Item #${item.productId || i + 1}`;
+                const arabicName = item.arabicName || item.productArabicName || "";
+                const localized = getLocalizedName(primaryName, arabicName);
+                const variantName = item.variantName || item.altName || "";
+                const qty = Number(item.qty ?? item.quantity ?? 1);
+                const price = Number(item.price ?? 0);
+                const lineTotal = Number(item.amount ?? (price * qty));
+                const lineDisc = Number(item.discAmount ?? 0);
+                const itemDisc = (isItemDiscount && lineDisc > 0) ? lineDisc : 0;
+                const netAmt = itemDisc > 0 ? Math.max(0, lineTotal - itemDisc) : lineTotal;
+                const { extras, standardMods, messages } = classifyLineModifiers(modifierRowsOfLine(modifiersData, item.mapId ?? item.MapId));
+
+                return (
+                  <div key={i} className="flex flex-col">
+                    <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 items-start text-[11px] leading-tight">
+                      <div className="font-bold text-stone-500 text-center">{qty}</div>
+                      <div className="flex flex-col font-bold text-stone-800 min-w-0">
+                        <span className="break-words [overflow-wrap:anywhere] [word-break:break-word]">
+                          {formatItemDisplayName(localized.primary, variantName)}
+                        </span>
+                        {localized.secondary && (
+                          <span className="text-[10px] text-stone-500 font-semibold break-words [overflow-wrap:anywhere] [word-break:break-word] mt-0.5">{localized.secondary}</span>
+                        )}
+                      </div>
+                      <div className="text-right text-stone-500 shrink-0">{formatAmount(price)}</div>
+                      <div className="text-right font-bold text-stone-900 shrink-0">
+                        {formatAmount(lineTotal)}
+                      </div>
+                    </div>
+
+                    {isItemDiscount && itemDisc > 0 && <ItemDiscountRow variant="recall" discount={itemDisc} net={netAmt} />}
+                    <LineAddons variant="recall" extras={extras} standardMods={standardMods} messages={messages} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {deliveryDetails && <DeliveryDetailsBlock details={deliveryDetails} />}
+        </div>
+
+        <SavedOrderTotals
+          shown={shownFooter}
+          discount={displayDiscount}
+          charges={displayCharges}
+          delivery={displayDeliveryCharge}
+          showVat={isVatActive || displayVatAmount > 0}
+        />
       </div>
 
-      {loading ? (
-        <div className="py-24 flex items-center justify-center bg-stone-900/40">
-          <Loader text="Retrieving Ticket Data..." />
-        </div>
-      ) : order ? (
-        <div className="flex flex-col md:flex-row min-h-[420px] bg-stone-950/80">
-          {/* LEFT SIDE: TICKET VIEW (Thermal Printer Style) */}
-          <div className="flex-1 min-w-0 p-5 bg-[#faf8f5] text-stone-900 font-mono text-xs flex flex-col justify-between select-text shadow-inner">
-            <div>
-              {/* Ticket Header */}
-              <div className="text-center font-bold border-b border-dashed border-stone-400 pb-3 mb-3">
-                <div className="text-sm font-black tracking-wide uppercase">BITEZO POS</div>
-                <div className="text-[10px] text-stone-500 font-medium">TERMINAL TICKET</div>
-              </div>
-
-              {/* Order Meta Info Grid */}
-              <div className="grid grid-cols-2 gap-y-1 text-[11px] border-b border-dashed border-stone-400 pb-3 mb-3">
-                <div className="min-w-0 break-words [overflow-wrap:anywhere]">
-                  <span className="text-stone-500">Order No: </span>
-                  <span className="font-bold">{orderNo}</span>
-                </div>
-                <div className="text-right min-w-0 break-words [overflow-wrap:anywhere]">
-                  <span className="text-stone-500">Ticket: </span>
-                  <span className="font-bold">{ticketNo}</span>
-                </div>
-                
-                <div className="min-w-0 break-words [overflow-wrap:anywhere]">
-                  <span className="text-stone-500">Emp: </span>
-                  <span className="font-bold">{employeeName}</span>
-                </div>
-                <div className="text-right min-w-0 break-words [overflow-wrap:anywhere]">
-                  <span className="text-stone-500">Type: </span>
-                  <span className="font-bold text-[#49293e]">{orderTypeName}</span>
-                </div>
-
-                <div className="col-span-2 sm:col-span-1 min-w-0 break-words [overflow-wrap:anywhere]">
-                  <span className="text-stone-500">Customer: </span>
-                  <span className="font-bold">{master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "CASH CUSTOMER"}</span>
-                </div>
-                {orderTypeName.toLowerCase().includes("dine") && master.tableNo && (
-                  <div className="col-span-2 sm:col-span-1 text-right min-w-0 break-words [overflow-wrap:anywhere]">
-                    <span className="text-stone-500">Table: </span>
-                    <span className="font-bold">
-                      {master.sectionName ? `${master.sectionName} - ` : ""}{master.tableNo}
-                    </span>
-                  </div>
-                )}
-
-                {master.note && (
-                  <div className="col-span-2 mt-1 min-w-0 break-words [overflow-wrap:anywhere]">
-                    <span className="text-stone-500">Note: </span>
-                    <span className="font-bold italic text-stone-600">"{master.note}"</span>
-                  </div>
-                )}
-                
-                {master.vehicleNo && (
-                  <div className="col-span-2 mt-1 min-w-0 break-words [overflow-wrap:anywhere]">
-                    <span className="text-stone-500">Vehicle: </span>
-                    <span className="font-bold uppercase">{master.vehicleNo} {master.vehicleCustomerName ? `(${master.vehicleCustomerName})` : ""}</span>
-                  </div>
-                )}
-
-                <div className="col-span-2 text-stone-500 text-[10px] mt-1">
-                  Date: {formatVoucherDate(voucherDate)}
-                </div>
-              </div>
-
-              {/* Items Table */}
-              <div className="mb-4">
-                <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 font-bold text-stone-500 text-[10px] uppercase border-b border-stone-300 pb-1 mb-2">
-                  <div className="text-center">{t("Qty")}</div>
-                  <div>{t("Item")}</div>
-                  <div className="text-right">{t("Price")}</div>
-                  <div className="text-right">{t("Total")}</div>
-                </div>
-
-                <div className="space-y-2.5 overflow-y-auto max-h-[200px] pr-1">
-                  {details.map((item: any, i: number) => {
-                    const primaryName = item.productName || item.itemName || `Item #${item.productId || i + 1}`;
-                    const arabicName = item.arabicName || item.productArabicName || "";
-                    const localized = getLocalizedName(primaryName, arabicName);
-                    const variantName = item.variantName || item.altName || "";
-                    const qty = Number(item.qty ?? item.quantity ?? 1);
-                    const price = Number(item.price ?? 0);
-                    const lineTotal = Number(item.amount ?? (price * qty));
-                    const lineDisc = Number(item.discAmount ?? 0);
-                    const itemDisc = (isItemDiscount && lineDisc > 0) ? lineDisc : 0;
-                    const netAmt = itemDisc > 0 ? Math.max(0, lineTotal - itemDisc) : lineTotal;
-
-                    const itemMapId = item.mapId ?? item.MapId;
-                    const itemMods = itemMapId !== undefined
-                      ? modifiersData.filter((m: any) => Number(m.mapId ?? m.MapId) === Number(itemMapId))
-                      : [];
-
-                    const extras = itemMods.filter((m: any) => {
-                      const p = Number(m.price ?? 0);
-                      const s = String(m.status || "").toLowerCase();
-                      const tid = Number(m.typeId || 0);
-                      return s === "extras" || s === "extra" || tid === 2 || p > 0;
-                    });
-
-                    const standardMods = itemMods.filter((m: any) => {
-                      const p = Number(m.price ?? 0);
-                      const s = String(m.status || "").toLowerCase();
-                      const tid = Number(m.typeId || 0);
-                      return s !== "message" && s !== "extras" && s !== "extra" && tid !== 2 && p <= 0;
-                    });
-
-                    const messages = itemMods.filter((m: any) => {
-                      const s = String(m.status || "").toLowerCase();
-                      return s === "message" || s === "messages";
-                    });
-
-                    return (
-                      <div key={i} className="flex flex-col">
-                        <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 items-start text-[11px] leading-tight">
-                          <div className="font-bold text-stone-500 text-center">{qty}</div>
-                          <div className="flex flex-col font-bold text-stone-800 min-w-0">
-                            <span className="break-words [overflow-wrap:anywhere] [word-break:break-word]">
-                              {formatItemDisplayName(
-                                localized.primary,
-                                variantName
-                              )}
-                            </span>
-                            {localized.secondary && (
-                              <span className="text-[10px] text-stone-500 font-semibold break-words [overflow-wrap:anywhere] [word-break:break-word] mt-0.5">{localized.secondary}</span>
-                            )}
-                          </div>
-                          <div className="text-right text-stone-500 shrink-0">{formatAmount(price)}</div>
-                          <div className="text-right font-bold text-stone-900 shrink-0">
-                            {formatAmount(lineTotal)}
-                          </div>
-                        </div>
-
-                        {isItemDiscount && itemDisc > 0 && (
-                          <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 items-start text-[11px] leading-tight mt-0.5 font-bold">
-                            <div></div>
-                            <div className="col-span-2 text-right text-stone-700 whitespace-nowrap">
-                              {t("Disc")} : {formatAmount(itemDisc)}
-                            </div>
-                            <div className="text-right text-stone-900 shrink-0">
-                              {formatAmount(netAmt)}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Extras rendered underneath */}
-                        {extras.map((ex: any, idx: number) => {
-                          const exName = ex.modifierName || ex.name || "Extra";
-                          const exQty = Number(ex.qty ?? 1);
-                          return (
-                            <div key={`ex-${idx}`} className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 items-start text-[9px] leading-tight mt-0.5">
-                              <div></div>
-                              <div className="col-span-2 font-medium min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word] text-[#f48120]">
-                                + {exQty > 1 ? `${exQty} x ` : ""}{exName}
-                              </div>
-                              <div className="text-right font-medium text-[#f48120] shrink-0"></div>
-                            </div>
-                          );
-                        })}
-
-                        {/* Modifiers */}
-                        {standardMods.map((mod: any, idx: number) => {
-                          return (
-                            <div key={`mod-${idx}`} className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 items-start text-[9px] leading-tight mt-0.5">
-                              <div></div>
-                              <div className="col-span-2 font-medium min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word] text-[#f48120]">
-                                * {modifierLabelOf(mod)}
-                              </div>
-                              <div className="text-right font-medium text-[#f48120] shrink-0"></div>
-                            </div>
-                          );
-                        })}
-
-                        {/* Messages */}
-                        {messages.map((msg: any, idx: number) => {
-                          const msgName = msg.modifierName || msg.name || "";
-                          return (
-                            <div key={`msg-${idx}`} className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 items-start text-[9px] leading-tight mt-0.5">
-                              <div></div>
-                              <div className="col-span-2 font-medium min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word] text-purple-600">
-                                💬 {msgName}
-                              </div>
-                              <div className="text-right font-medium text-[#f48120] shrink-0"></div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Delivery Details Block */}
-              {deliveryDetails && (
-                <div className="border-t border-dashed border-stone-400 pt-3 mt-3 text-[10px] space-y-0.5 text-stone-600 min-w-0">
-                  <div className="font-bold uppercase tracking-wider text-stone-400 mb-1">{t("Delivery Details")}</div>
-                  {deliveryDetails.mobile && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Mobile")}: </span>{deliveryDetails.mobile}</div>}
-                  {deliveryDetails.callBack && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">Call Back: </span>{deliveryDetails.callBack}</div>}
-                  {deliveryDetails.customerName && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Customer")}: </span>{deliveryDetails.customerName}</div>}
-                  {deliveryDetails.flat && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Flat No")}: </span>{deliveryDetails.flat}</div>}
-                  {deliveryDetails.building && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Building")}: </span>{deliveryDetails.building}</div>}
-                  {deliveryDetails.block && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Block")}: </span>{deliveryDetails.block}</div>}
-                  {deliveryDetails.road && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Road")}: </span>{deliveryDetails.road}</div>}
-                  {deliveryDetails.area && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Area")}: </span>{deliveryDetails.area}</div>}
-                  {deliveryDetails.change && <div className="break-words [overflow-wrap:anywhere]"><span className="font-bold text-stone-500">{t("Keep Change")}: </span>{deliveryDetails.change}</div>}
-                </div>
-              )}
-            </div>
-
-            {/* Receipt Footer with Sub Total, Discount, Charges, VAT and Grand Total */}
-            <div className="border-t border-dashed border-stone-400 pt-3 mt-4 space-y-1 text-[11px]">
-              <div className="flex justify-between items-center text-stone-600">
-                <span>{t("Sub Total")}</span>
-                <span>{formatAmount(shownFooter.subTotal)}</span>
-              </div>
-              {displayDiscount > 0 && (
-                <div className="flex justify-between items-center text-red-600">
-                  <span>{t("Discount")}</span>
-                  <span>-{formatAmount(shownFooter.discount)}</span>
-                </div>
-              )}
-              {displayCharges > 0 && (
-                <div className="flex justify-between items-center text-stone-600">
-                  <span>{t("Charges")}</span>
-                  <span>{formatAmount(shownFooter.charges)}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center text-stone-600">
-                <span>{t("Net Value")}</span>
-                <span>{formatAmount(shownFooter.netValue)}</span>
-              </div>
-              {displayDeliveryCharge > 0 && (
-                <div className="flex justify-between items-center text-stone-600">
-                  <span>{t("Delivery Charge")}</span>
-                  <span>{formatAmount(shownFooter.delivery)}</span>
-                </div>
-              )}
-              {(isVatActive || displayVatAmount > 0) && (
-                <div className="flex justify-between items-center text-stone-600">
-                  <span>{t("VAT")}</span>
-                  <span>{formatAmount(shownFooter.vat)}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center text-xs font-bold text-stone-900 uppercase pt-2 border-t border-dashed border-stone-300">
-                <span>{t("Grand Total")}</span>
-                <span className="text-base font-black text-[#f48120]">
-                  {formatAmount(shownFooter.grandTotal)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* RIGHT SIDE: VERTICAL ACTION BUTTONS */}
-          <div className="w-full md:w-28 shrink-0 bg-stone-900 border-t md:border-t-0 md:border-l border-stone-800 p-3 flex flex-row md:flex-col gap-2 justify-stretch items-stretch overflow-x-auto">
-            <button
-              onClick={handlePrintKOT}
-              className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-emerald-700 hover:bg-emerald-600 active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.821V21h10.56v-7.179M9 3.75h6M19.5 8.25h-15A2.25 2.25 0 0 0 2.25 10.5v6.75a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25V10.5a2.25 2.25 0 0 0-2.25-2.25Z" />
-              </svg>
-              KOT
-            </button>
-            
-            <button
-              onClick={handlePrintGuest}
-              className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-stone-700 hover:bg-stone-600 active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-7.5 0h.008v.008H10.5V10.5Zm-3 0h.008v.008H7.5V10.5Z" />
-              </svg>
-              {t("GUEST")}
-            </button>
-
-            <button
-              onClick={handleEditOrder}
-              className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-[#49293e] hover:bg-[#5c3450] active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
-              </svg>
-              {t("EDIT")}
-            </button>
-
-            <button
-              onClick={handleSettleOrder}
-              className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-[#a35c24] hover:bg-[#b8692a] active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5M4.5 9h15M5.25 13.5h13.5M2.25 18.75V16.5a1.5 1.5 0 0 1 1.5-1.5h15a1.5 1.5 0 0 1 1.5 1.5v2.25" />
-              </svg>
-              {t("SETTLE")}
-            </button>
-
-            <button
-              onClick={onClose}
-              className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-300 hover:text-white font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 border border-stone-700/50 shadow-md"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-              </svg>
-              {t("CLOSE")}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="py-20 flex flex-col items-center justify-center text-stone-400 bg-stone-900/40">
-          <svg className="w-12 h-12 text-stone-600 mb-3 animate-bounce" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+      {/* RIGHT SIDE: VERTICAL ACTION BUTTONS */}
+      <SavedOrderActions>
+        <TicketActionButton tone="kot" onClick={handlePrintKOT}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.821V21h10.56v-7.179M9 3.75h6M19.5 8.25h-15A2.25 2.25 0 0 0 2.25 10.5v6.75a2.25 2.25 0 0 0 2.25 2.25h15a2.25 2.25 0 0 0 2.25-2.25V10.5a2.25 2.25 0 0 0-2.25-2.25Z" />
           </svg>
-          <p className="text-xs font-bold uppercase tracking-widest">{t("No Order Data Available")}</p>
-        </div>
-      )}
-    </Modal>
+          KOT
+        </TicketActionButton>
+
+        <TicketActionButton tone="guest" onClick={handlePrintGuest}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Zm-7.5 0h.008v.008H10.5V10.5Zm-3 0h.008v.008H7.5V10.5Z" />
+          </svg>
+          {t("GUEST")}
+        </TicketActionButton>
+
+        <TicketActionButton tone="edit" onClick={handleEditOrder}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+          </svg>
+          {t("EDIT")}
+        </TicketActionButton>
+
+        <TicketActionButton tone="settle" onClick={handleSettleOrder}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5h16.5M4.5 9h15M5.25 13.5h13.5M2.25 18.75V16.5a1.5 1.5 0 0 1 1.5-1.5h15a1.5 1.5 0 0 1 1.5 1.5v2.25" />
+          </svg>
+          {t("SETTLE")}
+        </TicketActionButton>
+
+        <TicketActionButton tone="close" onClick={onClose}>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+          {t("CLOSE")}
+        </TicketActionButton>
+      </SavedOrderActions>
+    </SavedOrderWindow>
   );
 };
