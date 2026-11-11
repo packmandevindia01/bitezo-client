@@ -265,7 +265,7 @@ export const usePosCheckoutFlow = ({
         return;
       }
 
-      let effectiveOrderPayload = { ...orderPayload };
+      const effectiveOrderPayload = { ...orderPayload };
       if (orderPayload.combinedOrderIds && orderPayload.combinedOrderIds.length > 0) {
         const allIds = [orderPayload.orderId || editingOrderId, ...orderPayload.combinedOrderIds].filter(Boolean).map(Number);
         const maxId = Math.max(...allIds);

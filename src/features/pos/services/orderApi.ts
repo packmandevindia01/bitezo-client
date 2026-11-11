@@ -2,10 +2,9 @@ import { unwrapBody as unwrap } from "../../../shared/api/unwrap";
 import axiosInstance from "../../../api/axiosInstance";
 import type { MenuOrderRequest, MenuOrderResponse, RecallParams, RecallResponse } from "../types";
 import { roundCalc, getVatStatus } from "../terminal/utils/billing";
-import { allocate } from "../terminal/utils/pos-calc";
 import { STORED_ORDER_PARAMS, applyStoredOrderView } from "./storedOrderView";
 import { mergeStoredOrderSources } from "../pricing";
-import { withDetailNet7 } from "../../../utils/money";
+import { withDetailNet7, allocateThousandths } from "../../../utils/money";
 
 import { toLocalDateString } from "../../../utils/date";
 /**
@@ -57,7 +56,7 @@ export const orderApi = {
               const lineBases = payload.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
               const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
               const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
-              const allocated = allocate(Number(payload.discAmount || 0), weights);
+              const allocated = allocateThousandths(Number(payload.discAmount || 0), weights);
               payload.details.forEach((d: any, idx: number) => {
                 d.discAmount = allocated[idx] ?? 0;
                 const base = Number(d.price || 0) * Number(d.qty || 1);
@@ -284,7 +283,7 @@ export const orderApi = {
           const lineBases = payload.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
           const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
           const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
-          const allocated = allocate(Number(payload.discAmount || 0), weights);
+          const allocated = allocateThousandths(Number(payload.discAmount || 0), weights);
           payload.details.forEach((d: any, idx: number) => {
             d.discAmount = allocated[idx] ?? 0;
             const base = Number(d.price || 0) * Number(d.qty || 1);
@@ -395,7 +394,7 @@ export const orderApi = {
               const lineBases = ord.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
               const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
               const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
-              const allocated = allocate(Number(ord.discAmount || 0), weights);
+              const allocated = allocateThousandths(Number(ord.discAmount || 0), weights);
               ord.details.forEach((d: any, idx: number) => {
                 d.discAmount = allocated[idx] ?? 0;
                 const base = Number(d.price || 0) * Number(d.qty || 1);

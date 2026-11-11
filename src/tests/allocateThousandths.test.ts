@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { allocate } from "../features/pos/terminal/utils/pos-calc";
+import { allocateThousandths as allocate } from "../shared/lib/money";
 
-describe("allocate", () => {
+describe("allocateThousandths", () => {
   it("shares an amount by weight, and the parts add up exactly", () => {
     const parts = allocate(10, [1, 1, 1]);
     expect(parts).toEqual([3.333, 3.333, 3.334]);

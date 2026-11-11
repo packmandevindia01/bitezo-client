@@ -612,7 +612,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         order.createdAt,
       ];
 
-      let resolvedDateStr = candidateDates.find(isValidDateStr);
+      const resolvedDateStr = candidateDates.find(isValidDateStr);
 
       let date: string | undefined;
       let time: string | undefined;
@@ -831,8 +831,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         resolvedCustomerName = "CASH CUSTOMER";
       }
       const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
-      let resolvedContactNo = master.mobileNo || master.contactNo || master.phone || master.mobile || "";
-      let resolvedCallBack = isDeliveryOrder
+      const resolvedContactNo = master.mobileNo || master.contactNo || master.phone || master.mobile || "";
+      const resolvedCallBack = isDeliveryOrder
         ? (master.callBack || 
            master.callback || 
            master.callBackNo || 
@@ -860,7 +860,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         ? String(rawChangeVal).trim()
         : undefined;
 
-      let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
+      const resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
 
       if (
         isDeliveryOrder &&

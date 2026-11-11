@@ -553,16 +553,16 @@ export const usePosCartActions = () => {
       const { executeKotRouting } = await import("../../utils/printerRouting");
       const { isKotArabicEnabled, isBillArabicEnabled, isCompanyNameKotEnabled } = await import("../../utils/alternativeHelpers");
 
-      let resolvedContactNo = (masterData as any)?.mobileNo || (masterData as any)?.contactNo || contactNo || "";
-      let resolvedCallBack = (masterData as any)?.callBack || (masterData as any)?.callback || callBack || deliveryDetails?.callBack || "";
-      let resolvedChange = (masterData as any)?.change || (masterData as any)?.keepChanges || change || (deliveryDetails as any)?.change || "";
+      const resolvedContactNo = (masterData as any)?.mobileNo || (masterData as any)?.contactNo || contactNo || "";
+      const resolvedCallBack = (masterData as any)?.callBack || (masterData as any)?.callback || callBack || deliveryDetails?.callBack || "";
+      const resolvedChange = (masterData as any)?.change || (masterData as any)?.keepChanges || change || (deliveryDetails as any)?.change || "";
       let resolvedCustomerName = (masterData as any)?.deliveryCustomerName || (masterData as any)?.vehicleCustomerName || (masterData as any)?.customerName || customerNameStr || "";
       let resolvedFlatNo = (masterData as any)?.flatNo || (masterData as any)?.flat || (masterData as any)?.flatNumber || flatNo || "";
       let resolvedBuildingNo = (masterData as any)?.buildingNo || (masterData as any)?.building || (masterData as any)?.buildingNumber || buildingNo || "";
       let resolvedBlockNo = (masterData as any)?.blockNo || (masterData as any)?.block || (masterData as any)?.blockNumber || blockNo || "";
       let resolvedRoadNo = (masterData as any)?.roadNo || (masterData as any)?.road || (masterData as any)?.roadNumber || (masterData as any)?.street || roadNo || "";
       let resolvedArea = (masterData as any)?.area || (masterData as any)?.areaName || area || "";
-      let resolvedAddress = (masterData as any)?.address || (masterData as any)?.customerAddress || (masterData as any)?.deliveryAddress || "";
+      const resolvedAddress = (masterData as any)?.address || (masterData as any)?.customerAddress || (masterData as any)?.deliveryAddress || "";
 
       const isDeliveryOrder = orderTypeStr.toLowerCase().includes("delivery");
       if (isDeliveryOrder && !resolvedFlatNo && !resolvedBuildingNo && !resolvedBlockNo && !resolvedRoadNo && !resolvedArea && resolvedContactNo) {

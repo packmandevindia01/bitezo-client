@@ -269,7 +269,7 @@ export const executeKotRouting = async (
 
     const firstActiveStationPrinter = Array.from(printerGroups.keys())[0];
 
-    let masterPrinter = isMasterKotEnabled
+    const masterPrinter = isMasterKotEnabled
       ? (isNative
           ? pickFirstValidPrinter(
               generalPrinter?.masterKOT,

@@ -19,6 +19,16 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // `_name` = intentionally unused (kept for a signature); `{ dropped, ...rest }` = leave a field out.
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+        destructuredArrayIgnorePattern: '^_',
+        ignoreRestSiblings: true,
+      }],
+    },
   },
 
   // ── Architecture boundaries (Phase 0, OPTIMIZATION_PLAN.md §3) ────────────────

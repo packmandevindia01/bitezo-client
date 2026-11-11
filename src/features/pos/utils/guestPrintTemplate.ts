@@ -415,7 +415,7 @@ export const generateGuestPrintHtml = async (
 
   if (isVatActive) {
     data.enableVat = true;
-    let computedVat = unified.summary.vatAmount > 0 ? unified.summary.vatAmount : Number(data.vatAmount || 0);
+    const computedVat = unified.summary.vatAmount > 0 ? unified.summary.vatAmount : Number(data.vatAmount || 0);
 
     // If both priceView and printPrice are inclusive (or VAT is 0 despite isVatActive being true), reverse calculate the correct VAT:
 

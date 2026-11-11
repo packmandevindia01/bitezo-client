@@ -30,21 +30,21 @@ export const checkOrderHasBillDiscount = (orderRes: any): boolean => {
   if (!orderRes) return false;
   if (orderRes?.isBillDiscount === false) return false;
   if (orderRes?.summary?.isBillDiscount === false) return false;
-  if (Boolean(orderRes?.isBillDiscount || orderRes?.summary?.isBillDiscount)) return true;
+  if (orderRes?.isBillDiscount || orderRes?.summary?.isBillDiscount) return true;
   if (Number(orderRes?.billDiscountValue || orderRes?.billDiscount || 0) > 0) return true;
 
   const { master, details } = extractMasterAndDetails(orderRes);
   if (!master || typeof master !== 'object') return false;
 
   if (master.isBillDiscount === false) return false;
-  if (Boolean(master.isBillDiscount)) return true;
+  if (master.isBillDiscount) return true;
   if (Number(master.billDiscountValue || master.billDiscount || master.BillDiscount || 0) > 0) return true;
 
   const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? master.billDiscountPer ?? 0);
   if (masterDiscPer > 0) return true;
 
   // 1. Explicit bill complimentary status
-  if (Boolean(master.complimentaryStatus || master.ComplimentaryStatus)) return true;
+  if (master.complimentaryStatus || master.ComplimentaryStatus) return true;
 
   // 2. Explicit check for 100% complimentary status across all items
   if (details.length > 0 && details.every((d: any) =>
@@ -134,7 +134,7 @@ export const checkOrderIsComplimentary = (orderRes: any): boolean => {
   const { master, details } = extractMasterAndDetails(orderRes);
   if (!master || typeof master !== 'object') return false;
 
-  if (Boolean(master.complimentaryStatus || master.ComplimentaryStatus)) return true;
+  if (master.complimentaryStatus || master.ComplimentaryStatus) return true;
   const masterDiscPer = Number(master.discPer ?? master.DiscPer ?? master.billDiscountPer ?? 0);
   if (masterDiscPer === 100) return true;
 

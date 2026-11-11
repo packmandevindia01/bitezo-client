@@ -53,7 +53,7 @@ export const handleFocusNextInput = (currentEl: HTMLElement) => {
         try {
           // Wrap in try-catch in case the browser throws an error for certain input types (like number/date)
           nextEl.setSelectionRange(0, nextEl.value.length);
-        } catch (err) {
+        } catch {
           nextEl.select?.();
         }
       }

@@ -186,7 +186,7 @@ export const mapResponseToBranch = (branchId: number, b: any): BranchRecord => {
     ? b.data.lines
     : null;
 
-  let lines: LineItem[] = [];
+  const lines: LineItem[] = [];
 
   if (rawDesigns && rawDesigns.length > 0) {
     const parsedDesigns: LineItem[] = rawDesigns.map((l: any, idx: number) => {

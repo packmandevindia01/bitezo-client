@@ -380,7 +380,7 @@ Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set
     Lines of the other orders keep their item discounts.
   - **Item complimentary** (master `discPer` 0, line `complimentaryStatus` / 100 %): blocked.
   - **Item discounts**: unchanged.
-- Split (`PosSplitModal`, `useSplitBuckets`): lines are moved between buckets;
+- Split (`PosSplitModal`): lines are moved between buckets;
   item discount moves pro-rata per unit; each bucket priced with `calculateOrder` and the saved rates;
   `POST /order-split`.
 - Combine (`PosCombineModal`): `GET /order/combine` → `/order/combine/combined-orders` → loaded into cart
@@ -549,7 +549,7 @@ All routes are under `/dashboard/…` (`app/routes/AppRoutes.tsx`). Sidebar grou
 | Modifiers, modifier types, extras, extras types | `inventory/modifier`, `modifierType`, `extrasMaster`, `extrasType` | |
 | Taxes (VAT) | `inventory/tax` | `/vat` |
 | Voucher series | `inventory/voucherSeries` | `/voucherseries` |
-| Lock product | `inventory/lockProduct` | `/lock-product` |
+| Lock product | `pos/lockItem` (`services/lockProductService.ts`) | `/lock-product` |
 | Stock adjustment types | `inventory/stockAdjustmentType` | `/stock-adjustment-type` |
 | Recipes, BOM | `general/recipe`, `general/bom` | `/recipe`, `/bom`, `/recipe/product-cost-data/{id}` |
 | Configuration, back-office configuration | `general/configuration` | `/backoffice-config/…` (POS config itself: `/pos-config`, edited at `/pos/configuration`) |
@@ -664,7 +664,7 @@ Main market: Bahrain / GCC (3-decimal currencies, see R8).
 | `features/company`, `systemRegistration` | tenant onboarding, company profile, terminal/system registration |
 | `features/dashboard` | back-office home |
 | `features/general` | bom, configuration, counter, denomination, employee(+role), happyHour, menuSettings, paymode, provider(+settings), recipe, section, supplier, tableMaster, user, userRole |
-| `features/inventory` | branches, category, subcategory, group, extras(+type), modifier(+type), product, lockProduct, tax, unit, stockAdjustmentType, voucherSeries |
+| `features/inventory` | branches, category, subcategory, group, extras(+type), modifier(+type), product, tax, unit, stockAdjustmentType, voucherSeries |
 | `features/transaction` | purchase invoice/return, stock adjustment, physical entry, production, internal stock transfer, vouchers (`shared/purchaseCalc.ts`) |
 | `features/reports` | ~31 report modules (sales, VAT, levy, margin, stock, statements, day-end, shift-end …) |
 | `features/pos` | see §2 |
@@ -708,7 +708,7 @@ back-office tokens in `sessionStorage` (`backoffice_*`). `systemType` / `tempSys
 
 PWA: `vite-plugin-pwa` with `registerType: 'prompt'` (update banner in `src/app/AppStatusBanner.tsx`), precaches js/css/html/png/svg (not `config.json`).
 Android: `com.bitezo.admin`, `androidScheme: http`, cleartext allowed, `allowBackup=false`, versionCode 1, minify off.
-HTTP: `axiosInstance` timeout 60 s (`API_TIMEOUT_MS`). Dates: always `src/utils/date.ts` (never `toISOString().split("T")[0]`). Print HTML: always `escapeHtml` (`src/utils/html.ts`) for text values; print fragments with `printHtmlInIframe` (`src/utils/print.ts`).
+HTTP: `axiosInstance` timeout 60 s (`API_TIMEOUT_MS`). Dates: always `src/utils/date.ts` (never `toISOString().split("T")[0]`). Print HTML: always `escapeHtml` (`src/utils/html.ts`) for text values; print fragments with `printHtmlInIframe` (`src/shared/lib/print.ts`).
 
 ---
 

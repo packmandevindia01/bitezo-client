@@ -269,7 +269,7 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   useEffect(() => {
     if (isOpen) {
       const today = getTodayStr();
-      let currentFrom = localStorage.getItem('reportFromDate') || '2026-01-01';
+      const currentFrom = localStorage.getItem('reportFromDate') || '2026-01-01';
       let currentTo = localStorage.getItem('reportToDate') || today;
 
       if (currentTo < today) {
@@ -375,10 +375,10 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   };
 
   const getSanitizedDateRange = () => {
-    let fDate = isDayWiseChecked ? (fromDate || getTodayStr()) : '2000-01-01';
+    const fDate = isDayWiseChecked ? (fromDate || getTodayStr()) : '2000-01-01';
     let tDate = isDayWiseChecked ? (toDate || getTodayStr()) : '2099-12-31';
-    let fTime = isTimeWiseChecked ? (fromTime || '00:00') : '00:00';
-    let tTime = isTimeWiseChecked ? (toTime || '23:59') : '23:59';
+    const fTime = isTimeWiseChecked ? (fromTime || '00:00') : '00:00';
+    const tTime = isTimeWiseChecked ? (toTime || '23:59') : '23:59';
 
     if (isDayWiseChecked && fDate > tDate) {
       tDate = fDate;
@@ -387,8 +387,8 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
       localStorage.setItem('reportToDate', tDate);
     }
 
-    let fullFrom = isTimeWiseChecked ? `${fDate}T${fTime}:00` : fDate;
-    let fullTo = isTimeWiseChecked ? `${tDate}T${tTime}:59` : tDate;
+    const fullFrom = isTimeWiseChecked ? `${fDate}T${fTime}:00` : fDate;
+    const fullTo = isTimeWiseChecked ? `${tDate}T${tTime}:59` : tDate;
 
     return { fullFrom, fullTo };
   };

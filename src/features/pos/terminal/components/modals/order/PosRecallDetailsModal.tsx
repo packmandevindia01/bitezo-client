@@ -310,7 +310,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       });
 
       mappedItems = unified.lines.map((l) => {
-        let matchedProduct = l.productId ? products.find((p: any) => p.id === l.productId) : null;
+        const matchedProduct = l.productId ? products.find((p: any) => p.id === l.productId) : null;
         return {
           ...l,
           isUnifiedPricingLine: true,
@@ -340,8 +340,8 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       let resolvedBlockNo = master.blockNo || master.block || master.blockNumber || "";
       let resolvedRoadNo = master.roadNo || master.road || master.roadNumber || master.street || "";
       let resolvedArea = master.area || master.areaName || "";
-      let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
-      let resolvedContactNo =
+      const resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
+      const resolvedContactNo =
         master.contactNo ||
         master.mobileNo ||
         master.phone ||
@@ -352,7 +352,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
         (order as any)?.orderMaster?.mobileNo ||
         fallbackDetails?.deliveryDetails?.mobile ||
         "";
-      let resolvedCallBack =
+      const resolvedCallBack =
         master.callBack ||
         master.callback ||
         master.callBackNo ||
@@ -369,7 +369,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
       let resolvedCustomerName = master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || master.customer || "";
 
-      let rawChange =
+      const rawChange =
         master.change ??
         master.keepChanges ??
         (order as any)?.change ??

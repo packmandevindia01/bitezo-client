@@ -126,7 +126,7 @@ export const UserList = () => {
     try {
       await changePassword({ userId: passwordUser.id, payload });
       closePasswordModal();
-    } catch (error) {
+    } catch {
       // Error handles in custom hook toast
     }
   };

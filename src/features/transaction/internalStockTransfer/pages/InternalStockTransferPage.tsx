@@ -101,7 +101,7 @@ const InternalStockTransferPage = () => {
       });
 
       setProductOptions(mapped);
-    } catch (e) {
+    } catch {
       setProductOptions([]);
     } finally {
       setSearchingProducts(false);
@@ -387,11 +387,14 @@ const InternalStockTransferPage = () => {
                                           if (rawValue && rawValue.trim().length > 0) {
                                             e.preventDefault();
                                             try {
+                                              // A failed lookup is told apart from "not found" for the message below.
+                                              let lookupFailed = false;
+                                              const orNone = (p: Promise<any>) => p.catch(() => { lookupFailed = true; return []; });
                                               // Try barcode lookup first
-                                              let bcRes = await internalStockTransferApi.getProductsByBarcode(rawValue.trim()).catch(() => []);
+                                              let bcRes = await orNone(internalStockTransferApi.getProductsByBarcode(rawValue.trim()));
                                               // Fallback: try name/code search if barcode returns nothing
                                               if (!bcRes || bcRes.length === 0) {
-                                                bcRes = await internalStockTransferApi.getProductsByName(rawValue.trim()).catch(() => []);
+                                                bcRes = await orNone(internalStockTransferApi.getProductsByName(rawValue.trim()));
                                               }
                                               if (bcRes && bcRes.length > 0) {
                                                 const p = bcRes[0];
@@ -410,7 +413,16 @@ const InternalStockTransferPage = () => {
                                                 }, 100);
                                                 return;
                                               }
-                                            } catch (err) {}
+                                              showToast(
+                                                lookupFailed
+                                                  ? "Could not look up the product. Check the connection and try again."
+                                                  : `No product found for "${rawValue.trim()}".`,
+                                                lookupFailed ? "error" : "warning"
+                                              );
+                                            } catch (err) {
+                                              console.error("Stock Transfer: adding the scanned product failed", err);
+                                              showToast("Could not add the product.", "error");
+                                            }
                                             return;
                                           }
                                           if (items.length > 1) remove(index);

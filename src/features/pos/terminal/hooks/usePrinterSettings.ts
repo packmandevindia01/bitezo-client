@@ -38,7 +38,7 @@ const getInitialGeneralSettings = (): GeneralPrinterSettings => {
         };
       }
     }
-  } catch (e) {
+  } catch {
     // Ignore JSON parse error
   }
 

@@ -353,7 +353,7 @@ export const generateEndReportHtml = async (data: EndReportData, reportType: 'DA
   }
 
   let saleAmount = rawBaseSale;
-  let totalSale = settledTotal > 0 ? settledTotal : (saleAmount + deliveryCharge + vatAmount);
+  const totalSale = settledTotal > 0 ? settledTotal : (saleAmount + deliveryCharge + vatAmount);
 
   if (saleAmount <= 0 && totalSale > 0) {
     saleAmount = Math.max(0, Number((totalSale - deliveryCharge - vatAmount).toFixed(decimalPart)));

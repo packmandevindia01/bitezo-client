@@ -162,7 +162,7 @@ export const PosCashierSessionModal: React.FC<Props> = ({
         const init: Record<number, number> = {};
         finalDenoms.forEach((d: any) => { if (d.id) init[d.id] = 0; });
         setCounts(init);
-      } catch (dErr) {
+      } catch {
         setDenoms([]);
         setEntryMode("MANUAL");
         setActiveField("TOTAL");

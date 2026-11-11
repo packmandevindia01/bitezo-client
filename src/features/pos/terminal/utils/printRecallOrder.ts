@@ -237,7 +237,7 @@ export const printRecallOrderGuestReceipt = async (
       timeFromDetails,
     ];
 
-    let resolvedDateStr = candidateDates.find(isValidDateStr);
+    const resolvedDateStr = candidateDates.find(isValidDateStr);
     let date: string | undefined;
     let time: string | undefined;
 
@@ -359,8 +359,8 @@ export const printRecallOrderGuestReceipt = async (
     let resolvedBlockNo = master.blockNo || master.block || master.blockNumber || "";
     let resolvedRoadNo = master.roadNo || master.road || master.roadNumber || master.street || "";
     let resolvedArea = master.area || master.areaName || "";
-    let resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
-    let resolvedContactNo =
+    const resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
+    const resolvedContactNo =
       master.contactNo ||
       master.mobileNo ||
       master.phone ||
@@ -371,7 +371,7 @@ export const printRecallOrderGuestReceipt = async (
       (order as any)?.orderMaster?.mobileNo ||
       "";
 
-    let resolvedCallBack = isDeliveryOrder
+    const resolvedCallBack = isDeliveryOrder
       ? (master.callBack ||
         master.callback ||
         master.callBackNo ||

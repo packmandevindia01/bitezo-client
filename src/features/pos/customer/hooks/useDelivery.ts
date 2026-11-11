@@ -47,7 +47,7 @@ export const useDelivery = () => {
             return [fallbackAddr];
           }
         }
-      } catch (fallbackError) {
+      } catch {
         // Ignore fallback errors
       }
 

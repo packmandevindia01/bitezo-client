@@ -379,7 +379,12 @@ export const useConfigurationManager = () => {
           localStorage.setItem("masterKotBillPrinter", payload.masterKotBillPrinter);
         }
         localStorage.setItem("posConfigs", JSON.stringify(parsed));
-      } catch {}
+      } catch (err) {
+        // Saved on the server, but this device still has the old copy (price view, print price, discount calc …).
+        console.warn("POS configuration: could not update this device's copy", err);
+        showToast("POS Configuration saved, but this device could not update its copy. Reload the page before using the POS here.", "warning");
+        return true;
+      }
 
       showToast("POS Configuration saved successfully", "success");
       return true;

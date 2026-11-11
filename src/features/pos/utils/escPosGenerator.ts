@@ -83,7 +83,7 @@ export const getActiveBranchLines = (): any[] => {
       if (parsed.lines && Array.isArray(parsed.lines)) return parsed.lines;
       if (parsed.activeBranch?.lines && Array.isArray(parsed.activeBranch.lines)) return parsed.activeBranch.lines;
     }
-  } catch (e) {
+  } catch {
     // Ignore JSON parse errors
   }
   return [];
@@ -365,7 +365,7 @@ export const generateEndReportMarkup = (data: EndReportData, reportType: 'DAYEND
   }
 
   let saleAmount = rawBaseSale;
-  let totalSale = settledTotal > 0 ? settledTotal : (saleAmount + deliveryCharge + vatAmount);
+  const totalSale = settledTotal > 0 ? settledTotal : (saleAmount + deliveryCharge + vatAmount);
 
   if (saleAmount <= 0 && totalSale > 0) {
     saleAmount = Math.max(0, Number((totalSale - deliveryCharge - vatAmount).toFixed(decimalPart)));

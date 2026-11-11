@@ -469,7 +469,7 @@ export const useBom = (initialTransId?: number) => {
           setValue("finishedProductUnitName", unitName);
         }
       }
-    } catch (err) {
+    } catch {
       showToast("Failed to fetch product unit data", "error");
     }
   };

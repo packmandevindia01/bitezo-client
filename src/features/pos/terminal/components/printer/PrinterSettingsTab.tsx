@@ -28,7 +28,7 @@ const getCachedIpMap = (): PrinterIpMapItem[] => {
     if (singleIp) {
       return [{ printerName: singleName, ipAddress: singleIp }];
     }
-  } catch (e) {
+  } catch {
     // Ignore JSON error
   }
   return [];

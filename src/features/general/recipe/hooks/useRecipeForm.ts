@@ -535,7 +535,7 @@ export const useRecipeForm = (initialTransId?: number) => {
         setValue("finishedProductUnit", String(costData.baseUnitId), { shouldValidate: true, shouldDirty: true });
         setValue("finishedProductQty", "1", { shouldValidate: true, shouldDirty: true });
       }
-    } catch (err: any) {
+    } catch {
       showToast("Failed to fetch product details", "error");
     }
   };

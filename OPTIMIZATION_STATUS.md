@@ -1,6 +1,6 @@
 # Optimization status
 
-Last updated 2026-11-10, branch `refactor/pricing-engine`, not merged to `main`.
+Last updated 2026-11-11, branch `refactor/pricing-engine`, not merged to `main`.
 The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11).
 
 ## Phases
@@ -13,7 +13,24 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | 5 | Back Office forms | **Partly done** (below) |
 | 1 | Design system | Not started, needs approval to move `components/common` |
 | 3 | POS UI | Not started |
-| 6 | Clean-up | Not started |
+| 6 | Clean-up | **Partly done** 2026-11-11 (below) |
+
+## Phase 6 (2026-11-11)
+
+### Done
+
+- Old pricing: `terminal/utils/pos-calc.ts` deleted. Its one helper moved unchanged to `shared/lib/money.ts` as `allocateThousandths` (save safety net in `orderApi` / `salesInvoiceApi`). Not swapped for the engine's `allocateProportionally`, which rounds differently and would change saved amounts.
+- Unused files deleted: `app/store/index.ts`, the old `BranchCreationPage` and `BranchModal`, `inventory/lockProduct/types.ts`, `pos/services/posService.ts` and its index, `useSplitBuckets.ts`, `useCashierShift.ts`, the `utils/print.ts` re-export. Feature `index.ts` files kept as agreed.
+- `console.log`: already removed from production builds (`manualPureFunctions` in `vite.config.ts`); confirmed in a build. No real `alert()` is left.
+- Empty catches (74): reviewed; almost all are deliberate fallbacks. Fixed two that hid problems: POS Configuration save now warns when this device's copy could not be updated; Stock Transfer barcode Enter now says "not found" or "could not look up".
+- Lint: `prefer-const`, redundant `Boolean()` and unused `catch (e)` fixed; `no-unused-vars` accepts `_name` and `{ dropped, ...rest }`. 3,388 → 2,971 errors, baseline locked. Left: 2,840 `no-explicit-any`, 72 `no-empty` (the deliberate fallbacks), React hooks rules. `components/common/TouchKeyboard.tsx` not touched (protected folder).
+- Day End and Shift End report tests press View (they broke when reports stopped loading on open).
+
+### Not done
+
+- Move tests next to the code (109 files): no behaviour gain, large diff.
+- `any` down to under 500: a typing job, file by file.
+- The employee-name cache (`posEmpNameMap`) is read and merged in about 15 copies across 9 POS files: candidate for one helper.
 
 ## Phase 5
 

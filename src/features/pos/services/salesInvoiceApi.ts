@@ -2,8 +2,7 @@ import { unwrapStrict as unwrap } from "../../../shared/api/unwrap";
 import axiosInstance from "../../../api/axiosInstance";
 import { notifyTransactionsUpdated } from "../../../utils/transactionSync";
 import { roundCalc, getVatStatus } from "../terminal/utils/billing";
-import { allocate } from "../terminal/utils/pos-calc";
-import { withDetailNet7 } from "../../../utils/money";
+import { withDetailNet7, allocateThousandths } from "../../../utils/money";
 
 import { toLocalDateString } from "../../../utils/date";
 export interface ApiResponse<T = any> {
@@ -146,7 +145,7 @@ export const salesInvoiceApi = {
               const lineBases = postPayload.details.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
               const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
               const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
-              const allocated = allocate(Number(postPayload.discAmount || 0), weights);
+              const allocated = allocateThousandths(Number(postPayload.discAmount || 0), weights);
               postPayload.details.forEach((d: any, idx: number) => {
                 d.discAmount = allocated[idx] ?? 0;
                 const base = Number(d.price || 0) * Number(d.qty || 1);
@@ -159,7 +158,7 @@ export const salesInvoiceApi = {
             postPayload.discPer = 0;
           }
 
-          let calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
+          const calcVatExcl = roundCalc(lineExclSum + totalModifierGross);
           let calcVatAmt = roundCalc(postPayload.details.reduce((sum: number, d: any) => sum + Number(d.vatAmount || 0), 0));
           const isVatEnabled = getVatStatus();
           const payableBase = Math.max(0, Number(postPayload.netAmount || 0) - Number(postPayload.deliveryCharge || 0));
@@ -280,7 +279,7 @@ export const salesInvoiceApi = {
           const lineBases = cleanedDetails.map((d: any) => Number(d.price || 0) * Number(d.qty || 1));
           const totalB = lineBases.reduce((a: number, b: number) => a + b, 0);
           const weights = totalB > 0 ? lineBases : lineBases.map(() => 1);
-          const allocated = allocate(Number(payload.discAmount || 0), weights);
+          const allocated = allocateThousandths(Number(payload.discAmount || 0), weights);
           cleanedDetails.forEach((d: any, idx: number) => {
             d.discAmount = allocated[idx] ?? 0;
             const base = Number(d.price || 0) * Number(d.qty || 1);
