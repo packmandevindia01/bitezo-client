@@ -708,7 +708,7 @@ back-office tokens in `sessionStorage` (`backoffice_*`). `systemType` / `tempSys
 
 PWA: `vite-plugin-pwa` with `registerType: 'prompt'` (update banner in `src/app/AppStatusBanner.tsx`), precaches js/css/html/png/svg (not `config.json`).
 Android: `com.bitezo.admin`, `androidScheme: http`, cleartext allowed, `allowBackup=false`, versionCode 1, minify off.
-HTTP: `axiosInstance` timeout 60 s (`API_TIMEOUT_MS`). Dates: always `src/utils/date.ts` (never `toISOString().split("T")[0]`). Print HTML: always `escapeHtml` (`src/utils/html.ts`) for text values; print fragments with `printHtmlInIframe` (`src/shared/lib/print.ts`).
+HTTP: `axiosInstance` timeout 60 s (`API_TIMEOUT_MS`). Dates: always `src/utils/date.ts` (never `toISOString().split("T")[0]`). Print HTML: always `escapeHtml` (`src/utils/html.ts`) for text values; print fragments with `printHtmlInIframe` (`src/shared/lib/print.ts`). POS employee names (waiter / cashier on prints, the `posEmpNameMap` cache): only through `src/features/pos/utils/employeeNames.ts` (`resolveEmployeeNameForPrint` for saved-order prints, `findEmployeeName` for KOT / bill, `savedOrderWaiterName` for recall reprints, `mergeEmployeeNames` / `replaceEmployeeNames` to fill the cache).
 
 ---
 

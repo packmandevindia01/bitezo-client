@@ -28,6 +28,7 @@ import { printRecallOrderGuestReceipt } from "../../../utils/printRecallOrder";
 import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
 import { t, getLocalizedName } from "../../../../utils/posLocalization";
 import { buildSavedOrderLoad, dispatchSavedOrderLoad } from "../../../utils/savedOrderToCart";
+import { cachedEmployeeName, savedOrderWaiterName } from "../../../../utils/employeeNames";
 
 interface PosRecallDetailsModalProps {
   isOpen: boolean;
@@ -450,26 +451,7 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
       basePrintOptions = {
         orderNo: master.orderNo ?? String(orderId),
         ticketNo: toDisplayNo(master.ticketNo) ?? "",
-        waiter: (() => {
-          const rawName = master.employeeName ?? fallbackDetails?.employeeName;
-          if (rawName && !["waiter", "cashier", "null", "undefined"].includes(String(rawName).trim().toLowerCase())) {
-            return String(rawName).trim();
-          }
-          try {
-            const mapRaw = localStorage.getItem("posEmpNameMap");
-            if (mapRaw) {
-              const m = JSON.parse(mapRaw);
-              const n = m[String(master.employeeId ?? master.empId ?? "")];
-              if (n && !["waiter", "cashier"].includes(String(n).trim().toLowerCase())) return String(n).trim();
-            }
-          } catch {}
-          return (
-            localStorage.getItem("defaultEmployeeName") ||
-            localStorage.getItem("authorizedEmployeeName") ||
-            localStorage.getItem("employeeName") ||
-            "Waiter"
-          );
-        })(),
+        waiter: savedOrderWaiterName(master.employeeName ?? fallbackDetails?.employeeName, master.employeeId ?? master.empId),
         counter: "Main",
         section: master.sectionName || "DINE IN",
         table: master.tableNo || "",
@@ -617,18 +599,10 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   
   const orderNo = master.orderNo ?? order?.orderNo ?? orderId ?? "";
   const ticketNo = toDisplayNo(master.ticketNo) ?? toDisplayNo(order?.ticketNo) ?? "";
-  const resolveEmpName = (empId?: number | string | null) => {
-    if (!empId) return null;
-    try {
-      const mapRaw = localStorage.getItem("posEmpNameMap");
-      if (mapRaw) { const m = JSON.parse(mapRaw); if (m[String(empId)]) return m[String(empId)]; }
-    } catch {}
-    return null;
-  };
   const rawEmpName = master.employeeName ?? master.waiter ?? order?.employeeName ?? fallbackDetails?.employeeName;
   const employeeName = (rawEmpName && !["waiter", "cashier", "null", "undefined"].includes(String(rawEmpName).trim().toLowerCase()))
     ? String(rawEmpName).trim()
-    : (resolveEmpName(master.employeeId ?? master.empId ?? master.salespersonId)
+    : (cachedEmployeeName(master.employeeId ?? master.empId ?? master.salespersonId)
       || localStorage.getItem("defaultEmployeeName")
       || localStorage.getItem("authorizedEmployeeName")
       || localStorage.getItem("employeeName")

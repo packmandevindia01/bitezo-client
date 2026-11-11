@@ -25,12 +25,12 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Empty catches (74): reviewed; almost all are deliberate fallbacks. Fixed two that hid problems: POS Configuration save now warns when this device's copy could not be updated; Stock Transfer barcode Enter now says "not found" or "could not look up".
 - Lint: `prefer-const`, redundant `Boolean()` and unused `catch (e)` fixed; `no-unused-vars` accepts `_name` and `{ dropped, ...rest }`. 3,388 → 2,971 errors, baseline locked. Left: 2,840 `no-explicit-any`, 72 `no-empty` (the deliberate fallbacks), React hooks rules. `components/common/TouchKeyboard.tsx` not touched (protected folder).
 - Day End and Shift End report tests press View (they broke when reports stopped loading on open).
+- Employee names: the `posEmpNameMap` cache and the waiter-name lookups (two full 5-step copies, two 3-step copies, recall and reprint copies, ~5 cache writers) moved into `pos/utils/employeeNames.ts`; about 335 lines less. Same order of lookups and the same fallbacks as before; two small differences: a name found by id lookup on the table-orders print is now also cached (the settled print already did), and POS Configuration no longer writes the list a second time (a failed refresh used to wipe the cache). Test: `employeeNames`.
 
 ### Not done
 
 - Move tests next to the code (109 files): no behaviour gain, large diff.
 - `any` down to under 500: a typing job, file by file.
-- The employee-name cache (`posEmpNameMap`) is read and merged in about 15 copies across 9 POS files: candidate for one helper.
 
 ## Phase 5
 

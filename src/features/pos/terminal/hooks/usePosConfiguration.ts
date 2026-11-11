@@ -11,6 +11,7 @@ import { branchApi } from "../../../inventory/branches/services/branchApi";
 import { clearAllPosCache } from "./usePosProducts";
 import { disableDefaultEmployeeConfig } from "../../utils/defaultEmployee";
 import { getSettlePrintConfig, saveSettlePrintConfig } from "../../utils/settlePrintConfig";
+import { replaceEmployeeNames } from "../../utils/employeeNames";
 
 export interface ConfigurationEmployeeOption {
   label: string;
@@ -194,15 +195,7 @@ export const usePosConfiguration = () => {
         }));
       }
 
-      const empNameMap: Record<string, string> = {};
-      employees.forEach((employee: any) => {
-        const id = employee.empId ?? employee.id;
-        const name = employee.empName ?? employee.name;
-        if (id) {
-          empNameMap[String(id)] = name || "";
-        }
-      });
-      localStorage.setItem("posEmpNameMap", JSON.stringify(empNameMap));
+      replaceEmployeeNames(employees);
 
       setEmployeeOptions(
         employees.map((employee: any) => ({
@@ -240,14 +233,7 @@ export const usePosConfiguration = () => {
 
         if (!active) return;
 
-        const empNameMap: Record<string, string> = {};
-        employees.forEach((employee: any) => {
-          if (employee.empId) {
-            empNameMap[String(employee.empId)] = employee.empName || "";
-          }
-        });
-        localStorage.setItem("posEmpNameMap", JSON.stringify(empNameMap));
-
+        // The employee-name cache was already replaced by refreshEmployees().
         setEmployeeOptions(
           employees.map((employee: any) => ({
             label: employee.empName,

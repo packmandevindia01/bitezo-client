@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useToast } from "../../../../app/providers/useToast";
 import { employeeService } from "../../../general/employee/services/employeeService";
 import { getDefaultEmployeeConfig } from "../../utils/defaultEmployee";
+import { cachedEmployeeName } from "../../utils/employeeNames";
 
 interface EmployeeAuthorizationOptions {
   actionLabel: string;
@@ -92,15 +93,8 @@ export const useEmployeeAuthorization = () => {
       verifiedEmployeeId = employeeId;
       if (employeeId > 0) {
         localStorage.setItem("authorizedEmployeeId", String(employeeId));
-        try {
-          const mapRaw = localStorage.getItem("posEmpNameMap");
-          if (mapRaw) {
-            const map = JSON.parse(mapRaw);
-            if (map[String(employeeId)]) {
-              localStorage.setItem("authorizedEmployeeName", map[String(employeeId)]);
-            }
-          }
-        } catch {}
+        const authorizedName = cachedEmployeeName(employeeId);
+        if (authorizedName) localStorage.setItem("authorizedEmployeeName", authorizedName);
       }
       setIsOpen(false);
       setIsAdminOverride(false);

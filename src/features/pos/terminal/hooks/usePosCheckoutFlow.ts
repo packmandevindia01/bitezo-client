@@ -20,6 +20,7 @@ import { getModifierTypeNameById } from '../../services/menuApi';
 import { alternativesCache } from '../hooks/usePosProducts';
 import { checkOrderHasBillDiscount } from '../utils/orderDiscountCheck';
 import { store } from '../../../../app/store';
+import { findEmployeeName } from "../../utils/employeeNames";
 import {
   disableDefaultEmployeeConfig,
   isEmployeeNotFoundError,
@@ -373,47 +374,8 @@ export const usePosCheckoutFlow = ({
 
         let orderNoStr = finalSaleId.toString();
         let ticketNoStr = finalSaleId.toString();
-        const resolveEmployeeNameById = async (empId?: number | string | null): Promise<string | null> => {
-          if (!empId) return null;
-          const idStr = String(empId).trim();
-          if (!idStr || idStr === "0" || idStr === "NaN") return null;
-
-          try {
-            const mapRaw = localStorage.getItem("posEmpNameMap");
-            if (mapRaw) {
-              const map: Record<string, string> = JSON.parse(mapRaw);
-              if (map[idStr]) return map[idStr];
-            }
-          } catch {}
-
-          if (idStr === localStorage.getItem("authorizedEmployeeId")) {
-            const authName = localStorage.getItem("authorizedEmployeeName");
-            if (authName) return authName;
-          }
-
-          try {
-            const branchId =
-              getTerminalBranchId() || 0;
-            const { getEmployeeNames } = await import("../../../general/employee/services/employeeService");
-            const list = await getEmployeeNames(branchId);
-            if (Array.isArray(list) && list.length > 0) {
-              const map: Record<string, string> = {};
-              try {
-                const existing = localStorage.getItem("posEmpNameMap");
-                if (existing) Object.assign(map, JSON.parse(existing));
-              } catch {}
-              list.forEach((e: any) => {
-                const id = e.empId ?? e.id;
-                const name = e.empName ?? e.name;
-                if (id && name) map[String(id)] = name;
-              });
-              localStorage.setItem("posEmpNameMap", JSON.stringify(map));
-              if (map[idStr]) return map[idStr];
-            }
-          } catch {}
-
-          return null;
-        };
+        // Name: cache → authorized employee → branch list (utils/employeeNames.ts).
+        const resolveEmployeeNameById = (empId?: number | string | null) => findEmployeeName(empId);
 
         let waiterStr = (await resolveEmployeeNameById(employeeId))
           || (waiterId && waiterId === employeeId ? waiterName : null)

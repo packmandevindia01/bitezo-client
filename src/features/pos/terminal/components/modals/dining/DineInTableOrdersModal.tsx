@@ -1,4 +1,3 @@
-import { getTerminalBranchId } from "@shared/config/device";
 import { buildSavedOrderLoad, dispatchSavedOrderLoad } from "../../../utils/savedOrderToCart";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { toDisplayNo } from "../../../../services/orderResponse";
@@ -34,7 +33,7 @@ import {
 import { isBillArabicEnabled } from '../../../../utils/alternativeHelpers';
 import { sortOrderDetailsBySequence } from '../../../utils/orderSort';
 import { mapOrderDetailsToCartItems } from '../../../mappers/orderDetailToCartMapper';
-import { getEmployeeNames, getEmployeeById } from "../../../../../general/employee/services/employeeService";
+import { resolveEmployeeNameForPrint } from "../../../../utils/employeeNames";
 import { PosMultiPayModal, type MultiPaymentLine } from '../payment/PosMultiPayModal';
 import { checkOrderHasBillDiscount } from '../../../utils/orderDiscountCheck';
 import { EmployeePasswordModal } from '../system/EmployeePasswordModal';
@@ -936,90 +935,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     });
   };
 
-  /* ── Resolve employee name (multi-step: cache → auth → API list → API by ID → localStorage) ── */
-  const resolveEmployeeNameForPrint = async (
-    empId?: number | string | null,
-    currentName?: string | null
-  ): Promise<string> => {
-    if (
-      currentName &&
-      typeof currentName === "string" &&
-      !["waiter", "cashier", "null", "undefined", ""].includes(currentName.trim().toLowerCase())
-    ) {
-      return currentName.trim();
-    }
-
-    const idStr = empId !== undefined && empId !== null ? String(empId).trim() : "";
-    if (idStr && idStr !== "0" && idStr !== "NaN") {
-      // 1. Try local cache posEmpNameMap
-      try {
-        const mapRaw = localStorage.getItem("posEmpNameMap");
-        if (mapRaw) {
-          const map = JSON.parse(mapRaw);
-          if (map[idStr] && !["waiter", "cashier"].includes(String(map[idStr]).trim().toLowerCase())) {
-            return String(map[idStr]).trim();
-          }
-        }
-      } catch {}
-
-      // 2. Try authorized employee if ID matches
-      if (idStr === localStorage.getItem("authorizedEmployeeId")) {
-        const authName = localStorage.getItem("authorizedEmployeeName");
-        if (authName && !["waiter", "cashier"].includes(authName.trim().toLowerCase())) {
-          return authName.trim();
-        }
-      }
-
-      // 3. Try fetching branch employee names
-      try {
-        const branchId =
-          getTerminalBranchId() || 0;
-        const list = await getEmployeeNames(branchId);
-        if (Array.isArray(list) && list.length > 0) {
-          const map: Record<string, string> = {};
-          try {
-            const existing = localStorage.getItem("posEmpNameMap");
-            if (existing) Object.assign(map, JSON.parse(existing));
-          } catch {}
-          list.forEach((e: any) => {
-            const id = e.empId ?? e.id;
-            const name = e.empName ?? e.name;
-            if (id && name) map[String(id)] = name;
-          });
-          localStorage.setItem("posEmpNameMap", JSON.stringify(map));
-          if (map[idStr] && !["waiter", "cashier"].includes(String(map[idStr]).trim().toLowerCase())) {
-            return String(map[idStr]).trim();
-          }
-        }
-      } catch (e) {
-        console.warn("[DineInTableOrdersModal] getEmployeeNames fallback failed:", e);
-      }
-
-      // 4. Try fetching individual employee by ID
-      try {
-        const numId = parseInt(idStr, 10);
-        if (!isNaN(numId) && numId > 0) {
-          const empDetail = await getEmployeeById(numId);
-          const name = (empDetail as any)?.empName || (empDetail as any)?.name || (empDetail as any)?.firstName;
-          if (name && !["waiter", "cashier"].includes(String(name).trim().toLowerCase())) {
-            return String(name).trim();
-          }
-        }
-      } catch (e) {
-        console.warn("[DineInTableOrdersModal] getEmployeeById fallback failed:", e);
-      }
-    }
-
-    // 5. Try localStorage fallbacks
-    const defName = localStorage.getItem("defaultEmployeeName");
-    if (defName && !["waiter", "cashier"].includes(defName.trim().toLowerCase())) return defName.trim();
-    const authName = localStorage.getItem("authorizedEmployeeName");
-    if (authName && !["waiter", "cashier"].includes(authName.trim().toLowerCase())) return authName.trim();
-    const empName = localStorage.getItem("employeeName");
-    if (empName && !["waiter", "cashier"].includes(empName.trim().toLowerCase())) return empName.trim();
-
-    return (currentName && currentName.trim()) || "Waiter";
-  };
+  // Waiter name for prints: resolveEmployeeNameForPrint (utils/employeeNames.ts).
 
   /* ── GUEST PRINT ── */
   const handlePrint = async (orderIdArg?: number) => {

@@ -1,4 +1,3 @@
-import { getTerminalBranchId } from "@shared/config/device";
 import { useState, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { useToast } from "../../../../app/providers/useToast";
@@ -42,6 +41,7 @@ import {
 import { getVatStatus, roundCalc, getPriceView, getPrintPrice } from "../utils/billing";
 import { buildReorderItems } from "../utils/reorderItems";
 import { useCartMutations } from "./cart/useCartMutations";
+import { findEmployeeName } from "../../utils/employeeNames";
 import {
   buildDirectSettleOrderPayload,
   buildNewOrderPayload,
@@ -436,47 +436,8 @@ export const usePosCartActions = () => {
       let orderNoStr = replyRef?.orderNo ?? "";
       let ticketNoStr = replyRef?.ticketNo ?? "";
       let orderTypeStr = selectedOrderTypeName || "DINE IN";
-      const resolveEmployeeName = async (empId?: number | string | null): Promise<string | null> => {
-        if (!empId) return null;
-        const idStr = String(empId).trim();
-        if (!idStr || idStr === "0" || idStr === "NaN") return null;
-
-        try {
-          const mapRaw = localStorage.getItem("posEmpNameMap");
-          if (mapRaw) {
-            const map = JSON.parse(mapRaw);
-            if (map[idStr]) return map[idStr];
-          }
-        } catch {}
-
-        if (idStr === localStorage.getItem("authorizedEmployeeId")) {
-          const authName = localStorage.getItem("authorizedEmployeeName");
-          if (authName) return authName;
-        }
-
-        try {
-          const branchId =
-            getTerminalBranchId() || 0;
-          const { getEmployeeNames } = await import("../../../general/employee/services/employeeService");
-          const list = await getEmployeeNames(branchId);
-          if (Array.isArray(list) && list.length > 0) {
-            const map: Record<string, string> = {};
-            try {
-              const existing = localStorage.getItem("posEmpNameMap");
-              if (existing) Object.assign(map, JSON.parse(existing));
-            } catch {}
-            list.forEach((e: any) => {
-              const id = e.empId ?? e.id;
-              const name = e.empName ?? e.name;
-              if (id && name) map[String(id)] = name;
-            });
-            localStorage.setItem("posEmpNameMap", JSON.stringify(map));
-            if (map[idStr]) return map[idStr];
-          }
-        } catch {}
-
-        return null;
-      };
+      // Name: cache → authorized employee → branch list (utils/employeeNames.ts).
+      const resolveEmployeeName = (empId?: number | string | null) => findEmployeeName(empId);
 
       const targetEmpId = session.employeeId || waiterId;
       let waiterStr = (await resolveEmployeeName(targetEmpId))

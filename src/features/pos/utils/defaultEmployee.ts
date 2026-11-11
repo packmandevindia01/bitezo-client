@@ -1,3 +1,5 @@
+import { isEmployeeKnownOrCacheEmpty } from "./employeeNames";
+
 export interface DefaultEmployeeConfig {
   isEnabled: boolean;
   employeeId: number;
@@ -129,18 +131,7 @@ export const isEmployeeNotFoundError = (err: any): boolean => {
  */
 export const isDefaultEmployeeValidInCache = (employeeId: number): boolean => {
   if (!employeeId || employeeId <= 0) return false;
-  try {
-    const mapRaw = localStorage.getItem("posEmpNameMap");
-    if (mapRaw) {
-      const map = JSON.parse(mapRaw);
-      const keys = Object.keys(map);
-      // Only validate against cache if the cache actually contains entries
-      if (keys.length > 0) {
-        return Boolean(map[String(employeeId)]);
-      }
-    }
-  } catch {}
-  return true;
+  return isEmployeeKnownOrCacheEmpty(employeeId);
 };
 
 /**

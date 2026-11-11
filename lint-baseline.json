@@ -1,8 +1,8 @@
 {
-  "total": 2971,
+  "total": 2945,
   "byRule": {
-    "@typescript-eslint/no-explicit-any": 2840,
-    "no-empty": 72,
+    "@typescript-eslint/no-explicit-any": 2831,
+    "no-empty": 55,
     "react-hooks/set-state-in-effect": 27,
     "react-hooks/refs": 11,
     "react-refresh/only-export-components": 4,

@@ -11,7 +11,7 @@ import { settledOrdersApi } from "../../../../services/settledOrdersApi";
 import { salesInvoiceApi } from "../../../../services/salesInvoiceApi";
 import { orderApi } from "../../../../services/orderApi";
 import { deliveryApi } from "../../../../customer/services/deliveryApi";
-import { getEmployeeNames, getEmployeeById } from "../../../../../general/employee/services/employeeService";
+import { resolveEmployeeNameForPrint } from "../../../../utils/employeeNames";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { formatAmount, getDecimalPart } from "../../../../../../utils/currency";
 import { balanceBillFooter } from "../../../../../../utils/money";
@@ -37,97 +37,7 @@ interface PosSettledDetailsModalProps {
   onEditSuccess?: () => void;
 }
 
-const resolveEmployeeNameAsync = async (
-  empId?: number | string | null,
-  currentName?: string | null
-): Promise<string> => {
-  if (
-    currentName &&
-    typeof currentName === "string" &&
-    !["waiter", "cashier", "null", "undefined", ""].includes(currentName.trim().toLowerCase())
-  ) {
-    return currentName.trim();
-  }
-
-  const idStr = empId !== undefined && empId !== null ? String(empId).trim() : "";
-  if (idStr && idStr !== "0" && idStr !== "NaN") {
-    // 1. Try local cache posEmpNameMap
-    try {
-      const mapRaw = localStorage.getItem("posEmpNameMap");
-      if (mapRaw) {
-        const map = JSON.parse(mapRaw);
-        if (map[idStr] && !["waiter", "cashier"].includes(String(map[idStr]).trim().toLowerCase())) {
-          return String(map[idStr]).trim();
-        }
-      }
-    } catch {}
-
-    // 2. Try authorized employee if ID matches
-    if (idStr === localStorage.getItem("authorizedEmployeeId")) {
-      const authName = localStorage.getItem("authorizedEmployeeName");
-      if (authName && !["waiter", "cashier"].includes(authName.trim().toLowerCase())) {
-        return authName.trim();
-      }
-    }
-
-    // 3. Try fetching branch employee names
-    try {
-      const branchId =
-        getTerminalBranchId() || 0;
-      const list = await getEmployeeNames(branchId);
-      if (Array.isArray(list) && list.length > 0) {
-        const map: Record<string, string> = {};
-        try {
-          const existing = localStorage.getItem("posEmpNameMap");
-          if (existing) Object.assign(map, JSON.parse(existing));
-        } catch {}
-        list.forEach((e: any) => {
-          const id = e.empId ?? e.id;
-          const name = e.empName ?? e.name;
-          if (id && name) map[String(id)] = name;
-        });
-        localStorage.setItem("posEmpNameMap", JSON.stringify(map));
-        if (map[idStr] && !["waiter", "cashier"].includes(String(map[idStr]).trim().toLowerCase())) {
-          return String(map[idStr]).trim();
-        }
-      }
-    } catch (e) {
-      console.warn("[PosSettledDetailsModal] getEmployeeNames fallback failed:", e);
-    }
-
-    // 4. Try fetching individual employee by ID
-    try {
-      const numId = parseInt(idStr, 10);
-      if (!isNaN(numId) && numId > 0) {
-        const empDetail = await getEmployeeById(numId);
-        const name = (empDetail as any)?.empName || (empDetail as any)?.name || (empDetail as any)?.firstName;
-        if (name && !["waiter", "cashier"].includes(String(name).trim().toLowerCase())) {
-          try {
-            const mapRaw = localStorage.getItem("posEmpNameMap");
-            const map = mapRaw ? JSON.parse(mapRaw) : {};
-            map[idStr] = name;
-            localStorage.setItem("posEmpNameMap", JSON.stringify(map));
-          } catch {}
-          return String(name).trim();
-        }
-      }
-    } catch (e) {
-      console.warn("[PosSettledDetailsModal] getEmployeeById fallback failed:", e);
-    }
-  }
-
-  // 5. Try default employee or authorized employee from localStorage
-  const defName = localStorage.getItem("defaultEmployeeName");
-  if (defName && !["waiter", "cashier"].includes(defName.trim().toLowerCase())) return defName.trim();
-
-  const authName = localStorage.getItem("authorizedEmployeeName");
-  if (authName && !["waiter", "cashier"].includes(authName.trim().toLowerCase())) return authName.trim();
-
-  const empName = localStorage.getItem("employeeName");
-  if (empName && !["waiter", "cashier"].includes(empName.trim().toLowerCase())) return empName.trim();
-
-  return (currentName && currentName.trim()) || "Waiter";
-};
+// Waiter name for prints: utils/employeeNames.ts resolveEmployeeNameForPrint (shared with table orders).
 
 const formatVoucherDate = (raw?: string | null): string => {
   try {
@@ -482,7 +392,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
           master?.waiterName ||
           nameFromDetails;
 
-        const resolvedEmp = await resolveEmployeeNameAsync(rawEmpId, currentEmp);
+        const resolvedEmp = await resolveEmployeeNameForPrint(rawEmpId, currentEmp);
         if (orderData.masterData) {
           orderData.masterData.employeeName = resolvedEmp;
         }
@@ -898,7 +808,7 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
         orderSummary?.empId ??
         order?.employeeId;
 
-      const resolvedWaiter = await resolveEmployeeNameAsync(
+      const resolvedWaiter = await resolveEmployeeNameForPrint(
         rawEmpId,
         master.employeeName || order?.employeeName || resolvedEmployeeName
       );
