@@ -12,8 +12,22 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | 4 | Report framework | Done, 31 of 31 reports; 6 reports not seen with real rows |
 | 5 | Back Office forms | **Partly done** (below) |
 | 1 | Design system | Not started, needs approval to move `components/common` |
-| 3 | POS UI | Not started |
+| 3 | POS UI | **Started** 2026-11-11: Recall and Settled details windows split (below) |
 | 6 | Clean-up | **Partly done** 2026-11-11 (below) |
+
+## Phase 3 (2026-11-11)
+
+### Done
+
+- Recall details (1,112 → 610 lines) and Settled details (1,434 → 411) windows split. Shared ticket view in `components/modals/savedOrder/`; settled loader, settled print, recall KOT and the list-text fallback moved to `terminal/utils/` (`loadSettledOrder.ts`, `printSettledOrder.ts`, `printRecallKot.ts`, `recallListText.ts`), moved verbatim.
+- Safety net: `savedOrderWindowsSnapshot` renders both windows (dine-in item discount; delivery bill discount) and matched the old HTML exactly after the split. Unit tests: `savedOrderPieces`.
+- Two deliberate changes: the Settled window no longer shows a duplicated modifier row the backend sometimes sends (the Recall window already dropped it); it no longer fetches extras and modifier types twice on open, and a different order now opens in a fresh window (`key` per order in `PosSettledModal`).
+- Not checked in the real app: open, PRINT and EDIT from Settled; KOT, GUEST, EDIT and SETTLE from Recall.
+
+### Not done
+
+- `DineInTableOrdersModal` (1,390), `usePosCheckoutFlow` (1,302), `PosCashierSessionModal` (1,169), `PosTerminalPage` (1,101). The Dine-In table screen has its own copy of the saved-order print and settle code; it is the next candidate.
+- Printing module (P5) and the 3-zone layout.
 
 ## Phase 6 (2026-11-11)
 

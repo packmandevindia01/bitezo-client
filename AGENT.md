@@ -342,6 +342,13 @@ Never print a guessed number; templates use `toDisplayNo` so a missing value pri
 ### 6.4 Recall & edit
 Recall list `GET /order/recall` → details (merged endpoints, Exclusive) → `PosRecallDetailsModal`
 shows `storedOrderFooter`.
+The Recall details and Settled details windows share their ticket view: `components/modals/savedOrder/`
+(`SavedOrderTicket.tsx`: window frame, meta fields, item-discount row, extras / modifiers / messages,
+delivery block, totals, buttons; `lineModifiers.ts`: dedupe + split of a line's modifier rows). Their big
+routines live in `terminal/utils/`: `loadSettledOrder.ts` (settled details + invoice + print data + order merge),
+`printSettledOrder.ts` (settled PRINT), `printRecallKot.ts` (recall KOT), `printRecallOrder.ts` (recall GUEST),
+`recallListText.ts` (list-row text fallback). Test `savedOrderWindowsSnapshot` renders both windows: a
+change to what they show must update its snapshot on purpose.
 Dine-In table orders (`DineInTableOrdersModal`): `GET /menu/dine-in/tables/{tableId}/orders` (fetched
 Exclusive) gives the table's orders, shown as Recall-style rows (row text = the Recall list's own text for
 that orderId, from `GET /order/recall?OrderTypeId=1`). Clicking a row opens `PosRecallDetailsModal`; its
@@ -673,8 +680,8 @@ Main market: Bahrain / GCC (3-decimal currencies, see R8).
 | `tests/` | Vitest, mostly POS pricing (see §9) |
 | `shared/` (Phase 0) | used by POS and Back Office, may not import features (ESLint): `api/http.ts` (axios client; old path `api/axiosInstance.ts` re-exports), `api/unwrap.ts` (`unwrapBody` / `unwrapData` / `unwrapEnvelope` / `unwrapStrict`), `lib/` money, date, html, print, currency (old `utils/*` paths re-export), `config/settings.ts` (typed safe reads of localStorage settings — use in new code) |
 
-Size: ~84k lines of TS/TSX. Files over 1,000 lines (hard to change safely): `PosRecallDetailsModal.tsx`,
-`escPosGenerator.ts`, `PosSettledDetailsModal.tsx`, `DineInTableOrdersModal.tsx`,
+Size: ~84k lines of TS/TSX. Files over 1,000 lines (hard to change safely):
+`escPosGenerator.ts`, `DineInTableOrdersModal.tsx`,
 `usePosCheckoutFlow.ts`, `endReportTemplate.ts`, `usePurchaseReturn.ts`, `PosCashierSessionModal.tsx`,
 `posSlice.ts`, `PosTerminalPage.tsx`.
 

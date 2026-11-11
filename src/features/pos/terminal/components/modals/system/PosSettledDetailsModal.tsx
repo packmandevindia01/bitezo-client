@@ -1,32 +1,23 @@
-import { getTerminalBranchId } from "@shared/config/device";
 import React, { useState, useEffect } from "react";
-import { modifierLabelOf } from "../../../../utils/modifierLabel";
-import { toDisplayNo } from "../../../../services/orderResponse";
 import { buildPrintPricing } from "../../../../utils/printPricing";
-import { storedOrderFooter, pickOrderMoney } from "../../../../pricing";
-import Modal from "../../../../../../components/common/Modal";
-import { Loader, Button } from "../../../../../../components/common";
+import { storedOrderFooter } from "../../../../pricing";
+import { Button } from "../../../../../../components/common";
 import { Printer, X, Pencil } from "lucide-react";
-import { settledOrdersApi } from "../../../../services/settledOrdersApi";
-import { salesInvoiceApi } from "../../../../services/salesInvoiceApi";
-import { orderApi } from "../../../../services/orderApi";
-import { deliveryApi } from "../../../../customer/services/deliveryApi";
-import { resolveEmployeeNameForPrint } from "../../../../utils/employeeNames";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { formatAmount, getDecimalPart } from "../../../../../../utils/currency";
 import { balanceBillFooter } from "../../../../../../utils/money";
-import { generateGuestPrintHtml, isEnableVatGuestPrint } from "../../../../utils/guestPrintTemplate";
-import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../../../utils/printHeadingUtils";
-import { printHtmlReceipt } from "../../../../services/qzService";
-import { printerSettingsApi } from "../../../../services/printerSettingsApi";
-import { getPriceView, getPrintPrice, getVatStatus, roundCalc } from "../../../utils/billing";
-import { isBillArabicEnabled, formatItemDisplayName } from "../../../../utils/alternativeHelpers";
+import { isEnableVatGuestPrint } from "../../../../utils/guestPrintTemplate";
+import { getPriceView, getVatStatus, roundCalc } from "../../../utils/billing";
+import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { useAppDispatch, useAppSelector } from "../../../../../../app/hooks";
-import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
+import { usePosProducts } from "../../../hooks/usePosProducts";
 import { loadSettledOrderIntoCart } from "../../../utils/loadSettledOrderIntoCart";
-import { menuApi } from "../../../../services/menuApi";
 import { t, getLocalizedName } from "../../../../utils/posLocalization";
 import { checkOrderHasBillDiscount } from "../../../utils/orderDiscountCheck";
+import { printSettledOrderReceipt } from "../../../utils/printSettledOrder";
+import { loadSettledOrderDetails } from "../../../utils/loadSettledOrder";
+import { SavedOrderWindow, SavedOrderActions, TicketActionButton, MetaField, ItemDiscountRow, LineAddons, SavedOrderTotals } from "../savedOrder/SavedOrderTicket";
+import { dedupeModifierRows, modifierRowsOfLine, classifyLineModifiers } from "../savedOrder/lineModifiers";
 
 interface PosSettledDetailsModalProps {
   isOpen: boolean;
@@ -84,873 +75,16 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
   const [allExtras, setAllExtras] = useState<any[]>([]);
   const [modifierTypes, setModifierTypes] = useState<any[]>([]);
 
+  const loadOrderDetails = () => loadSettledOrderDetails({ orderId, orderSummary, orderDetailsStr, setLoading, setOrder, setResolvedEmployeeName, setAllExtras, setModifierTypes });
+
   useEffect(() => {
     if (isOpen && orderId) {
+      // The loader also loads the extras and modifier types (it used to be fetched twice).
       void loadOrderDetails();
-      void fetchModifierTypes();
-      void fetchAllExtras();
-    } else {
-      setOrder(null);
-      setResolvedEmployeeName("Waiter");
     }
   }, [isOpen, orderId]);
 
-  const fetchModifierTypes = async () => {
-    try {
-      const data = await menuApi.getModifierTypes();
-      setModifierTypes(data || []);
-    } catch (e) {
-      console.error("Failed to load modifier types:", e);
-    }
-  };
-
-  const fetchAllExtras = async () => {
-    try {
-      const data = await menuApi.getAllExtras();
-      setAllExtras(data || []);
-    } catch (e) {
-      console.warn("Failed to load extras:", e);
-    }
-  };
-
-  const mergeModifiersData = (primary: any[] = [], fallback: any[] = []): any[] => {
-    const pList = Array.isArray(primary) ? primary : [];
-    const fList = Array.isArray(fallback) ? fallback : [];
-    if (pList.length === 0) return fList;
-    if (fList.length === 0) return pList;
-
-    const merged = pList.map((p: any) => {
-      const pId = Number(p.modifierId ?? p.ModifierId ?? p.id ?? p.Id ?? 0);
-      const pMapId = Number(p.mapId ?? p.MapId ?? 0);
-      const pPrice = Number(p.price ?? p.Price ?? p.amount ?? p.Amount ?? 0);
-
-      const match = fList.find((f: any) => {
-        const fId = Number(f.modifierId ?? f.ModifierId ?? f.id ?? f.Id ?? 0);
-        const fMapId = Number(f.mapId ?? f.MapId ?? 0);
-        return fId === pId && (pMapId === 0 || fMapId === 0 || fMapId === pMapId);
-      });
-
-      if (!match) return p;
-
-      const fPrice = Number(match.price ?? match.Price ?? match.amount ?? match.Amount ?? 0);
-      const resolvedPrice = pPrice > 0 ? pPrice : fPrice;
-
-      return {
-        ...match,
-        ...p,
-        price: resolvedPrice,
-        Price: resolvedPrice,
-      };
-    });
-
-    fList.forEach((f: any) => {
-      const fId = Number(f.modifierId ?? f.ModifierId ?? f.id ?? f.Id ?? 0);
-      const fMapId = Number(f.mapId ?? f.MapId ?? 0);
-      const exists = pList.some((p: any) => {
-        const pId = Number(p.modifierId ?? p.ModifierId ?? p.id ?? p.Id ?? 0);
-        const pMapId = Number(p.mapId ?? p.MapId ?? 0);
-        return pId === fId && (pMapId === 0 || fMapId === 0 || fMapId === pMapId);
-      });
-      if (!exists) {
-        merged.push(f);
-      }
-    });
-
-    return merged;
-  };
-
-  const loadOrderDetails = async () => {
-    if (!orderId) return;
-    setLoading(true);
-    try {
-      let orderData: any = null;
-      const effectivePriceView = getPriceView();
-      const detectedOrderType = orderSummary?.orderTypeName ||
-        (typeof orderDetailsStr === "string" && orderDetailsStr.toLowerCase().includes("dine") ? "DineIn" : undefined);
-      try {
-        const response = await settledOrdersApi.getSettledOrderDetails(orderId, {
-          priceView: effectivePriceView,
-          orderType: detectedOrderType,
-        });
-        if (response && response.isSuccess && response.data) {
-          orderData = response.data;
-        }
-      } catch (e) {
-        console.warn("[PosSettledDetailsModal] getSettledOrderDetails failed:", e);
-      }
-
-      if (!orderData) {
-        try {
-          const ordRes = await orderApi.getOrderDetails(orderId, {
-            priceView: effectivePriceView,
-            orderType: detectedOrderType,
-          });
-          if (ordRes && (ordRes.data || ordRes.masterData)) {
-            orderData = ordRes.data || ordRes;
-          }
-        } catch (e) {
-          console.warn("[PosSettledDetailsModal] fallback getOrderDetails failed:", e);
-        }
-      }
-
-      if (orderData) {
-        const rawInitialMaster = orderData.masterData || orderData.master || orderData;
-        let master = Array.isArray(rawInitialMaster) ? (rawInitialMaster[0] || {}) : (rawInitialMaster || {});
-        const rawVoucher =
-          master.saleId ||
-          master.voucherNo ||
-          master.invoiceNo ||
-          master.voucherNumber ||
-          master.saleNo ||
-          orderData.saleId ||
-          orderData.voucherNo;
-        // The settled-orders list row carries the real saleId; the voucher number is only a fallback.
-        const listSaleId = Number(orderSummary?.saleId ?? orderSummary?.SaleId ?? 0);
-        const saleId = listSaleId > 0 ? listSaleId : (rawVoucher ? parseInt(String(rawVoucher).replace(/\D/g, ""), 10) : NaN);
-
-        if (!isNaN(saleId) && saleId > 0) {
-          try {
-            const saleRes = await salesInvoiceApi.getSalesInvoiceData(saleId, orderId);
-            if (saleRes) {
-              const rawSaleMaster =
-                saleRes.masterData || saleRes.master || saleRes.data?.masterData || saleRes.data?.master || saleRes;
-              const saleMaster = Array.isArray(rawSaleMaster) ? (rawSaleMaster[0] || {}) : (rawSaleMaster || {});
-              const saleDetails =
-                saleRes.detailsData || saleRes.details || saleRes.data?.detailsData || saleRes.data?.details;
-              const salePayments =
-                saleRes.paymodesData ||
-                saleRes.paymentData ||
-                saleRes.paymodes ||
-                saleRes.payments ||
-                saleRes.data?.paymodesData ||
-                saleRes.data?.paymentData ||
-                saleRes.data?.paymodes ||
-                saleRes.data?.payments;
-              orderData = {
-                ...orderData,
-                ...saleRes,
-                masterData: {
-                  ...master,
-                  ...saleMaster,
-                  // Every MONEY value comes from the ORDER (what the cashier saw and the customer was charged).
-                  // The sales invoice only supplies voucher number, date, employee and customer, so the bill
-                  // always adds up even if the invoice record disagrees (mismatch is shown as a warning).
-                  ...pickOrderMoney(master),
-                  employeeName: saleMaster?.employeeName || master.employeeName || orderData.employeeName,
-                  employeeId: saleMaster?.employeeId ?? master.employeeId ?? orderData.employeeId,
-                },
-                detailsData:
-                  (Array.isArray(orderData.detailsData) && orderData.detailsData.length > 0)
-                    ? orderData.detailsData
-                    : (Array.isArray(orderData.details) && orderData.details.length > 0)
-                    ? orderData.details
-                    : saleDetails,
-                paymentData:
-                  Array.isArray(salePayments) && salePayments.length > 0
-                    ? salePayments
-                    : orderData.paymentData || orderData.payments,
-                modifiersData: mergeModifiersData(
-                  orderData.modifiersData,
-                  saleRes.modifiersData || saleRes.modifiers || saleRes.data?.modifiersData
-                ),
-                modifiers: mergeModifiersData(
-                  orderData.modifiers,
-                  saleRes.modifiers || saleRes.modifiersData || saleRes.data?.modifiers
-                ),
-              };
-              master = orderData.masterData;
-            }
-          } catch (saleErr) {
-            console.warn("[PosSettledDetailsModal] getSalesInvoiceData fallback:", saleErr);
-          }
-
-          try {
-            const printRes = await settledOrdersApi.getSettledPrintData(saleId, orderId);
-            if (printRes && printRes.isSuccess && printRes.data) {
-              const pData = printRes.data;
-              const pMaster = pData.masterData || {};
-              const pPayments = pData.paymodeData || pData.paymodesData || pData.paymentData;
-              orderData = {
-                ...orderData,
-                masterData: {
-                  ...orderData.masterData,
-                  waiter: pMaster.waiter || orderData.masterData?.waiter,
-                  employeeName: pMaster.waiter || orderData.masterData?.employeeName,
-                  customerName: pMaster.customerName || orderData.masterData?.customerName,
-                  voucherDate: pMaster.voucherDate || orderData.masterData?.voucherDate,
-                  serviceCharge: Number(orderData.masterData?.serviceCharge || 0) > 0
-                    ? orderData.masterData?.serviceCharge
-                    : (pMaster?.serviceCharge || 0),
-                  levyAmt: Number(orderData.masterData?.levyAmt || orderData.masterData?.levy || 0) > 0
-                    ? (orderData.masterData?.levyAmt || orderData.masterData?.levy)
-                    : (pMaster?.levyAmt || pMaster?.levy || 0),
-                  levy: Number(orderData.masterData?.levyAmt || orderData.masterData?.levy || 0) > 0
-                    ? (orderData.masterData?.levyAmt || orderData.masterData?.levy)
-                    : (pMaster?.levy || pMaster?.levyAmt || 0),
-                },
-                paymentData: (Array.isArray(pPayments) && pPayments.length > 0) ? pPayments : orderData.paymentData,
-                modifiersData: mergeModifiersData(orderData.modifiersData, pData.modifiersData || pData.modifiers),
-                modifiers: mergeModifiersData(orderData.modifiers, pData.modifiers || pData.modifiersData),
-              };
-              master = orderData.masterData;
-            }
-          } catch (printErr) {
-            console.warn("[PosSettledDetailsModal] getSettledPrintData fallback:", printErr);
-          }
-        }
-
-        // Query orderApi.getOrderDetails to get original order master data if employee details missing
-        try {
-          const ordRes = await orderApi.getOrderDetails(orderId);
-          if (ordRes && (ordRes.data || ordRes.masterData)) {
-            const oData = ordRes.data || ordRes;
-            const rawOMaster = oData.masterData || oData.master || oData;
-            const oMaster = Array.isArray(rawOMaster) ? (rawOMaster[0] || {}) : (rawOMaster || {});
-            const oEmpName = oMaster?.employeeName;
-            const curEmpName = master?.employeeName;
-            const shouldReplaceName = !curEmpName || ["waiter", "cashier"].includes(String(curEmpName).toLowerCase());
-
-            const validOrderChange = (oMaster?.change !== undefined && oMaster?.change !== null && String(oMaster.change).trim() !== "" && String(oMaster.change).trim() !== "0" && String(oMaster.change).trim() !== "0.00" && String(oMaster.change).trim() !== "0.000")
-              ? String(oMaster.change)
-              : (oMaster?.keepChanges !== undefined && oMaster?.keepChanges !== null && String(oMaster.keepChanges).trim() !== "" && String(oMaster.keepChanges).trim() !== "0" && String(oMaster.keepChanges).trim() !== "0.00" && String(oMaster.keepChanges).trim() !== "0.000")
-              ? String(oMaster.keepChanges)
-              : undefined;
-
-            const validSaleChange = (master?.change !== undefined && master?.change !== null && String(master.change).trim() !== "" && String(master.change).trim() !== "0" && String(master.change).trim() !== "0.00" && String(master.change).trim() !== "0.000")
-              ? String(master.change)
-              : undefined;
-
-            const effectiveChange = validSaleChange || validOrderChange || "";
-            const effectiveCallBack = master?.callBack || master?.callback || oMaster?.callBack || oMaster?.callback || "";
-
-            orderData = {
-              ...orderData,
-              modifiersData: mergeModifiersData(orderData.modifiersData, oData.modifiersData || oData.modifiers),
-              modifiers: mergeModifiersData(orderData.modifiers, oData.modifiers || oData.modifiersData),
-              masterData: {
-                ...master,
-                serviceCharge: Number(master?.serviceCharge || 0) > 0
-                  ? master?.serviceCharge
-                  : (oMaster?.serviceCharge || 0),
-                levyAmt: Number(master?.levyAmt || master?.levy || 0) > 0
-                  ? (master?.levyAmt || master?.levy)
-                  : (oMaster?.levyAmt || oMaster?.levy || 0),
-                levy: Number(master?.levyAmt || master?.levy || 0) > 0
-                  ? (master?.levyAmt || master?.levy)
-                  : (oMaster?.levy || oMaster?.levyAmt || 0),
-                employeeName: shouldReplaceName && oEmpName ? oEmpName : master?.employeeName,
-                employeeId: master?.employeeId ?? oMaster?.employeeId ?? oMaster?.empId,
-                waiterId: master?.waiterId ?? oMaster?.waiterId,
-                customerName: master?.customerName || oMaster?.customerName,
-                deliveryCustomerName: master?.deliveryCustomerName || oMaster?.deliveryCustomerName,
-                tableNo: master?.tableNo || oMaster?.tableNo,
-                sectionName: master?.sectionName || oMaster?.sectionName,
-                change: effectiveChange,
-                keepChanges: effectiveChange,
-                callBack: effectiveCallBack,
-                flatNo: master?.flatNo || oMaster?.flatNo,
-                buildingNo: master?.buildingNo || oMaster?.buildingNo,
-                roadNo: master?.roadNo || oMaster?.roadNo,
-                blockNo: master?.blockNo || oMaster?.blockNo,
-                area: master?.area || oMaster?.area,
-                address: master?.address || oMaster?.address,
-                mobileNo: master?.mobileNo || oMaster?.mobileNo || oMaster?.contactNo,
-                contactNo: master?.contactNo || oMaster?.contactNo || oMaster?.mobileNo,
-              },
-            };
-            master = orderData.masterData;
-          }
-        } catch (ordErr) {
-          console.warn("[PosSettledDetailsModal] orderApi.getOrderDetails fallback:", ordErr);
-        }
-
-        // Extract employee name from details string if available
-        let nameFromDetails = "";
-        const detailsStr = orderDetailsStr || orderData.details || orderSummary?.details || "";
-        if (typeof detailsStr === "string" && detailsStr) {
-          const custMatches = detailsStr.match(/\((CASH CUSTOMER|[^)]+)\)/gi);
-          if (custMatches && custMatches.length >= 2) {
-            const potentialEmp = custMatches[custMatches.length - 1].replace(/[()]/g, "").trim();
-            if (potentialEmp && !["waiter", "cashier", "cash customer"].includes(potentialEmp.toLowerCase())) {
-              nameFromDetails = potentialEmp;
-            }
-          }
-        }
-
-        const rawEmpId =
-          master?.employeeId ??
-          master?.empId ??
-          master?.waiterId ??
-          master?.salespersonId ??
-          orderSummary?.employeeId ??
-          orderSummary?.empId ??
-          orderData.employeeId;
-
-        const currentEmp =
-          master?.employeeName ||
-          orderData.employeeName ||
-          master?.waiterName ||
-          nameFromDetails;
-
-        const resolvedEmp = await resolveEmployeeNameForPrint(rawEmpId, currentEmp);
-        if (orderData.masterData) {
-          orderData.masterData.employeeName = resolvedEmp;
-        }
-        orderData.employeeName = resolvedEmp;
-        setResolvedEmployeeName(resolvedEmp);
-
-        // Fetch delivery address fallback if needed
-        const orderType = master?.orderType || orderData.orderType || "";
-        const isDelivery = orderType.toLowerCase().includes("delivery");
-        const contactNo = master?.mobileNo || master?.contactNo || master?.phone || "";
-        if (
-          isDelivery &&
-          contactNo &&
-          !master?.flatNo &&
-          !master?.buildingNo &&
-          !master?.blockNo &&
-          !master?.roadNo &&
-          !master?.area
-        ) {
-          try {
-            const addrRes = await deliveryApi.getDeliveryAddress(contactNo);
-            const addrData = Array.isArray(addrRes?.data) ? addrRes.data[0] : addrRes?.data || addrRes;
-            if (addrData) {
-              master.flatNo = addrData.flatNo || master.flatNo;
-              master.buildingNo = addrData.buildingNo || master.buildingNo;
-              master.blockNo = addrData.blockNo || master.blockNo;
-              master.roadNo = addrData.roadNo || master.roadNo;
-              master.area = addrData.area || master.area;
-              if (!master.deliveryCustomerName || master.deliveryCustomerName === "CASH CUSTOMER") {
-                master.deliveryCustomerName = addrData.customerName || master.deliveryCustomerName;
-              }
-            }
-          } catch (addrErr) {
-            console.warn("[PosSettledDetailsModal] deliveryApi fallback:", addrErr);
-          }
-        }
-
-        // Ensure alternatives are fetched and cached for products in this order
-        const safeOrderTypeId = master?.orderTypeId || orderData?.orderTypeId || 1;
-        const detailsList = orderData?.detailsData || orderData?.details || [];
-        const pIds = Array.from(new Set(
-          detailsList
-            .map((d: any) => d.productId || d.ProductId || d.itemId || d.ItemId)
-            .filter(Boolean)
-        ));
-        if (pIds.length > 0) {
-          await Promise.all(
-            pIds.map(async (pId: any) => {
-              const key = `${pId}-${safeOrderTypeId}`;
-              if (!alternativesCache[key]) {
-                try {
-                  const alts = await menuApi.getAlternatives(Number(pId), safeOrderTypeId);
-                  if (alts && alts.length > 0) {
-                    alternativesCache[key] = alts;
-                  }
-                } catch {}
-              }
-            })
-          );
-        }
-
-        try {
-          const extrasList = await menuApi.getAllExtras();
-          if (Array.isArray(extrasList) && extrasList.length > 0) {
-            setAllExtras(extrasList);
-          }
-        } catch {}
-
-        try {
-          const typesList = await menuApi.getModifierTypes();
-          if (Array.isArray(typesList) && typesList.length > 0) {
-            setModifierTypes(typesList);
-          }
-        } catch {}
-
-        setOrder(orderData);
-      }
-    } catch (err) {
-      console.warn("API error:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handlePrint = async () => {
-    if (!orderId || !order) return;
-
-    if (!hasPrinterHeadings()) {
-      notifyPrinterHeadingWarning(showToast);
-    }
-
-    try {
-      showToast(`Preparing Receipt for Order #${orderId}...`, "success");
-
-      const rawMaster = order.masterData || order.master || order;
-      const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
-
-      const orderTypeMap: Record<number, string> = {
-        1: "DineIn",
-        2: "TakeOut",
-        3: "DriveThru",
-        4: "Delivery",
-        5: "Providers",
-        6: "Coming",
-      };
-      const orderTypeName =
-        master.orderType ||
-        orderTypeMap[master.orderTypeId] ||
-        master.orderTypeName ||
-        order?.orderTypeName ||
-        "DineIn";
-
-      const isValidDateStr = (s: any) => {
-        if (!s || typeof s !== "string") return false;
-        if (s.startsWith("0001")) return false;
-        return true;
-      };
-
-      const candidateDates = [
-        master.voucherDate,
-        master.transDate,
-        master.orderDate,
-        master.createdAt,
-        master.entryDate,
-        order.voucherDate,
-        order.transDate,
-        order.createdAt,
-      ];
-
-      const resolvedDateStr = candidateDates.find(isValidDateStr);
-
-      let date: string | undefined;
-      let time: string | undefined;
-
-      if (resolvedDateStr) {
-        try {
-          const d = new Date(resolvedDateStr);
-          if (!isNaN(d.getTime()) && d.getFullYear() >= 2000) {
-            date = d.toLocaleDateString("en-GB");
-            time = d.toLocaleTimeString("en-US", { hour12: true, hour: "2-digit", minute: "2-digit" });
-          }
-        } catch {
-          /* ignore */
-        }
-      }
-
-      const detailsStr = orderDetailsStr || order.details || orderSummary?.details || "";
-      if (!date && typeof detailsStr === "string") {
-        const timeMatch = detailsStr.match(/(\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM))/i);
-        const dateMatch = detailsStr.match(/(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/);
-        if (dateMatch) date = dateMatch[1];
-        if (timeMatch) time = timeMatch[1];
-      }
-
-      if (!date) {
-        const now = new Date();
-        date = now.toLocaleDateString("en-GB");
-        time = now.toLocaleTimeString("en-US", { hour12: true, hour: "2-digit", minute: "2-digit" });
-      }
-
-      const printPriceSetting = getPrintPrice();
-      const isTaxInclusive = printPriceSetting === "Inclusive";
-
-      const isBillLevelDiscount = checkOrderHasBillDiscount(order);
-      const unified = buildPrintPricing(order, {
-        dataView: getPriceView(),
-        orderType: orderTypeName,
-        printPrice: printPriceSetting,
-        allExtras,
-        modifierTypes,
-        products,
-        productCache,
-        isBillDiscount: isBillLevelDiscount,
-      });
-
-      const printDetails = Array.isArray(order?.detailsData) ? order.detailsData : (Array.isArray(order?.details) ? order.details : []);
-      const printModifiersData = Array.isArray(order?.modifiersData) ? order.modifiersData : (Array.isArray(order?.modifiers) ? order.modifiers : []);
-      const linesToMap = (printDetails && printDetails.length > 0) ? printDetails : (unified ? unified.lines : []);
-
-      const mappedItems = linesToMap.map((l: any, i: number) => {
-        if (l?.isUnifiedPricingLine === true) {
-          return {
-            ...l,
-            isUnifiedPricingLine: true,
-            productId: l.productId,
-            quantity: l.quantity,
-            price: l.getRate(isTaxInclusive),
-            baseAmount: l.exclusiveGross,
-            variantName: l.variantName,
-            variantArabic: l.variantArabic,
-            product: {
-              name: l.productName,
-              price: l.getRate(isTaxInclusive),
-              arabicName: l.productArabicName,
-            },
-            extras: l.extras,
-            modifiers: l.modifiers,
-            messages: l.messages,
-            itemDiscount: (unified?.summary?.isBillDiscount || isBillLevelDiscount)
-              ? 0
-              : l.getDiscount(isTaxInclusive),
-            lineTotal: (unified?.summary?.isBillDiscount || isBillLevelDiscount)
-              ? (isTaxInclusive ? l.inclusiveGross : l.exclusiveGross)
-              : Math.max(0, (isTaxInclusive ? l.inclusiveGross : l.exclusiveGross) - l.getDiscount(isTaxInclusive)),
-            lineNetAmount: l.inclusiveAmount,
-            basePrice: l.exclusiveRate,
-            vatAmount: l.vatAmount,
-          };
-        }
-
-        const primaryName = l.productName || l.itemName || `Item #${l.productId || i + 1}`;
-        const arabicName = l.arabicName || l.productArabicName || "";
-        const variantName = l.variantName || l.altName || "";
-        const variantArabic = l.variantArabic || l.altArabic || "";
-        const qty = Number(l.qty ?? l.quantity ?? 1);
-        const price = Number(l.price ?? 0);
-        const lineTotal = Number(l.amount ?? (price * qty));
-        const itemDisc = Number(l.discAmount ?? 0);
-
-        const itemMapId = l.mapId ?? l.MapId;
-        const itemMods = itemMapId !== undefined
-          ? printModifiersData.filter((m: any) => Number(m.mapId ?? m.MapId) === Number(itemMapId))
-          : [];
-
-        const extras = itemMods.filter((m: any) => {
-          const p = Number(m.price ?? 0);
-          const s = String(m.status || "").toLowerCase();
-          const tid = Number(m.typeId || 0);
-          return s === "extras" || s === "extra" || tid === 2 || p > 0;
-        });
-
-        const standardMods = itemMods.filter((m: any) => {
-          const p = Number(m.price ?? 0);
-          const s = String(m.status || "").toLowerCase();
-          const tid = Number(m.typeId || 0);
-          return s !== "message" && s !== "extras" && s !== "extra" && tid !== 2 && p <= 0;
-        });
-
-        const messages = itemMods.filter((m: any) => {
-          const s = String(m.status || "").toLowerCase();
-          return s === "message" || s === "messages";
-        });
-
-        return {
-          productId: l.productId,
-          quantity: qty,
-          price: price,
-          baseAmount: lineTotal,
-          variantName,
-          variantArabic,
-          product: {
-            name: primaryName,
-            price: price,
-            arabicName: arabicName,
-          },
-          extras,
-          modifiers: standardMods,
-          messages,
-          itemDiscount: (isBillLevelDiscount || unified?.summary?.isBillDiscount) ? 0 : itemDisc,
-          lineTotal: ((isBillLevelDiscount || unified?.summary?.isBillDiscount) || itemDisc <= 0) ? lineTotal : Math.max(0, lineTotal - itemDisc),
-          lineNetAmount: lineTotal,
-          basePrice: price,
-          vatAmount: Number(l.vatAmount ?? 0),
-        };
-      });
-
-      const resolvedDiscount = displayDiscount > 0
-        ? displayDiscount
-        : Number(
-            unified.summary.totalDiscountExcl ?? (typeof unified.summary.getTotalDiscount === "function" ? unified.summary.getTotalDiscount(false) : (master.discAmount ?? master.discount ?? 0))
-          );
-      const resolvedSubTotal = displaySubTotal > 0
-        ? displaySubTotal
-        : Number(
-            unified.summary.subTotalExclusive > 0
-              ? unified.summary.subTotalExclusive
-              : (typeof unified.summary.getSubTotal === "function" ? unified.summary.getSubTotal(false) : 0)
-          );
-      const resolvedVatAmount = Number(
-        (unified?.summary.vatAmount && unified.summary.vatAmount > 0)
-          ? unified.summary.vatAmount
-          : (master.vatAmount ?? master.VatAmount ?? 0)
-      );
-
-      const invoiceNo =
-        master.voucherNo ||
-        master.invoiceNo ||
-        master.voucherNumber ||
-        master.saleNo ||
-        (master.saleId ? String(master.saleId) : orderId ? String(orderId) : undefined);
-
-      const paymentNames: Record<number, string> = { 1: "Cash", 2: "Card", 3: "Credit" };
-      const rawPayments =
-        order.paymentData ||
-        order.paymentsData ||
-        order.payments ||
-        order.paymodes ||
-        order.tenderData ||
-        master.payments ||
-        master.paymodes ||
-        [];
-      let payments =
-        Array.isArray(rawPayments) && rawPayments.length > 0
-          ? rawPayments.map((p: any) => ({
-              name:
-                p.paymentName ||
-                p.paymodeName ||
-                p.name ||
-                paymentNames[p.paymodeId] ||
-                paymentNames[p.paymentId] ||
-                "Payment",
-              amount: Number(p.amount ?? p.paidAmount ?? 0),
-            }))
-          : undefined;
-
-      if (!payments || payments.length === 0) {
-        const rootPaymodeId = master.paymodeId || order.paymodeId;
-        const rootPaymodeName =
-          master.paymodeName || master.paymentName || (rootPaymodeId ? paymentNames[rootPaymodeId] : "Cash");
-        if (rootPaymodeName) {
-          payments = [{ name: rootPaymodeName, amount: netAmount }];
-        }
-      }
-
-      let resolvedFlatNo = master.flatNo || master.flat || master.flatNumber || "";
-      let resolvedBuildingNo = master.buildingNo || master.building || master.buildingNumber || "";
-      let resolvedBlockNo = master.blockNo || master.block || master.blockNumber || "";
-      let resolvedRoadNo = master.roadNo || master.road || master.roadNumber || master.street || "";
-      let resolvedArea = master.area || master.areaName || "";
-      let resolvedCustomerName =
-        master.deliveryCustomerName ||
-        master.vehicleCustomerName ||
-        master.customerName ||
-        master.customer ||
-        "";
-
-      if (!resolvedCustomerName && typeof detailsStr === "string") {
-        const parenMatches = detailsStr.match(/\(([^)]+)\)/g)?.map((s: string) => s.replace(/[()]/g, "").trim()) || [];
-        if (parenMatches.length >= 2) {
-          resolvedCustomerName = parenMatches[1];
-        } else if (parenMatches.length === 1) {
-          resolvedCustomerName = parenMatches[0];
-        }
-      }
-      if (!resolvedCustomerName) {
-        resolvedCustomerName = "CASH CUSTOMER";
-      }
-      const isDeliveryOrder = (orderTypeName || "").toLowerCase().includes("delivery");
-      const resolvedContactNo = master.mobileNo || master.contactNo || master.phone || master.mobile || "";
-      const resolvedCallBack = isDeliveryOrder
-        ? (master.callBack || 
-           master.callback || 
-           master.callBackNo || 
-           master.callbackNo || 
-           master.callBackNumber || 
-           master.callbackNumber || 
-           (order as any)?.callBack || 
-           (order as any)?.callback || 
-           localStorage.getItem(`order_callBack_${orderId}`) ||
-           sessionStorage.getItem(`order_callBack_${orderId}`) ||
-           localStorage.getItem(`order_callBack_${invoiceNo}`) ||
-           sessionStorage.getItem(`order_callBack_${invoiceNo}`) ||
-           (resolvedContactNo ? localStorage.getItem(`delivery_callBack_${resolvedContactNo}`) : null) ||
-           (resolvedContactNo ? sessionStorage.getItem(`delivery_callBack_${resolvedContactNo}`) : null) ||
-           localStorage.getItem("pos_current_callBack") ||
-           "")
-        : "";
-
-      const rawChangeVal = master.change ?? master.keepChanges ?? (order as any)?.change ?? (order as any)?.keepChanges ?? "";
-      const validKeepChange = (isDeliveryOrder && rawChangeVal !== undefined && rawChangeVal !== null &&
-        String(rawChangeVal).trim() !== "" &&
-        String(rawChangeVal).trim() !== "0" &&
-        String(rawChangeVal).trim() !== "0.00" &&
-        String(rawChangeVal).trim() !== "0.000")
-        ? String(rawChangeVal).trim()
-        : undefined;
-
-      const resolvedAddress = master.address || master.customerAddress || master.deliveryAddress || "";
-
-      if (
-        isDeliveryOrder &&
-        !resolvedFlatNo &&
-        !resolvedBuildingNo &&
-        !resolvedBlockNo &&
-        !resolvedRoadNo &&
-        !resolvedArea &&
-        resolvedContactNo
-      ) {
-        try {
-          const addrRes = await deliveryApi.getDeliveryAddress(resolvedContactNo);
-          const addrData = Array.isArray(addrRes?.data) ? addrRes.data[0] : addrRes?.data || addrRes;
-          if (addrData) {
-            resolvedFlatNo = addrData.flatNo || resolvedFlatNo;
-            resolvedBuildingNo = addrData.buildingNo || resolvedBuildingNo;
-            resolvedBlockNo = addrData.blockNo || resolvedBlockNo;
-            resolvedRoadNo = addrData.roadNo || resolvedRoadNo;
-            resolvedArea = addrData.area || resolvedArea;
-            if (!resolvedCustomerName || resolvedCustomerName === "CASH CUSTOMER") {
-              resolvedCustomerName = addrData.customerName || resolvedCustomerName;
-            }
-          }
-        } catch (fetchAddrErr) {
-          console.warn("[PosSettledDetailsModal] Could not fetch delivery address fallback:", fetchAddrErr);
-        }
-      }
-
-      const rawEmpId =
-        master.employeeId ??
-        master.empId ??
-        master.waiterId ??
-        master.salespersonId ??
-        orderSummary?.employeeId ??
-        orderSummary?.empId ??
-        order?.employeeId;
-
-      const resolvedWaiter = await resolveEmployeeNameForPrint(
-        rawEmpId,
-        master.employeeName || order?.employeeName || resolvedEmployeeName
-      );
-
-      let resolvedDriver =
-        master.driverName ||
-        master.allocatedDriverName ||
-        master.driver ||
-        master.driverEmployeeName ||
-        orderSummary?.driverName ||
-        orderSummary?.allocatedDriverName ||
-        orderSummary?.driver ||
-        order?.driverName ||
-        order?.allocatedDriverName ||
-        order?.driver ||
-        "";
-
-      if (!resolvedDriver && orderSummary && typeof orderSummary.details === "string") {
-        const match = orderSummary.details.match(/\(Driver:\s*([^)]+)\)/i) || orderSummary.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
-        if (match && match[1]) {
-          resolvedDriver = match[1].trim();
-        }
-      }
-
-      if (!resolvedDriver && typeof master.details === "string") {
-        const match = master.details.match(/\(Driver:\s*([^)]+)\)/i) || master.details.match(/Driver:\s*([A-Za-z0-9_\s]+)/i);
-        if (match && match[1]) {
-          resolvedDriver = match[1].trim();
-        }
-      }
-
-      const activeDriverId = master.driverId || orderSummary?.driverId || order?.driverId;
-      if (!resolvedDriver && activeDriverId && Number(activeDriverId) > 0) {
-        try {
-          const branchId =
-            getTerminalBranchId() || 1;
-          const { employeeService } = await import("../../../../../general/employee/services/employeeService");
-          const dList = await employeeService.getDrivers(branchId);
-          const dFound = dList.find((d: any) => d.driverId === Number(activeDriverId));
-          if (dFound) {
-            resolvedDriver = dFound.driverName;
-          }
-        } catch (err) {
-          console.warn("[PosSettledDetailsModal] Failed to resolve driver name by id:", err);
-        }
-      }
-
-      const printSc = Number(master.serviceCharge ?? unified.summary.serviceCharge ?? 0);
-      let printLevy = Number(master.levyAmt ?? master.levy ?? master.Levy ?? unified.summary.levy ?? 0);
-      let printCharges = displayCharges > 0 ? displayCharges : roundCalc(printSc + printLevy);
-      const printGrandTotal = Number(master.netAmount ?? unified.summary.grandTotal ?? 0);
-      if (printCharges <= 0) {
-        if (printGrandTotal > 0) {
-          const netBase = Math.max(0, resolvedSubTotal - resolvedDiscount);
-          const residual = roundCalc(printGrandTotal - netBase - Number(master.deliveryCharge || 0) - resolvedVatAmount);
-          if (residual > 0.001) {
-            printCharges = residual;
-            if (printLevy <= 0) printLevy = residual;
-          }
-        }
-      }
-      const printNetValue = displayNetValue > 0 ? displayNetValue : roundCalc(Math.max(0, resolvedSubTotal - resolvedDiscount) + printCharges);
-
-      const printData = {
-        orderNo: master.orderNo ?? String(orderId),
-        ticketNo: toDisplayNo(master.ticketNo) ?? "",
-        invoiceNo,
-        // The real id only (list row, then saved order). The voucher number is not a sale id.
-        saleId: Number(orderSummary?.saleId ?? orderSummary?.SaleId ?? master.saleId ?? 0) || undefined,
-        waiter: resolvedWaiter,
-        counter: "Main",
-        section: master.sectionName || "DINE IN",
-        table: master.tableNo || "",
-        orderType: orderTypeName,
-        date,
-        time,
-        customerName: resolvedCustomerName || "CASH CUSTOMER",
-        driver: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
-        driverName: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,
-        vehicleNo: master.vehicleNo,
-        contactNo: isDeliveryOrder ? (resolvedContactNo || undefined) : undefined,
-        callBack: isDeliveryOrder ? (resolvedCallBack || undefined) : undefined,
-        missedCall: isDeliveryOrder ? Boolean(master.missedCall ?? master.isMissedCall) : undefined,
-        change: isDeliveryOrder ? validKeepChange : undefined,
-        keepChanges: isDeliveryOrder ? validKeepChange : undefined,
-        flatNo: isDeliveryOrder ? (resolvedFlatNo || undefined) : undefined,
-        buildingNo: isDeliveryOrder ? (resolvedBuildingNo || undefined) : undefined,
-        blockNo: isDeliveryOrder ? (resolvedBlockNo || undefined) : undefined,
-        roadNo: isDeliveryOrder ? (resolvedRoadNo || undefined) : undefined,
-        area: isDeliveryOrder ? (resolvedArea || undefined) : undefined,
-        address: isDeliveryOrder ? (resolvedAddress || undefined) : undefined,
-        providerNo: master.providerNo || master.providerOrderNo,
-        subTotal: resolvedSubTotal,
-        discount: resolvedDiscount,
-        serviceCharge: printSc,
-        levy: printLevy,
-        charges: printCharges,
-        netValue: printNetValue,
-        vatAmount: resolvedVatAmount,
-        netAmount: printGrandTotal > 0 ? printGrandTotal : unified.summary.grandTotal,
-        deliveryCharge: master.deliveryCharge || 0,
-        payments,
-        enableVat: unified.summary.isVatActive,
-        isSettlement: true,
-        printPrice: printPriceSetting,
-        priceView: getPriceView(),
-        billArabic:
-          isBillArabicEnabled() ||
-          mappedItems.some((it: any) =>
-            Boolean(it.product?.arabicName || it.variantArabic || (it as any).altArabic)
-          ),
-        isBillDiscount: isBillLevelDiscount,
-      };
-
-      const htmlContent = await generateGuestPrintHtml(unified as any, printData);
-
-      let billPrinter: string | undefined;
-      try {
-        const settingsRes = await printerSettingsApi.getGeneral();
-        const gen = settingsRes?.data;
-        billPrinter = gen?.androidBillPrinter || gen?.billPrinter || gen?.androidKOTPrinter || gen?.kotPrinter;
-      } catch (err) {
-        console.warn("[PosSettledDetailsModal] Could not fetch general printer settings:", err);
-      }
-
-      if (!billPrinter || billPrinter === "No Printer") {
-        billPrinter =
-          localStorage.getItem("cachedBillPrinter") ||
-          localStorage.getItem("cachedBillPrinterIp") ||
-          localStorage.getItem("cachedKotPrinter") ||
-          localStorage.getItem("cachedKotPrinterIp") ||
-          localStorage.getItem("printerIpAddress") ||
-          undefined;
-      }
-
-      await printHtmlReceipt(htmlContent, billPrinter);
-      showToast("Settled receipt sent to printer!", "success");
-    } catch (e: any) {
-      console.error("[PosSettledDetailsModal] Print error:", e);
-      showToast(e?.message ? `Print failed: ${e.message}` : "Failed to print receipt", "error");
-    }
-  };
+  const handlePrint = () => printSettledOrderReceipt({ orderId, order, orderDetailsStr, orderSummary, allExtras, modifierTypes, products, productCache, resolvedEmployeeName, showToast, displayDiscount, displaySubTotal, displayCharges, displayNetValue, netAmount });
 
   const isCancelled = Boolean(
     order?.isCancelled === true ||
@@ -989,7 +123,8 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
   const rawMaster = order?.masterData || order?.master || order;
   const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
   const details = Array.isArray(order?.detailsData) ? order.detailsData : (Array.isArray(order?.details) ? order.details : []);
-  const modifiersData = Array.isArray(order?.modifiersData) ? order.modifiersData : (Array.isArray(order?.modifiers) ? order.modifiers : []);
+  // The backend can repeat a modifier row (SQL join); show each once, as the Recall details window does.
+  const modifiersData = dedupeModifierRows(Array.isArray(order?.modifiersData) ? order.modifiersData : (Array.isArray(order?.modifiers) ? order.modifiers : []));
 
   const orderNo = master.orderNo ?? order?.orderNo ?? orderId ?? "";
   const orderTypeMap: Record<number, string> = {
@@ -1121,314 +256,157 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
 
 
   return (
-    <Modal
+    <SavedOrderWindow
       isOpen={isOpen}
       onClose={onClose}
-      size="lg"
-      noPadding
-      className="bg-[#262626] border border-stone-800 shadow-2xl rounded-2xl overflow-hidden w-full max-w-[520px] md:max-w-[550px]"
+      loading={loading}
+      loadingText="Retrieving Data..."
+      hasOrder={Boolean(order)}
+      header={
+        <>
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#f48120]">{t("ORDER DETAILS")}</h2>
+            {isCancelled && (
+              <span className="px-2.5 py-0.5 rounded-full bg-red-600/30 text-red-400 border border-red-500/50 text-[10px] font-black uppercase tracking-wider">
+                {t("CANCELLED")}
+              </span>
+            )}
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-stone-800 rounded-full transition-colors text-stone-400">
+            <X size={18} />
+          </button>
+        </>
+      }
     >
-      <div className="bg-[#1e1e1e] border-b border-stone-800 text-stone-100 py-3.5 px-6 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <h2 className="text-sm font-black uppercase tracking-[0.2em] text-[#f48120]">{t("ORDER DETAILS")}</h2>
+      <div className="flex-1 min-w-0 p-5 bg-[#faf8f5] text-stone-900 font-mono text-xs overflow-y-auto">
+        <div className="text-center font-bold border-b border-dashed border-stone-400 pb-3 mb-3">
+          <div className="text-sm font-black uppercase tracking-wide">BITEZO POS</div>
+          <div className="text-[10px] text-stone-500 font-medium">{t("SETTLED ORDER TICKET")}</div>
           {isCancelled && (
-            <span className="px-2.5 py-0.5 rounded-full bg-red-600/30 text-red-400 border border-red-500/50 text-[10px] font-black uppercase tracking-wider">
-              {t("CANCELLED")}
-            </span>
+            <div className="mt-2 inline-block px-3 py-0.5 rounded-full bg-red-100 text-red-700 font-black text-xs uppercase tracking-widest border border-red-300">
+              *** {t("CANCELLED")} ***
+            </div>
           )}
         </div>
-        <button onClick={onClose} className="p-1 hover:bg-stone-800 rounded-full transition-colors text-stone-400">
-          <X size={18} />
-        </button>
+        <div className="grid grid-cols-2 gap-y-1 text-[11px] border-b border-dashed border-stone-400 pb-3 mb-3">
+          {(master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo) && (
+            <MetaField label={t("Invoice")}>
+              {master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo}
+            </MetaField>
+          )}
+          <MetaField label={t("Order No")}>{orderNo}</MetaField>
+          <MetaField label={t("Emp")}>{resolvedEmployeeName}</MetaField>
+          <MetaField label={t("Type")} className="text-right" valueClassName="font-bold text-[#49293e]">{t(orderTypeName)}</MetaField>
+          <MetaField label={t("Customer")} className="col-span-2 sm:col-span-1">{displayCustomerName}</MetaField>
+          {orderTypeName.toLowerCase().includes("dine") && master.tableNo && (
+            <MetaField label={t("Table")} className="col-span-2 sm:col-span-1 text-right">
+              {master.sectionName ? `${master.sectionName} - ` : ""}
+              {master.tableNo}
+            </MetaField>
+          )}
+          {master.note && (
+            <MetaField label={t("Note")} className="col-span-2 mt-1" valueClassName="font-bold italic text-stone-600">"{master.note}"</MetaField>
+          )}
+          {master.vehicleNo && (
+            <MetaField label={t("Vehicle")} className="col-span-2 mt-1" valueClassName="font-bold uppercase">
+              {master.vehicleNo} {master.vehicleCustomerName ? `(${master.vehicleCustomerName})` : ""}
+            </MetaField>
+          )}
+          {displayDateStr && (
+            <div className="col-span-2 text-stone-500 text-[10px] mt-1">
+              Date: {displayDateStr}
+            </div>
+          )}
+        </div>
+        <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 border-b border-dashed border-stone-400 pb-2 mb-2 text-[10px] font-bold text-stone-500 uppercase">
+          <div className="text-center">{t("Qty")}</div>
+          <div>{t("Item")}</div>
+          <div className="text-right">{t("Price")}</div>
+          <div className="text-right">{t("Total")}</div>
+        </div>
+        <div className="space-y-2.5">
+          {(details && details.length > 0 ? details : (unified?.lines || [])).map((rawItem: any, i: number) => {
+            const isUnifiedLine = rawItem?.isUnifiedPricingLine === true;
+            const primaryName = isUnifiedLine ? rawItem.productName : (rawItem.productName || rawItem.itemName || `Item #${rawItem.productId || i + 1}`);
+            const arabicName = isUnifiedLine ? rawItem.productArabicName : (rawItem.arabicName || rawItem.productArabicName || "");
+            const localized = getLocalizedName(primaryName, arabicName);
+            const variantName = isUnifiedLine ? rawItem.variantName : (rawItem.variantName || rawItem.altName || "");
+            const displayItemName = formatItemDisplayName(localized.primary, variantName);
+            const displaySecondaryName = localized.secondary
+              ? formatItemDisplayName(localized.secondary, isUnifiedLine ? (rawItem.variantArabic || variantName) : (rawItem.variantArabic || rawItem.altArabic || variantName))
+              : "";
+
+            const qty = Number(rawItem.quantity ?? rawItem.qty ?? 1);
+            const price = isUnifiedLine ? rawItem.getRate(isTaxInclusive) : Number(rawItem.price ?? 0);
+            const lineDisc = isUnifiedLine
+              ? (typeof rawItem.getDiscount === "function" ? rawItem.getDiscount(isTaxInclusive) : (rawItem.lineDiscount || 0))
+              : Number(rawItem.discAmount ?? 0);
+            const itemDisc = (isItemDiscount && lineDisc > 0) ? lineDisc : 0;
+            const origGrossAmt = isUnifiedLine
+              ? (isTaxInclusive ? rawItem.inclusiveGross : rawItem.exclusiveGross)
+              : Number(rawItem.amount ?? (price * qty));
+            const netAmt = itemDisc > 0
+              ? Math.max(0, origGrossAmt - itemDisc)
+              : (isUnifiedLine
+                  ? ((unified?.summary?.isBillDiscount || isBillLevelDiscount) ? origGrossAmt : (isTaxInclusive ? rawItem.inclusiveAmount : rawItem.exclusiveAmount))
+                  : origGrossAmt);
+
+            // Modifiers / extras of the line (unified pricing lines carry them already split)
+            const lineRows = isUnifiedLine ? [] : modifierRowsOfLine(modifiersData, rawItem.mapId ?? rawItem.MapId);
+            const split = classifyLineModifiers(lineRows);
+            const extras = isUnifiedLine ? (rawItem.extras || []) : split.extras;
+            const standardMods = isUnifiedLine ? (rawItem.modifiers || []) : split.standardMods;
+            const messages = isUnifiedLine ? (rawItem.messages || []) : split.messages;
+
+            return (
+              <div key={i} className="space-y-0.5">
+                <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 text-[11px] items-start">
+                  <div className="font-bold text-stone-500 text-center">{qty}</div>
+                  <div className="min-w-0">
+                    <div className="font-bold text-stone-800 break-words [overflow-wrap:anywhere] [word-break:break-word]">{displayItemName}</div>
+                    {displaySecondaryName && (
+                      <div className="text-[9px] text-stone-500 font-medium break-words [overflow-wrap:anywhere] [word-break:break-word] mt-0.5">{displaySecondaryName}</div>
+                    )}
+                  </div>
+                  <div className="text-right text-stone-500 shrink-0">{formatAmount(price)}</div>
+                  <div className="text-right font-bold text-stone-900 shrink-0">{formatAmount(origGrossAmt)}</div>
+                </div>
+                {isItemDiscount && itemDisc > 0 && <ItemDiscountRow variant="settled" discount={itemDisc} net={netAmt} />}
+                <LineAddons variant="settled" extras={extras} standardMods={standardMods} messages={messages} />
+              </div>
+            );
+          })}
+        </div>
+        <SavedOrderTotals
+          shown={shownFooter}
+          discount={displayDiscount}
+          charges={displayCharges}
+          delivery={displayDeliveryCharge}
+          showVat={isVatActive || displayVatAmount > 0}
+        />
       </div>
 
-      {loading ? (
-        <div className="py-24 flex items-center justify-center bg-stone-900/40">
-          <Loader text="Retrieving Data..." />
-        </div>
-      ) : order ? (
-        <div className="flex flex-col md:flex-row min-h-[420px] bg-stone-950/80">
-          <div className="flex-1 min-w-0 p-5 bg-[#faf8f5] text-stone-900 font-mono text-xs overflow-y-auto">
-            <div className="text-center font-bold border-b border-dashed border-stone-400 pb-3 mb-3">
-              <div className="text-sm font-black uppercase tracking-wide">BITEZO POS</div>
-              <div className="text-[10px] text-stone-500 font-medium">{t("SETTLED ORDER TICKET")}</div>
-              {isCancelled && (
-                <div className="mt-2 inline-block px-3 py-0.5 rounded-full bg-red-100 text-red-700 font-black text-xs uppercase tracking-widest border border-red-300">
-                  *** {t("CANCELLED")} ***
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-y-1 text-[11px] border-b border-dashed border-stone-400 pb-3 mb-3">
-              {(master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo) && (
-                <div className="min-w-0 break-words [overflow-wrap:anywhere]">
-                  <span className="text-stone-500">{t("Invoice")}: </span>
-                  <span className="font-bold">
-                    {master.voucherNo || master.invoiceNo || master.voucherNumber || master.saleNo}
-                  </span>
-                </div>
-              )}
-              <div className="min-w-0 break-words [overflow-wrap:anywhere]">
-                <span className="text-stone-500">{t("Order No")}: </span>
-                <span className="font-bold">{orderNo}</span>
-              </div>
-              <div className="min-w-0 break-words [overflow-wrap:anywhere]">
-                <span className="text-stone-500">{t("Emp")}: </span>
-                <span className="font-bold">{resolvedEmployeeName}</span>
-              </div>
-              <div className="text-right min-w-0 break-words [overflow-wrap:anywhere]">
-                <span className="text-stone-500">{t("Type")}: </span>
-                <span className="font-bold text-[#49293e]">{t(orderTypeName)}</span>
-              </div>
-              <div className="col-span-2 sm:col-span-1 min-w-0 break-words [overflow-wrap:anywhere]">
-                <span className="text-stone-500">{t("Customer")}: </span>
-                <span className="font-bold">{displayCustomerName}</span>
-              </div>
-              {orderTypeName.toLowerCase().includes("dine") && master.tableNo && (
-                <div className="col-span-2 sm:col-span-1 text-right min-w-0 break-words [overflow-wrap:anywhere]">
-                  <span className="text-stone-500">{t("Table")}: </span>
-                  <span className="font-bold">
-                    {master.sectionName ? `${master.sectionName} - ` : ""}
-                    {master.tableNo}
-                  </span>
-                </div>
-              )}
-              {master.note && (
-                <div className="col-span-2 mt-1 min-w-0 break-words [overflow-wrap:anywhere]">
-                  <span className="text-stone-500">{t("Note")}: </span>
-                  <span className="font-bold italic text-stone-600">"{master.note}"</span>
-                </div>
-              )}
-              {master.vehicleNo && (
-                <div className="col-span-2 mt-1 min-w-0 break-words [overflow-wrap:anywhere]">
-                  <span className="text-stone-500">{t("Vehicle")}: </span>
-                  <span className="font-bold uppercase">
-                    {master.vehicleNo} {master.vehicleCustomerName ? `(${master.vehicleCustomerName})` : ""}
-                  </span>
-                </div>
-              )}
-              {displayDateStr && (
-                <div className="col-span-2 text-stone-500 text-[10px] mt-1">
-                  Date: {displayDateStr}
-                </div>
-              )}
-            </div>
-            <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 border-b border-dashed border-stone-400 pb-2 mb-2 text-[10px] font-bold text-stone-500 uppercase">
-              <div className="text-center">{t("Qty")}</div>
-              <div>{t("Item")}</div>
-              <div className="text-right">{t("Price")}</div>
-              <div className="text-right">{t("Total")}</div>
-            </div>
-            <div className="space-y-2.5">
-              {(details && details.length > 0 ? details : (unified?.lines || [])).map((rawItem: any, i: number) => {
-                const isUnifiedLine = rawItem?.isUnifiedPricingLine === true;
-                const primaryName = isUnifiedLine ? rawItem.productName : (rawItem.productName || rawItem.itemName || `Item #${rawItem.productId || i + 1}`);
-                const arabicName = isUnifiedLine ? rawItem.productArabicName : (rawItem.arabicName || rawItem.productArabicName || "");
-                const localized = getLocalizedName(primaryName, arabicName);
-                const variantName = isUnifiedLine ? rawItem.variantName : (rawItem.variantName || rawItem.altName || "");
-                const displayItemName = formatItemDisplayName(localized.primary, variantName);
-                const displaySecondaryName = localized.secondary
-                  ? formatItemDisplayName(localized.secondary, isUnifiedLine ? (rawItem.variantArabic || variantName) : (rawItem.variantArabic || rawItem.altArabic || variantName))
-                  : "";
+      <SavedOrderActions>
+        <Button
+          variant="primary"
+          onClick={handlePrint}
+          disabled={loading || !order}
+          className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-emerald-700 hover:bg-emerald-600 active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md disabled:opacity-50"
+        >
+          <Printer size={18} strokeWidth={2.5} />
+          {t("PRINT")}
+        </Button>
 
-                const qty = Number(rawItem.quantity ?? rawItem.qty ?? 1);
-                const price = isUnifiedLine ? rawItem.getRate(isTaxInclusive) : Number(rawItem.price ?? 0);
-                const lineDisc = isUnifiedLine
-                  ? (typeof rawItem.getDiscount === "function" ? rawItem.getDiscount(isTaxInclusive) : (rawItem.lineDiscount || 0))
-                  : Number(rawItem.discAmount ?? 0);
-                const itemDisc = (isItemDiscount && lineDisc > 0) ? lineDisc : 0;
-                const origGrossAmt = isUnifiedLine
-                  ? (isTaxInclusive ? rawItem.inclusiveGross : rawItem.exclusiveGross)
-                  : Number(rawItem.amount ?? (price * qty));
-                const netAmt = itemDisc > 0
-                  ? Math.max(0, origGrossAmt - itemDisc)
-                  : (isUnifiedLine
-                      ? ((unified?.summary?.isBillDiscount || isBillLevelDiscount) ? origGrossAmt : (isTaxInclusive ? rawItem.inclusiveAmount : rawItem.exclusiveAmount))
-                      : origGrossAmt);
+        <TicketActionButton tone="edit" onClick={handleEdit} disabled={loading || !order} dimWhenDisabled title={t("EDIT")}>
+          <Pencil size={18} strokeWidth={2.5} />
+          {t("EDIT")}
+        </TicketActionButton>
 
-                // Modifiers / Extras for line
-                const itemMapId = rawItem.mapId ?? rawItem.MapId;
-                const itemMods = (!isUnifiedLine && itemMapId !== undefined)
-                  ? modifiersData.filter((m: any) => Number(m.mapId ?? m.MapId) === Number(itemMapId))
-                  : [];
-
-                const extras = isUnifiedLine
-                  ? (rawItem.extras || [])
-                  : itemMods.filter((m: any) => {
-                      const p = Number(m.price ?? 0);
-                      const s = String(m.status || "").toLowerCase();
-                      const tid = Number(m.typeId || 0);
-                      return s === "extras" || s === "extra" || tid === 2 || p > 0;
-                    });
-
-                const standardMods = isUnifiedLine
-                  ? (rawItem.modifiers || [])
-                  : itemMods.filter((m: any) => {
-                      const p = Number(m.price ?? 0);
-                      const s = String(m.status || "").toLowerCase();
-                      const tid = Number(m.typeId || 0);
-                      return s !== "message" && s !== "extras" && s !== "extra" && tid !== 2 && p <= 0;
-                    });
-
-                const messages = isUnifiedLine
-                  ? (rawItem.messages || [])
-                  : itemMods.filter((m: any) => {
-                      const s = String(m.status || "").toLowerCase();
-                      return s === "message" || s === "messages";
-                    });
-
-                return (
-                  <div key={i} className="space-y-0.5">
-                    <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 text-[11px] items-start">
-                      <div className="font-bold text-stone-500 text-center">{qty}</div>
-                      <div className="min-w-0">
-                        <div className="font-bold text-stone-800 break-words [overflow-wrap:anywhere] [word-break:break-word]">{displayItemName}</div>
-                        {displaySecondaryName && (
-                          <div className="text-[9px] text-stone-500 font-medium break-words [overflow-wrap:anywhere] [word-break:break-word] mt-0.5">{displaySecondaryName}</div>
-                        )}
-                      </div>
-                      <div className="text-right text-stone-500 shrink-0">{formatAmount(price)}</div>
-                      <div className="text-right font-bold text-stone-900 shrink-0">{formatAmount(origGrossAmt)}</div>
-                    </div>
-                    {isItemDiscount && itemDisc > 0 && (
-                      <div className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 text-[11px] items-start font-bold">
-                        <div></div>
-                        <div className="col-span-2 text-right text-stone-700 whitespace-nowrap">
-                          {t("Disc")} : {formatAmount(itemDisc)}
-                        </div>
-                        <div className="text-right text-stone-900 shrink-0">
-                          {formatAmount(netAmt)}
-                        </div>
-                      </div>
-                    )}
-                    {/* Extras */}
-                    {extras && extras.length > 0 && extras.map((ex: any, exIdx: number) => {
-                      const exName = ex.modifierName || ex.name || "Extra";
-                      const exQty = Number(ex.qty ?? 1);
-                      return (
-                        <div key={`ex-${exIdx}`} className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 text-[9px] text-[#f48120] font-medium pl-6 italic items-start">
-                          <div className="col-span-3 min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word]">
-                            + {exQty > 1 ? `${exQty} x ` : ""}{exName}
-                          </div>
-                          <div className="text-right shrink-0"></div>
-                        </div>
-                      );
-                    })}
-                    {/* Modifiers */}
-                    {standardMods && standardMods.length > 0 && standardMods.map((mod: any, mIdx: number) => {
-                      return (
-                        <div key={`mod-${mIdx}`} className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 text-[9px] text-[#f48120] font-medium pl-6 italic items-start">
-                          <div className="col-span-3 min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word]">
-                            * {modifierLabelOf(mod)}
-                          </div>
-                          <div className="text-right shrink-0"></div>
-                        </div>
-                      );
-                    })}
-                    {/* Messages */}
-                    {messages && messages.length > 0 && messages.map((msg: any, msgIdx: number) => {
-                      const msgName = msg.modifierName || msg.name || "";
-                      return (
-                        <div key={`msg-${msgIdx}`} className="grid grid-cols-[28px_minmax(0,1fr)_55px_65px] gap-2 text-[9px] text-purple-600 font-medium pl-6 italic items-start">
-                          <div className="col-span-3 min-w-0 break-words [overflow-wrap:anywhere] [word-break:break-word]">
-                            💬 {msgName}
-                          </div>
-                          <div className="text-right shrink-0"></div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-            {/* Receipt Footer with Sub Total, Discount, Charges, VAT and Grand Total */}
-            <div className="border-t border-dashed border-stone-400 pt-3 mt-4 space-y-1 text-[11px]">
-              <div className="flex justify-between items-center text-stone-600">
-                <span>{t("Sub Total")}</span>
-                <span>{formatAmount(shownFooter.subTotal)}</span>
-              </div>
-              {displayDiscount > 0 && (
-                <div className="flex justify-between items-center text-red-600">
-                  <span>{t("Discount")}</span>
-                  <span>-{formatAmount(shownFooter.discount)}</span>
-                </div>
-              )}
-              {displayCharges > 0 && (
-                <div className="flex justify-between items-center text-stone-600">
-                  <span>{t("Charges")}</span>
-                  <span>{formatAmount(shownFooter.charges)}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center text-stone-600">
-                <span>{t("Net Value")}</span>
-                <span>{formatAmount(shownFooter.netValue)}</span>
-              </div>
-              {displayDeliveryCharge > 0 && (
-                <div className="flex justify-between items-center text-stone-600">
-                  <span>{t("Delivery Charge")}</span>
-                  <span>{formatAmount(shownFooter.delivery)}</span>
-                </div>
-              )}
-              {(isVatActive || displayVatAmount > 0) && (
-                <div className="flex justify-between items-center text-stone-600">
-                  <span>{t("VAT")}</span>
-                  <span>{formatAmount(shownFooter.vat)}</span>
-                </div>
-              )}
-              <div className="flex justify-between items-center text-xs font-bold text-stone-900 uppercase pt-2 border-t border-dashed border-stone-300">
-                <span>{t("Grand Total")}</span>
-                <span className="text-base font-black text-[#f48120]">{formatAmount(shownFooter.grandTotal)}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="w-full md:w-28 shrink-0 bg-stone-900 border-t md:border-t-0 md:border-l border-stone-800 p-3 flex flex-row md:flex-col gap-2 justify-stretch items-stretch overflow-x-auto">
-            <Button
-              variant="primary"
-              onClick={handlePrint}
-              disabled={loading || !order}
-              className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-emerald-700 hover:bg-emerald-600 active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md disabled:opacity-50"
-            >
-              <Printer size={18} strokeWidth={2.5} />
-              {t("PRINT")}
-            </Button>
-
-            <button
-              onClick={handleEdit}
-              disabled={loading || !order}
-              className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-[#49293e] hover:bg-[#5c3450] active:scale-95 text-stone-100 font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 shadow-md disabled:opacity-50"
-              title={t("EDIT")}
-            >
-              <Pencil size={18} strokeWidth={2.5} />
-              {t("EDIT")}
-            </button>
-
-            <button
-              onClick={onClose}
-              className="flex-1 md:flex-initial h-12 md:h-14 rounded-xl bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-300 hover:text-white font-black text-[10px] uppercase tracking-widest transition-all flex flex-col justify-center items-center gap-1 border border-stone-700/50 shadow-md"
-            >
-              <X size={18} strokeWidth={2.5} />
-              {t("CLOSE")}
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="py-20 flex flex-col items-center justify-center text-stone-400 bg-stone-900/40">
-          <svg
-            className="w-12 h-12 text-stone-600 mb-3 animate-bounce"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
-            />
-          </svg>
-          <p className="text-xs font-bold uppercase tracking-widest">{t("No Order Data Available")}</p>
-        </div>
-      )}
-    </Modal>
+        <TicketActionButton tone="close" onClick={onClose}>
+          <X size={18} strokeWidth={2.5} />
+          {t("CLOSE")}
+        </TicketActionButton>
+      </SavedOrderActions>
+    </SavedOrderWindow>
   );
 };
