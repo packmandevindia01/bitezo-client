@@ -1,7 +1,7 @@
 {
-  "total": 2927,
+  "total": 2911,
   "byRule": {
-    "@typescript-eslint/no-explicit-any": 2813,
+    "@typescript-eslint/no-explicit-any": 2797,
     "no-empty": 55,
     "react-hooks/set-state-in-effect": 27,
     "react-hooks/refs": 11,

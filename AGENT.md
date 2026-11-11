@@ -353,6 +353,12 @@ Dine-In table orders (`DineInTableOrdersModal`): `GET /menu/dine-in/tables/{tabl
 Exclusive) gives the table's orders, shown as Recall-style rows (row text = the Recall list's own text for
 that orderId, from `GET /order/recall?OrderTypeId=1`). Clicking a row opens `PosRecallDetailsModal`; its
 Edit / Settle are routed back to the table screen's Dine-In flows via `onEditRequest` / `onSettleRequest`. Edit → `loadRecalledOrder` (see §5.8).
+The table screen's code outside the window (2026-11-11): `utils/loadDineInOrder.ts` (order → cart items),
+`utils/dineInSettlement.ts` (`buildDineInSettleOrder`: invoice order from the STORED order; `printDineInSettleReceipt`),
+`utils/printDineInOrder.ts` (row PRINT guest bill), `utils/dineInBillFigures.ts` (footer figures shared by both prints),
+`utils/dineInTable.ts` (reserved check, row text, `paymodesToTenderOptions` — also used by the terminal),
+`dining/TableOrderRow.tsx`. Test `dineInTableOrdersSnapshot` records the list, the invoice, both receipts and the
+cart after Edit.
 Save → `buildUpdateOrderPayload` → `PUT /menu/order/{id}` with `prevUpdatedAt` concurrency token
 (fetched fresh before the update). Combined groups update the highest order id.
 Existing lines keep their `mapId`; new lines get `max(mapId)+1…`. Removed/decreased lines go to
@@ -681,7 +687,7 @@ Main market: Bahrain / GCC (3-decimal currencies, see R8).
 | `shared/` (Phase 0) | used by POS and Back Office, may not import features (ESLint): `api/http.ts` (axios client; old path `api/axiosInstance.ts` re-exports), `api/unwrap.ts` (`unwrapBody` / `unwrapData` / `unwrapEnvelope` / `unwrapStrict`), `lib/` money, date, html, print, currency (old `utils/*` paths re-export), `config/settings.ts` (typed safe reads of localStorage settings — use in new code) |
 
 Size: ~84k lines of TS/TSX. Files over 1,000 lines (hard to change safely):
-`escPosGenerator.ts`, `DineInTableOrdersModal.tsx`,
+`escPosGenerator.ts`,
 `usePosCheckoutFlow.ts`, `endReportTemplate.ts`, `usePurchaseReturn.ts`, `PosCashierSessionModal.tsx`,
 `posSlice.ts`, `PosTerminalPage.tsx`.
 
