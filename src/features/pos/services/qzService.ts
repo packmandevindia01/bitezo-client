@@ -3,6 +3,7 @@ import html2canvas from 'html2canvas';
 import { ensureReceiptFonts, withReceiptFontFaces } from '@shared/lib/receiptFonts';
 import { generateUUID } from '../../../utils/uuid';
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from '../utils/printHeadingUtils';
+import { diagnosePrintAgentFailure } from "../utils/printAgentDiagnosis";
 
 export interface BitezoPrinterPlugin {
   printImage(options: { base64: string; type: string; address: string; port?: number }): Promise<void>;
@@ -95,7 +96,8 @@ class PrintAgentClient {
     }
 
     this.isConnecting = false;
-    throw new Error("Could not reach Printer Agent. Is PrinterAgent.exe running?");
+    // Say why: Chrome's Local Network Access block, an internet page address, or the agent not running.
+    throw new Error(await diagnosePrintAgentFailure());
   }
 
   private tryConnectUrl(url: string): Promise<void> {
@@ -443,6 +445,19 @@ export const printEscPosMarkup = async (markup: string, targetPrinterName?: stri
   });
 
   console.log("[Native ESC/POS] Print job sent successfully.");
+};
+
+/**
+ * Can this page reach the Printer Agent? null when it can, otherwise the reason in plain words
+ * (printer settings shows it as a notice).
+ */
+export const checkPrintAgent = async (): Promise<string | null> => {
+  try {
+    await printAgent.connect();
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
 };
 
 /**
