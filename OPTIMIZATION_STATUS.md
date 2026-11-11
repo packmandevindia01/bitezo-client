@@ -23,11 +23,12 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Safety net: `savedOrderWindowsSnapshot` renders both windows (dine-in item discount; delivery bill discount) and matched the old HTML exactly after the split. Unit tests: `savedOrderPieces`.
 - Two deliberate changes: the Settled window no longer shows a duplicated modifier row the backend sometimes sends (the Recall window already dropped it); it no longer fetches extras and modifier types twice on open, and a different order now opens in a fresh window (`key` per order in `PosSettledModal`).
 - Not checked in the real app: open, PRINT and EDIT from Settled; KOT, GUEST, EDIT and SETTLE from Recall.
+- Terminal settle hook `usePosCheckoutFlow`: 1,264 → 486 lines. The 775 lines that build the receipt data after the invoice is saved moved verbatim to `utils/settleReceiptData.ts` (`buildSettleReceiptPayload`, with the saved-line mapping and the driver lookup as their own functions). Safety net `terminalSettleSnapshot` (new cart cash; recalled Dine-In with item discount; delivery with bill discount, address, driver, keep change; combined order; settled bill update) records the invoice and every page printed and matched before and after; `settleReceiptLines` covers the saved-line mapping. No intended change. Not checked in the real app: terminal settle cash / card / multi-pay, recall settle, settled edit.
 - Dine-In table orders window: 1,306 → 664 lines. Order loader, invoice building, settle receipt, guest bill, the shared bill figures, the reserved / row-text / payment-type helpers and the row component moved out (`loadDineInOrder.ts`, `dineInSettlement.ts`, `printDineInOrder.ts`, `dineInBillFigures.ts`, `dineInTable.ts`, `TableOrderRow.tsx`). The guest bill and the settle receipt had the same line and totals code twice; now one helper (settle receipt still shows a discount only for a bill discount). The terminal uses the same Cash-first payment order helper. Safety net `dineInTableOrdersSnapshot` (list, invoice, both receipts, cart after Edit) matched before and after; unit tests `dineInHelpers`. No intended change. Not checked in the real app: table list, row PRINT, SETTLE (receipt, drawer) and EDIT.
 
 ### Not done
 
-- `usePosCheckoutFlow` (1,302), `PosCashierSessionModal` (1,169), `PosTerminalPage` (1,101). The employee choice before settling is written out three times in the Dine-In window (left as is).
+- `PosCashierSessionModal` (1,169), `PosTerminalPage` (1,101). The employee choice before settling is written out three times in the Dine-In window (left as is).
 - Printing module (P5) and the 3-zone layout.
 
 ## Phase 6 (2026-11-11)

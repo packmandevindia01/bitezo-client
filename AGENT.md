@@ -365,7 +365,10 @@ Existing lines keep their `mapId`; new lines get `max(mapId)+1…`. Removed/decr
 `voidProducts` / `voidModifiers`.
 
 ### 6.5 Settle
-`usePosCheckoutFlow`:
+`usePosCheckoutFlow` (validation, invoice, save with the ticket-clash fallback, drawer, KOT, print question,
+settle lock). After the save, the receipt data comes from `utils/settleReceiptData.ts` `buildSettleReceiptPayload`
+(settled order read back with fallbacks, line mapping, delivery / driver fields, totals) — split out 2026-11-11;
+test `terminalSettleSnapshot` records the invoice and every page printed for five settles.
 - Direct settle (new cart) or settle a recalled order.
 - `buildDirectSettleOrderPayload` → `buildSalesInvoicePayload` → `POST /sales-invoices`
   (or `PUT /sales-invoices/{saleId}` when editing a settled order).
@@ -688,7 +691,7 @@ Main market: Bahrain / GCC (3-decimal currencies, see R8).
 
 Size: ~84k lines of TS/TSX. Files over 1,000 lines (hard to change safely):
 `escPosGenerator.ts`,
-`usePosCheckoutFlow.ts`, `endReportTemplate.ts`, `usePurchaseReturn.ts`, `PosCashierSessionModal.tsx`,
+`endReportTemplate.ts`, `usePurchaseReturn.ts`, `PosCashierSessionModal.tsx`,
 `posSlice.ts`, `PosTerminalPage.tsx`.
 
 ### 11.3 Commands
