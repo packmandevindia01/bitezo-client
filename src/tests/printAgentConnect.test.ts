@@ -11,7 +11,9 @@ class FailingSocket {
   onerror: ((e: unknown) => void) | null = null;
   onclose: (() => void) | null = null;
   onmessage: ((e: unknown) => void) | null = null;
-  constructor(public url: string) {
+  url: string;
+  constructor(url: string) {
+    this.url = url;
     FailingSocket.opened++;
     setTimeout(() => this.onerror?.(new Event("error")), 0);
   }

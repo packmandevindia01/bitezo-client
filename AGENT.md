@@ -371,9 +371,12 @@ routines live in `terminal/utils/`: `loadSettledOrder.ts` (settled details + inv
 `recallListText.ts` (list-row text fallback). Test `savedOrderWindowsSnapshot` renders both windows: a
 change to what they show must update its snapshot on purpose.
 Dine-In table orders (`DineInTableOrdersModal`): `GET /menu/dine-in/tables/{tableId}/orders` (fetched
-Exclusive) gives the table's orders, shown as Recall-style rows (row text = the Recall list's own text for
-that orderId, from `GET /order/recall?OrderTypeId=1`). Clicking a row opens `PosRecallDetailsModal`; its
-Edit / Settle are routed back to the table screen's Dine-In flows via `onEditRequest` / `onSettleRequest`. Edit → `loadRecalledOrder` (see §5.8).
+Exclusive) gives the table's orders. Since 2026-11-12 (owner's request) they show as side-by-side CARDS (`dining/TableOrderCard.tsx`),
+each the Recall preview's own ticket (`savedOrder/SavedOrderTicketBody.tsx`, loaded in full by `utils/loadRecallOrder.ts`
+`fetchRecallOrderData`, the same loader the Recall preview uses; reloaded when the order total changes on the 10 s refresh).
+Tap a card = select; action column NEW/ASSIGN · EDIT · SETTLE · KOT · GUEST · CLOSE works on the selected card; DETAILS / double-click /
+Enter opens `PosRecallDetailsModal`, whose Edit / Settle are routed back to the table screen's Dine-In flows via `onEditRequest` / `onSettleRequest`.
+The Printed badge still comes from the Recall list (`GET /order/recall?OrderTypeId=1`). Edit → `loadRecalledOrder` (see §5.8).
 The table screen's code outside the window (2026-11-11): `utils/loadDineInOrder.ts` (order → cart items),
 `utils/dineInSettlement.ts` (`buildDineInSettleOrder`: invoice order from the STORED order; `printDineInSettleReceipt`),
 `utils/printDineInOrder.ts` (row PRINT guest bill), `utils/dineInBillFigures.ts` (footer figures shared by both prints),
@@ -466,6 +469,51 @@ Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set
 ### 6.9 Other modules
 Bulk settlement (driver/provider unsettled orders), cashier in/out, pay in/out, lock item, delivery
 customers, provider orders (`orderTypeId 5`, customer = provider post account).
+Back Office Menu Settings (`general/menuSettings`, 2026-11-12): session hours are All day / Set hours with <input type="time">,
+presets, a plain summary ("12:00 PM → 3:00 AM next day · 15 h"), a past-midnight warning, overlap hints and a 24-hour
+timeline (`components/SessionTimeline.tsx`, `utils/sessionTime.ts`); the list has an Hours column and a Day overview (it loads
+each session's details, the list endpoint has no times). Saved as HH:mm:00; same start and end = all day.
+Category branch allocation: an EMPTY branch list means ALL branches (Category Master sends BranchIdsJson "" for All branches
+and shows a category with no branches, or every branch ticked, as All branches). Unticking every branch also saves as All.
+Menu sessions (Menu Time Settings, checked 2026-11-12): categories are allocated to sessions in Category Master (`menu`
+list on the category). Master data lists only the sessions running now (refreshed every 30 s); `/menu/{menuId}/categories`
+returns a session's categories (menu 0 = all). `usePosProducts`: a running session shows ONLY its categories (no padding
+with master data / Category Master); when the selected session ends the POS moves to the first running one; none running →
+menu 0. Products follow their category (the products endpoint has no menuId). Open: branch allocation (a category with no
+branch, e.g. Juice, still shows at Main); Category Master saves menu 1 when no menu is picked (`category/api.ts`).
+Backend bugs (8060, 2026-11-12, sessions Breakfast 06:00–23:59, Lunch 12:00–03:00, Evening Snacks 15:00–19:00,
+Dinner 19:00–00:00): `/menu/master-data?currentTime=` returns EVERY session at any hour (time not applied) and sends no
+start / end times; `/menu/0/categories` repeats a category once per session it is in. POS: categories deduped in
+`getGroupCategories`; `isMenuSessionRunning` (start = end → all day, end < start → over midnight, end exclusive) filters
+master-data sessions as soon as the server sends their startTime / endTime. The POS login gets 403 on menu-time-settings.
+Test: `menuSessionMenu.test.tsx`.
+Provider menu (checked on backend 8060, 2026-11-12): each provider's id continues after the order types (Swiggy 5, Zomato 6 …).
+The menu endpoints (categories, products, product-list, alternatives, product data) take that PROVIDER ID as `orderTypeId`
+and return the provider's own products and prices from Provider Settings (with providerOwnStatus on, categories without its
+products are hidden). So menu calls use `selectMenuOrderTypeId` (posSelectors: type 5 + `menuProviderId` → the provider id),
+synced from PosTerminalPage's activeProvider. The SAVED order keeps orderTypeId 5 + providerId (orderPayloadMapper).
+Known backend issues: GET provider-settings/{transId}/provider-settings-data returns each product ~3× with another
+product's barcode / alt name (the edit screen dedupes; saving sends only product, unit, price, tax type); a provider with no
+settings for the terminal's branch shows an empty menu when providerOwnStatus is on. A recalled provider order restores its provider
+(`loadRecalledOrder` payload `providerId` from the saved master, when the backend returns it); `clearCart` forgets it.
+Provider own menu ON: the category rail shows ONLY the server's categories for the provider (no padding with master data /
+Category Master — `usePosProducts` `providerOwnMenu`).
+More backend bugs (2026-11-12, two providers): products by category return EVERY provider's rows (one per provider, only the
+price differs), product data returns the first provider's price, alternatives repeat per provider. Correct per provider:
+categories and product-list. Workaround in `menuApi` (block "Provider menus"): the provider's product-list decides which
+category products show and their price (`fixProviderMenuProducts`, cached 1 min, cleared by `clearAllPosCache`); identical
+alternative rows are dropped. Remove it once the backend filters products / product data by provider. Re-check after the backend fix (2026-11-12, only Zomato has settings): provider-settings-data
+fixed (no duplicates; products without an alternative now come with an EMPTY code — the Back Office edit screen fills it from
+load_products); category products one row each at Zomato's price (two-provider mixing not testable: Swiggy has no settings);
+product data STILL returns another provider's price (Swiggy masala dosa = Zomato's 2); alternatives STILL repeat (Chicken
+Biriyani "aaa" ×2 with a provider, ×1 without). Workaround kept.
+Backend endpoint with the duplicate / wrong code + alt name rows: `GET /api/v1/provider-settings/{transId}/provider-settings-data`.
+Back Office Provider Settings form (`general/providerSettings`, checked 2026-11-12): payloads match the backend DTOs
+(POST: branchId, providerId, createdAt, details[productId, unitId, isIncl, price]; PUT adds transId, updatedAt instead of
+createdAt). Fixes: Edit loads each product's REAL alternatives (list_alt_name) and shows its own code (load_products) instead
+of the server's wrong ones; a product row without a unit warns instead of being dropped; a second price list for the same
+provider + branch is refused; Excl / Incl use the product's own sales VAT (`utils/providerVat.ts`: productid-data sVatId +
+product load_master-data VAT list), not a fixed 5 %. Test: `providerSettingsForm.test.tsx`.
 
 **Extras & Modifiers** (More → EXTRAS & MODIFIERS, route `/pos/menu-masters`, `pos/menuMasters/`): tabs for Extras, Extras Type,
 Modifier and Modifier Type. Each tab renders the Back Office page (`inventory/extrasMaster`, `extrasType`, `modifier`, `modifierType`),

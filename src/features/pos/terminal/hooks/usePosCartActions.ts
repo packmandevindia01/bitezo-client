@@ -246,7 +246,7 @@ export const usePosCartActions = () => {
     isSubmittingOrderRef.current = true;
     setOrderLoading(true);
     setOrderError(null);
-    showToast("Placing order, please wait...", "info");
+    // No "Placing order…" toast: the ORDER button shows PROCESSING… while it saves (owner, 2026-11-12).
 
     try {
       const context = getFormContext();
