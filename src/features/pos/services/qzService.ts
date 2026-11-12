@@ -31,7 +31,8 @@ const DEFAULT_AGENT_PORTS = [9191, 8181];
 class PrintAgentClient {
   private ws: WebSocket | null = null;
   private pending = new Map<string, { resolve: (res: any) => void; reject: (err: any) => void }>();
-  private isConnecting = false;
+  /** The connection attempt in progress; callers that arrive meanwhile share it (and its failure reason). */
+  private connectPromise: Promise<void> | null = null;
   private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private activeUrl = "ws://localhost:9191/print";
   private defaultPrinter: string | null = null;
@@ -45,27 +46,19 @@ class PrintAgentClient {
     return this.activeUrl;
   }
 
-  public async connect(): Promise<void> {
-    if (this.isConnected()) return;
-
-    if (this.isConnecting) {
-      return new Promise<void>((resolve, reject) => {
-        const check = setInterval(() => {
-          if (this.isConnected()) {
-            clearInterval(check);
-            resolve();
-          }
-        }, 100);
-        setTimeout(() => {
-          clearInterval(check);
-          if (this.isConnected()) resolve();
-          else reject(new Error("Timeout connecting to Printer Agent."));
-        }, 5000);
+  public connect(): Promise<void> {
+    if (this.isConnected()) return Promise.resolve();
+    // One attempt at a time. A second caller (e.g. printer settings and the printer list at the same moment)
+    // gets the same outcome — including why it failed — instead of a generic "Timeout connecting…".
+    if (!this.connectPromise) {
+      this.connectPromise = this.connectOnce().finally(() => {
+        this.connectPromise = null;
       });
     }
+    return this.connectPromise;
+  }
 
-    this.isConnecting = true;
-
+  private async connectOnce(): Promise<void> {
     const customIp = localStorage.getItem("printServerIp");
     const candidateUrls: string[] = [];
 
@@ -87,7 +80,6 @@ class PrintAgentClient {
       try {
         await this.tryConnectUrl(url);
         this.activeUrl = url;
-        this.isConnecting = false;
         console.log(`[PrintAgent] Connected successfully to ${this.activeUrl}`);
         return;
       } catch {
@@ -95,7 +87,6 @@ class PrintAgentClient {
       }
     }
 
-    this.isConnecting = false;
     // Say why: Chrome's Local Network Access block, an internet page address, or the agent not running.
     throw new Error(await diagnosePrintAgentFailure());
   }
