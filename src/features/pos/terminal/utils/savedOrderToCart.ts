@@ -275,6 +275,8 @@ export const buildSavedOrderLoad = (orderData: any, options: SavedOrderLoadOptio
     }),
     orderTypeId,
     orderTypeName,
+    // Provider of a saved provider order, so the POS shows that provider's own menu (selectMenuOrderTypeId).
+    providerId: Number(master.providerId ?? master.ProviderId ?? orderData?.providerId) || null,
     customerId: master.customerId || 1,
     addressId: master.addressId || 0,
     ...resolveRecalledBillDiscount(orderData, Number(resolvedBillDiscVal || 0), resolvedBillDiscType),

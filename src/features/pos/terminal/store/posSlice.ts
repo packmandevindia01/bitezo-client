@@ -64,6 +64,11 @@ interface PosState {
   area: string;
   waiterId: number | null;
   waiterName: string | null;
+  /**
+   * Provider of the provider order being taken (null otherwise). The server keys a provider's own menu by the provider
+   * id sent as the menu's orderTypeId (Swiggy 5, Zomato 6 …), so menu calls use it (selectMenuOrderTypeId).
+   */
+  menuProviderId: number | null;
   editingOrderId: number | null;
   editingSaleId: number | null;
   prevUpdatedAt: string | null;
@@ -217,6 +222,7 @@ const initialState: PosState = {
   area: '',
   waiterId: initialWaiter.id,
   waiterName: initialWaiter.name,
+  menuProviderId: null,
   editingOrderId: null,
   editingSaleId: null,
   prevUpdatedAt: null,
@@ -384,6 +390,7 @@ const posSlice = createSlice({
     },
     clearCart: (state) => {
       state.cartItems = [];
+      state.menuProviderId = null;
       state.editingOrderId = null;
       state.editingSaleId = null;
       state.prevUpdatedAt = null;
@@ -817,6 +824,7 @@ const posSlice = createSlice({
       isMissedCall?: boolean;
       missedCall?: boolean;
       isCartModified?: boolean;
+      providerId?: number | null;
       authoritativeNetAmount?: number | null;
       authoritativeSubtotal?: number | null;
       authoritativeDiscount?: number | null;
@@ -867,6 +875,7 @@ const posSlice = createSlice({
       state.isSettling = isSettling ?? false;
       state.isSettledEdit = isSettledEdit ?? false;
       state.waiterName = waiterName ?? null;
+      state.menuProviderId = Number(action.payload.providerId) > 0 ? Number(action.payload.providerId) : null;
       state.isCartModified = isCartModified ?? false;
       state.editingOrderRates = action.payload.editingOrderRates ?? null;
       state.authoritativeNetAmount =
@@ -1089,6 +1098,9 @@ const posSlice = createSlice({
     setCustomDeliveryCharge: (state, action: PayloadAction<number | null>) => {
       state.customDeliveryCharge = action.payload;
     },
+    setMenuProviderId: (state, action: PayloadAction<number | null>) => {
+      state.menuProviderId = action.payload && action.payload > 0 ? action.payload : null;
+    },
     setWaiter: (state, action: PayloadAction<{ waiterId: number | null; waiterName: string | null }>) => {
       state.waiterId = action.payload.waiterId;
       state.waiterName = action.payload.waiterName;
@@ -1147,7 +1159,8 @@ export const {
   setIsSettling,
   setCombinedOrderIds,
   setCustomDeliveryCharge,
-  setWaiter
+  setWaiter,
+  setMenuProviderId
 } = posSlice.actions;
 
 export default posSlice.reducer;

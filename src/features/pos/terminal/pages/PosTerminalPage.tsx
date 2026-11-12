@@ -18,8 +18,8 @@ import { PosTerminalModals } from "../components/modals/PosTerminalModals";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { SettlePrintPrompt } from "../components/modals/payment/SettlePrintPrompt";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
-import { clearAllItemDiscounts, setCustomerId, setCustomDeliveryCharge, setWaiter } from "../store/posSlice";
-import { selectDeliveryCharge } from "../store/posSelectors";
+import { clearAllItemDiscounts, setCustomerId, setCustomDeliveryCharge, setWaiter, setMenuProviderId } from "../store/posSlice";
+import { selectDeliveryCharge, selectMenuOrderTypeId } from "../store/posSelectors";
 import { roundCalc } from "../utils/billing";
 import { disableDefaultEmployeeConfig, isDefaultEmployeeValidInCache } from "../../utils/defaultEmployee";
 import { getModifierTypeNameById } from "../../services/menuApi";
@@ -48,6 +48,13 @@ export const PosTerminalPage = () => {
 
   const [selectedProviderForOrder, setSelectedProviderForOrder] = useState<MenuProvider | null>(null);
   const [activeProvider, setActiveProvider] = useState<{ provider: MenuProvider; orderNo: string } | null>(null);
+  // The menu follows the provider of a provider order (its own products and prices): see selectMenuOrderTypeId.
+  // Set when a provider order starts (a new object every time, so picking the same provider again still sets it).
+  // Cleared by clearCart; a recalled provider order sets its own provider in loadRecalledOrder.
+  useEffect(() => {
+    if (activeProvider?.provider?.providerId) dispatch(setMenuProviderId(activeProvider.provider.providerId));
+  }, [activeProvider, dispatch]);
+  const menuOrderTypeId = useAppSelector(selectMenuOrderTypeId);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selectedTender, setSelectedTender] = useState<string>("");
   const [extrasModifierType, setExtrasModifierType] = useState<"none" | "extras" | "modifiers">("none");
@@ -147,7 +154,7 @@ export const PosTerminalPage = () => {
   // Product, variation, and search selection handling
   const productSelection = useProductSelection({
     visibleProducts: terminal.visibleProducts,
-    selectedOrderTypeId: terminal.selectedOrderTypeId || 1,
+    selectedOrderTypeId: menuOrderTypeId,
     addProduct: terminal.addProduct,
     setSelectedKey,
     openPriceModal: () => modals.setIsPriceModalOpen(true),
@@ -769,7 +776,7 @@ export const PosTerminalPage = () => {
       await productSelection.handleProductSelect(product.id);
     } else {
       setSelectedKey(null); // nothing selected during the wait (see useProductSelection)
-      const newKey = await terminal.addProductBySku(barcode, terminal.selectedOrderTypeId || 1);
+      const newKey = await terminal.addProductBySku(barcode, menuOrderTypeId);
       if (newKey) {
         setSelectedKey(newKey);
       }
@@ -850,7 +857,7 @@ export const PosTerminalPage = () => {
 
             <div className="flex-1 flex items-center justify-end py-1">
               <PosProductSearchDropdown
-                orderTypeId={terminal.selectedOrderTypeId || 1}
+                orderTypeId={menuOrderTypeId}
                 onSelectProduct={(item: PosProductSearchResult) =>
                   productSelection.handleSearchProductSelect(item)
                 }

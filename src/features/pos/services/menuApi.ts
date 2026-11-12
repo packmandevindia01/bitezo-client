@@ -25,7 +25,7 @@ const getTenantQuery = () => {
   return `?clientDb=${tenantId}`;
 };
 
-const getProviderOwnStatus = (orderTypeId?: number) => {
+export const getProviderOwnStatus = (orderTypeId?: number) => {
   try {
     const saved = localStorage.getItem('posConfigs');
     const full = saved ? JSON.parse(saved) : {};
@@ -42,6 +42,73 @@ const getProviderOwnStatus = (orderTypeId?: number) => {
   } catch {
     return true;
   }
+};
+
+/* ── Provider menus ───────────────────────────────────────────────────────────────────────────────────────────────
+ * A provider order asks the menu with the PROVIDER ID as orderTypeId (Swiggy 5, Zomato 6 …; ids after the order
+ * types 1–4). Backend 8060, checked 2026-11-12 with two providers:
+ *  - correct per provider: categories, product-list (search);
+ *  - WRONG: products by category return every provider's rows (each product once per provider, only the price
+ *    differs, nothing tells them apart), product data returns the first provider's price, alternatives repeat.
+ * Until the backend is fixed, the provider's own list from product-list (correct) decides which products a category
+ * shows and their price. Remove this block once products / product data filter by provider. */
+export const isProviderMenuOrderType = (orderTypeId?: number) => Number(orderTypeId) > 4;
+
+const PROVIDER_PRICE_TTL_MS = 60_000;
+const providerPriceCache = new Map<number, { at: number; prices: Promise<Map<number, number>> }>();
+
+/** productId → the provider's price, from product-list (correct per provider). Cached for a minute. */
+const providerPrices = (orderTypeId: number): Promise<Map<number, number>> => {
+  const hit = providerPriceCache.get(orderTypeId);
+  if (hit && Date.now() - hit.at < PROVIDER_PRICE_TTL_MS) return hit.prices;
+  const prices = menuApi
+    .searchProducts({ productName: "", orderTypeId })
+    .then((list) => new Map(list.map((p) => [Number(p.productId), Number(p.price)] as [number, number])))
+    .catch(() => new Map<number, number>());
+  providerPriceCache.set(orderTypeId, { at: Date.now(), prices });
+  return prices;
+};
+
+/** Forget the cached provider price lists (New Order, menu updated). */
+export const clearProviderPriceCache = () => providerPriceCache.clear();
+
+/**
+ * Category products on a provider menu: one row per product with the provider's price. With the provider's own menu on,
+ * only its products; with it off, every product (the provider's price where it has one).
+ */
+export const fixProviderMenuProducts = <T extends { id: number; price?: number }>(rows: T[], prices: Map<number, number>, ownMenuOnly: boolean): T[] => {
+  if (prices.size === 0) return rows;
+  const seen = new Set<number>();
+  const out: T[] = [];
+  for (const row of rows) {
+    const id = Number(row.id);
+    if (seen.has(id)) continue;
+    const price = prices.get(id);
+    if (price === undefined && ownMenuOnly) continue;
+    seen.add(id);
+    out.push(price === undefined ? row : { ...row, price });
+  }
+  return out;
+};
+
+/** "HH:mm[:ss]" → seconds since midnight, or null. */
+const timeOfDay = (value: unknown): number | null => {
+  const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(String(value ?? "").trim());
+  if (!m) return null;
+  return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3] ?? 0);
+};
+
+/**
+ * Whether a menu session runs at `now` ("HH:mm:ss"). No times → always (the server decides). Start = end → all day.
+ * A window that ends earlier than it starts runs over midnight (22:00 – 02:00). End is exclusive.
+ */
+export const isMenuSessionRunning = (start: unknown, end: unknown, now: string): boolean => {
+  const s = timeOfDay(start);
+  const e = timeOfDay(end);
+  const t = timeOfDay(now);
+  if (s === null || e === null || t === null) return true;
+  if (s === e) return true;
+  return s < e ? t >= s && t < e : t >= s || t < e;
 };
 
 const MODIFIER_TYPES_CACHE_KEY = "bitezo_modifier_types_cache";
@@ -144,7 +211,10 @@ export const menuApi = {
       }
     }));
 
-    const rawMenu = raw.menu ?? raw.groups ?? raw.group ?? [];
+    // Menu sessions running now. The server should filter by currentTime but (8060, 2026-11-12) returns every session
+    // at any hour; when it sends each session's start / end time, the POS filters them itself (isMenuSessionRunning).
+    const rawMenu = (raw.menu ?? raw.groups ?? raw.group ?? []).filter((m: { startTime?: unknown; StartTime?: unknown; endTime?: unknown; EndTime?: unknown }) =>
+      isMenuSessionRunning(m.startTime ?? m.StartTime, m.endTime ?? m.EndTime, timeSpanString));
     const menu = rawMenu.map((m: any) => ({
       menuId: m.menuId ?? m.groupId ?? 0,
       menuName: m.menuName ?? m.groupName ?? "",
@@ -205,7 +275,14 @@ export const menuApi = {
       }));
       const list = Array.isArray(raw) ? raw : (Array.isArray((raw as any)?.data) ? (raw as any).data : []);
 
-      return list.map((c: any) => ({
+      // Menu 0 ("all") repeats a category once per menu session it is in (8060, 2026-11-12): keep one of each.
+      const seenCategoryIds = new Set<number>();
+      return list.filter((c: { categoryId?: unknown; id?: unknown; catId?: unknown }) => {
+        const id = Number(c.categoryId ?? c.id ?? c.catId ?? 0);
+        if (seenCategoryIds.has(id)) return false;
+        seenCategoryIds.add(id);
+        return true;
+      }).map((c: any) => ({
         id: Number(c.categoryId ?? c.id ?? c.catId ?? 0),
         name: String(c.categoryName ?? c.name ?? c.catName ?? ""),
         arabicName: String(c.arabicName ?? c.arabic ?? ""),
@@ -252,7 +329,7 @@ export const menuApi = {
           providerOwnStatus: getProviderOwnStatus(orderTypeId)
         }
       }));
-      return raw.map((p: any) => ({
+      const rows = raw.map((p: any) => ({
         id: p.productId,
         name: p.productName,
         arabicName: p.arabicName,
@@ -278,6 +355,8 @@ export const menuApi = {
                 p.priceView !== undefined ? (p.priceView === 'Inclusive') :
                 undefined,
       })) as PosProduct[];
+      if (!isProviderMenuOrderType(orderTypeId)) return rows;
+      return fixProviderMenuProducts(rows, await providerPrices(Number(orderTypeId)), getProviderOwnStatus(orderTypeId));
     } catch (error) {
       console.error(`[menuApi] Failed to fetch products for cat ${categoryId} sub ${subCategoryId}:`, error);
       return [];
@@ -373,7 +452,15 @@ export const menuApi = {
       };
     }) as PosAlternative[];
 
-    return sortAlternatives(mapped);
+    // Provider menus repeat each alternative once per provider: keep one of each identical row.
+    const seenAlt = new Set<string>();
+    const unique = mapped.filter((a: any) => {
+      const key = `${a.unitId}|${a.altName}|${a.price}`;
+      if (seenAlt.has(key)) return false;
+      seenAlt.add(key);
+      return true;
+    });
+    return sortAlternatives(unique);
   },
 
   /** GET /api/menu/products/{productId}/data */
@@ -390,8 +477,10 @@ export const menuApi = {
       }
     }));
 
+    // Provider menus: the provider's own price (the backend returns the first provider's), see fixProviderMenuProducts.
+    const providerPrice = isProviderMenuOrderType(orderTypeId) ? (await providerPrices(Number(orderTypeId))).get(Number(productId)) : undefined;
     return {
-      price: raw.price,
+      price: providerPrice ?? raw.price,
       unitId: raw.unitId,
       unitValue: raw.unitValue,
       isIncl: raw.isIncl !== undefined ? Boolean(raw.isIncl) :

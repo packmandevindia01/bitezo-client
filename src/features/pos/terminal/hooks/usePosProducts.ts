@@ -23,6 +23,8 @@ import { subscribeToCategoryUpdates } from "../../../inventory/category/utils/ca
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { isBackofficeMode } from "../../../../utils/authUtils";
 import type { PosCategory } from "../../types";
+import { selectMenuOrderTypeId } from "../store/posSelectors";
+import { clearProviderPriceCache, getProviderOwnStatus, isProviderMenuOrderType } from "../../services/menuApi";
 
 export const alternativesCache: Record<string, any[]> = {}; // key: `${productId}-${orderTypeId}`
 export const productDataCache: Record<string, any> = {}; // key: `${productId}-${orderTypeId}`
@@ -31,6 +33,7 @@ export const productDataCache: Record<string, any> = {}; // key: `${productId}-$
 export const clearAllPosCache = () => {
   Object.keys(alternativesCache).forEach(k => delete alternativesCache[k]);
   Object.keys(productDataCache).forEach(k => delete productDataCache[k]);
+  clearProviderPriceCache();
 };
 
 export const usePosProducts = () => {
@@ -43,15 +46,16 @@ export const usePosProducts = () => {
     activeCategoryId,
     activeSubCategoryId,
     search,
-    selectedOrderTypeId
   } = useAppSelector((state) => state.pos);
+  // Provider orders: the provider's own menu (selectMenuOrderTypeId).
+  const menuOrderTypeId = useAppSelector(selectMenuOrderTypeId);
 
   const { data: masterData, isLoading: groupsLoading, refetch: refreshMasterData } = usePosMasterData();
   const menuTimes = masterData?.menu ?? [];
   const groups = masterData?.group ?? [];
   const paymodes = masterData?.paymodes ?? [];
 
-  const { data: categories = [], isLoading: catsLoading } = usePosCategories(activeGroupId, selectedOrderTypeId);
+  const { data: categories = [], isLoading: catsLoading } = usePosCategories(activeGroupId, menuOrderTypeId);
   const { data: masterCategoryList = [], refetch: refetchMasterCategoryList } = useCategories(
     undefined,
     undefined,
@@ -68,7 +72,7 @@ export const usePosProducts = () => {
     ? activeSubCategoryId 
     : (!subsLoading && subCategories.length === 0 ? 0 : null);
 
-  const { data: products = [], isLoading: prodsLoading } = usePosProductsList(activeCategoryId, effectiveSubCategoryId, selectedOrderTypeId);
+  const { data: products = [], isLoading: prodsLoading } = usePosProductsList(activeCategoryId, effectiveSubCategoryId, menuOrderTypeId);
 
   const loading = groupsLoading || catsLoading || subsLoading || prodsLoading;
   const error = null;
@@ -164,18 +168,34 @@ export const usePosProducts = () => {
     }
   }, [masterData?.orderTypes, dispatch]);
 
-  // Auto-select first menu item if none active
+  // Menu session (menu time settings): the server lists only the sessions running now (master data, refreshed every
+  // 30 s). Keep the selected one while it runs; when it ends or none is selected, move to the first running session;
+  // when none is running, menu 0 (every category), as before for shops without sessions.
   useEffect(() => {
-    if (menuTimes.length > 0 && !activeGroupId) {
-      dispatch(setGroup(menuTimes[0].menuId));
-    } else if (groups.length > 0 && !activeGroupId) {
-      dispatch(setGroup(groups[0].groupId));
+    if (menuTimes.length > 0) {
+      if (!activeGroupId || !menuTimes.some((m) => m.menuId === activeGroupId)) {
+        dispatch(setGroup(menuTimes[0].menuId));
+      }
+    } else if (groups.length > 0) {
+      if (!activeGroupId || !groups.some((g) => g.groupId === activeGroupId)) {
+        dispatch(setGroup(groups[0].groupId));
+      }
+    } else if (masterData && activeGroupId !== 0) {
+      dispatch(setGroup(0));
     }
-  }, [menuTimes, groups, activeGroupId, dispatch]);
+  }, [menuTimes, groups, activeGroupId, masterData, dispatch]);
 
   // Ensure categories remain visible even if no menu time is configured, if unassigned,
   // or if newly created in Category Master (even before products are added)
+  // A provider order with the provider's own menu on shows ONLY the categories the server returns for that provider
+  // (the ones with its products). The padding below (master data + Category Master) would put every category back.
+  const providerOwnMenu = isProviderMenuOrderType(menuOrderTypeId) && getProviderOwnStatus(menuOrderTypeId);
+  // A running menu session shows ONLY the categories allocated to it (Category Master → Menu), as the server returns
+  // them for that session. The padding below is only for shops without menu sessions.
+  const menuSessionActive = (activeGroupId ?? 0) > 0 && menuTimes.some((m) => m.menuId === activeGroupId);
+
   const displayCategories = useMemo(() => {
+    if (providerOwnMenu || menuSessionActive) return (categories || []).filter((c) => c && c.id > 0);
     const masterCats = masterData?.category ?? [];
     const categoryMap = new Map<number, PosCategory>();
 
@@ -210,7 +230,7 @@ export const usePosProducts = () => {
     });
 
     return Array.from(categoryMap.values());
-  }, [categories, masterData?.category, masterCategoryList]);
+  }, [categories, masterData?.category, masterCategoryList, providerOwnMenu, menuSessionActive]);
 
   // Auto-select first category ONLY when menu group actively changes
   const prevGroupIdRef = useRef(activeGroupId);

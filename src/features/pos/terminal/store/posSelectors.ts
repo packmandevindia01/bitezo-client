@@ -7,6 +7,16 @@ export { getStoredDefaultDeliveryCharge };
 
 export const selectPosState = (state: RootState) => state.pos;
 
+/**
+ * Order type to ask the menu for. On a provider order (type 5) it is the provider's id: the server returns that
+ * provider's own menu and prices for it (verified 2026-11-12: Swiggy = 5, Zomato = 6). Everything else: the order type.
+ */
+export const selectMenuOrderTypeId = (state: RootState): number => {
+  const { selectedOrderTypeId, menuProviderId } = state.pos;
+  if (selectedOrderTypeId === 5 && menuProviderId) return menuProviderId;
+  return selectedOrderTypeId || 1;
+};
+
 export const selectCartCalculation = createSelector(
   [selectPosState],
   (pos) => calculateOrder(pos.cartItems, {
