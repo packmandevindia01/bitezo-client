@@ -5,7 +5,7 @@ import { useCurrency } from "../../../../../../hooks/useCurrency";
 import { useAppSelector } from "../../../../../../app/hooks";
 import { useModalLayer } from "@shared/hooks/useModalLayer";
 import { getCartLineDisplay } from "../../../utils/cartLineDisplay";
-import { addCustomization, changeCustomizationQty, customizationQty, removeCustomization } from "../../../utils/lineCustomization";
+import { addCustomization, addCustomizationUnits, canSplitLine, changeCustomizationQty, customizationQty, removeCustomization, splitCustomizations } from "../../../utils/lineCustomization";
 
 /**
  * Extras & Modifiers screen — one screen for the WHOLE bill.
@@ -15,6 +15,10 @@ import { addCustomization, changeCustomizationQty, customizationQty, removeCusto
  * line (tap again to add another); − and + on the right change the quantity. Extras ↔ Modifiers is a tab
  * in the header. Changes for all lines are kept as drafts and saved together with "Done" (only lines that
  * changed are dispatched).
+ *
+ * Unit rail (owner's request 2026-11-12): for a new line of 2 or more units the rail shows 1…N. Pick 3 and tap Sugar:
+ * 3 of the units become their own line with Sugar × 3 (one per unit), the rest stay as they were. Nothing picked =
+ * a tap adds one to the whole line, as before. Lines already sent to the kitchen are never split.
  */
 
 interface CartLine {
@@ -27,6 +31,8 @@ interface CartLine {
   originalLineTotal?: number;
   itemDiscount?: number;
   categoryId?: number;
+  isExisting?: boolean;
+  mapId?: number;
   product?: { name: string; categoryId?: number; price?: number };
   extras?: ExtrasItem[];
   modifiers?: ModifierItem[];
@@ -56,9 +62,38 @@ interface PosExtrasModifierModalProps {
   selectedKey: string | null;
   /** Keeps the cart selection in sync with the line chosen here. */
   onSelectRow: (key: string) => void;
-  /** Called with every line whose customisations changed. */
-  onDone: (changes: LineCustomization[]) => void;
+  /** Called with the unit-rail splits (apply them first, in order) and every line whose customisations changed. */
+  onDone: (changes: LineCustomization[], splits?: LineSplit[]) => void;
 }
+
+/** `qty` units of line `fromKey` move to a new line `newKey` placed right after it, as `splitCartLine` does. */
+export interface LineSplit {
+  fromKey: string;
+  newKey: string;
+  qty: number;
+}
+
+/** The cart lines as they will be after the splits: same order and quantities as dispatching them in turn. */
+const applySplits = (cartItems: CartLine[], splits: LineSplit[]): CartLine[] => {
+  const lines = cartItems.map((l) => ({ ...l }));
+  splits.forEach((s) => {
+    const index = lines.findIndex((l) => l.uniqueId === s.fromKey);
+    if (index < 0) return;
+    const from = lines[index];
+    const fromQty = from.quantity ?? 1;
+    const scale = (qty: number, v?: number) => (v === undefined ? undefined : (v * qty) / fromQty);
+    const part = (qty: number): CartLine => ({
+      ...from,
+      quantity: qty,
+      lineTotal: scale(qty, from.lineTotal),
+      originalLineTotal: scale(qty, from.originalLineTotal),
+      itemDiscount: scale(qty, from.itemDiscount),
+    });
+    lines[index] = part(fromQty - s.qty);
+    lines.splice(index + 1, 0, { ...part(s.qty), uniqueId: s.newKey, isExisting: false, mapId: undefined });
+  });
+  return lines;
+};
 
 const sameCustomization = (a: LineCustomization, b: LineCustomization) =>
   JSON.stringify([a.extras, a.modifiers, a.messages]) === JSON.stringify([b.extras, b.modifiers, b.messages]);
@@ -122,6 +157,9 @@ export const PosExtrasModifierModal = ({
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, LineCustomization>>({});
   const originalsRef = useRef<Record<string, LineCustomization>>({});
+  const [splits, setSplits] = useState<LineSplit[]>([]);
+  /** Units picked on the rail for the active line (null = whole line: a tap adds one, as before). */
+  const [pickedUnits, setPickedUnits] = useState<number | null>(null);
 
   const [types, setTypes] = useState<any[]>([]);
   const [activeTypeId, setActiveTypeId] = useState<number | null>(null);
@@ -145,6 +183,8 @@ export const PosExtrasModifierModal = ({
       });
       originalsRef.current = seeded;
       setDrafts(seeded);
+      setSplits([]);
+      setPickedUnits(null);
       setMode(type);
       const startKey = cartItems.some((l) => l.uniqueId === selectedKey)
         ? selectedKey
@@ -153,6 +193,8 @@ export const PosExtrasModifierModal = ({
     }
     if (!isOpen && wasOpenRef.current) {
       setDrafts({});
+      setSplits([]);
+      setPickedUnits(null);
       setTypes([]);
       setActiveTypeId(null);
       setItems([]);
@@ -162,8 +204,11 @@ export const PosExtrasModifierModal = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const activeLine = cartItems.find((l) => l.uniqueId === activeKey);
-  const activeIndex = cartItems.findIndex((l) => l.uniqueId === activeKey);
+  const lines = useMemo(() => applySplits(cartItems, splits), [cartItems, splits]);
+  const activeLine = lines.find((l) => l.uniqueId === activeKey);
+  const activeIndex = lines.findIndex((l) => l.uniqueId === activeKey);
+  const activeQty = activeLine?.quantity ?? 1;
+  const railOpen = !!activeLine && canSplitLine(activeLine);
   const activeDraft = activeKey ? drafts[activeKey] : undefined;
 
   const activeCategoryId: number | undefined = (() => {
@@ -245,8 +290,10 @@ export const PosExtrasModifierModal = ({
 
   const selectLine = useCallback((key: string) => {
     setActiveKey(key);
-    onSelectRow(key);
-  }, [onSelectRow]);
+    setPickedUnits(null);
+    // A line split off here is not in the cart until Done: keep the cart selection on real lines only.
+    if (cartItems.some((l) => l.uniqueId === key)) onSelectRow(key);
+  }, [onSelectRow, cartItems]);
 
   const updateDraft = (key: string, fn: (d: LineCustomization) => LineCustomization) =>
     setDrafts((prev) => (prev[key] ? { ...prev, [key]: fn(prev[key]) } : prev));
@@ -258,25 +305,65 @@ export const PosExtrasModifierModal = ({
   };
 
   const handleItemTap = (item: any) => {
-    if (!activeKey) return;
-    if (mode === "extras") {
-      updateDraft(activeKey, (d) => ({ ...d, extras: addCustomization(d.extras, item) }));
-    } else {
+    if (!activeKey || !activeLine || !activeDraft) return;
+    let entry = item;
+    if (mode === "modifiers") {
       const activeType = types.find((t) => t.typeId === activeTypeId);
       const typeName = String(activeType?.typeName || activeType?.name || activeType?.modifierTypeName || item.typeName || "").trim();
-      const modifier = { ...item, typeId: activeTypeId || item.typeId || 0, typeName };
-      updateDraft(activeKey, (d) => ({ ...d, modifiers: addCustomization(d.modifiers, modifier) }));
+      entry = { ...item, typeId: activeTypeId || item.typeId || 0, typeName };
     }
+    // units = null: one more on the whole line (as before); a number: one per unit picked on the rail.
+    const add = (d: LineCustomization, units: number | null): LineCustomization => (mode === "extras"
+      ? { ...d, extras: units ? addCustomizationUnits(d.extras, entry, units) : addCustomization(d.extras, entry) }
+      : { ...d, modifiers: units ? addCustomizationUnits(d.modifiers, entry, units) : addCustomization(d.modifiers, entry) });
+
+    const picked = railOpen && pickedUnits ? Math.min(pickedUnits, activeQty) : null;
+    if (picked && picked < activeQty) {
+      // Part of the line: those units become a new line with the item; the cashier stays on that new line.
+      const newKey = `${activeKey}~${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+      const { remaining, split } = splitCustomizations(activeDraft, activeQty, picked);
+      setDrafts((prev) => ({
+        ...prev,
+        [activeKey]: { ...prev[activeKey], ...remaining },
+        [newKey]: add({ uniqueId: newKey, ...split }, picked),
+      }));
+      setSplits((prev) => [...prev, { fromKey: activeKey, newKey, qty: picked }]);
+      setActiveKey(newKey);
+      setPickedUnits(picked);
+      return;
+    }
+    updateDraft(activeKey, (d) => add(d, picked));
   };
 
-  const changedLines = useMemo(
-    () => Object.values(drafts).filter((d) => originalsRef.current[d.uniqueId] && !sameCustomization(d, originalsRef.current[d.uniqueId])),
-    [drafts],
-  );
+  /**
+   * What Done sends. A split line that ends up exactly like the line it came from (its extras taken off again) is not
+   * split after all: its units stay on that line. A split line that is kept always sends its customisations.
+   */
+  const result = useMemo(() => {
+    const mergedInto: Record<string, string> = {};
+    const resolve = (key: string): string => (mergedInto[key] ? resolve(mergedInto[key]) : key);
+    const kept: LineSplit[] = [];
+    splits.forEach((s) => {
+      const fromKey = resolve(s.fromKey);
+      const a = drafts[s.newKey];
+      const b = drafts[fromKey];
+      if (a && b && sameCustomization(a, b)) mergedInto[s.newKey] = fromKey;
+      else kept.push({ ...s, fromKey });
+    });
+    const keptKeys = new Set(kept.map((s) => s.newKey));
+    const changes = Object.values(drafts).filter((d) => {
+      if (keptKeys.has(d.uniqueId)) return true;
+      const original = originalsRef.current[d.uniqueId];
+      return !!original && !sameCustomization(d, original);
+    });
+    return { changes, splits: kept };
+  }, [drafts, splits]);
+
+  const changedLines = result.changes;
   const changedKeys = useMemo(() => new Set(changedLines.map((d) => d.uniqueId)), [changedLines]);
 
   const handleDone = () => {
-    if (changedLines.length > 0) onDone(changedLines);
+    if (changedLines.length > 0 || result.splits.length > 0) onDone(changedLines, result.splits);
     onClose();
   };
 
@@ -293,19 +380,19 @@ export const PosExtrasModifierModal = ({
       // Capture phase + stopImmediatePropagation: the terminal's global shortcuts (usePosShortcuts) treat
       // Escape as "clear cart" — it must never reach them while this screen is open.
       if (e.key === "Escape") { e.preventDefault(); e.stopImmediatePropagation(); onClose(); return; }
-      if ((e.key === "ArrowDown" || e.key === "ArrowUp") && cartItems.length > 0) {
+      if ((e.key === "ArrowDown" || e.key === "ArrowUp") && lines.length > 0) {
         e.preventDefault();
         e.stopImmediatePropagation();
         const next = e.key === "ArrowDown"
-          ? Math.min(cartItems.length - 1, activeIndex + 1)
+          ? Math.min(lines.length - 1, activeIndex + 1)
           : Math.max(0, activeIndex - 1);
-        const key = cartItems[next]?.uniqueId;
+        const key = lines[next]?.uniqueId;
         if (key) selectLine(key);
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [isOpen, cartItems, activeIndex, onClose, selectLine]);
+  }, [isOpen, lines, activeIndex, onClose, selectLine]);
 
   if (!isOpen) return null;
 
@@ -351,6 +438,34 @@ export const PosExtrasModifierModal = ({
         {/* Body */}
         <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
 
+          {/* Unit rail: how many units of the active line the next tap is for (new lines of 2 or more) */}
+          {railOpen && (
+            <div className="w-full md:w-16 shrink-0 bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col overflow-hidden" aria-label="Units">
+              <div className="hidden md:block px-1 py-2.5 border-b border-slate-100 bg-slate-50 text-center">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.15em]">Qty</span>
+              </div>
+              <div className="flex md:flex-col flex-1 overflow-x-auto md:overflow-y-auto p-2 gap-2 md:gap-1.5">
+                {Array.from({ length: activeQty }, (_, i) => i + 1).map((n) => (
+                  <button
+                    type="button"
+                    key={n}
+                    onClick={() => setPickedUnits((p) => (p === n ? null : n))}
+                    aria-pressed={pickedUnits === n}
+                    aria-label={`For ${n} of ${activeQty}`}
+                    tabIndex={-1}
+                    className={`shrink-0 w-11 h-11 md:w-full rounded-lg text-sm font-black transition-all active:scale-95 ${
+                      pickedUnits === n
+                        ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/25"
+                        : "bg-[#1a3a5c] text-white hover:bg-[#1e4d7b]"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Type rail */}
           <div className="w-full md:w-40 shrink-0 bg-white border-b md:border-b-0 md:border-r border-slate-200 flex flex-col overflow-hidden">
             <div className="hidden md:block px-3 py-2.5 border-b border-slate-100 bg-slate-50">
@@ -393,11 +508,19 @@ export const PosExtrasModifierModal = ({
                   <span className="text-[11px] font-black uppercase truncate">
                     {activeLine.product?.name || "Item"}{activeLine.variantName ? ` (${activeLine.variantName})` : ""}
                   </span>
-                  <span className="text-[10px] font-black text-white/80 shrink-0">×{activeLine.quantity ?? 1}</span>
+                  <span className="text-[10px] font-black text-white/80 shrink-0">×{activeQty}</span>
                 </span>
               ) : (
                 <span className="text-[11px] font-bold text-slate-400">Select a product on the right</span>
               )}
+              {railOpen && pickedUnits && pickedUnits < activeQty ? (
+                <span className="text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1 shrink-0">
+                  For {pickedUnits} of {activeQty} · new line
+                </span>
+              ) : null}
+              {activeLine && !railOpen && (activeLine.isExisting || activeLine.mapId) && activeQty > 1 ? (
+                <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 shrink-0">Sent to kitchen · goes on all {activeQty}</span>
+              ) : null}
               <span className="hidden lg:inline ml-auto text-[9px] font-bold uppercase tracking-widest text-slate-300 shrink-0">
                 Tap to add · tap again for one more · − + on the right · ↑ ↓ change product
               </span>
@@ -458,7 +581,7 @@ export const PosExtrasModifierModal = ({
             <div className="bg-gradient-to-r from-[#1a3a5c] to-[#1e4d7b] px-3 py-2.5 shrink-0 flex items-center justify-between">
               <div>
                 <p className="text-[8px] font-black uppercase tracking-[0.2em] text-white/50 leading-none mb-1">Order</p>
-                <p className="text-[12px] font-black uppercase text-white leading-none">{cartItems.length} item{cartItems.length === 1 ? "" : "s"}</p>
+                <p className="text-[12px] font-black uppercase text-white leading-none">{lines.length} item{lines.length === 1 ? "" : "s"}</p>
               </div>
               <span className="text-[9px] font-bold uppercase tracking-widest text-white/50">Tap a product to select</span>
             </div>
@@ -469,9 +592,9 @@ export const PosExtrasModifierModal = ({
             </div>
 
             <div className="flex-1 overflow-y-auto">
-              {cartItems.length === 0 ? (
+              {lines.length === 0 ? (
                 <div className="p-6 text-center text-[10px] font-black uppercase tracking-widest text-slate-300">Cart is empty</div>
-              ) : cartItems.map((line, idx) => {
+              ) : lines.map((line, idx) => {
                 const key = line.uniqueId;
                 const d = drafts[key];
                 const isActive = key === activeKey;

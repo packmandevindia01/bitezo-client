@@ -823,6 +823,7 @@ export const usePosCartActions = () => {
     updateItemPrice: cartMutations.updateItemPrice,
     updateItemQty: cartMutations.updateItemQty,
     setItemCustomizations: cartMutations.setItemCustomizations,
+    splitCartLine: cartMutations.splitCartLine,
     addVoidProduct: cartMutations.addVoidProduct,
     addVoidModifier: cartMutations.addVoidModifier,
 

@@ -1052,6 +1052,7 @@ export const PosTerminalPage = () => {
         handleApplyPrice={handleApplyPrice as any}
         handleApplyQty={handleApplyQty as any}
         setItemCustomizations={terminal.setItemCustomizations}
+        splitCartLine={terminal.splitCartLine}
         handleItemComplimentary={handleItemComplimentary}
         handleBillComplimentary={handleBillComplimentary}
         handleClearCart={handleClearCart}

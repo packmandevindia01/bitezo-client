@@ -36,6 +36,7 @@ export interface PosTerminalModalsProps {
   handleApplyPrice: (val: string) => void;
   handleApplyQty: (val: string) => void;
   setItemCustomizations: (id: string, extras?: any[], modifiers?: any[], messages?: any[]) => void;
+  splitCartLine: (id: string, newId: string, quantity: number) => void;
   handleItemComplimentary: () => void;
   handleBillComplimentary: () => void;
   handleClearCart: () => void;
@@ -110,6 +111,7 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         extrasModifierType={props.extrasModifierType}
         setExtrasModifierType={props.setExtrasModifierType}
         setItemCustomizations={props.setItemCustomizations}
+        splitCartLine={props.splitCartLine}
         voidConfirmState={props.voidConfirmState}
         setVoidConfirmState={props.setVoidConfirmState}
         billDiscountConfirmState={props.billDiscountConfirmState}

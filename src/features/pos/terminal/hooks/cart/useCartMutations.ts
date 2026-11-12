@@ -11,6 +11,7 @@ import {
   updateItemPrice,
   updateItemQty,
   setItemCustomizations,
+  splitCartLine,
 } from "../../store/posSlice";
 import { selectCartDetails } from "../../store/posSelectors";
 import { POS_PRODUCTS } from "../../../constants";
@@ -263,6 +264,8 @@ export const useCartMutations = () => {
       modifiers?: PosCartItem["modifiers"],
       messages?: PosCartItem["messages"]
     ) => dispatch(setItemCustomizations({ uniqueId, extras, modifiers, messages })),
+    splitCartLine: (uniqueId: string, newUniqueId: string, quantity: number) =>
+      dispatch(splitCartLine({ uniqueId, newUniqueId, quantity })),
     addVoidProduct: (payload: {
       productId: number;
       productName?: string;

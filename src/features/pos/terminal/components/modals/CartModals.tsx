@@ -30,6 +30,7 @@ export interface CartModalsProps {
   extrasModifierType: "none" | "extras" | "modifiers";
   setExtrasModifierType: (type: "none" | "extras" | "modifiers") => void;
   setItemCustomizations: (id: string, extras?: any[], modifiers?: any[], messages?: any[]) => void;
+  splitCartLine: (id: string, newId: string, quantity: number) => void;
 
   voidConfirmState: { isOpen: boolean; uniqueId: string; productName: string; onConfirmed: () => void };
   setVoidConfirmState: React.Dispatch<React.SetStateAction<any>>;
@@ -87,7 +88,9 @@ export const CartModals: React.FC<CartModalsProps> = React.memo((props) => {
         cartItems={props.cartDetails}
         selectedKey={props.selectedKey}
         onSelectRow={props.setSelectedKey}
-        onDone={(changes) => {
+        onDone={(changes, splits = []) => {
+          // Unit rail splits first (in the order made), so the new lines exist before their extras are saved.
+          splits.forEach((s) => props.splitCartLine(s.fromKey, s.newKey, s.qty));
           // One screen for the whole bill: save every line whose extras / modifiers / messages changed.
           changes.forEach((c) => props.setItemCustomizations(c.uniqueId, c.extras, c.modifiers, c.messages));
           props.setExtrasModifierType("none");

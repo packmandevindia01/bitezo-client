@@ -620,7 +620,36 @@ const posSlice = createSlice({
         if (messages !== undefined) item.messages = messages;
       }
     },
-    
+    /**
+     * Moves `quantity` units of a line onto a new line placed right after it (Extras / Modifiers unit rail), so those
+     * units can carry their own extras. Same price, VAT, inclusivity and discount; an amount item discount is shared
+     * pro-rata so the two lines together get exactly what the one did. Lines already sent to the kitchen are not split.
+     */
+    splitCartLine: (state, action: PayloadAction<{ uniqueId: string; newUniqueId: string; quantity: number }>) => {
+      const { uniqueId, newUniqueId, quantity } = action.payload;
+      const index = state.cartItems.findIndex(i => i.uniqueId === uniqueId);
+      const item = state.cartItems[index];
+      if (!item || item.isExisting || item.mapId) return;
+      if (!Number.isInteger(quantity) || quantity <= 0 || quantity >= item.quantity) return;
+      if (state.cartItems.some(i => i.uniqueId === newUniqueId)) return;
+      state.isCartModified = true;
+
+      const lineQty = item.quantity;
+      const copy: PosCartItem = JSON.parse(JSON.stringify(item));
+      copy.uniqueId = newUniqueId;
+      copy.quantity = quantity;
+      copy.isExisting = false;
+      delete copy.mapId;
+      delete copy.originalQty;
+      if (item.discountType === 'amount' && item.discountValue) {
+        const moved = (item.discountValue * quantity) / lineQty;
+        copy.discountValue = moved;
+        item.discountValue = item.discountValue - moved;
+      }
+      item.quantity = lineQty - quantity;
+      state.cartItems.splice(index + 1, 0, copy);
+    },
+
     // Dynamic Menu Actions
     setGroup: (state, action: PayloadAction<number | null>) => {
       state.activeGroupId = action.payload;
@@ -1090,6 +1119,7 @@ export const {
   updateItemPrice,
   updateItemQty,
   setItemCustomizations,
+  splitCartLine,
   setGroup,
   setSubCategory,
   setLoading,
