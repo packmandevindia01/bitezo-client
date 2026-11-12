@@ -9,7 +9,8 @@
     LocalNetworkAccessAllowedForUrls  the older combined name
 
   Run in PowerShell AS ADMINISTRATOR:
-      .\allow-pos-address.ps1 192.168.1.53 103.209.220.154     # add one or more addresses (any port)
+      .\allow-pos-address.ps1 http://192.168.1.60:8056          # add a server: give the FULL address the till
+                                                                # types in Chrome (http://ip:port)
       .\allow-pos-address.ps1 -List                             # show what is allowed now
       .\allow-pos-address.ps1 -Remove 103.209.220.154           # take an address off again
 
@@ -41,7 +42,7 @@ function Get-Allowed([string]$policy) {
 function Show-Allowed {
   foreach ($p in $policies) {
     $now = @(Get-Allowed $p)
-    $list = if ($now.Count -eq 0) { '(none)' } else { ($now.Address -join ', ') }
+    $list = if ($now.Count -eq 0) { '(none)' } else { (($now | ForEach-Object { $_.Address }) -join ', ') }
     Write-Host ("{0,-34} {1}" -f $p, $list)
   }
 }
@@ -67,8 +68,9 @@ foreach ($p in $policies) { $k = Join-Path $root $p; if (-not (Test-Path $k)) { 
 if ($Remove) {
   $target = Normalize $Remove
   $found = $false
-  foreach ($p in $policies) {
-    foreach ($h in @(Get-Allowed $p | Where-Object { $_.Address -eq $target })) {
+  # The server's plain address and every full page address on it (http://host:port), in all lists.
+  foreach ($p in ($policies + 'OverrideSecurityRestrictionsOnInsecureOrigin')) {
+    foreach ($h in @(Get-Allowed $p | Where-Object { $_.Address -eq $target -or (Normalize $_.Address) -eq $target })) {
       Remove-ItemProperty -Path (Join-Path $root $p) -Name ([string]$h.Number)
       $found = $true
     }
@@ -78,16 +80,28 @@ if ($Remove) {
   exit 0
 }
 
+function Add-Entry([string]$policy, [string]$value) {
+  $k = Join-Path $root $policy
+  if (-not (Test-Path $k)) { New-Item -Path $k -Force | Out-Null }
+  $existing = @(Get-Allowed $policy)
+  if (@($existing | ForEach-Object { $_.Address }) -contains $value) { return }
+  $next = if ($existing.Count -eq 0) { 1 } else { ($existing | Measure-Object -Property Number -Maximum).Maximum + 1 }
+  New-ItemProperty -Path $k -Name ([string]$next) -Value $value -PropertyType String -Force | Out-Null
+}
+
 foreach ($raw in $Address) {
   $a = Normalize $raw
   if (-not $a) { continue }
-  foreach ($p in $policies) {
-    $existing = @(Get-Allowed $p)
-    if ($existing.Address -contains $a) { continue }
-    $next = if ($existing.Count -eq 0) { 1 } else { ($existing | Measure-Object -Property Number -Maximum).Maximum + 1 }
-    New-ItemProperty -Path (Join-Path $root $p) -Name ([string]$next) -Value $a -PropertyType String -Force | Out-Null
+  foreach ($p in $policies) { Add-Entry $p $a }
+  # A full page address (http://host:port) also goes in exactly as typed: newer Chrome treats an http page as
+  # secure only when its exact address is in OverrideSecurityRestrictionsOnInsecureOrigin, and the allow-lists
+  # apply to secure pages.
+  if ($raw.Trim() -match '^(https?://[^/]+)') {
+    $origin = $Matches[1].ToLower()
+    foreach ($p in $policies) { Add-Entry $p $origin }
+    if ($origin -like 'http://*') { Add-Entry 'OverrideSecurityRestrictionsOnInsecureOrigin' $origin }
   }
-  Write-Host "Allowed $a" -ForegroundColor Green
+  Write-Host "Allowed $raw" -ForegroundColor Green
 }
 
 Show-Allowed
