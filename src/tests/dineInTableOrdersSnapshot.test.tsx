@@ -6,7 +6,7 @@
  */
 import { createElement } from "react";
 import { Provider } from "react-redux";
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, cleanup, within } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { store } from "../app/store";
 import { DineInTableOrdersModal } from "../features/pos/terminal/components/modals/dining/DineInTableOrdersModal";
@@ -30,7 +30,8 @@ vi.mock("../features/pos/services/printerSettingsApi", () => ({
 vi.mock("../features/pos/services/orderApi", () => ({ orderApi: { getOrderDetails: vi.fn() } }));
 vi.mock("../features/pos/services/dineInApi", () => ({ dineInApi: { getTableOrders: vi.fn() } }));
 vi.mock("../features/pos/services/salesInvoiceApi", () => ({ salesInvoiceApi: { createSalesInvoice: vi.fn() } }));
-vi.mock("../features/pos/services/menuApi", async (orig) => ({ ...(await orig<object>()), menuApi: { getAlternatives: async () => [] } }));
+vi.mock("../features/pos/services/menuApi", async (orig) => ({ ...(await orig<object>()), menuApi: { getAlternatives: async () => [], getModifierTypes: async () => [], getAllExtras: async () => [] } }));
+vi.mock("../features/pos/terminal/hooks/usePosProducts", () => ({ usePosProducts: () => ({ products: [] }), alternativesCache: {} }));
 vi.mock("../features/inventory/branches/services/branchApi", () => ({ branchApi: { getBranchPrintDesign: async () => null } }));
 vi.mock("../features/general/employee/services/employeeService", () => ({
   getEmployeeNames: async () => [], getEmployeeById: async () => null, employeeService: {},
@@ -104,11 +105,14 @@ const show = () =>
     children: createElement(DineInTableOrdersModal, { isOpen: true, table: { tableId: 9, tableName: "T9", capacity: 4 } as never, sectionId: 7, onClose: vi.fn() }),
   }));
 
+/** The order cards, once both are loaded in full (their ticket shows). */
 const rows = () => waitFor(() => {
-  const els = Array.from(document.body.querySelectorAll('[role="button"][tabindex="0"]')) as HTMLElement[];
-  if (els.length < 2) throw new Error("no rows");
+  const els = Array.from(document.body.querySelectorAll('[role="button"][aria-label^="Order "]')) as HTMLElement[];
+  if (els.length < 2 || els.some((el) => !el.textContent?.includes("Order No"))) throw new Error("no cards");
   return els;
 });
+/** An action button on the right (Edit / Settle / KOT / Guest …). */
+const action = (label: string) => screen.getByRole("button", { name: new RegExp("^" + label + "$", "i") });
 
 /** The cart fields an EDIT fills (ids and timestamps that change per run left out). */
 const cartSnapshot = () => {
@@ -160,11 +164,32 @@ describe("Dine-In table orders window", () => {
     expect(document.body.innerHTML).toMatchSnapshot();
   });
 
+  it("each card shows the Recall ticket: meta fields and totals", async () => {
+    show();
+    const [a, b] = await rows();
+    expect(a.textContent).toMatch(/Emp/);
+    expect(b.textContent).toMatch(/Order No/);
+  });
+
+  it("Details opens the full Recall preview", async () => {
+    show();
+    const [a] = await rows();
+    fireEvent.click(within(a).getByRole("button", { name: /^Details of order/ }));
+    expect(await screen.findByText("stub-edit")).toBeTruthy();
+  });
+
+  it("KOT prints the selected order", async () => {
+    show();
+    fireEvent.click((await rows())[0]);
+    fireEvent.click(action("KOT"));
+    await waitFor(() => expect(printed.length).toBeGreaterThan(0));
+  });
+
   describe.each([[0, "item discount"], [1, "bill discount"]] as const)("order %i (%s)", (index, _kind) => {
     it("SETTLE: invoice sent and settle receipt", async () => {
       show();
       fireEvent.click((await rows())[index]);
-      fireEvent.click(await screen.findByText("stub-settle"));
+      fireEvent.click(action("Settle"));
       fireEvent.click(await screen.findByText("stub-pay-cash"));
       await waitFor(() => expect(salesInvoiceApi.createSalesInvoice).toHaveBeenCalledTimes(1));
       await waitFor(() => expect(printed.length).toBe(1));
@@ -172,10 +197,10 @@ describe("Dine-In table orders window", () => {
       expect(printed[0]).toMatchSnapshot("settle receipt");
     });
 
-    it("row PRINT: guest receipt", async () => {
+    it("GUEST: guest receipt", async () => {
       show();
-      const row = (await rows())[index];
-      fireEvent.click(row.querySelector("button") as HTMLElement);
+      fireEvent.click((await rows())[index]);
+      fireEvent.click(action("Guest"));
       await waitFor(() => expect(printed.length).toBe(1));
       expect(printed[0]).toMatchSnapshot("guest receipt");
     });
@@ -183,7 +208,7 @@ describe("Dine-In table orders window", () => {
     it("EDIT: cart", async () => {
       show();
       fireEvent.click((await rows())[index]);
-      fireEvent.click(await screen.findByText("stub-edit"));
+      fireEvent.click(action("Edit"));
       await waitFor(() => expect(store.getState().pos.editingOrderId).toBe(index === 0 ? 41 : 42));
       expect(cartSnapshot()).toMatchSnapshot("cart");
     });

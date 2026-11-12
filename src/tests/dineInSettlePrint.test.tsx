@@ -31,7 +31,8 @@ vi.mock("../features/pos/services/printerSettingsApi", () => ({
 vi.mock("../features/pos/services/orderApi", () => ({ orderApi: { getOrderDetails: vi.fn() } }));
 vi.mock("../features/pos/services/dineInApi", () => ({ dineInApi: { getTableOrders: vi.fn() } }));
 vi.mock("../features/pos/services/salesInvoiceApi", () => ({ salesInvoiceApi: { createSalesInvoice: vi.fn() } }));
-vi.mock("../features/pos/services/menuApi", async (orig) => ({ ...(await orig<object>()), menuApi: { getAlternatives: async () => [] } }));
+vi.mock("../features/pos/services/menuApi", async (orig) => ({ ...(await orig<object>()), menuApi: { getAlternatives: async () => [], getModifierTypes: async () => [], getAllExtras: async () => [] } }));
+vi.mock("../features/pos/terminal/hooks/usePosProducts", () => ({ usePosProducts: () => ({ products: [] }), alternativesCache: {} }));
 vi.mock("../features/inventory/branches/services/branchApi", () => ({ branchApi: { getBranchPrintDesign: async () => null } }));
 vi.mock("../features/general/employee/services/employeeService", () => ({
   getEmployeeNames: async () => [], getEmployeeById: async () => null, employeeService: {},
@@ -78,12 +79,12 @@ const openAndPay = async (button: "stub-pay-cash" | "stub-pay-card") => {
     children: createElement(DineInTableOrdersModal, { isOpen: true, table: { tableId: 9, tableName: "T9" } as never, sectionId: 7, onClose: vi.fn() }),
   }));
   const row = await waitFor(() => {
-    const el = document.body.querySelector('[role="button"][tabindex="0"]');
-    if (!el) throw new Error("no row");
+    const el = document.body.querySelector('[role="button"][aria-label^="Order "]');
+    if (!el) throw new Error("no card");
     return el as HTMLElement;
   });
   fireEvent.click(row);
-  fireEvent.click(await screen.findByText("stub-settle"));
+  fireEvent.click(screen.getByRole("button", { name: /^Settle$/i }));
   fireEvent.click(await screen.findByText(button));
   return container;
 };

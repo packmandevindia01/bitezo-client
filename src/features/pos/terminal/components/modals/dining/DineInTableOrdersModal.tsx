@@ -2,7 +2,7 @@ import { buildSavedOrderLoad, dispatchSavedOrderLoad } from "../../../utils/save
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { PosRecallDetailsModal } from "../order/PosRecallDetailsModal";
 import { usePosRecall } from "../../../hooks/usePosRecall";
-import { X, Plus } from "lucide-react";
+import { X, Plus, Pencil, Wallet, Printer, ChefHat } from "lucide-react";
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../../../../../app/hooks';
 import { setSectionId, setTableId, setGuestNo, clearCart, setOrderTypeByName, setTableNo, setWaiter } from '../../../store/posSlice';
@@ -31,8 +31,13 @@ import {
 import { loadDineInOrderForCart } from "../../../utils/loadDineInOrder";
 import { printDineInGuestReceipt } from "../../../utils/printDineInOrder";
 import { buildDineInSettleOrder, printDineInSettleReceipt } from "../../../utils/dineInSettlement";
-import { dineInTenderOptions, dineInOrderRowText, isDineInTableReserved } from "../../../utils/dineInTable";
-import { TableOrderRow } from "./TableOrderRow";
+import { dineInTenderOptions, isDineInTableReserved } from "../../../utils/dineInTable";
+import { TableOrderCard } from "./TableOrderCard";
+import { fetchRecallOrderData } from "../../../utils/loadRecallOrder";
+import { parseRecallListText } from "../../../utils/recallListText";
+import { printRecallOrderKot } from "../../../utils/printRecallKot";
+import { usePosProducts } from "../../../hooks/usePosProducts";
+import { menuApi } from "../../../../services/menuApi";
 import type {
   DineInTable,
   TableOrdersResponse,
@@ -96,6 +101,8 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     if (isOpen && table) {
       setSelectedOrderId(null);
       setData(null);
+      loadedKeysRef.current = {};
+      setFullOrders({});
       void fetchOrders();
 
       const interval = setInterval(() => {
@@ -140,11 +147,52 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     recallRows.forEach((r: any) => map.set(Number(r.orderId ?? r.OrderId), r));
     return map;
   }, [recallRows]);
-  const rowText = (m: TableOrdersResponse["masterData"][number]): string =>
-    dineInOrderRowText(m, recallRowById.get(Number(m.orderId)));
   const openDetails = (orderId: number) => {
     setSelectedOrderId(orderId);
     setIsDetailsOpen(true);
+  };
+
+  /* ── Cards: every order of the table loaded in full, the same way the Recall preview loads it. Reloaded when its
+        total changes (the 10 s refresh); undefined = loading, null = could not load. ── */
+  const { products } = usePosProducts();
+  const [fullOrders, setFullOrders] = useState<Record<number, unknown>>({});
+  const loadedKeysRef = useRef<Record<number, string>>({});
+  useEffect(() => {
+    if (!isOpen || !data) return;
+    data.masterData.forEach((m) => {
+      const id = Number(m.orderId);
+      const key = `${m.netAmount}`;
+      if (loadedKeysRef.current[id] === key) return;
+      loadedKeysRef.current[id] = key;
+      const hint = parseRecallListText(recallRowById.get(id)?.details, id)?.orderTypeName || "DineIn";
+      fetchRecallOrderData(id, { orderTypeHint: hint, productCache, products })
+        .then((order) => setFullOrders((prev) => ({ ...prev, [id]: order ?? null })))
+        .catch(() => {
+          delete loadedKeysRef.current[id];
+          setFullOrders((prev) => ({ ...prev, [id]: null }));
+        });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, data]);
+
+  // KOT print needs the modifier types and extras, as on the Recall preview.
+  const [modifierTypes, setModifierTypes] = useState<Awaited<ReturnType<typeof menuApi.getModifierTypes>>>([]);
+  const [allExtras, setAllExtras] = useState<Awaited<ReturnType<typeof menuApi.getAllExtras>>>([]);
+  useEffect(() => {
+    if (!isOpen) return;
+    menuApi.getModifierTypes().then((d) => setModifierTypes(d || [])).catch(() => {});
+    menuApi.getAllExtras().then((d) => setAllExtras(d || [])).catch(() => {});
+  }, [isOpen]);
+
+  const handleKot = () => {
+    if (!selectedOrderId) return;
+    const order = fullOrders[selectedOrderId];
+    if (!order) { showToast("Order is still loading", "warning"); return; }
+    const orderDetailsStr = recallRowById.get(selectedOrderId)?.details;
+    void printRecallOrderKot({
+      orderId: selectedOrderId, order, fallbackDetails: parseRecallListText(orderDetailsStr, selectedOrderId), orderDetailsStr,
+      allExtras, modifierTypes, products, productCache, showToast,
+    } as never);
   };
 
   /* ── Check if table or order is marked as Reserved ── */
@@ -519,7 +567,7 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         Responsive: full screen on mobile, wider panel on lg+.
         §15: w-full max-w-[95vw] xl:max-w-[1500px] to fit 5 cards in a row
       */}
-      {/* Same look as the Recall list (PosRecallModal); clicking a row opens the Recall preview. */}
+      {/* Side-by-side order cards (owner's request 2026-11-12), each the Recall preview's ticket; actions on the right. */}
       <Modal
         isOpen={isOpen && !showGuestCount && !isMultiPayOpen}
         onClose={onClose}
@@ -528,13 +576,16 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
         noScroll
         showClose={false}
       closeOnEscape
-        className="bg-[#f8f9fa] border-none shadow-2xl h-[85vh] max-h-[900px] flex flex-col"
+        className="w-full !max-w-[98vw] xl:!max-w-[1600px] bg-[#1a1a1a] border border-white/5 shadow-2xl h-[90vh] flex flex-col rounded-3xl overflow-hidden"
       >
         {/* HEADER */}
-        <div className="flex items-stretch bg-[#49293e] text-white shrink-0">
-          <div className="flex-1 flex items-center gap-3 px-4 py-2.5 min-w-0">
-            <span className="text-xs font-bold uppercase tracking-wider truncate">
+        <div className="flex items-stretch bg-[#111] border-b border-white/10 text-white shrink-0">
+          <div className="flex-1 flex items-center gap-3 px-5 py-3 min-w-0">
+            <span className="text-sm font-black uppercase tracking-[0.2em] truncate">
               Table Orders · {table?.tableName}
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/40 shrink-0">
+              {data?.masterData.length ?? 0} order(s)
             </span>
             {isTableReserved && (
               <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-purple-500/30 text-purple-100 border border-purple-300/40">
@@ -542,68 +593,68 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
               </span>
             )}
           </div>
-          <button
-            onClick={handleNew}
-            disabled={loading}
-            className="px-5 py-2.5 flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider transition-colors shrink-0 disabled:opacity-40"
-          >
-            <Plus size={16} strokeWidth={3} />
-            {editingOrderId ? "Assign" : "New Order"}
-          </button>
-          <button
-            onClick={onClose}
-            tabIndex={-1}
-            aria-label="Close table orders"
-            className="px-6 py-2.5 flex items-center justify-center bg-red-700 hover:bg-red-800 text-white transition-colors shrink-0"
-          >
-            <X size={20} strokeWidth={3} />
-          </button>
         </div>
 
-        {/* ORDERS LIST */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-[#f0f2f5] relative min-h-[300px]">
-          {loading && (
-            <div className="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
-              <Loader text="Retrieving Orders..." />
-            </div>
-          )}
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row">
+          {/* ORDER CARDS */}
+          <div className="flex-1 min-h-0 overflow-auto p-4 relative">
+            {loading && (
+              <div className="absolute inset-0 bg-black/40 z-10 flex items-center justify-center">
+                <Loader text="Retrieving Orders..." />
+              </div>
+            )}
 
-          {!loading && (!data || data.masterData.length === 0) && (
-            <div className="flex flex-col items-center justify-center h-full py-20 text-slate-400 gap-4">
-              <p className="font-bold uppercase tracking-widest text-xs">
-                {isTableReserved ? "Table is reserved · No active orders" : "No orders on this table"}
-              </p>
-              {isTableReserved && (
-                <button
-                  onClick={handleNew}
-                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors flex items-center gap-2"
-                >
-                  <Plus size={16} strokeWidth={3} />
-                  Start Order
-                </button>
-              )}
-            </div>
-          )}
+            {!loading && (!data || data.masterData.length === 0) && (
+              <div className="flex flex-col items-center justify-center h-full py-20 text-white/40 gap-4">
+                <p className="font-bold uppercase tracking-widest text-xs">
+                  {isTableReserved ? "Table is reserved · No active orders" : "No orders on this table"}
+                </p>
+                {isTableReserved && (
+                  <button
+                    onClick={handleNew}
+                    className="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors flex items-center gap-2"
+                  >
+                    <Plus size={16} strokeWidth={3} />
+                    Start Order
+                  </button>
+                )}
+              </div>
+            )}
 
-          {(data?.masterData ?? []).map((m) => (
-            <TableOrderRow
-              key={m.orderId}
-              text={rowText(m)}
-              isSelected={selectedOrderId === m.orderId}
-              isPrinted={Boolean(recallRowById.get(Number(m.orderId))?.isPrinted)}
-              onOpen={() => openDetails(m.orderId)}
-              onPrint={() => {
-                setSelectedOrderId(m.orderId);
-                void handlePrint(m.orderId);
-              }}
-            />
-          ))}
-        </div>
+            {(data?.masterData.length ?? 0) > 0 && (
+              <div className="flex flex-col sm:flex-row sm:flex-nowrap gap-4 h-full min-h-0">
+                {(data?.masterData ?? []).map((m) => {
+                  const id = Number(m.orderId);
+                  const detailsStr = recallRowById.get(id)?.details;
+                  return (
+                    <TableOrderCard
+                      key={m.orderId}
+                      orderId={id}
+                      orderNo={m.orderNo ?? id}
+                      ticketNo={m.ticketNo ?? ""}
+                      order={fullOrders[id]}
+                      orderDetailsStr={detailsStr}
+                      fallbackDetails={parseRecallListText(detailsStr, id)}
+                      isSelected={selectedOrderId === m.orderId}
+                      isPrinted={Boolean(recallRowById.get(id)?.isPrinted)}
+                      onSelect={() => setSelectedOrderId(m.orderId)}
+                      onOpen={() => openDetails(m.orderId)}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-        {/* FOOTER */}
-        <div className="p-4 bg-white border-t border-gray-200 flex justify-between items-center shrink-0">
-          <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-            Total Records: {data?.masterData.length ?? 0}
+          {/* ACTIONS: work on the selected card */}
+          <div className="lg:w-28 shrink-0 bg-[#111] border-t lg:border-t-0 lg:border-l border-white/10 p-3 flex flex-row lg:flex-col gap-2">
+            <TableActionButton label={editingOrderId ? "Assign" : "New"} tone="bg-emerald-700 hover:bg-emerald-600" icon={<Plus size={18} strokeWidth={3} />} onClick={handleNew} disabled={loading} />
+            <TableActionButton label="Edit" tone="bg-[#49293e] hover:bg-[#5c3450]" icon={<Pencil size={18} strokeWidth={2.5} />} onClick={() => void handleEdit()} disabled={!selectedMaster || loading} />
+            <TableActionButton label="Settle" tone="bg-[#a35c24] hover:bg-[#b8692a]" icon={<Wallet size={18} strokeWidth={2.5} />} onClick={() => void handleSettle()} disabled={!selectedMaster || loading} />
+            <TableActionButton label="KOT" tone="bg-sky-800 hover:bg-sky-700" icon={<ChefHat size={18} strokeWidth={2.5} />} onClick={handleKot} disabled={!selectedMaster || loading} />
+            <TableActionButton label="Guest" tone="bg-stone-700 hover:bg-stone-600" icon={<Printer size={18} strokeWidth={2.5} />} onClick={() => { if (selectedOrderId) void handlePrint(selectedOrderId); }} disabled={!selectedMaster || loading} />
+            <div className="hidden lg:flex flex-1" />
+            <TableActionButton label="Close" tone="bg-red-700 hover:bg-red-800" icon={<X size={18} strokeWidth={3} />} onClick={onClose} tabIndex={-1} />
           </div>
         </div>
       </Modal>
@@ -662,3 +713,24 @@ export const DineInTableOrdersModal: React.FC<DineInTableOrdersModalProps> = ({
     </>
   );
 };
+
+/** One button of the table screen's action column (touch target ≥ 44px). */
+const TableActionButton: React.FC<{
+  label: string;
+  tone: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  tabIndex?: number;
+}> = ({ label, tone, icon, onClick, disabled, tabIndex }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    tabIndex={tabIndex}
+    className={`flex-1 lg:flex-initial lg:w-full lg:h-16 min-h-[44px] rounded-2xl text-white font-black text-[10px] uppercase tracking-[0.15em] transition-all flex flex-col items-center justify-center gap-1 shadow-md active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/30 disabled:opacity-40 disabled:cursor-not-allowed ${tone}`}
+  >
+    {icon}
+    <span>{label}</span>
+  </button>
+);
