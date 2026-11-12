@@ -138,6 +138,28 @@ export const findEmployeeName = async (
   return null;
 };
 
+/**
+ * Real name of `empId` for a screen: cache → authorized employee → branch list → employee by id. Null when not found.
+ * Never falls back to this device's default / logged-in employee (that would show the wrong person).
+ */
+export const lookupEmployeeName = async (empId: unknown): Promise<string | null> => {
+  const found = await findEmployeeName(empId, { realNamesOnly: true });
+  if (found) return found;
+  const numId = parseInt(idKey(empId), 10);
+  if (isNaN(numId) || numId <= 0) return null;
+  try {
+    const empDetail = (await getEmployeeById(numId)) as { empName?: string; name?: string; firstName?: string } | null;
+    const name = empDetail?.empName || empDetail?.name || empDetail?.firstName;
+    if (name && !isPlaceholderName(name)) {
+      rememberEmployeeName(String(numId), name);
+      return String(name).trim();
+    }
+  } catch (err) {
+    console.warn("Employee names: lookup by id failed", err);
+  }
+  return null;
+};
+
 /** The device's fallback names, in order: default employee, authorized employee, logged-in employee. */
 export const deviceEmployeeNames = (): { defaultName: string | null; authorizedName: string | null; loggedInName: string | null } => ({
   defaultName: localStorage.getItem("defaultEmployeeName"),
@@ -145,49 +167,33 @@ export const deviceEmployeeNames = (): { defaultName: string | null; authorizedN
   loggedInName: localStorage.getItem("employeeName"),
 });
 
-/**
- * Waiter name for a print of a SAVED order (table orders, settled orders):
- * the name already on the order → cache → authorized employee → branch list → employee by id
- * → default / authorized / logged-in employee → the order's name → "Waiter".
- */
-export const resolveEmployeeNameForPrint = async (empId?: unknown, currentName?: string | null): Promise<string> => {
-  if (isRealEmployeeName(currentName)) return String(currentName).trim();
-
-  const found = await findEmployeeName(empId, { realNamesOnly: true });
-  if (found) return found;
-
-  const id = idKey(empId);
-  const numId = parseInt(id, 10);
-  if (!isNaN(numId) && numId > 0) {
-    try {
-      const empDetail: any = await getEmployeeById(numId);
-      const name = empDetail?.empName || empDetail?.name || empDetail?.firstName;
-      if (name && !isPlaceholderName(name)) {
-        rememberEmployeeName(id, name);
-        return String(name).trim();
-      }
-    } catch (err) {
-      console.warn("Employee names: lookup by id failed", err);
-    }
-  }
-
-  const { defaultName, authorizedName, loggedInName } = deviceEmployeeNames();
-  for (const n of [defaultName, authorizedName, loggedInName]) {
-    if (n && !isPlaceholderName(n)) return n.trim();
-  }
-  return (currentName && currentName.trim()) || "Waiter";
+/** The terminal's default employee name (real names only), else null. */
+const defaultEmployeeName = (): string | null => {
+  const name = deviceEmployeeNames().defaultName;
+  return isRealEmployeeName(name) ? String(name).trim() : null;
 };
 
 /**
- * Waiter name for a reprint from the recall screen (no server calls): the order's name → cache
- * → default / authorized / logged-in employee → "Waiter".
+ * Employee of a SAVED order, for screens and prints (owner's rule, AGENT.md §6.0): the employee whose code was punched
+ * when the order was placed, or the default employee when no code was asked. Both are saved as the order's employee
+ * id, so: the real name already on the order → the name of that id (cache → authorized employee with that id →
+ * branch list → employee by id) → "Waiter". Only an order WITHOUT an employee id falls back to the default employee.
+ * Never the logged-in / authorized employee of this device for another id.
  */
+export const resolveEmployeeNameForPrint = async (empId?: unknown, currentName?: string | null): Promise<string> => {
+  if (isRealEmployeeName(currentName)) return String(currentName).trim();
+  if (idKey(empId)) return (await lookupEmployeeName(empId)) || "Waiter";
+  return defaultEmployeeName() || "Waiter";
+};
+
+/** Same rule without server calls (shown at once; the name of an id not cached yet is "Waiter"). */
 export const savedOrderWaiterName = (rawName: unknown, empId: unknown): string => {
-  if (rawName && !["waiter", "cashier", "null", "undefined"].includes(String(rawName).trim().toLowerCase())) {
-    return String(rawName).trim();
-  }
-  const cached = cachedEmployeeName(empId, { realNamesOnly: true });
+  if (isRealEmployeeName(rawName)) return String(rawName).trim();
+  const id = idKey(empId);
+  if (!id) return defaultEmployeeName() || "Waiter";
+  const cached = cachedEmployeeName(id, { realNamesOnly: true });
   if (cached) return cached;
-  const { defaultName, authorizedName, loggedInName } = deviceEmployeeNames();
-  return defaultName || authorizedName || loggedInName || "Waiter";
+  const authName = localStorage.getItem("authorizedEmployeeName");
+  if (id === localStorage.getItem("authorizedEmployeeId") && isRealEmployeeName(authName)) return String(authName).trim();
+  return "Waiter";
 };

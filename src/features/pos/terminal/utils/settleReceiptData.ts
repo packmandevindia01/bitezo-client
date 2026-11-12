@@ -16,7 +16,7 @@ import { getModifierTypeNameById } from '../../services/menuApi';
 import { alternativesCache } from '../hooks/usePosProducts';
 import { checkOrderHasBillDiscount } from './orderDiscountCheck';
 import { store } from '../../../../app/store';
-import { findEmployeeName } from "../../utils/employeeNames";
+import { isRealEmployeeName, resolveEmployeeNameForPrint } from "../../utils/employeeNames";
 
 // Saved-order data from the API is untyped.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -382,16 +382,8 @@ export const buildSettleReceiptPayload = async ({ orderPayload, salesPayload, cr
 
   let orderNoStr = finalSaleId.toString();
   let ticketNoStr = finalSaleId.toString();
-  // Name: cache → authorized employee → branch list (utils/employeeNames.ts).
-  const resolveEmployeeNameById = (empId?: number | string | null) => findEmployeeName(empId);
-
-  let waiterStr = (await resolveEmployeeNameById(employeeId))
-    || (waiterId && waiterId === employeeId ? waiterName : null)
-    || localStorage.getItem("defaultEmployeeName")
-    || localStorage.getItem("authorizedEmployeeName")
-    || waiterName
-    || localStorage.getItem("employeeName")
-    || "Waiter";
+  // The order's employee (punched code or default employee, AGENT.md §6.0): name of that id, never another device name.
+  let waiterStr = await resolveEmployeeNameForPrint(employeeId, waiterId && waiterId === employeeId ? waiterName : null);
   let sectionStr = orderPayload.sectionId ? String(orderPayload.sectionId) : "DINE IN";
   let tableStr = orderPayload.tableNo ? orderPayload.tableNo : (orderPayload.tableId ? String(orderPayload.tableId) : "");
   let masterData: any = null;
@@ -585,9 +577,11 @@ export const buildSettleReceiptPayload = async ({ orderPayload, salesPayload, cr
       }
     }
 
-    const masterEmp = masterData?.employeeName || (await resolveEmployeeNameById(masterData?.employeeId ?? masterData?.empId ?? masterData?.waiterId));
-    if (masterEmp) {
-      waiterStr = masterEmp;
+    // The saved order's own employee wins (only when it has a name or an id).
+    const masterEmpId = masterData?.employeeId ?? masterData?.empId ?? masterData?.waiterId;
+    if (isRealEmployeeName(masterData?.employeeName) || Number(masterEmpId) > 0) {
+      const masterEmp = await resolveEmployeeNameForPrint(masterEmpId, masterData?.employeeName);
+      if (isRealEmployeeName(masterEmp)) waiterStr = masterEmp;
     }
 
     if (isCombinedOrder) {

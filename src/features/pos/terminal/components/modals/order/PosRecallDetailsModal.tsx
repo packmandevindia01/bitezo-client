@@ -18,7 +18,7 @@ import { printRecallOrderGuestReceipt } from "../../../utils/printRecallOrder";
 import { usePosProducts, alternativesCache } from "../../../hooks/usePosProducts";
 import { t, getLocalizedName } from "../../../../utils/posLocalization";
 import { buildSavedOrderLoad, dispatchSavedOrderLoad } from "../../../utils/savedOrderToCart";
-import { cachedEmployeeName } from "../../../../utils/employeeNames";
+import { resolveEmployeeNameForPrint, savedOrderWaiterName } from "../../../../utils/employeeNames";
 import { printRecallOrderKot } from "../../../utils/printRecallKot";
 import { SavedOrderWindow, SavedOrderActions, TicketActionButton, MetaField, ItemDiscountRow, LineAddons, DeliveryDetailsBlock, SavedOrderTotals } from "../savedOrder/SavedOrderTicket";
 import { dedupeModifierRows, modifierRowsOfLine, classifyLineModifiers } from "../savedOrder/lineModifiers";
@@ -80,6 +80,22 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
 
   const [modifierTypes, setModifierTypes] = useState<any[]>([]);
   const [allExtras, setAllExtras] = useState<any[]>([]);
+  // Employee of the order (AGENT.md §6.0) looked up by its employee id when this device has no name for it yet.
+  const [lookedUpEmployee, setLookedUpEmployee] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLookedUpEmployee(null);
+    const raw = order?.masterData || order?.master || order;
+    const m = Array.isArray(raw) ? (raw[0] || {}) : (raw || {});
+    const empId = m.employeeId ?? m.empId ?? m.salespersonId;
+    const savedName = m.employeeName ?? m.waiter ?? order?.employeeName ?? fallbackDetails?.employeeName;
+    if (!order || savedOrderWaiterName(savedName, empId) !== "Waiter" || !(Number(empId) > 0)) return;
+    let cancelled = false;
+    resolveEmployeeNameForPrint(empId, savedName)
+      .then((name) => { if (!cancelled) setLookedUpEmployee(name); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [order, fallbackDetails]);
 
   useEffect(() => {
     if (isOpen && (orderId || effectiveOrderId)) {
@@ -278,14 +294,10 @@ export const PosRecallDetailsModal: React.FC<PosRecallDetailsModalProps> = ({
   
   const orderNo = master.orderNo ?? order?.orderNo ?? orderId ?? "";
   const ticketNo = toDisplayNo(master.ticketNo) ?? toDisplayNo(order?.ticketNo) ?? "";
+  // The order's employee: punched code or default employee (AGENT.md §6.0), never this device's other names.
   const rawEmpName = master.employeeName ?? master.waiter ?? order?.employeeName ?? fallbackDetails?.employeeName;
-  const employeeName = (rawEmpName && !["waiter", "cashier", "null", "undefined"].includes(String(rawEmpName).trim().toLowerCase()))
-    ? String(rawEmpName).trim()
-    : (cachedEmployeeName(master.employeeId ?? master.empId ?? master.salespersonId)
-      || localStorage.getItem("defaultEmployeeName")
-      || localStorage.getItem("authorizedEmployeeName")
-      || localStorage.getItem("employeeName")
-      || "Waiter");
+  const shownEmployee = savedOrderWaiterName(rawEmpName, master.employeeId ?? master.empId ?? master.salespersonId);
+  const employeeName = shownEmployee === "Waiter" && lookedUpEmployee ? lookedUpEmployee : shownEmployee;
   
   const orderTypeMap: Record<number, string> = {
     1: "DineIn",

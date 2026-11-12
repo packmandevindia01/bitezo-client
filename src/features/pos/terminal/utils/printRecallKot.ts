@@ -14,7 +14,7 @@ import { printerSettingsApi } from "../../services/printerSettingsApi";
 import { getPriceView, getPrintPrice } from "./billing";
 import { isKotArabicEnabled } from "../../utils/alternativeHelpers";
 import { checkOrderHasBillDiscount } from "./orderDiscountCheck";
-import { savedOrderWaiterName } from "../../utils/employeeNames";
+import { resolveEmployeeNameForPrint } from "../../utils/employeeNames";
 
 // Saved-order data from the API is untyped; the window keeps it as-is.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -213,7 +213,7 @@ const orderTypeName = fallbackOrderTypeByName(orderTypeCandidate).orderType;
     basePrintOptions = {
       orderNo: master.orderNo ?? String(orderId),
       ticketNo: toDisplayNo(master.ticketNo) ?? "",
-      waiter: savedOrderWaiterName(master.employeeName ?? fallbackDetails?.employeeName, master.employeeId ?? master.empId),
+      waiter: await resolveEmployeeNameForPrint(master.employeeId ?? master.empId, master.employeeName ?? fallbackDetails?.employeeName),
       counter: "Main",
       section: master.sectionName || "DINE IN",
       table: master.tableNo || "",

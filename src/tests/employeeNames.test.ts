@@ -113,23 +113,44 @@ describe("resolveEmployeeNameForPrint (table / settled order prints)", () => {
     expect(cachedEmployeeName(9)).toBe("Noor");
   });
 
-  it("falls back to the device names, then the order's name, then Waiter", async () => {
+  it("owner's rule: an order with an employee id never shows this device's default / authorized / logged-in name", async () => {
     localStorage.setItem("defaultEmployeeName", "Default");
-    expect(await resolveEmployeeNameForPrint(9, null)).toBe("Default");
+    localStorage.setItem("authorizedEmployeeId", "3");
+    localStorage.setItem("authorizedEmployeeName", "Manager");
+    localStorage.setItem("employeeName", "Logged In");
+    expect(await resolveEmployeeNameForPrint(9, null)).toBe("Waiter");
+  });
+
+  it("an order without an employee id was placed by the default employee", async () => {
+    localStorage.setItem("defaultEmployeeName", "Default");
+    localStorage.setItem("employeeName", "Logged In");
+    expect(await resolveEmployeeNameForPrint(null, "waiter")).toBe("Default");
     localStorage.clear();
-    expect(await resolveEmployeeNameForPrint(null, "waiter")).toBe("waiter");
     expect(await resolveEmployeeNameForPrint(null, null)).toBe("Waiter");
   });
 });
 
 describe("savedOrderWaiterName (recall reprint, no server calls)", () => {
-  it("order name → cache (real names) → device names → Waiter", () => {
+  it("order name → cached name of the order's id → Waiter; never another device name", () => {
     expect(savedOrderWaiterName(" Sara ", 7)).toBe("Sara");
     setMap({ "7": "Ahmed", "8": "Waiter" });
     expect(savedOrderWaiterName("null", 7)).toBe("Ahmed");
     expect(savedOrderWaiterName(undefined, 8)).toBe("Waiter");
     localStorage.setItem("authorizedEmployeeName", "Manager");
-    expect(savedOrderWaiterName("cashier", 8)).toBe("Manager");
+    localStorage.setItem("defaultEmployeeName", "Default");
+    expect(savedOrderWaiterName("cashier", 8)).toBe("Waiter");
     expect(getEmployeeNames).not.toHaveBeenCalled();
+  });
+
+  it("the authorized employee counts only when it is the order's own id", () => {
+    localStorage.setItem("authorizedEmployeeId", "8");
+    localStorage.setItem("authorizedEmployeeName", "Manager");
+    expect(savedOrderWaiterName(undefined, 8)).toBe("Manager");
+    expect(savedOrderWaiterName(undefined, 9)).toBe("Waiter");
+  });
+
+  it("no employee id on the order: the default employee", () => {
+    localStorage.setItem("defaultEmployeeName", "Default");
+    expect(savedOrderWaiterName(undefined, 0)).toBe("Default");
   });
 });

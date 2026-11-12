@@ -304,6 +304,18 @@ File: `pricing/storedOrder.ts`, `services/storedOrderView.ts`.
 
 ## 6. POS workflow
 
+### 6.0 Order employee and customer (owner's rule, 2026-11-12, applies to EVERY order and screen)
+- **Employee** of an order = the employee whose code was punched when it was placed (employee authentication), or the
+  terminal's **default employee** when no code was asked. Either way it is saved as the order's `employeeId`; show the name of
+  that id. An order with no employee id was placed by the default employee. Never show another device's / the logged-in
+  employee for an order that has an id. (The Dine-In waiter selected on the order is a separate field.)
+- **Customer** = the customer selected on the order; none selected = **Cash Customer**.
+- Code: `utils/employeeNames.ts` — `resolveEmployeeNameForPrint(empId, savedName)` (async: saved real name → name of the id via
+  cache / authorized employee with that SAME id / branch list / employee by id → "Waiter"; no id → default employee) and
+  `savedOrderWaiterName` (same rule, no server calls). Used by: Recall details (shows at once, looks up by id when unknown), Recall
+  bill + KOT reprints, new-order KOT and settle receipt (`usePosCartActions`, `settleReceiptData`), table / settled prints, Dine-In
+  settle, settled-order load, Split header. NOT bulk settlement's "settled by" (that is the person settling now).
+
 ### 6.1 Terminal start
 `useTerminalInit` → load POS config, branch print data, employee map, default employee; cashier
 session/day/shift (`cashier/`) must be open before orders.
@@ -324,6 +336,14 @@ session/day/shift (`cashier/`) must be open before orders.
   lines are kept until **Done**, which calls `setItemCustomizations` only for lines that changed; Cancel discards.
   Opens with any non-empty cart (starts on the selected line, else the last one). Grid items are filtered by the
   target line's category. Qty rules are in `terminal/utils/lineCustomization.ts`: one entry per id on a line, saved as one row with its qty. Lowering or removing an extra on a saved order records no void and asks for no permission, same as removing one always did.
+  **Unit rail** (2026-11-12, owner's prototype "EXTRAS LIST"): a NEW line of 2+ whole units shows 1…N left of the types. Pick k and tap an
+  extra / modifier → k units become their own line (placed right after it) carrying that item × k (one per unit); the cashier stays on
+  that line with k picked. Picking N = × N on the same line; nothing picked = one per tap on the whole line (as before); tap the picked
+  number again to un-pick. Splits are drafts until Done, which dispatches `splitCartLine` (posSlice: same price / VAT / % discount, an
+  amount item discount shared pro-rata) first, then `setItemCustomizations`. A split line whose extras end up the same as its parent's is
+  not split. Existing extras on the parent move pro-rata only when they divide evenly (`splitCustomizations`), otherwise stay; messages
+  stay on both. Lines sent to the kitchen (`isExisting` / `mapId`) never split (owner's choice): no rail, "Sent to kitchen · goes on all".
+  Tests: `extrasUnitSplit.test.tsx`.
 - Bill discount: `setBillDiscount` (replaces item discounts, R5).
 - Delivery: customer + address required; delivery charge editable (`setCustomDeliveryCharge`). The footer shows
   Delivery Charge AFTER VAT (it is not taxed, R7); one tap opens `PosDeliveryChargeModal`, which lists only the
@@ -397,6 +417,12 @@ Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set
     Lines of the other orders keep their item discounts.
   - **Item complimentary** (master `discPer` 0, line `complimentaryStatus` / 100 %): blocked.
   - **Item discounts**: unchanged.
+- Split screen header (2026-11-12): shows which order is split: order no, ticket, type, waiter, table (Dine-In), guests, customer,
+  date and saved Order Total (hidden once the bill discount is removed), from `terminal/utils/splitOrderInfo.ts` (`getSplitOrderInfo`:
+  saved master first, cart for gaps; employee and customer follow §6.0 (saved name → cached name of `employeeId` → `lookupEmployeeName`; no id → default employee; label "Employee", "—" when not found). Test: `splitOrderInfo.test.ts`.
+- Split drag and drop (2026-11-12): double-click still moves ONE unit; dragging a line onto another bill moves its WHOLE qty
+  (`terminal/hooks/useSplitDrag.ts`: pointer events; mouse drags after 6px, touch needs a ~0.3s hold so a quick swipe still scrolls;
+  Esc cancels; bills marked `data-split-bucket`). `splitDropCheck`: the original order keeps at least one item. Test: `splitDrag.test.tsx`.
 - Split (`PosSplitModal`): lines are moved between buckets;
   item discount moves pro-rata per unit; each bucket priced with `calculateOrder` and the saved rates;
   `POST /order-split`.

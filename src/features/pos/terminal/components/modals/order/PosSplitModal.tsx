@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Modal, ConfirmDialog } from "../../../../../../components/common";
 import { formatCurrency } from "../../../../../../utils/currency";
@@ -17,6 +18,10 @@ import {
   billDiscountRevertMessage,
   COMPLIMENTARY_SPLIT_COMBINE_MESSAGE,
 } from "../../../utils/orderDiscountCheck";
+import { getSplitOrderInfo, splitOrderEmployeeId } from "../../../utils/splitOrderInfo";
+import { lookupEmployeeName } from "../../../../utils/employeeNames";
+import { getDefaultEmployeeConfig } from "../../../../utils/defaultEmployee";
+import { useSplitDrag, splitDropCheck, SPLIT_BUCKET_ATTR } from "../../../hooks/useSplitDrag";
 
 interface PosSplitModalProps {
   isOpen: boolean;
@@ -72,6 +77,24 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
   const cartBillDiscount = useAppSelector((state) => Number(state.pos.billDiscountValue || 0));
   const [billDiscountPrompt, setBillDiscountPrompt] = useState(false);
   const [revertBillDiscount, setRevertBillDiscount] = useState(false);
+  // Which order is being split: the saved master first, the cart (same order loaded for edit) for gaps.
+  const cartTableNo = useAppSelector((state) => state.pos.selectedTableNo);
+  const cartCustomerName = useAppSelector((state) => state.pos.selectedCustomerName);
+  // Employee name looked up by the order's employee id when neither the order nor the cart has it (undefined = looking).
+  const [lookedUpEmployee, setLookedUpEmployee] = useState<string | null | undefined>(null);
+
+  useEffect(() => {
+    if (!originalOrder) { setLookedUpEmployee(null); return; }
+    const known = getSplitOrderInfo(originalOrder, { defaultEmployeeName: getDefaultEmployeeConfig().employeeName }).waiter;
+    const empId = splitOrderEmployeeId(originalOrder);
+    if (known || !empId) { setLookedUpEmployee(null); return; }
+    let cancelled = false;
+    setLookedUpEmployee(undefined);
+    lookupEmployeeName(empId)
+      .then((name) => { if (!cancelled) setLookedUpEmployee(name); })
+      .catch(() => { if (!cancelled) setLookedUpEmployee(null); });
+    return () => { cancelled = true; };
+  }, [originalOrder]);
 
   useEffect(() => {
     if (isOpen && orderId) {
@@ -469,11 +492,28 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
     }
   };
 
+  /** Drag and drop: the whole line (its full quantity) moves to the bill it is dropped on. */
+  const handleDropLine = (fromBucketId: string, toBucketId: string | null, mapId: number) => {
+    const check = splitDropCheck(buckets, fromBucketId, toBucketId, mapId);
+    if (!check.move || !toBucketId) {
+      if (check.message) showToast(check.message, "warning");
+      return;
+    }
+    const item = buckets.find((b) => b.id === fromBucketId)?.items.find((i) => i.mapId === mapId);
+    if (!item) return;
+    moveItem(fromBucketId, toBucketId, mapId, item.currentQty);
+    if (toBucketId !== "base") setActiveBucketId(toBucketId);
+    setSelectedBucketId(toBucketId);
+    setSelectedMapId(mapId);
+  };
+  const { drag, onPointerDown: onLinePointerDown, isDragClick } = useSplitDrag(handleDropLine);
+
   const handleSingleClickItem = (bucketId: string, mapId: number) => {
     handleSelectItem(bucketId, mapId);
   };
 
   const handleItemInteraction = (bucketId: string, mapId: number) => {
+    if (isDragClick()) return; // the click that ends a drag is not a tap
     const now = Date.now();
     const id = `${bucketId}-${mapId}`;
     const timeDiff = now - lastClickRef.current.time;
@@ -698,6 +738,17 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
 
   if (!isOpen) return null;
 
+  const info = getSplitOrderInfo(originalOrder, { orderId, defaultEmployeeName: getDefaultEmployeeConfig().employeeName, tableNo: cartTableNo, customerName: cartCustomerName });
+  const infoFields: { label: string; value: string }[] = [
+    { label: "Ticket", value: info.ticketNo },
+    { label: "Type", value: info.orderType },
+    { label: "Employee", value: info.waiter || (lookedUpEmployee === undefined ? "…" : lookedUpEmployee || "—") },
+    { label: "Table", value: info.table },
+    { label: "Guests", value: info.guests ? String(info.guests) : "" },
+    { label: "Customer", value: info.customer },
+    { label: "Date", value: info.date },
+  ].filter((f) => f.value);
+
   return (
     <>
       <Modal
@@ -708,21 +759,51 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       closeOnEscape
         className="!max-w-[98vw] !w-[98vw] h-[95vh] bg-slate-50 p-0 overflow-hidden flex flex-col"
       >
+        {/* Order being split */}
+        <div className="shrink-0 bg-[#49293e] text-white px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-2" aria-label="Order being split">
+          <div className="flex items-baseline gap-2 shrink-0">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60">Split Order</span>
+            <span className="text-lg font-black leading-none">#{info.orderNo || "—"}</span>
+          </div>
+          {infoFields.map((f) => (
+            <div key={f.label} className="flex flex-col min-w-0">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/50 leading-none mb-1">{f.label}</span>
+              <span className="text-xs font-black uppercase leading-none truncate max-w-[220px]" title={f.value}>{f.value}</span>
+            </div>
+          ))}
+          {info.netAmount !== null && !revertBillDiscount && (
+            <div className="ml-auto flex flex-col items-end shrink-0">
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-white/50 leading-none mb-1">Order Total</span>
+              <span className="text-base font-black leading-none text-[#ffb347]">{formatCurrency(info.netAmount)}</span>
+            </div>
+          )}
+        </div>
+
         <div className="flex-1 flex overflow-hidden">
           {/* Main Content Area */}
           <div className="flex-1 flex flex-wrap content-start overflow-y-auto p-4 gap-4">
             {buckets.map((bucket) => (
               <div 
                 key={bucket.id} 
+                {...{ [SPLIT_BUCKET_ATTR]: bucket.id }}
                 onClick={() => !bucket.isBase && setActiveBucketId(bucket.id)}
-                className={`w-[300px] h-[calc(50%-0.5rem)] flex-shrink-0 flex flex-col bg-white border-2 rounded-lg overflow-hidden shadow-sm transition-all cursor-pointer ${
-                  bucket.isBase 
+                className={`relative w-[300px] h-[calc(50%-0.5rem)] flex-shrink-0 flex flex-col bg-white border-2 rounded-lg overflow-hidden shadow-sm transition-all cursor-pointer ${
+                  drag && drag.fromBucketId !== bucket.id
+                    ? drag.overBucketId === bucket.id
+                      ? 'border-emerald-500 ring-4 ring-emerald-400/50'
+                      : 'border-dashed border-emerald-300'
+                    : bucket.isBase 
                     ? 'border-slate-300' 
                     : activeBucketId === bucket.id 
                       ? 'border-[#ff9500] ring-2 ring-[#ff9500] ring-opacity-50' 
                       : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
+                {drag && drag.fromBucketId !== bucket.id && drag.overBucketId === bucket.id && (
+                  <div className="absolute inset-0 z-10 bg-emerald-500/10 flex items-center justify-center pointer-events-none">
+                    <span className="bg-emerald-600 text-white text-xs font-black uppercase tracking-widest rounded-lg px-3 py-2 shadow-lg">Drop to move all</span>
+                  </div>
+                )}
                 {/* Header */}
                 <div className="flex items-center text-xs font-bold uppercase tracking-wider text-slate-500 bg-slate-100 p-2 border-b">
                   <div className="w-12 text-center">Qty</div>
@@ -761,7 +842,12 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
                     return (
                     <div key={item.mapId}>
                       <div 
-                        className={`flex items-start text-xs font-bold p-2 border-b transition-colors select-none ${
+                        onPointerDown={onLinePointerDown(bucket.id, item.mapId, `${item.currentQty} × ${item.name}`)}
+                        onContextMenu={(e) => e.preventDefault()}
+                        title="Double-click: move one · drag: move all"
+                        className={`flex items-start text-xs font-bold p-2 border-b transition-colors select-none cursor-grab active:cursor-grabbing ${
+                          drag && drag.fromBucketId === bucket.id && drag.mapId === item.mapId ? 'opacity-40 ' : ''
+                        }${
                           selectedBucketId === bucket.id && selectedMapId === item.mapId 
                             ? 'bg-[#ff9500] text-white' 
                             : 'hover:bg-slate-50'
@@ -850,6 +936,18 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
           </div>
         </div>
       </Modal>
+
+      {/* Line being dragged: follows the pointer (portal, so no modal transform shifts it) */}
+      {drag && createPortal(
+        <div
+          className="fixed z-[1000] pointer-events-none rounded-lg bg-[#ff9500] text-white text-xs font-black uppercase px-3 py-2 shadow-2xl max-w-[260px] truncate"
+          style={{ left: drag.x + 14, top: drag.y + 14 }}
+          aria-hidden="true"
+        >
+          {drag.label}
+        </div>,
+        document.body,
+      )}
 
       {/* Dine In Table Selection Modal triggered on Done */}
       {showTableModal && (

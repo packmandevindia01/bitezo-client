@@ -41,7 +41,7 @@ import {
 import { getVatStatus, roundCalc, getPriceView, getPrintPrice } from "../utils/billing";
 import { buildReorderItems } from "../utils/reorderItems";
 import { useCartMutations } from "./cart/useCartMutations";
-import { findEmployeeName } from "../../utils/employeeNames";
+import { isRealEmployeeName, resolveEmployeeNameForPrint } from "../../utils/employeeNames";
 import {
   buildDirectSettleOrderPayload,
   buildNewOrderPayload,
@@ -436,16 +436,9 @@ export const usePosCartActions = () => {
       let orderNoStr = replyRef?.orderNo ?? "";
       let ticketNoStr = replyRef?.ticketNo ?? "";
       let orderTypeStr = selectedOrderTypeName || "DINE IN";
-      // Name: cache → authorized employee → branch list (utils/employeeNames.ts).
-      const resolveEmployeeName = (empId?: number | string | null) => findEmployeeName(empId);
-
+      // The order's employee (punched code or default employee, AGENT.md §6.0): name of that id, never another device name.
       const targetEmpId = session.employeeId || waiterId;
-      let waiterStr = (await resolveEmployeeName(targetEmpId))
-        || waiterName
-        || localStorage.getItem("defaultEmployeeName")
-        || localStorage.getItem("authorizedEmployeeName")
-        || localStorage.getItem("employeeName")
-        || "Waiter";
+      let waiterStr = await resolveEmployeeNameForPrint(targetEmpId, waiterId && waiterId === targetEmpId ? waiterName : null);
 
       let sectionStr = selectedSectionId ? String(selectedSectionId) : "Main";
       let tableStr = selectedTableId ? String(selectedTableId) : "T1";
@@ -478,9 +471,11 @@ export const usePosCartActions = () => {
           orderNoStr = toDisplayNo(masterData.orderNo) ?? orderNoStr;
           ticketNoStr = toDisplayNo(masterData.ticketNo) ?? ticketNoStr;
           orderTypeStr = masterData.orderType || masterData.orderTypeName || orderTypeStr;
-          const masterEmp = masterData.employeeName || (await resolveEmployeeName(masterData.employeeId ?? masterData.empId ?? masterData.waiterId));
-          if (masterEmp) {
-            waiterStr = masterEmp;
+          // The saved order's own employee wins (only when it has a name or an id).
+          const masterEmpId = masterData.employeeId ?? masterData.empId ?? masterData.waiterId;
+          if (isRealEmployeeName(masterData.employeeName) || Number(masterEmpId) > 0) {
+            const masterEmp = await resolveEmployeeNameForPrint(masterEmpId, masterData.employeeName);
+            if (isRealEmployeeName(masterEmp)) waiterStr = masterEmp;
           }
           sectionStr = masterData.sectionName || sectionStr;
           tableStr = masterData.tableNo || tableStr;

@@ -12,7 +12,7 @@ import { roundCalc, getPrintPrice, getPriceView } from "./billing";
 import { isBillArabicEnabled } from "../../utils/alternativeHelpers";
 import { hasPrinterHeadings, notifyPrinterHeadingWarning } from "../../utils/printHeadingUtils";
 import { alternativesCache } from "../hooks/usePosProducts";
-import { savedOrderWaiterName } from "../../utils/employeeNames";
+import { resolveEmployeeNameForPrint } from "../../utils/employeeNames";
 
 export interface PrintRecallOrderOptions {
   orderId: number;
@@ -457,7 +457,7 @@ export const printRecallOrderGuestReceipt = async (
     const printData = {
       orderNo: master.orderNo ?? String(orderId),
       ticketNo: toDisplayNo(master.ticketNo) ?? "",
-      waiter: savedOrderWaiterName(master.employeeName ?? master.waiter ?? order?.employeeName, master.employeeId ?? master.empId),
+      waiter: await resolveEmployeeNameForPrint(master.employeeId ?? master.empId, master.employeeName ?? master.waiter ?? order?.employeeName),
       counter: "Main",
       section: master.sectionName || "DINE IN",
       table: master.tableNo || "",
