@@ -8,7 +8,9 @@ import {
   fetchAltNames,
   fetchUnitPrice,
   deleteProviderSettings,
+  fetchProviderSettingsList,
 } from "../services/providerSettingsService";
+import { productVatRate, knownVatRate, splitPrice } from "../utils/providerVat";
 import { subscribeToBranchUpdates } from "../../../inventory/branches/utils/branchSync";
 import { fetchBranchNames } from "../../../inventory/branches/services/branchApi";
 import type {
@@ -85,6 +87,17 @@ export const useProviderSettingsForm = (
 
   // ─── Grid entries ─────────────────────────────────────────────────────────
   const [entries, setEntries] = useState<ProviderSettingEntry[]>([createEmptyEntry()]);
+
+  /** Looks up each product's own VAT % and recalculates its Excl / Incl columns (they used a fixed 5 %). */
+  const applyVatRates = useCallback((productIds: number[]) => {
+    Array.from(new Set(productIds.filter((id) => id > 0))).forEach((pid) => {
+      void productVatRate(pid).then((rate) => {
+        setEntries((prev) => prev.map((e) => (e.productId === pid
+          ? { ...e, vatRate: rate, ...splitPrice(e.price, e.isIncl, rate) }
+          : e)));
+      });
+    });
+  }, []);
 
   // ─── Load master data + all products on mount ─────────────────────────────
   const loadBaseData = useCallback(async () => {
@@ -178,8 +191,8 @@ export const useProviderSettingsForm = (
             productCode: d.barcode,
             altName: d.altName,
             isIncl: d.isIncl,
-            exclPrice: d.isIncl ? d.price / 1.05 : d.price,
-            inclPrice: d.isIncl ? d.price : d.price * 1.05,
+            vatRate: knownVatRate(d.productId),
+            ...splitPrice(d.price, d.isIncl, knownVatRate(d.productId)),
             price: d.price,
             rawPrice: d.price ? String(d.price) : "",
           });
@@ -199,11 +212,52 @@ export const useProviderSettingsForm = (
       });
 
       setEntries(uniqueDetails.length > 0 ? uniqueDetails : [createEmptyEntry()]);
+      // The saved rows only give a fallback list (the server's reply can carry another product's alt names). Load each
+      // product's REAL alternatives so they can be changed on Edit, and show the real name of the saved unit.
       setAltNamesMap((prev) => ({ ...prev, ...newAltMap }));
+      const productIds = Array.from(new Set(uniqueDetails.map((e) => e.productId)));
+      applyVatRates(productIds);
+      productIds.forEach((pid) => {
+        void fetchAltNames(pid)
+          .then((alts) => {
+            if (!Array.isArray(alts)) return;
+            if (alts.length === 0) {
+              // No alternatives: the alt name the server sent belongs to another product. Show the product itself.
+              setAltNamesMap((prev) => ({ ...prev, [pid]: [] }));
+              setEntries((prev) => prev.map((e) => (e.productId === pid ? { ...e, altName: "" } : e)));
+              return;
+            }
+            setAltNamesMap((prev) => ({ ...prev, [pid]: alts }));
+            setEntries((prev) => prev.map((e) => {
+              if (e.productId !== pid) return e;
+              const alt = alts.find((a) => a.unitId === e.unitId);
+              return alt ? { ...e, altName: alt.altName } : e;
+            }));
+          })
+          .catch(() => { /* keep the fallback list */ });
+      });
     } else {
       setEntries([createEmptyEntry()]);
     }
-  }, [initialData]);
+  }, [initialData, applyVatRates]);
+
+  // The product code shown on a saved row: the product's own (the server's reply can carry another product's code).
+  useEffect(() => {
+    if (allProducts.length === 0) return;
+    setEntries((prev) => {
+      let changed = false;
+      const next = prev.map((e) => {
+        if (!(e.productId > 0)) return e;
+        const own = allProducts.find((p) => p.productId === e.productId && p.unitId === e.unitId);
+        if (own?.barcode && own.barcode !== e.productCode) {
+          changed = true;
+          return { ...e, productCode: own.barcode };
+        }
+        return e;
+      });
+      return changed ? next : prev;
+    });
+  }, [allProducts]);
 
   // ─── Sub-categories when category changes ─────────────────────────────────
   useEffect(() => {
@@ -343,8 +397,8 @@ export const useProviderSettingsForm = (
             productCode: barcode,
             altName,
             isIncl,
-            exclPrice: isIncl ? price / 1.05 : price,
-            inclPrice: isIncl ? price : price * 1.05,
+            vatRate: knownVatRate(prodId),
+            ...splitPrice(price, isIncl, knownVatRate(prodId)),
             price,
             rawPrice: price ? String(price) : "",
           });
@@ -393,6 +447,7 @@ export const useProviderSettingsForm = (
         );
       }
 
+      applyVatRates(uniqueLoadedEntries.map((e) => e.productId));
       showToast(`Loaded ${uniqueLoadedEntries.length} products`, "success");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Failed to load settings", "error");
@@ -452,8 +507,8 @@ export const useProviderSettingsForm = (
 
     const isIncl = product.isIncl ?? true;
     const price = product.price ?? 0;
-    const exclPrice = isIncl ? price / 1.05 : price;
-    const inclPrice = isIncl ? price : price * 1.05;
+    const vatRate = knownVatRate(pid);
+    const { exclPrice, inclPrice } = splitPrice(price, isIncl, vatRate);
 
     const rowEntry: ProviderSettingEntry = {
       productId: pid,
@@ -466,6 +521,7 @@ export const useProviderSettingsForm = (
       rawPrice: price ? String(price) : "",
       exclPrice,
       inclPrice,
+      vatRate,
     };
 
     setEntries((prev) => {
@@ -477,6 +533,7 @@ export const useProviderSettingsForm = (
     if (!altNamesMap[pid]) {
       void loadAltNames(pid);
     }
+    if (vatRate === undefined) applyVatRates([pid]);
   };
 
   const handleGridAltNameSelect = async (index: number, unitId: number) => {
@@ -510,8 +567,7 @@ export const useProviderSettingsForm = (
       }
     }
 
-    const exclPrice = isIncl ? newPrice / 1.05 : newPrice;
-    const inclPrice = isIncl ? newPrice : newPrice * 1.05;
+    const { exclPrice, inclPrice } = splitPrice(newPrice, isIncl, entry.vatRate);
 
     setEntries((prev) => {
       const updated = [...prev];
@@ -535,8 +591,7 @@ export const useProviderSettingsForm = (
       const row = updated[index];
       if (!row || !row.productId) return prev;
       const nextIsIncl = !row.isIncl;
-      const exclPrice = nextIsIncl ? row.price / 1.05 : row.price;
-      const inclPrice = nextIsIncl ? row.price : row.price * 1.05;
+      const { exclPrice, inclPrice } = splitPrice(row.price, nextIsIncl, row.vatRate);
       updated[index] = {
         ...row,
         isIncl: nextIsIncl,
@@ -553,8 +608,7 @@ export const useProviderSettingsForm = (
       const row = updated[index];
       if (!row) return prev;
       const num = parseFloat(val) || 0;
-      const exclPrice = row.isIncl ? num / 1.05 : num;
-      const inclPrice = row.isIncl ? num : num * 1.05;
+      const { exclPrice, inclPrice } = splitPrice(num, row.isIncl, row.vatRate);
       updated[index] = {
         ...row,
         price: num,
@@ -592,10 +646,31 @@ export const useProviderSettingsForm = (
     setEntries([createEmptyEntry()]);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!selectedProvider || !selectedBranch) {
       showToast("Please select Provider and Branch", "warning");
       return;
+    }
+    // A product row without a unit used to be dropped from the save without a word.
+    const noUnit = entries.find((e) => e.productId > 0 && !(e.unitId > 0));
+    if (noUnit) {
+      showToast(`Please select the Alt Name (unit) for ${noUnit.productName || "every product"}`, "warning");
+      return;
+    }
+    // One price list per provider and branch: a second one would give the POS each product twice.
+    if (!initialData?.master) {
+      const providerName = providers.find((p) => String(p.providerId) === selectedProvider)?.providerName ?? "";
+      const branchName = branches.find((b) => String(b.branchId) === selectedBranch)?.branchName ?? "";
+      try {
+        const existing = await fetchProviderSettingsList();
+        const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+        if (providerName && branchName && existing.some((x) => same(x.provider, providerName) && same(x.branch, branchName))) {
+          showToast(`${providerName} already has settings for ${branchName}. Open them from the list and edit instead.`, "error");
+          return;
+        }
+      } catch {
+        // list not available: let the save go ahead
+      }
     }
     const validEntries = entries.filter((e) => e.productId > 0 && e.unitId > 0);
     if (validEntries.length === 0) {

@@ -1,16 +1,33 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { Clock, Moon, Sun, AlertTriangle, Info } from "lucide-react";
 import { FormInput, Checkbox, Button, Loader } from "../../../../components/common";
 import type { MenuSettingsDetail, CreateMenuSettingsPayload } from "../types";
+import {
+  SESSION_PRESETS,
+  crossesMidnight,
+  durationMinutes,
+  formatDuration,
+  formatSessionHours,
+  formatTime12,
+  isAllDay,
+  sessionsOverlap,
+  toApiTime,
+  toInputTime,
+  toMinutes,
+} from "../utils/sessionTime";
+import { SessionTimelineAxis, SessionTimelineRow, type TimelineSession } from "./SessionTimeline";
+
+const timeField = z.string().refine((v) => toMinutes(v) !== null, "Choose a time");
 
 const menuSettingsSchema = z.object({
   code: z.string().min(1, "Code is required").max(50, "Code is too long"),
   name: z.string().min(1, "Name is required").max(100, "Name is too long"),
   arabicName: z.string().max(100, "Arabic Name is too long"),
-  startTime: z.string().min(1, "Start time is required"),
-  endTime: z.string().min(1, "End time is required"),
+  startTime: timeField,
+  endTime: timeField,
   isActive: z.boolean(),
 });
 
@@ -23,151 +40,8 @@ const handleEnterJump = (e: React.KeyboardEvent, nextId: string) => {
   }
 };
 
-const TimePicker = ({ 
-  label, 
-  value, 
-  onChange, 
-  disabled,
-  tabIndex,
-  id,
-  nextId,
-}: { 
-  label: string; 
-  value: string; 
-  onChange: (val: string) => void;
-  disabled?: boolean;
-  tabIndex?: number;
-  id?: string;
-  nextId?: string;
-}) => {
-  const [hh24, mmProp, ssProp] = (value || "00:00:00").split(":");
-  const h24 = parseInt(hh24 || "0", 10);
-  
-  const isPM = h24 >= 12;
-  const h12Prop = (h24 % 12 || 12).toString().padStart(2, "0");
-  const ampmProp = isPM ? "PM" : "AM";
-
-  const [h12, setH12] = useState(h12Prop);
-  const [mm, setMm] = useState(mmProp || "00");
-  const [ss, setSs] = useState(ssProp || "00");
-  const [ampm, setAmpm] = useState(ampmProp);
-
-  useEffect(() => {
-    const [h, m, s] = (value || "00:00:00").split(":");
-    const hNum = parseInt(h || "0", 10);
-    setH12((hNum % 12 || 12).toString().padStart(2, "0"));
-    setMm(m || "00");
-    setSs(s || "00");
-    setAmpm(hNum >= 12 ? "PM" : "AM");
-  }, [value]);
-
-  const commit = (newH12: string, newMm: string, newSs: string, newAmpm: string) => {
-    let h24Val = parseInt(newH12, 10) || 0;
-    if (newAmpm === "PM" && h24Val < 12) h24Val += 12;
-    if (newAmpm === "AM" && h24Val === 12) h24Val = 0;
-    
-    const finalH = h24Val.toString().padStart(2, "0");
-    const finalM = newMm.padStart(2, "0");
-    const finalS = newSs.padStart(2, "0");
-    onChange(`${finalH}:${finalM}:${finalS}`);
-  };
-
-  return (
-    <div className="relative group">
-      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5 block px-1">
-        {label}
-      </label>
-      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg p-1 group-focus-within:border-[#49293e] group-focus-within:ring-1 group-focus-within:ring-[#49293e]/10 transition-all">
-        <div className="p-1.5 text-slate-400">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M12 2v10l4.5 4.5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <circle cx="12" cy="12" r="10" strokeWidth="2" />
-          </svg>
-        </div>
-        
-        <div className="flex flex-1 items-center gap-0.5">
-          <input 
-            id={id ? `${id}-h` : undefined}
-            type="number"
-            value={h12}
-            tabIndex={tabIndex}
-            disabled={disabled}
-            onFocus={(e) => e.target.select()}
-            onChange={(e) => setH12(e.target.value)}
-            onKeyDown={(e) => handleEnterJump(e, id ? `${id}-m` : "")}
-            onBlur={() => {
-              let val = parseInt(h12, 10) || 12;
-              if (val > 12) val = 12;
-              if (val < 1) val = 12;
-              const formatted = val.toString().padStart(2, "0");
-              setH12(formatted);
-              commit(formatted, mm, ss, ampm);
-            }}
-            className="bg-transparent text-xs font-bold text-slate-700 outline-none w-full text-center placeholder-slate-300 p-0 m-0 border-none focus:ring-0"
-          />
-          <span className="text-slate-300 font-bold">:</span>
-          <input 
-            id={id ? `${id}-m` : undefined}
-            type="number"
-            value={mm}
-            tabIndex={tabIndex ? tabIndex + 1 : undefined}
-            disabled={disabled}
-            onFocus={(e) => e.target.select()}
-            onChange={(e) => setMm(e.target.value)}
-            onKeyDown={(e) => handleEnterJump(e, id ? `${id}-s` : "")}
-            onBlur={() => {
-              let val = parseInt(mm, 10) || 0;
-              if (val > 59) val = 59;
-              if (val < 0) val = 0;
-              const formatted = val.toString().padStart(2, "0");
-              setMm(formatted);
-              commit(h12, formatted, ss, ampm);
-            }}
-            className="bg-transparent text-xs font-bold text-slate-700 outline-none w-full text-center placeholder-slate-300 p-0 m-0 border-none focus:ring-0"
-          />
-          <span className="text-slate-300 font-bold">:</span>
-          <input 
-            id={id ? `${id}-s` : undefined}
-            type="number"
-            value={ss}
-            tabIndex={tabIndex ? tabIndex + 2 : undefined}
-            disabled={disabled}
-            onFocus={(e) => e.target.select()}
-            onChange={(e) => setSs(e.target.value)}
-            onKeyDown={(e) => handleEnterJump(e, id ? `${id}-ampm` : "")}
-            onBlur={() => {
-              let val = parseInt(ss, 10) || 0;
-              if (val > 59) val = 59;
-              if (val < 0) val = 0;
-              const formatted = val.toString().padStart(2, "0");
-              setSs(formatted);
-              commit(h12, mm, formatted, ampm);
-            }}
-            className="bg-transparent text-xs font-bold text-slate-700 outline-none w-full text-center placeholder-slate-300 p-0 m-0 border-none focus:ring-0"
-          />
-          
-          <div className="w-px h-4 bg-slate-200 mx-1" />
-          
-          <button
-            id={id ? `${id}-ampm` : undefined}
-            type="button"
-            tabIndex={tabIndex ? tabIndex + 3 : undefined}
-            disabled={disabled}
-            onKeyDown={(e) => nextId ? handleEnterJump(e, nextId) : undefined}
-            onClick={() => {
-              const newAmpm = ampm === "AM" ? "PM" : "AM";
-              setAmpm(newAmpm);
-              commit(h12, mm, ss, newAmpm);
-            }}
-            className="bg-transparent text-[10px] font-black text-[#49293e] outline-none cursor-pointer px-1 hover:bg-slate-200 rounded transition-colors"
-          >
-            {ampm}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
+const ALL_DAY = "00:00:00";
+const DEFAULT_HOURS = { start: "06:00:00", end: "11:00:00" };
 
 interface MenuSettingsFormProps {
   initialData: MenuSettingsDetail | null;
@@ -175,7 +49,158 @@ interface MenuSettingsFormProps {
   saving: boolean;
   onSubmit: (data: Omit<CreateMenuSettingsPayload, "createdAt">) => void;
   onDelete?: () => void;
+  /** The other sessions, drawn faintly on the timeline so overlaps are visible. */
+  otherSessions?: TimelineSession[];
 }
+
+/**
+ * Session hours: All day, or From → To with presets. A plain summary and a 24-hour bar show exactly when the session
+ * runs (including past midnight) next to the other sessions.
+ */
+const SessionHoursField = ({
+  start,
+  end,
+  onChange,
+  disabled,
+  name,
+  otherSessions,
+}: {
+  start: string;
+  end: string;
+  onChange: (start: string, end: string) => void;
+  disabled?: boolean;
+  name: string;
+  otherSessions: TimelineSession[];
+}) => {
+  const allDay = isAllDay(start, end);
+  const overnight = crossesMidnight(start, end);
+  const overlapping = otherSessions.filter((s) => !s.inactive && sessionsOverlap([start, end], [s.start, s.end]));
+
+  const setTime = (which: "start" | "end", value: string) => {
+    const minutes = toMinutes(value);
+    if (minutes === null) return;
+    if (which === "start") onChange(toApiTime(minutes), end);
+    else onChange(start, toApiTime(minutes));
+  };
+
+  const modeClass = (active: boolean) =>
+    `flex-1 h-9 rounded-lg text-xs font-bold transition-colors ${
+      active ? "bg-[#49293e] text-white shadow" : "text-slate-500 hover:text-[#49293e]"
+    }`;
+
+  return (
+    <div className="rounded-xl border border-slate-200 p-4 space-y-4">
+      <div className="flex items-center gap-2">
+        <Clock size={16} className="text-[#49293e]" />
+        <span className="text-sm font-bold text-slate-700">Session hours</span>
+        <span className="text-xs text-slate-400">— when this menu shows on the POS</span>
+      </div>
+
+      {/* All day / set hours */}
+      <div className="flex gap-1 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="Session hours">
+        <button type="button" role="radio" aria-checked={allDay} disabled={disabled} className={modeClass(allDay)}
+          onClick={() => onChange(ALL_DAY, ALL_DAY)}>
+          All day
+        </button>
+        <button type="button" role="radio" aria-checked={!allDay} disabled={disabled} className={modeClass(!allDay)}
+          onClick={() => { if (allDay) onChange(DEFAULT_HOURS.start, DEFAULT_HOURS.end); }}>
+          Set hours
+        </button>
+      </div>
+
+      {!allDay && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="mb-1 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <Sun size={12} /> From
+              </span>
+              <input
+                id="startTime"
+                type="time"
+                step={60}
+                value={toInputTime(start)}
+                disabled={disabled}
+                onChange={(e) => setTime("start", e.target.value)}
+                onKeyDown={(e) => handleEnterJump(e, "endTime")}
+                className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]"
+              />
+            </label>
+            <label className="block">
+              <span className="mb-1 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <Moon size={12} /> To
+              </span>
+              <input
+                id="endTime"
+                type="time"
+                step={60}
+                value={toInputTime(end)}
+                disabled={disabled}
+                onChange={(e) => setTime("end", e.target.value)}
+                onKeyDown={(e) => handleEnterJump(e, "isActive")}
+                className="w-full h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e]"
+              />
+            </label>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-400">Quick:</span>
+            {SESSION_PRESETS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                disabled={disabled}
+                tabIndex={-1}
+                onClick={() => onChange(p.start, p.end)}
+                className="rounded-full border border-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-600 hover:border-[#49293e] hover:text-[#49293e] transition-colors"
+              >
+                {p.label} <span className="text-slate-400">{formatTime12(p.start)}–{formatTime12(p.end)}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Plain summary */}
+      <div className="rounded-lg bg-[#49293e]/5 px-3 py-2 text-sm text-slate-700" aria-live="polite">
+        {allDay ? (
+          <span><b>Runs all day</b> — always shown on the POS.</span>
+        ) : (
+          <span>
+            Runs <b>{formatTime12(start)}</b> → <b>{formatTime12(end)}</b>
+            {overnight && <b> next day</b>} · {formatDuration(durationMinutes(start, end))}
+          </span>
+        )}
+      </div>
+
+      {overnight && (
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          <span>
+            Ends <b>after midnight</b> ({formatTime12(end)} the next morning). If you meant the same day, set To later than From
+            (e.g. {formatTime12(start)} → {formatTime12(toApiTime((toMinutes(start) ?? 0) + 180))}).
+          </span>
+        </div>
+      )}
+      {overlapping.length > 0 && (
+        <div className="flex items-start gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-800">
+          <Info size={14} className="mt-0.5 shrink-0" />
+          <span>
+            Overlaps with {overlapping.map((s) => `${s.name} (${formatSessionHours(s.start, s.end)})`).join(", ")}. Both show on the
+            POS as separate tabs during that time.
+          </span>
+        </div>
+      )}
+
+      {/* Day timeline */}
+      <div className="space-y-1.5">
+        <SessionTimelineRow session={{ key: "this", name: name || "This session", start, end, highlight: true }} />
+        {otherSessions.map((s) => <SessionTimelineRow key={s.key} session={s} />)}
+        <SessionTimelineAxis />
+      </div>
+    </div>
+  );
+};
 
 const MenuSettingsForm = ({
   initialData,
@@ -183,12 +208,14 @@ const MenuSettingsForm = ({
   saving,
   onSubmit,
   onDelete,
+  otherSessions = [],
 }: MenuSettingsFormProps) => {
   const {
     register,
     handleSubmit,
     control,
     reset,
+    watch,
     formState: { errors },
   } = useForm<MenuSettingsFormValues>({
     resolver: zodResolver(menuSettingsSchema),
@@ -196,8 +223,8 @@ const MenuSettingsForm = ({
       code: "",
       name: "",
       arabicName: "",
-      startTime: "00:00:00",
-      endTime: "00:00:00",
+      startTime: DEFAULT_HOURS.start,
+      endTime: DEFAULT_HOURS.end,
       isActive: true,
     },
   });
@@ -208,22 +235,24 @@ const MenuSettingsForm = ({
         code: initialData.code || "",
         name: initialData.name || "",
         arabicName: initialData.arabicName || "",
-        startTime: initialData.startTime || "00:00:00",
-        endTime: initialData.endTime || "00:00:00",
+        startTime: initialData.startTime || ALL_DAY,
+        endTime: initialData.endTime || ALL_DAY,
         isActive: initialData.isActive !== false,
       });
     }
   }, [initialData, reset]);
 
+  const name = watch("name");
+  const others = useMemo(
+    () => otherSessions.filter((s) => s.key !== initialData?.menuId),
+    [otherSessions, initialData?.menuId],
+  );
+
   const handleFormSubmit = (data: MenuSettingsFormValues) => {
-    // Ensure seconds are included for time fields
-    const formattedStartTime = data.startTime.split(":").length === 2 ? `${data.startTime}:00` : data.startTime;
-    const formattedEndTime = data.endTime.split(":").length === 2 ? `${data.endTime}:00` : data.endTime;
-    
     onSubmit({
       ...data,
-      startTime: formattedStartTime,
-      endTime: formattedEndTime,
+      startTime: toApiTime(toMinutes(data.startTime) ?? 0),
+      endTime: toApiTime(toMinutes(data.endTime) ?? 0),
     });
   };
 
@@ -234,7 +263,7 @@ const MenuSettingsForm = ({
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} noValidate className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <FormInput
             id="code"
             label="Code"
@@ -259,42 +288,36 @@ const MenuSettingsForm = ({
             label="Arabic Name"
             tabIndex={3}
             {...register("arabicName")}
-            onKeyDown={(e) => handleEnterJump(e, "startTime-h")}
+            onKeyDown={(e) => handleEnterJump(e, "startTime")}
             error={errors.arabicName?.message}
-          />
-          <Controller
-            name="startTime"
-            control={control}
-            render={({ field }) => (
-              <TimePicker
-                id="startTime"
-                label="Start Time"
-                value={field.value}
-                onChange={field.onChange}
-                disabled={saving}
-                tabIndex={4}
-                nextId="endTime-h"
-              />
-            )}
-          />
-          <Controller
-            name="endTime"
-            control={control}
-            render={({ field }) => (
-              <TimePicker
-                id="endTime"
-                label="End Time"
-                value={field.value}
-                onChange={field.onChange}
-                disabled={saving}
-                tabIndex={8}
-                nextId="isActive"
-              />
-            )}
           />
         </div>
 
-        <div className="mt-4 pt-4 border-t border-gray-100">
+        <Controller
+          name="startTime"
+          control={control}
+          render={({ field: startField }) => (
+            <Controller
+              name="endTime"
+              control={control}
+              render={({ field: endField }) => (
+                <SessionHoursField
+                  start={startField.value}
+                  end={endField.value}
+                  disabled={saving}
+                  name={name}
+                  otherSessions={others}
+                  onChange={(s, e) => { startField.onChange(s); endField.onChange(e); }}
+                />
+              )}
+            />
+          )}
+        />
+        {(errors.startTime || errors.endTime) && (
+          <p className="text-xs text-red-600">{errors.startTime?.message || errors.endTime?.message}</p>
+        )}
+
+        <div className="pt-2 border-t border-gray-100">
           <Controller
             name="isActive"
             control={control}
@@ -302,7 +325,6 @@ const MenuSettingsForm = ({
               <Checkbox
                 id="isActive"
                 label="Active Status"
-                tabIndex={12}
                 checked={field.value}
                 onChange={field.onChange}
               />
@@ -336,7 +358,7 @@ const MenuSettingsForm = ({
           >
             Clear
           </Button>
-          <Button type="submit" loading={saving} disabled={saving} className="w-24" tabIndex={13}>
+          <Button type="submit" loading={saving} disabled={saving} className="w-24">
             Save
           </Button>
         </div>

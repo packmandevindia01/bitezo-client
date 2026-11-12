@@ -9,6 +9,8 @@ export interface ProviderSettingEntry {
   inclPrice: number;
   price: number;
   rawPrice?: string;
+  /** Product's own sales VAT % for the Excl / Incl columns (undefined until looked up, null when not found). */
+  vatRate?: number | null;
 }
 
 export interface ProviderSettingsState {

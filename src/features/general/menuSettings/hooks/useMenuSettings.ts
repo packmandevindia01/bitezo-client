@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { menuSettingsApi } from "../services/menuSettingsApi";
 import type { CreateMenuSettingsPayload, UpdateMenuSettingsPayload } from "../types";
 import { useToast } from "../../../../app/providers/useToast";
@@ -28,6 +28,18 @@ export const useMenuSettings = () => {
     queryKey: ["menuSettingsDetail", editId],
     queryFn: () => menuSettingsApi.getById(editId!),
     enabled: modalMode === "edit" && editId !== null,
+  });
+
+  // Hours of every session (the list has no times): for the Hours column, the day overview and overlap hints.
+  const detailQueries = useQueries({
+    queries: menuSettings.map((m) => ({
+      queryKey: ["menuSettingsDetail", m.menuId],
+      queryFn: () => menuSettingsApi.getById(m.menuId),
+    })),
+  });
+  const sessionHours = menuSettings.map((m, i) => {
+    const d = detailQueries[i]?.data;
+    return { menuId: m.menuId, name: m.name, isActive: m.isActive === "Active", startTime: d?.startTime ?? "", endTime: d?.endTime ?? "" };
   });
 
   // Derived filtered data
@@ -60,6 +72,7 @@ export const useMenuSettings = () => {
       menuSettingsApi.update(data.id, data.payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["menuSettingsList"] });
+      queryClient.invalidateQueries({ queryKey: ["menuSettingsDetail"] });
       queryClient.invalidateQueries({ queryKey: ["menuTimeSettingsList"] });
       queryClient.invalidateQueries({ queryKey: ["pos"] });
       showToast("Menu Settings updated successfully", "success");
@@ -127,6 +140,7 @@ export const useMenuSettings = () => {
   return {
     // List
     filteredList,
+    sessionHours,
     listLoading,
     listError: listError ? listError.message : null,
     
