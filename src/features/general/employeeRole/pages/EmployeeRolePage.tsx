@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Pencil, Trash2 } from "lucide-react";
-import { ConfirmDialog, PageShell, RecordTableCard, ListHeader } from "../../../../components/common";
+import MasterListPage from "../../../../components/common/MasterListPage";
 import { useToast } from "../../../../app/providers/useToast";
 import type { EmployeeRoleRecord, EmployeeRoleForm, EmployeeRolePermission } from "../types";
 import { employeeRoleService } from "../services/employeeRoleService";
@@ -35,8 +34,6 @@ const EmployeeRolePage = () => {
   
   const [deleteRecord, setDeleteRecord] = useState<EmployeeRoleRecord | null>(null);
 
-  const canAdd = hasPermission("Employee Master", "Add");
-  const canEdit = hasPermission("Employee Master", "Edit");
   const canDelete = hasPermission("Employee Master", "Delete");
 
   const fetchData = async () => {
@@ -192,105 +189,79 @@ const EmployeeRolePage = () => {
   }, [roles, search]);
 
   return (
-    <PageShell title="Employee Role Master">
-      <ListHeader
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search roles..."
-        autoFocusSearch
-        canAdd={canAdd}
-        onAdd={openAddModal}
-      />
-
-      <RecordTableCard
-        title="Saved Employee Role List"
-        rowKey="roleId"
-        data={filteredRecords}
-        loading={loading}
-        columns={[
-          { header: "S No", accessor: "roleId" as keyof EmployeeRoleRecord, render: (_, index: number) => index + 1 },
-          { header: "Role Name", accessor: "roleName" },
-          {
-            header: "Actions",
-            accessor: "roleId",
-            render: (row: EmployeeRoleRecord) => (
-              <div className="flex gap-2">
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => void openEditModal(row.roleId)}
-                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                    aria-label={`Edit ${row.roleName}`}
-                  >
-                    <Pencil size={16} />
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => setDeleteRecord(row)}
-                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                    aria-label={`Delete ${row.roleName}`}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
-            ),
-          },
-        ]}
-      />
-
-      <EmployeeRoleModal
-        isOpen={isModalOpen}
-        editingId={editingId}
-        form={form}
-        error={error}
-        permissions={permissions}
-        detailLoading={detailLoading}
-        saving={saving}
-        deleting={deleting}
-        onClose={() => {
-          setIsModalOpen(false);
-          setError(undefined);
-        }}
-        onChange={(patch) => {
-          setForm((prev) => ({ ...prev, ...patch }));
-          if (patch.roleName !== undefined) setError(undefined);
-        }}
-        onTogglePermission={handleTogglePermission}
-        onToggleAll={handleToggleAll}
-        onClear={handleClear}
-        onSave={() => void handleSave()}
-        onDelete={editingId ? () => {
-          if (!canDelete) return;
-          const record = roles.find((item) => item.roleId === editingId);
-          if (record) {
-            setDeleteRecord(record);
-            setIsModalOpen(false);
-          }
-        } : undefined}
-      />
-      
-      <ConfirmDialog
-        isOpen={deleteRecord !== null}
-        title="Delete Employee Role"
-        message={`Are you sure you want to delete role "${deleteRecord?.roleName ?? ""}"?`}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        onCancel={() => {
-          if (!deleting) {
-            setDeleteRecord(null);
-          }
-        }}
-        onConfirm={() => {
+    <MasterListPage<EmployeeRoleRecord>
+      moduleName="Employee Role"
+      title="Employee Role Master"
+      tableTitle="Saved Employee Role List"
+      searchPlaceholder="Search roles..."
+      rowKey="roleId"
+      getName={(row) => row.roleName}
+      columns={[
+        { header: "S No", accessor: "roleId" as keyof EmployeeRoleRecord, render: (_, index: number) => index + 1 },
+        { header: "Role Name", accessor: "roleName" },
+      ]}
+      records={filteredRecords}
+      loading={loading}
+      search={search}
+      onSearchChange={setSearch}
+      onAdd={openAddModal}
+      onEdit={(row) => openEditModal(row.roleId)}
+      editingId={editingId}
+      closeForm={() => setIsModalOpen(false)}
+      deleteFlow={{
+        candidate: deleteRecord,
+        request: setDeleteRecord,
+        confirm: () => {
           if (deleteRecord) {
             void handleDelete(deleteRecord.roleId);
             setDeleteRecord(null);
           }
-        }}
-      />
-    </PageShell>
+        },
+        cancel: () => {
+          if (!deleting) {
+            setDeleteRecord(null);
+          }
+        },
+      }}
+      deleteDialog={{
+        title: "Delete Employee Role",
+        message: (row) => `Are you sure you want to delete role "${row.roleName ?? ""}"?`,
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+      }}
+      renderForm={() => (
+          <EmployeeRoleModal
+            isOpen={isModalOpen}
+            editingId={editingId}
+            form={form}
+            error={error}
+            permissions={permissions}
+            detailLoading={detailLoading}
+            saving={saving}
+            deleting={deleting}
+            onClose={() => {
+              setIsModalOpen(false);
+              setError(undefined);
+            }}
+            onChange={(patch) => {
+              setForm((prev) => ({ ...prev, ...patch }));
+              if (patch.roleName !== undefined) setError(undefined);
+            }}
+            onTogglePermission={handleTogglePermission}
+            onToggleAll={handleToggleAll}
+            onClear={handleClear}
+            onSave={() => void handleSave()}
+            onDelete={editingId ? () => {
+              if (!canDelete) return;
+              const record = roles.find((item) => item.roleId === editingId);
+              if (record) {
+                setDeleteRecord(record);
+                setIsModalOpen(false);
+              }
+            } : undefined}
+          />
+      )}
+    />
   );
 };
 

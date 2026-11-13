@@ -1,15 +1,9 @@
 import { useMemo, useState } from "react";
-import { KeyRound, Pencil, Trash2 } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import ChangePasswordForm from "../components/ChangePasswordForm";
 import UserForm from "../components/UserForm";
-import {
-  ConfirmDialog,
-  Loader,
-  Modal,
-  PageShell,
-  RecordTableCard, ListHeader,
-  StatusBadge,
-  } from "../../../../components/common";
+import { Loader, Modal, StatusBadge } from "../../../../components/common";
+import MasterListPage from "../../../../components/common/MasterListPage";
 import { useToast } from "../../../../app/providers/useToast";
 import { fetchUserById } from "../services";
 import type { ChangePasswordFormData } from "../schema/userSchema";
@@ -149,129 +143,103 @@ export const UserList = () => {
   );
 
   return (
-    <PageShell title="User Management">
-      <ListHeader
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search users..."
-        autoFocusSearch
-        canAdd={canAdd}
-        onAdd={openCreateModal}
-      />
-
-      {loading ? (
-        <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
-          <Loader text="Loading users..." />
-        </div>
-      ) : (
-        <RecordTableCard
-          title="Saved User List"
-          rowKey="id"
-          data={filteredUsers}
-          columns={[
-            { header: "S.No", accessor: "id", align: "center", render: (_, index) => index + 1 },
-            { header: "User Name", accessor: "name", align: "center" },
-            {
-              header: "Branch",
-              accessor: "branchName",
-              align: "center",
-              render: (row) => <span>{row.branchName || row.branchId || "-"}</span>,
-            },
-            {
-              header: "Status",
-              accessor: "isActive",
-              align: "center",
-              render: (row) => <StatusBadge status={row.isActive ? "active" : "inactive"} label={row.isActive ? "Active" : "Inactive"} />,
-            },
-            {
-              header: "Actions",
-              accessor: "id",
-              align: "center",
-              render: (row) => (
-                <div className="flex justify-center gap-2">
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => void handleEdit(row.id)}
-                      className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10 transition-colors"
-                      aria-label={`Edit ${row.name}`}
-                    >
-                      <Pencil size={16} />
-                    </button>
-                  )}
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => void handleOpenPasswordModal(row.id)}
-                      className="inline-flex rounded-lg p-2 text-blue-600 hover:bg-blue-50 transition-colors"
-                      aria-label={`Change password for ${row.name}`}
-                    >
-                      <KeyRound size={16} />
-                    </button>
-                  )}
-                  {canDelete && (
-                    <button
-                      type="button"
-                      onClick={() => setDeleteCandidate(row)}
-                      className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50 transition-colors"
-                      aria-label={`Delete ${row.name}`}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              ),
-            },
-          ]}
-        />
-      )}
-
-      <Modal isOpen={open} onClose={closeModal} title={editUser ? "Edit User" : "User Creation"} size="lg">
-        {detailLoading ? (
-          <div className="py-8">
-            <Loader text="Loading user details..." />
-          </div> 
-        ) : (
-          <UserForm
-            key={editUser?.id ?? "new-user"}
-            initialData={editUser}
-            onSuccess={closeModal}
-            onDelete={editUser && canDelete ? () => setDeleteCandidate(editUser) : undefined}
-            deleting={deleting}
-            onClear={() => setEditUser(null)}
-          />
-        )}
-      </Modal>
-
-      <Modal isOpen={passwordModalOpen} onClose={closePasswordModal} title="Change Password">
-        {detailLoading ? (
-          <div className="py-8">
-            <Loader text="Loading user details..." />
-          </div>
-        ) : (
-          <ChangePasswordForm
-            user={passwordUser}
-            onSubmit={handlePasswordChange}
-            onCancel={closePasswordModal}
-            submitting={passwordChanging}
-          />
-        )}
-      </Modal>
-
-      <ConfirmDialog
-        isOpen={deleteCandidate !== null}
-        title="Delete User"
-        message={`Are you sure you want to delete ${deleteCandidate?.name ?? "this user"}?`}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        onConfirm={() => void handleDelete()}
-        onCancel={() => {
+    <MasterListPage<User>
+      moduleName="User Master"
+      title="User Management"
+      tableTitle="Saved User List"
+      searchPlaceholder="Search users..."
+      rowKey="id"
+      getName={(row) => row.name}
+      centered
+      loadingText="Loading users..."
+      columns={[
+        { header: "S.No", accessor: "id", align: "center", render: (_, index) => index + 1 },
+        { header: "User Name", accessor: "name", align: "center" },
+        {
+          header: "Branch",
+          accessor: "branchName",
+          align: "center",
+          render: (row) => <span>{row.branchName || row.branchId || "-"}</span>,
+        },
+        {
+          header: "Status",
+          accessor: "isActive",
+          align: "center",
+          render: (row) => <StatusBadge status={row.isActive ? "active" : "inactive"} label={row.isActive ? "Active" : "Inactive"} />,
+        },
+      ]}
+      extraActions={(row) =>
+        canEdit && (
+          <button
+            type="button"
+            onClick={() => void handleOpenPasswordModal(row.id)}
+            className="inline-flex rounded-lg p-2 text-blue-600 hover:bg-blue-50 transition-colors"
+            aria-label={`Change password for ${row.name}`}
+          >
+            <KeyRound size={16} />
+          </button>
+        )
+      }
+      records={filteredUsers}
+      loading={loading}
+      search={search}
+      onSearchChange={setSearch}
+      onAdd={openCreateModal}
+      onEdit={(row) => handleEdit(row.id)}
+      editingId={editUser?.id ?? null}
+      closeForm={closeModal}
+      deleteFlow={{
+        candidate: deleteCandidate,
+        request: setDeleteCandidate,
+        confirm: () => void handleDelete(),
+        cancel: () => {
           if (!deleting) {
             setDeleteCandidate(null);
           }
-        }}
-      />
-    </PageShell>
+        },
+      }}
+      deleteDialog={{
+        title: "Delete User",
+        message: (row) => `Are you sure you want to delete ${row.name ?? "this user"}?`,
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+      }}
+      renderForm={(_, canDelete) => (
+        <>
+          <Modal isOpen={open} onClose={closeModal} title={editUser ? "Edit User" : "User Creation"} size="lg">
+            {detailLoading ? (
+              <div className="py-8">
+                <Loader text="Loading user details..." />
+              </div>
+            ) : (
+              <UserForm
+                key={editUser?.id ?? "new-user"}
+                initialData={editUser}
+                onSuccess={closeModal}
+                onDelete={editUser && canDelete ? () => setDeleteCandidate(editUser) : undefined}
+                deleting={deleting}
+                onClear={() => setEditUser(null)}
+              />
+            )}
+          </Modal>
+
+          <Modal isOpen={passwordModalOpen} onClose={closePasswordModal} title="Change Password">
+            {detailLoading ? (
+              <div className="py-8">
+                <Loader text="Loading user details..." />
+              </div>
+            ) : (
+              <ChangePasswordForm
+                user={passwordUser}
+                onSubmit={handlePasswordChange}
+                onCancel={closePasswordModal}
+                submitting={passwordChanging}
+              />
+            )}
+          </Modal>
+        </>
+      )}
+    />
   );
 };
 

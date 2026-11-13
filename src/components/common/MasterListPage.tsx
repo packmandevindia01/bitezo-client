@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import Loader from "./Loader";
 import { AlertCircle, Pencil, Trash2 } from "lucide-react";
 import ConfirmDialog from "./ConfirmDialog";
 import ListHeader from "./ListHeader";
@@ -53,6 +54,14 @@ export interface MasterListPageProps<T> {
   deletingKey?: unknown;
   /** For hooks that hold the record being deleted themselves. */
   deleteFlow?: { candidate: T | null; request: (row: T) => void; confirm: () => unknown; cancel: () => void };
+  /** Text of the Add button (default "Add New"). */
+  addLabel?: string;
+  /** Actions column centred, like the other centred columns of the list. */
+  centered?: boolean;
+  /** While loading, show this loading card instead of the table. */
+  loadingText?: string;
+  /** More row buttons, between Edit and Delete (e.g. Change password). */
+  extraActions?: (row: T) => ReactNode;
   /** The add / edit form. `deleteEditing` asks to delete the record being edited. */
   renderForm: (deleteEditing: () => void, canDelete: boolean) => ReactNode;
 }
@@ -92,6 +101,10 @@ const MasterListPage = <T,>({
   deletingKey,
   deleteFlow,
   renderForm,
+  addLabel,
+  centered,
+  loadingText,
+  extraActions,
 }: MasterListPageProps<T>) => {
   const { hasPermission } = usePermissions();
   const [deleteRecord, setDeleteRecord] = useState<T | null>(null);
@@ -113,25 +126,31 @@ const MasterListPage = <T,>({
 
   return (
     <PageShell title={title}>
-      <ListHeader search={search} onSearchChange={onSearchChange} searchPlaceholder={searchPlaceholder} autoFocusSearch canAdd={canAdd} onAdd={onAdd} />
+      <ListHeader search={search} onSearchChange={onSearchChange} searchPlaceholder={searchPlaceholder} autoFocusSearch canAdd={canAdd} onAdd={onAdd} {...(addLabel ? { addLabel } : {})} />
 
       {notices}
 
+      {loadingText && loading ? (
+        <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
+          <Loader text={loadingText} />
+        </div>
+      ) : (
       <RecordTableCard<T>
         title={tableTitle}
         rowKey={rowKey}
         data={records}
-        loading={loading}
+        loading={loadingText ? false : loading}
         columns={[
           ...columns,
           {
             header: "Actions",
             accessor: rowKey,
+            ...(centered ? { align: "center" } : {}),
             render: (row) => {
               const locked = lockedAs?.(row);
               const deleting = deletingKey !== undefined && deletingKey !== null && row[rowKey] === deletingKey;
               return (
-                <div className="flex gap-2">
+                <div className={centered ? "flex justify-center gap-2" : "flex gap-2"}>
                   {canEdit && (
                     <button
                       type="button"
@@ -144,6 +163,7 @@ const MasterListPage = <T,>({
                       <Pencil size={16} />
                     </button>
                   )}
+                  {extraActions?.(row)}
                   {canDelete && (
                     <button
                       type="button"
@@ -166,6 +186,7 @@ const MasterListPage = <T,>({
           },
         ]}
       />
+      )}
 
       {renderForm(deleteEditing, canDelete)}
 

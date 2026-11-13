@@ -1,4 +1,4 @@
-import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
+import { RotateCcw, Save, Trash2 } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 
 import { useForm } from "react-hook-form";
@@ -7,11 +7,9 @@ import { useQuery } from "@tanstack/react-query";
 
 import {
   Button,
-  ConfirmDialog,
   Modal,
-  PageShell,
-  RecordTableCard, ListHeader,
 } from "../../../../components/common";
+import MasterListPage from "../../../../components/common/MasterListPage";
 import ExtrasMasterForm from "../components/ExtrasMasterForm";
 import type { ExtrasMasterRecord } from "../schemas";
 import { extrasMasterFormSchema, type ExtrasMasterForm as ExtrasMasterFormType } from "../schemas";
@@ -44,8 +42,6 @@ const ExtrasMasterPage = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteRecord, setDeleteRecord] = useState<ExtrasMasterRecord | null>(null);
 
-  const canAdd = hasPermission("Extras Master", "Add");
-  const canEdit = hasPermission("Extras Master", "Edit");
   const canDelete = hasPermission("Extras Master", "Delete");
 
   const dispatch = useAppDispatch();
@@ -226,133 +222,108 @@ const ExtrasMasterPage = () => {
   const handleSave = form.handleSubmit(onSubmit as any, onInvalid);
 
   return (
-    <PageShell title="Extras Master">
-      <ListHeader
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search extras..."
-        autoFocusSearch
-        canAdd={canAdd}
-        onAdd={openCreateModal}
-        addLabel="Add Extras"
-      />
-      <RecordTableCard
-        title="Saved Extras List"
-        rowKey="id"
-        data={records}
-        loading={isLoading}
-        columns={[
-          { header: "S.No", accessor: "sNo" },
-          { header: "Name", accessor: "name" },
-          {
-            header: "Actions",
-            accessor: "id",
-            render: (row) => (
-              <div className="flex gap-2">
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(row)}
-                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                    aria-label={`Edit ${row.name}`}
+    <MasterListPage<ExtrasMasterRecord>
+      moduleName="Extras Master"
+      title="Extras Master"
+      tableTitle="Saved Extras List"
+      searchPlaceholder="Search extras..."
+      addLabel="Add Extras"
+      rowKey="id"
+      getName={(row) => row.name}
+      columns={[
+        { header: "S.No", accessor: "sNo" },
+        { header: "Name", accessor: "name" },
+      ]}
+      records={records}
+      loading={isLoading}
+      search={search}
+      onSearchChange={setSearch}
+      onAdd={openCreateModal}
+      onEdit={handleEdit}
+      editingId={editingId}
+      closeForm={closeModal}
+      deleteFlow={{
+        candidate: deleteRecord,
+        request: setDeleteRecord,
+        confirm: handleDelete,
+        cancel: () => setDeleteRecord(null),
+      }}
+      deleteDialog={{
+        message: (row) => `Are you sure you want to delete "${row.name}"?`,
+      }}
+      renderForm={() => (
+          <Modal 
+            isOpen={open} 
+            onClose={closeModal} 
+            title={editingId ? "Edit Extras" : "Add Extras"}
+            size="lg"
+            footer={
+              <div className="flex w-full flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
+                <Button 
+                  variant="secondary" 
+                  onClick={() => {
+                    const activeBranchId = posBranchId || Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
+                    form.reset({
+                      name: "", arabic: "", typeId: 0, price: 0, color: "#cccccc", branchIds: [activeBranchId], categoryIds: []
+                    });
+                    form.clearErrors();
+                    setActiveTab("general");
+                    setTimeout(() => {
+                      document.getElementById("ext-name")?.focus();
+                    }, 10);
+                  }} 
+                  disabled={isSaving || isDetailLoading} 
+                  tabIndex={-1}
+                  isAction
+                  icon={<RotateCcw size={18} />}
+                >
+                  Clear
+                </Button>
+                <Button 
+                  id="btn-save-extras"
+                  onClick={handleSave} 
+                  loading={isSaving}
+                  disabled={isDetailLoading}
+                  isAction
+                  icon={<Save size={18} />}
+                >
+                  Save
+                </Button>
+                {editingId && canDelete && (
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      const record = records.find(r => r.id === editingId);
+                      if (record) {
+                        setDeleteRecord(record);
+                        closeModal();
+                      }
+                    }}
+                    disabled={isSaving || isDetailLoading}
+                    isAction
+                    icon={<Trash2 size={18} />}
                   >
-                    <Pencil size={16} />
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => setDeleteRecord(row)}
-                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                    aria-label={`Delete ${row.name}`}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                    Delete
+                  </Button>
                 )}
               </div>
-            ),
-          },
-        ]}
-      />
-
-      <Modal 
-        isOpen={open} 
-        onClose={closeModal} 
-        title={editingId ? "Edit Extras" : "Add Extras"}
-        size="lg"
-        footer={
-          <div className="flex w-full flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
-            <Button 
-              variant="secondary" 
-              onClick={() => {
-                const activeBranchId = posBranchId || Number(localStorage.getItem("activeBranchId") || localStorage.getItem("branchId")) || (branches[0]?.id ? Number(branches[0].id) : 1);
-                form.reset({
-                  name: "", arabic: "", typeId: 0, price: 0, color: "#cccccc", branchIds: [activeBranchId], categoryIds: []
-                });
-                form.clearErrors();
-                setActiveTab("general");
-                setTimeout(() => {
-                  document.getElementById("ext-name")?.focus();
-                }, 10);
-              }} 
-              disabled={isSaving || isDetailLoading} 
-              tabIndex={-1}
-              isAction
-              icon={<RotateCcw size={18} />}
-            >
-              Clear
-            </Button>
-            <Button 
-              id="btn-save-extras"
-              onClick={handleSave} 
-              loading={isSaving}
-              disabled={isDetailLoading}
-              isAction
-              icon={<Save size={18} />}
-            >
-              Save
-            </Button>
-            {editingId && canDelete && (
-              <Button
-                variant="danger"
-                onClick={() => {
-                  const record = records.find(r => r.id === editingId);
-                  if (record) {
-                    setDeleteRecord(record);
-                    closeModal();
-                  }
-                }}
-                disabled={isSaving || isDetailLoading}
-                isAction
-                icon={<Trash2 size={18} />}
-              >
-                Delete
-              </Button>
-            )}
-          </div>
-        }
-      >
-        <ExtrasMasterForm
-          form={form}
-          saving={isSaving}
-          loading={isDetailLoading}
-          branches={branches}
-          categories={categories}
-          hideBranchTab={Boolean(posScope)}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onSave={handleSave}
-          saveButtonId="btn-save-extras"
-        />
-      </Modal>
-
-      <ConfirmDialog
-        isOpen={deleteRecord !== null}
-        onCancel={() => setDeleteRecord(null)}
-        onConfirm={handleDelete}
-        message={`Are you sure you want to delete "${deleteRecord?.name}"?`}
-      />
-    </PageShell>
+            }
+          >
+            <ExtrasMasterForm
+              form={form}
+              saving={isSaving}
+              loading={isDetailLoading}
+              branches={branches}
+              categories={categories}
+              hideBranchTab={Boolean(posScope)}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onSave={handleSave}
+              saveButtonId="btn-save-extras"
+            />
+          </Modal>
+      )}
+    />
   );
 };
 

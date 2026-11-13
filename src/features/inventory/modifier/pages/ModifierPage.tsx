@@ -1,15 +1,12 @@
 import { useContext, useState, useEffect } from "react";
-import { Pencil, RotateCcw, Save, Trash2 } from "lucide-react";
+import { RotateCcw, Save, Trash2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Button,
-  ConfirmDialog,
   Modal,
-  PageShell,
-  RecordTableCard, 
-  ListHeader,
 } from "../../../../components/common";
+import MasterListPage from "../../../../components/common/MasterListPage";
 import ModifierMasterForm from "../components/ModifierMasterForm";
 import { usePermissions } from "../../../../hooks/usePermissions";
 import { useAppSelector, useAppDispatch } from "../../../../app/hooks";
@@ -46,8 +43,6 @@ const ModifierPage = () => {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteRecord, setDeleteRecord] = useState<ModifierRecord | null>(null);
 
-  const canAdd = hasPermission("Modifier Master", "Add");
-  const canEdit = hasPermission("Modifier Master", "Edit");
   const canDelete = hasPermission("Modifier Master", "Delete");
 
   const dispatch = useAppDispatch();
@@ -238,132 +233,107 @@ const ModifierPage = () => {
   const handleSave = form.handleSubmit(onSubmit as any, onInvalid);
 
   return (
-    <PageShell title="Modifier Master">
-      <ListHeader
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search modifiers..."
-        autoFocusSearch
-        canAdd={canAdd}
-        onAdd={openCreateModal}
-        addLabel="Add Modifier"
-      />
-      <RecordTableCard
-        title="Saved Modifier List"
-        rowKey="id"
-        data={records}
-        loading={isLoading}
-        columns={[
-          { header: "S.No", accessor: "sNo" },
-          { header: "Name", accessor: "name" },
-          {
-            header: "Actions",
-            accessor: "id",
-            render: (row) => (
-              <div className="flex gap-2">
-                {canEdit && (
-                  <button
-                    type="button"
-                    onClick={() => handleEdit(row)}
-                    className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                    aria-label={`Edit ${row.name}`}
+    <MasterListPage<ModifierRecord>
+      moduleName="Modifier Master"
+      title="Modifier Master"
+      tableTitle="Saved Modifier List"
+      searchPlaceholder="Search modifiers..."
+      addLabel="Add Modifier"
+      rowKey="id"
+      getName={(row) => row.name}
+      columns={[
+        { header: "S.No", accessor: "sNo" },
+        { header: "Name", accessor: "name" },
+      ]}
+      records={records}
+      loading={isLoading}
+      search={search}
+      onSearchChange={setSearch}
+      onAdd={openCreateModal}
+      onEdit={handleEdit}
+      editingId={editingId}
+      closeForm={closeModal}
+      deleteFlow={{
+        candidate: deleteRecord,
+        request: setDeleteRecord,
+        confirm: handleDelete,
+        cancel: () => setDeleteRecord(null),
+      }}
+      deleteDialog={{
+        message: () => "Are you sure you want to delete this modifier? This action cannot be undone.",
+      }}
+      renderForm={() => (
+          <Modal 
+            isOpen={open} 
+            onClose={closeModal} 
+            title={editingId ? "Edit Modifier" : "Add Modifier"} 
+            size="lg"
+            footer={
+              <div className="flex w-full flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
+                <Button 
+                  variant="secondary" 
+                  onClick={() => {
+                    form.reset({
+                      name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: defaultBranchIds, categoryIds: []
+                    });
+                    form.clearErrors();
+                    setActiveTab("general");
+                    setTimeout(() => {
+                      document.getElementById("mod-name")?.focus();
+                    }, 10);
+                  }} 
+                  disabled={isSaving || isDetailLoading} 
+                  tabIndex={-1}
+                  isAction
+                  icon={<RotateCcw size={18} />}
+                >
+                  Clear
+                </Button>
+                <Button 
+                  id="btn-save-modifier"
+                  onClick={handleSave} 
+                  loading={isSaving}
+                  disabled={isDetailLoading}
+                  isAction
+                  icon={<Save size={18} />}
+                >
+                  Save
+                </Button>
+                {editingId && canDelete && (
+                  <Button
+                    variant="danger"
+                    onClick={() => {
+                      const record = records.find(r => r.id === editingId);
+                      if (record) {
+                        setDeleteRecord(record);
+                        closeModal();
+                      }
+                    }}
+                    disabled={isSaving || isDetailLoading}
+                    isAction
+                    icon={<Trash2 size={18} />}
                   >
-                    <Pencil size={16} />
-                  </button>
-                )}
-                {canDelete && (
-                  <button
-                    type="button"
-                    onClick={() => setDeleteRecord(row)}
-                    className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                    aria-label={`Delete ${row.name}`}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                    Delete
+                  </Button>
                 )}
               </div>
-            ),
-          },
-        ]}
-      />
-
-      <Modal 
-        isOpen={open} 
-        onClose={closeModal} 
-        title={editingId ? "Edit Modifier" : "Add Modifier"} 
-        size="lg"
-        footer={
-          <div className="flex w-full flex-wrap justify-end gap-3 border-t border-gray-100 pt-4">
-            <Button 
-              variant="secondary" 
-              onClick={() => {
-                form.reset({
-                  name: "", arabic: "", typeId: 0, color: "#cccccc", branchIds: defaultBranchIds, categoryIds: []
-                });
-                form.clearErrors();
-                setActiveTab("general");
-                setTimeout(() => {
-                  document.getElementById("mod-name")?.focus();
-                }, 10);
-              }} 
-              disabled={isSaving || isDetailLoading} 
-              tabIndex={-1}
-              isAction
-              icon={<RotateCcw size={18} />}
-            >
-              Clear
-            </Button>
-            <Button 
-              id="btn-save-modifier"
-              onClick={handleSave} 
-              loading={isSaving}
-              disabled={isDetailLoading}
-              isAction
-              icon={<Save size={18} />}
-            >
-              Save
-            </Button>
-            {editingId && canDelete && (
-              <Button
-                variant="danger"
-                onClick={() => {
-                  const record = records.find(r => r.id === editingId);
-                  if (record) {
-                    setDeleteRecord(record);
-                    closeModal();
-                  }
-                }}
-                disabled={isSaving || isDetailLoading}
-                isAction
-                icon={<Trash2 size={18} />}
-              >
-                Delete
-              </Button>
-            )}
-          </div>
-        }
-      >
-        <ModifierMasterForm
-          form={form}
-          loading={isDetailLoading}
-          saving={isSaving}
-          branches={branches}
-          categories={categories}
-          hideBranchTab={Boolean(posScope)}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onSave={handleSave}
-          saveButtonId="btn-save-modifier"
-        />
-      </Modal>
-
-      <ConfirmDialog
-        isOpen={deleteRecord !== null}
-        onCancel={() => setDeleteRecord(null)}
-        onConfirm={handleDelete}
-        message="Are you sure you want to delete this modifier? This action cannot be undone."
-      />
-    </PageShell>
+            }
+          >
+            <ModifierMasterForm
+              form={form}
+              loading={isDetailLoading}
+              saving={isSaving}
+              branches={branches}
+              categories={categories}
+              hideBranchTab={Boolean(posScope)}
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              onSave={handleSave}
+              saveButtonId="btn-save-modifier"
+            />
+          </Modal>
+      )}
+    />
   );
 };
 

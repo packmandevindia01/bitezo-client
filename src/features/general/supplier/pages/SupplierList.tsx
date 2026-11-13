@@ -1,14 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
 import SupplierForm from "../components/SupplierForm";
-import {
-  ConfirmDialog,
-  Loader,
-  Modal,
-  PageShell,
-  RecordTableCard, ListHeader,
-  StatusBadge,
-  } from "../../../../components/common";
+import { Loader, Modal, StatusBadge } from "../../../../components/common";
+import MasterListPage from "../../../../components/common/MasterListPage";
 import { useToast } from "../../../../app/providers/useToast";
 import {
   createSupplier,
@@ -190,100 +183,70 @@ const SupplierList = () => {
   );
 
   return (
-    <PageShell title="Suppliers">
-      <ListHeader
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search suppliers..."
-        autoFocusSearch
-        canAdd={canAdd}
-        onAdd={openCreateModal}
-      />
-
-      {loading ? (
-        <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
-          <Loader text="Loading suppliers..." />
-        </div>
-      ) : (
-        <RecordTableCard
-          title="Saved Supplier List"
-          rowKey="id"
-          data={filteredSuppliers}
-          columns={[
-            { header: "Code", accessor: "code" },
-            { header: "Supplier Name", accessor: "name" },
-            { header: "Mobile No", accessor: "mobileNo", render: (row) => <span>{row.mobileNo || "-"}</span> },
-            { header: "Area", accessor: "area", render: (row) => <span>{row.area || "-"}</span> },
-            {
-              header: "Status",
-              accessor: "isActive",
-              render: (row) => <StatusBadge status={row.isActive ? "active" : "inactive"} />,
-            },
-            {
-              header: "Actions",
-              accessor: "id",
-              render: (row) => (
-                <div className="flex gap-2">
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => void handleEdit(row.id)}
-                      className="inline-flex rounded-lg p-2 text-[#49293e] hover:bg-[#49293e]/10"
-                      aria-label={`Edit ${row.name}`}
-                    >
-                      <Pencil size={16} />
-                    </button>
-                  )}
-                  {canDelete && (
-                    <button
-                      type="button"
-                      onClick={() => setDeleteCandidate(row)}
-                      className="inline-flex rounded-lg p-2 text-red-500 hover:bg-red-50"
-                      aria-label={`Delete ${row.name}`}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              ),
-            },
-          ]}
-        />
-      )}
-
-      <Modal isOpen={open} onClose={closeModal} title={editSupplier ? "Edit Supplier" : "Supplier Creation"} size="2xl">
-        {detailLoading ? (
-          <div className="py-8">
-            <Loader text="Loading supplier details..." />
-          </div> 
-        ) : (
-          <SupplierForm
-            key={editSupplier?.id ?? "new-supplier"}
-            initialData={editSupplier}
-            onSubmit={handleSave}
-            onCancel={closeModal}
-            submitting={saving}
-            onDelete={editSupplier && canDelete ? () => setDeleteCandidate(editSupplier) : undefined}
-            deleting={deleting}
-            onClear={() => setEditSupplier(null)}
-          />
-        )}
-      </Modal>
-
-      <ConfirmDialog
-        isOpen={deleteCandidate !== null}
-        title="Delete Supplier"
-        message={`Are you sure you want to delete ${deleteCandidate?.name ?? "this supplier"}?`}
-        confirmLabel="Delete"
-        cancelLabel="Cancel"
-        onConfirm={() => void handleDelete()}
-        onCancel={() => {
+    <MasterListPage<Supplier>
+      moduleName="Supplier Master"
+      title="Suppliers"
+      tableTitle="Saved Supplier List"
+      searchPlaceholder="Search suppliers..."
+      rowKey="id"
+      getName={(row) => row.name}
+      loadingText="Loading suppliers..."
+      columns={[
+        { header: "Code", accessor: "code" },
+        { header: "Supplier Name", accessor: "name" },
+        { header: "Mobile No", accessor: "mobileNo", render: (row) => <span>{row.mobileNo || "-"}</span> },
+        { header: "Area", accessor: "area", render: (row) => <span>{row.area || "-"}</span> },
+        {
+          header: "Status",
+          accessor: "isActive",
+          render: (row) => <StatusBadge status={row.isActive ? "active" : "inactive"} />,
+        },
+      ]}
+      records={filteredSuppliers}
+      loading={loading}
+      search={search}
+      onSearchChange={setSearch}
+      onAdd={openCreateModal}
+      onEdit={(row) => handleEdit(row.id)}
+      editingId={editSupplier?.id ?? null}
+      closeForm={closeModal}
+      deleteFlow={{
+        candidate: deleteCandidate,
+        request: setDeleteCandidate,
+        confirm: () => void handleDelete(),
+        cancel: () => {
           if (!deleting) {
             setDeleteCandidate(null);
           }
-        }}
-      />
-    </PageShell>
+        },
+      }}
+      deleteDialog={{
+        title: "Delete Supplier",
+        message: (row) => `Are you sure you want to delete ${row.name ?? "this supplier"}?`,
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+      }}
+      renderForm={(_, canDelete) => (
+        <Modal isOpen={open} onClose={closeModal} title={editSupplier ? "Edit Supplier" : "Supplier Creation"} size="2xl">
+          {detailLoading ? (
+            <div className="py-8">
+              <Loader text="Loading supplier details..." />
+            </div>
+          ) : (
+            <SupplierForm
+              key={editSupplier?.id ?? "new-supplier"}
+              initialData={editSupplier}
+              onSubmit={handleSave}
+              onCancel={closeModal}
+              submitting={saving}
+              onDelete={editSupplier && canDelete ? () => setDeleteCandidate(editSupplier) : undefined}
+              deleting={deleting}
+              onClear={() => setEditSupplier(null)}
+            />
+          )}
+        </Modal>
+      )}
+    />
   );
 };
 
