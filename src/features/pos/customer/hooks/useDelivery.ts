@@ -112,6 +112,25 @@ export const useDelivery = () => {
     }
   }, [showToast, fetchAddressByMobile]);
 
+  /** Edit a saved address in place (never creates a new one). true when the server accepted it. */
+  const updateAddress = useCallback(async (addressId: number, data: SaveDeliveryAddressRequest): Promise<boolean> => {
+    setLoading(true);
+    try {
+      const response = await deliveryApi.updateDeliveryAddress(addressId, data);
+      if (response?.isSuccess === false) {
+        showToast(response.message || "Failed to update delivery address.", "error");
+        return false;
+      }
+      showToast(response?.message || "Delivery address updated.", "success");
+      return true;
+    } catch (error: any) {
+      showToast(error.response?.data?.message || "An error occurred while updating the address.", "error");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [showToast]);
+
   return {
     loading,
     address,
@@ -119,6 +138,7 @@ export const useDelivery = () => {
     fetchAddressByMobile,
     fetchAllAddressesByMobile,
     saveAddress,
+    updateAddress,
     setAddress
   };
 };

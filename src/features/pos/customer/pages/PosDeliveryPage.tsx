@@ -42,7 +42,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
   const reduxCustomerName = useAppSelector((state) => state.pos.deliveryCustomerName || state.pos.vehicleCustomerName);
 
   const { showToast } = useToast();
-  const { loading, fetchAddressByMobile, saveAddress } = useDelivery();
+  const { loading, fetchAddressByMobile, saveAddress, updateAddress } = useDelivery();
 
   const [isMoreAddressOpen, setIsMoreAddressOpen] = useState(false);
   const [currentAddressId, setCurrentAddressId] = useState<number | null>(null);
@@ -416,6 +416,17 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
     }));
   };
 
+  const addressFields = () => ({
+    customerName: form.customerName,
+    flatNo: form.flatNo,
+    buildingNo: form.buildingNo,
+    roadNo: form.roadNo,
+    blockNo: form.blockNo,
+    area: form.area,
+    note: form.note,
+  });
+  const addressPayload = () => ({ mobileNo: form.mobileNo, ...addressFields() });
+
   const handleSave = async () => {
     if (!form.mobileNo.trim() || !form.customerName.trim()) {
       showToast("Both Mobile No and Customer Name are required", "error");
@@ -449,16 +460,21 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
       return;
     }
 
-    const responseData = await saveAddress({
-      mobileNo: form.mobileNo,
-      flatNo: form.flatNo,
-      buildingNo: form.buildingNo,
-      roadNo: form.roadNo,
-      blockNo: form.blockNo,
-      area: form.area,
-      customerName: form.customerName,
-      note: form.note
-    });
+    // A saved address on screen that was changed: edit it in place (it used to be saved as a NEW address).
+    // New addresses for this customer are added only through MORE ADDRESS; only a mobile number with no
+    // address yet gets its first one created here.
+    if (currentAddressId) {
+      const ok = await updateAddress(currentAddressId, addressPayload());
+      if (!ok) return;
+      lastLoadedAddressRef.current = { ...addressFields(), addressId: currentAddressId };
+      applyDeliveryFieldsToStore(currentAddressId);
+      dispatch(setAddressId(currentAddressId));
+      dispatch(setOrderTypeByName(orderTypeName));
+      handleBack();
+      return;
+    }
+
+    const responseData = await saveAddress(addressPayload());
 
     const finalAddressId = responseData?.id || currentAddressId || 0;
     applyDeliveryFieldsToStore(finalAddressId);
@@ -467,6 +483,17 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
     }
     dispatch(setOrderTypeByName(orderTypeName));
     handleBack();
+  };
+
+  /** UPDATE: edit the address on screen and stay here. Only for a saved address (disabled while typing new data). */
+  const handleUpdate = async () => {
+    if (!currentAddressId) return;
+    if (!form.mobileNo.trim() || !form.customerName.trim()) {
+      showToast("Both Mobile No and Customer Name are required", "error");
+      return;
+    }
+    const ok = await updateAddress(currentAddressId, addressPayload());
+    if (ok) lastLoadedAddressRef.current = { ...addressFields(), addressId: currentAddressId };
   };
 
   const handleSelectAddressFromMore = (address: DeliveryAddress) => {
@@ -809,9 +836,11 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
 
               <div className="col-span-12 md:col-span-3 grid grid-cols-2 gap-2 pb-[4px]">
                 <button
-                  onClick={handleSave}
-                  disabled={loading || !form.mobileNo}
-                  className="h-9 bg-[#49293e] hover:bg-[#381f30] text-white font-extrabold text-[10px] tracking-wider uppercase rounded-lg shadow-sm transition-all active:scale-95 flex items-center justify-center disabled:opacity-50"
+                  onClick={handleUpdate}
+                  // Edits the saved address on screen; off while typing new data (add it with MORE ADDRESS).
+                  disabled={loading || !form.mobileNo || !currentAddressId}
+                  title={currentAddressId ? "Save changes to this address" : "No saved address to update. Use More Address to add one."}
+                  className="h-9 bg-[#49293e] hover:bg-[#381f30] text-white font-extrabold text-[10px] tracking-wider uppercase rounded-lg shadow-sm transition-all active:scale-95 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Update
                 </button>

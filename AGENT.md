@@ -532,6 +532,10 @@ the provider's products for a provider id even with providerOwnStatus=false (806
 writes `providerOwnStatus` into this device's `posConfigs` copy (it was left out) and fires `pos_config_updated`
 (`pos/utils/posConfigEvents.ts`); `usePosProducts` reloads the menu on it (and on another tab's posConfigs write). Back Office
 Delivery Status does NOT hide a provider in the POS. Bulk settlement still lists every provider (old unsettled orders).
+Delivery addresses (2026-11-13, `PosDeliveryPage`): UPDATE edits the address on screen (`PUT /order/delivery-address/{addressId}`,
+`useDelivery.updateAddress`) and stays on the page; it is disabled when no saved address is loaded (new data). New addresses for
+a customer only through MORE ADDRESS (`PosMoreAddressModal`, POST). Save Delivery on a changed saved address edits it (it used to
+POST a new copy every time); only a number with no address gets its first one created. Test: `deliveryAddressUpdate.test.tsx`.
 Counter on prints (2026-11-13, `pos/utils/printCounterName.ts`): KOT, guest, settle, recall, settled and dine-in prints used
 the fixed text "Main". Now a saved order prints its own counter (server `counterName`), else this device's counter from system
 registration (localStorage `systemCounterName`); empty when unknown. Test: `printCounterName.test.ts` (snapshots print "Counter1").
