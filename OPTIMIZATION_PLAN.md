@@ -76,10 +76,10 @@ inside a feature, `ui` may import `model`/`lib`, `lib` imports nothing UI.
 | # | Change | Why | Effort |
 |---|---|---|---|
 | P1 | **One "saved order → cart" loader** (`pos/orders/lib/loadSavedOrder.ts`) used by Recall-Edit, Recall-Settle, Settled-Edit, Combine | 3 diverging copies today; 2 had the amount-bill-discount bug | 3–4 d | **DONE 2026-11-05** (AGENT.md §11.6; Combine left as is) |
-| P2 | Split giant modals into screen + sections + hooks: `PosRecallDetailsModal`, `PosSettledDetailsModal` (shared `SavedOrderView`), `DineInTableOrdersModal`, `PosCashierSessionModal`, `PosTerminalPage` | 1,000–1,800-line files | 5–7 d |
+| P2 | Split giant modals into screen + sections + hooks: `PosRecallDetailsModal`, `PosSettledDetailsModal` (shared `SavedOrderView`), `DineInTableOrdersModal`, `PosCashierSessionModal`, `PosTerminalPage` | 1,000–1,800-line files | 5–7 d | **DONE 2026-11-13** (first three and `usePosCheckoutFlow` 2026-11-11; terminal page and cashier session 2026-11-13; OPTIMIZATION_STATUS.md Phase 3) |
 | P3 | `usePosCheckoutFlow` (1,304 lines) → `useSettle` (state machine: idle → paying → saving → printing → done) + pure `buildSettlement()` | Locks/refs scattered; state machine makes double-submit impossible by design | 3 d | **DONE 2026-11-05** (settle lock state machine, AGENT.md §11.8) |
 | P4 | Retire legacy pricing: `orderPricing.ts` (names/extras only → small `lineLabels.ts`), `pos-calc.ts`, tolerance-based `getTaxExclusive*` | Last heuristics outside the engine | 2–3 d |
-| P5 | Printing module: one `print(job)` API with adapters (Printer Agent WS, Android plugin, browser), templates as pure functions (already tested) | Printing code spread over 8 files | 3 d |
+| P5 | Printing module: one `print(job)` API with adapters (Printer Agent WS, Android plugin, browser), templates as pure functions (already tested) | Printing code spread over 8 files | 3 d | Not started. 2026-11-13: `escPosGenerator.ts` deleted (its text output was never printed; every print is HTML → raster) |
 | P6 | Typed `posSettings` store (reads posConfigs once, exposes `vatEnabled`, `priceView`, `decimals` …) replacing ~400 POS `localStorage` reads | Single source of truth; testable | 3 d | **PARTLY DONE 2026-11-05** (device context + price-view getters, AGENT.md §11.7; printers in Phase 3) |
 | P7 | Redux only for cart/session state; server data only in React Query (menu, config, recall lists) | Two caches today | 2 d |
 
@@ -169,9 +169,9 @@ print (iframe, no reload), Excel/PDF export (lazy-loaded), column chooser, saved
 | **0. Foundations** | `shared/` (api/http, unwrap, date, money, print, settings store skeleton), path aliases (`@shared`, `@pos`, `@bo`), ESLint boundaries + ratchet, CI | 4–5 | no behaviour change; tests green | **DONE 2026-11-05** (see AGENT.md §11.5) |
 | **1. Design tokens** | tokens + type scale, codemod colours/sizes, `shared/ui` Button/Input/Modal/Drawer/DataTable | 6–8 | visual check per screen; screenshot diff on 10 key screens |
 | **2. POS core** | P1 saved-order loader, P3 settle state machine, P6 settings store, modal stack + hotkeys | 8–10 | cross-verification + regressions must pass; one real-terminal shift test | **DONE 2026-11-05** (2a–2d, AGENT.md §11.6–11.9) |
-| **3. POS UI** | 3-zone layout, virtualised menu, split giant modals (P2), printing module (P5) | 10–12 | terminal test on tablet + desktop + Android |
+| **3. POS UI** | 3-zone layout, virtualised menu, split giant modals (P2), printing module (P5) | 10–12 | terminal test on tablet + desktop + Android | **PARTLY DONE** — P2 done 2026-11-13, menu grid already virtualised; 3-zone layout and P5 open |
 | **4. Report framework** | engine + migrate 31 reports (2–3/day) | 12–15 | totals compared old vs new on the same data (snapshot test per report) | **DONE 2026-11-07** — 31/31 reports, old pages deleted (AGENT.md §11.10) |
-| **5. Back Office forms** | `MasterPage`, `DocumentForm`, `VoucherForm`, resource API | 10–12 | each document saved old vs new → identical payload (payload snapshot tests) | **PARTLY DONE** — purchase forms (hooks and pages) and all 4 vouchers share code; document pages share a frame (2026-11-13); stock line grids and `MasterPage` pending (`OPTIMIZATION_STATUS.md`) |
+| **5. Back Office forms** | `MasterPage`, `DocumentForm`, `VoucherForm`, resource API | 10–12 | each document saved old vs new → identical payload (payload snapshot tests) | **MOSTLY DONE 2026-11-13** — purchase and voucher pages merged, shared document page frame, 21 of 23 lists on `MasterListPage` (BOM and Recipe kept); stock document hooks, Production list / APIs and `unwrap` variants left (`OPTIMIZATION_STATUS.md`) |
 | **6. Clean-up** | remove legacy (P4), move tests next to code, delete old folders, lint ratchet to < 500 `any` | 4–5 | — |
 | **Total** | | **≈ 55–65 days** | ship after every phase |
 

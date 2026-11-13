@@ -10,12 +10,12 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | 0 | Foundations | Done |
 | 2 | POS core | Done, real-terminal test passed 2026-11-13 |
 | 4 | Report framework | Done, 31 of 31 reports; 6 reports not seen with real rows |
-| 5 | Back Office forms | **Partly done** (below) |
+| 5 | Back Office forms | **Mostly done** 2026-11-13: purchase and voucher pages merged, document page frame, 21 of 23 lists on the shared list. Left: stock document hooks, Production list / APIs, `unwrap` variants (below) |
 | 1 | Design system | Not started, needs approval to move `components/common` |
-| 3 | POS UI | **Started** 2026-11-11: Recall, Settled details and Dine-In table orders windows split (below) |
+| 3 | POS UI | **Partly done**: all five big POS windows split (Recall, Settled, Dine-In table orders and the settle hook 2026-11-11; terminal page and cashier session 2026-11-13); `escPosGenerator` removed (unused). Left: 3-zone layout, printing module (P5) |
 | 6 | Clean-up | **Partly done** 2026-11-11 (below) |
 
-## Phase 3 (2026-11-11)
+## Phase 3 (2026-11-11 and 2026-11-13)
 
 ### Done
 
@@ -117,9 +117,13 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Payment Voucher: spaces around Ref No and Narration are removed; a split that does not add up marks Amount.
 - Plain vouchers: a split line with no paymode saves as Cash.
 - Purchase Return: gross total uses exact decimals.
+- 2026-11-13, Purchase Return: choosing MultiPay opens the payment window (it did nothing before).
+- 2026-11-13, Payment and Receipt Voucher (owner's choices): branch change clears series, number, employee, paymode and account; errors show after the first Save; closing MultiPay without paying restores the previous paymode; Amount up to 12 characters; 2-line Narration. Close button is no longer a tab stop.
+- 2026-11-13, nine list pages (Customer, User, Supplier, Employee Role, Extras Master, Modifier, Menu Settings, Happy Hour, Provider Settings): Edit / Delete buttons have tooltips and the shared disabled style; Happy Hour's delete question is the standard one (Delete / Cancel).
 
 ## Not checked in the real app
 
+- 2026-11-13 work (passes automated tests with a mocked network only): terminal ORDER / SETTLE with a waiter, the default employee and an employee code, Qty lowered on a recalled line, a provider order; cashier session open / close day and shift with Shift End / Day End prints; report printing after the `escPosGenerator` removal; the six document pages (open, edit, save, print), MultiPay on a purchase return, adding lines with Enter on the stock pages; the four voucher pages; the nine converted lists.
 - Voucher and Against Voucher merges, Physical Entry and Transfer fixes, and the helper replacement. They pass automated tests with a mocked network only.
 - Stock Adjustment x2, Stock Transfer x2, Supplier Statement and Supplier Balance reports: no data existed.
 - Print, PDF and XLS: output checked on Sales and All Transaction only, with the dialog and downloads blocked.
