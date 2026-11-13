@@ -1,13 +1,9 @@
-import { Pencil, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  Loader,
-  PageShell,
-  RecordTableCard, ListHeader,
-  } from "../../../../components/common";
+import MasterListPage from "../../../../components/common/MasterListPage";
 import { useProviderSettingsList } from "../hooks/useProviderSettingsList";
-import ProviderSettingsDeleteDialog from "../components/ProviderSettingsDeleteDialog";
+import type { ProviderSettingsListItem } from "../types";
 
+/** Provider pricing settings. Add and Edit open the settings page; the list uses the shared list screen. */
 const ProviderSettingsList = () => {
   const navigate = useNavigate();
   const {
@@ -17,69 +13,42 @@ const ProviderSettingsList = () => {
     handleDelete,
   } = useProviderSettingsList();
 
-  const handleEdit = (transId: number) => {
-    navigate(`/dashboard/provider-settings/edit/${transId}`);
-  };
-
-  const handleCreate = () => {
-    navigate("/dashboard/provider-settings/new");
-  };
-
   return (
-    <PageShell title="Provider Pricing Settings">
-      <ListHeader
-        search={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="Search settings..."
-        autoFocusSearch
-        canAdd={true}
-        onAdd={handleCreate}
-      />
-
-      {loading ? (
-        <div className="rounded-3xl border border-gray-200 bg-white p-10 shadow-sm">
-          <Loader text="Loading settings list..." />
-        </div>
-      ) : (
-        <RecordTableCard
-          title="Configured Pricing"
-          rowKey="transId"
-          data={filteredList}
-          columns={[
-            { header: "S.No", accessor: "sNo" },
-            { header: "Provider", accessor: "provider" },
-            { header: "Branch", accessor: "branch" },
-            {
-              header: "Actions",
-              accessor: "transId",
-              render: (row) => (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(row.transId)}
-                    className="p-2 text-pos-primary hover:bg-pos-primary/10 rounded-lg transition-all"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                  <button
-                    onClick={() => setDeleteCandidate(row)}
-                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ),
-            },
-          ]}
-        />
-      )}
-
-      <ProviderSettingsDeleteDialog
-        candidate={deleteCandidate}
-        loading={deleting}
-        onConfirm={() => void handleDelete()}
-        onCancel={() => setDeleteCandidate(null)}
-      />
-    </PageShell>
+    <MasterListPage<ProviderSettingsListItem>
+      title="Provider Pricing Settings"
+      tableTitle="Configured Pricing"
+      searchPlaceholder="Search settings..."
+      rowKey="transId"
+      getName={(row) => row.provider}
+      loadingText="Loading settings list..."
+      columns={[
+        { header: "S.No", accessor: "sNo" },
+        { header: "Provider", accessor: "provider" },
+        { header: "Branch", accessor: "branch" },
+      ]}
+      records={filteredList}
+      loading={loading}
+      search={search}
+      onSearchChange={setSearch}
+      onAdd={() => navigate("/dashboard/provider-settings/new")}
+      onEdit={(row) => navigate(`/dashboard/provider-settings/edit/${row.transId}`)}
+      editingId={null}
+      closeForm={() => {}}
+      deleteFlow={{
+        candidate: deleteCandidate,
+        request: setDeleteCandidate,
+        confirm: () => void handleDelete(),
+        cancel: () => setDeleteCandidate(null),
+      }}
+      deleteDialog={{
+        title: "Delete Pricing Config",
+        message: (row) => `Are you sure you want to delete the pricing configuration for ${row.provider} in ${row.branch}?`,
+        confirmLabel: "Delete",
+        cancelLabel: "Cancel",
+        loading: deleting,
+      }}
+      renderForm={() => null}
+    />
   );
 };
 

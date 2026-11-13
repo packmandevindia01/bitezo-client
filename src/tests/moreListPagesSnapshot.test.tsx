@@ -5,7 +5,7 @@
  */
 import { createElement, type ComponentType } from "react";
 import { Provider } from "react-redux";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -17,6 +17,8 @@ import EmployeeRolePage from "../features/general/employeeRole/pages/EmployeeRol
 import ExtrasMasterPage from "../features/inventory/extrasMaster/pages/ExtrasMasterPage";
 import ModifierPage from "../features/inventory/modifier/pages/ModifierPage";
 import MenuSettingsPage from "../features/general/menuSettings/pages/MenuSettingsPage";
+import HappyHourList from "../features/general/happyHour/pages/HappyHourList";
+import ProviderSettingsList from "../features/general/providerSettings/pages/ProviderSettingsList";
 
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() }));
@@ -34,6 +36,7 @@ const ROW = {
   customerName: "Acme", userName: "Acme", supplierName: "Acme", roleName: "Acme", menuName: "Acme", name: "Acme",
   mobileNo: "555", phone: "555", openingBalance: 5, isActive: true, status: true,
   branch: "Main", branchName: "Main", branchId: 2, employeeName: "Ali",
+  promotionId: 1, promotionName: "Acme", validFrom: "2026-11-01T00:00:00", validTo: "2026-11-30T00:00:00", transId: 1, provider: "Acme",
   fromTime: "08:00", toTime: "12:00", startTime: "08:00", endTime: "12:00", price: 1.5, typeName: "Hot",
 };
 
@@ -45,6 +48,8 @@ const PAGES: [string, ComponentType][] = [
   ["Extras Master", ExtrasMasterPage],
   ["Modifier", ModifierPage],
   ["Menu Settings", MenuSettingsPage],
+  ["Happy Hour", HappyHourList],
+  ["Provider Settings", ProviderSettingsList],
 ];
 
 const renderPage = (Page: ComponentType) =>
@@ -80,5 +85,35 @@ describe.each(PAGES)("%s list", (_name, Page) => {
     fireEvent.click(screen.getByRole("button", { name: /^Delete Acme$/ }));
     await waitFor(() => expect(screen.getByRole("dialog")).toBeTruthy());
     expect(html()).toMatchSnapshot("delete question");
+  });
+});
+
+describe.each([
+  ["Happy Hour", HappyHourList, "/dashboard/happy-hour/edit/1", "/dashboard/happy-hour/new"],
+  ["Provider Settings", ProviderSettingsList, "/dashboard/provider-settings/edit/1", "/dashboard/provider-settings/new"],
+] as const)("%s list opens its own form page", (_name, Page, editPath, newPath) => {
+  const renderWithRoutes = () =>
+    render(
+      createElement(Provider, { store, children:
+        createElement(QueryClientProvider, { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }), children:
+          createElement(MemoryRouter, { initialEntries: ["/list"], children:
+            createElement(Routes, null,
+              createElement(Route, { path: "/list", element: createElement(Page) }),
+              createElement(Route, { path: editPath, element: createElement("p", null, "edit page") }),
+              createElement(Route, { path: newPath, element: createElement("p", null, "new page") })) }) }) }),
+    );
+
+  it("Edit opens the record's page", async () => {
+    renderWithRoutes();
+    await waitFor(() => expect(screen.getAllByText("Acme").length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole("button", { name: /^Edit Acme$/ }));
+    expect(await screen.findByText("edit page")).toBeTruthy();
+  });
+
+  it("Add New opens a new record's page", async () => {
+    renderWithRoutes();
+    await waitFor(() => expect(screen.getAllByText("Acme").length).toBeGreaterThan(0));
+    fireEvent.click(screen.getByRole("button", { name: /Add New/ }));
+    expect(await screen.findByText("new page")).toBeTruthy();
   });
 });
