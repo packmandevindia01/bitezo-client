@@ -31,13 +31,14 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 ### Not done
 
 - The employee choice before settling is written out three times in the Dine-In window (left as is; it could now use `resolveActionEmployee`).
-- Printing module (P5) and the 3-zone layout.
+- Printing module (P5) and the 3-zone layout. The big POS splits are done (`escPosGenerator` was deleted instead: unused).
 
 ## Phase 6 (2026-11-11)
 
 ### Done
 
 - Old pricing: `terminal/utils/pos-calc.ts` deleted. Its one helper moved unchanged to `shared/lib/money.ts` as `allocateThousandths` (save safety net in `orderApi` / `salesInvoiceApi`). Not swapped for the engine's `allocateProportionally`, which rounds differently and would change saved amounts.
+- `escPosGenerator.ts` deleted (2026-11-13, 985 lines): the report window built plain-text ESC/POS markup for Day End, Shift End and the six summaries and passed it to `printPosReport`, which ignores it (every print, web and Android, uses the HTML). `printEscPosMarkup` was never called. The markup option of `printPosReport` is gone; `printEscPosMarkup` and the Android plugin's `printEscPos` are kept, unused. Prints do not change. Lint 2,905 → 2,812.
 - Unused files deleted: `app/store/index.ts`, the old `BranchCreationPage` and `BranchModal`, `inventory/lockProduct/types.ts`, `pos/services/posService.ts` and its index, `useSplitBuckets.ts`, `useCashierShift.ts`, the `utils/print.ts` re-export. Feature `index.ts` files kept as agreed.
 - `console.log`: already removed from production builds (`manualPureFunctions` in `vite.config.ts`); confirmed in a build. No real `alert()` is left.
 - Empty catches (74): reviewed; almost all are deliberate fallbacks. Fixed two that hid problems: POS Configuration save now warns when this device's copy could not be updated; Stock Transfer barcode Enter now says "not found" or "could not look up".

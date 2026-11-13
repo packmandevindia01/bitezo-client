@@ -4,7 +4,6 @@ import { hasPrinterHeadings, notifyPrinterHeadingWarning } from './printHeadingU
 
 export interface PrintReportOptions {
   html: string;
-  markup?: string;
   directPrint: boolean;
   title: string;
 }

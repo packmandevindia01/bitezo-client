@@ -70,7 +70,7 @@ src/features/pos/
   utils/
     printPricing.ts        numbers for every print (saved order or live cart)
     printPricing.ts        Print pricing: saved orders, live carts, plain rows
-    guestPrintTemplate.ts, kotTemplate.ts, escPosGenerator.ts, deliverySettlePrintTemplate.ts
+    guestPrintTemplate.ts, kotTemplate.ts, deliverySettlePrintTemplate.ts
     printBarcode.ts, cashDrawer.ts, settlePrintConfig.ts   receipt barcode, drawer rule, Settle Print setting
   bulkSettlement/, cashier/, customer/, lockItem/, payInOut/   (other POS modules)
 ```
@@ -456,7 +456,7 @@ Edit → `loadSettledOrderIntoCart` (`isSettledEdit = true`, `editingSaleId` set
 - Package (packager) print: guest template with `isPackager: true` (title PACKAGER) after an order is placed,
   when POS config `packagerPrint` is on; whole order; balanced footer; `packagerHeader` setting controls the
   company header only (`showCompanyHeader`); the branch footer always prints. Not printed on direct settle (no order placed first).
-- Templates: `guestPrintTemplate.ts`, `kotTemplate.ts`, `escPosGenerator.ts` (Android), Bitezo Printer Agent over WebSocket (desktop, `qzService.ts`).
+- Templates: `guestPrintTemplate.ts`, `kotTemplate.ts` (HTML). Every print, web and Android, renders the HTML to a 1-bit raster: Bitezo Printer Agent over WebSocket on desktop, the Android plugin `printRaw` on the app (`qzService.ts`). `escPosGenerator.ts` (plain-text ESC/POS markup) was removed 2026-11-13: its output was never printed. `printEscPosMarkup` and the plugin's `printEscPos` are kept but unused.
 - Barcode at the bottom of the guest template (`printBarcode.ts`, Code 128 with the number under it): guest and packager prints encode the order number (first one on a combined order), settle prints encode the **sale id** (`saleId`, not the voucher number; no real id = no barcode). Bars are `<div>`s on whole printer dots, 3 dots wide: tested through html2canvas + the 1-bit threshold, SVG / PNG images and 2-dot bars were less reliable. Scanning a bill on the terminal still goes to the product SKU lookup (`useBarcodeScanner`), so a number equal to a SKU adds that product.
 - Cash drawer: cabled to the bill printer, opened by a raw ESC p job (`openCashDrawer` in `qzService.ts`, agent and Android). POS config "Cash Drawer" is saved as `cashdrawer: Enable / Disable` (the field used to be an unused Default / Normal type; old values mean off). `openDrawerIfCash` (`utils/cashDrawer.ts`) runs after the sale is saved, before the receipt, whether or not a receipt prints, when a Cash payment is above 0: checkout, dine-in settle and bulk delivery settlement. Not on an edit of a settled bill, reprints or provider settlements. It waits at most 3 s and only warns on failure. More → OPEN CASH DRAWER (`openDrawerManually`) opens it without a sale: follows the same setting, asks for an employee PIN unless a default employee is active (any valid PIN until the backend adds a privilege, then set `permissionId` in `PosMoreModal`); not logged anywhere.
 - Bill discount is printed once in the footer; rows show no per-line discount.
@@ -765,9 +765,8 @@ Main market: Bahrain / GCC (3-decimal currencies, see R8).
 | `shared/` (Phase 0) | used by POS and Back Office, may not import features (ESLint): `api/http.ts` (axios client; old path `api/axiosInstance.ts` re-exports), `api/unwrap.ts` (`unwrapBody` / `unwrapData` / `unwrapEnvelope` / `unwrapStrict`), `lib/` money, date, html, print, currency (old `utils/*` paths re-export), `config/settings.ts` (typed safe reads of localStorage settings — use in new code) |
 
 Size: ~84k lines of TS/TSX. Files over 1,000 lines (hard to change safely):
-`escPosGenerator.ts`,
-`endReportTemplate.ts`, `usePurchaseReturn.ts`, `PosCashierSessionModal.tsx`,
-`posSlice.ts`, `PosTerminalPage.tsx`.
+`endReportTemplate.ts`, `usePurchaseReturn.ts`,
+`posSlice.ts`. (`PosTerminalPage`, `PosCashierSessionModal` split 2026-11-13.)
 
 ### 11.3 Commands
 ```

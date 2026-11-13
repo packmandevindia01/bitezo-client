@@ -4,15 +4,6 @@ import { Modal, Button } from '../../../../../../components/common';
 import { cashierLogService } from '../../../../cashier/services/cashierLogService';
 import { useToast } from '../../../../../../app/providers/useToast';
 import { generateEndReportHtml } from '../../../../utils/endReportTemplate';
-import { 
-  generateEndReportMarkup,
-  generateVoidOrderReportMarkup,
-  generateVoidProductReportMarkup,
-  generateVoidInvoiceReportMarkup,
-  generateBillComplementaryReportMarkup,
-  generateDriverSummaryReportMarkup,
-  generateAllTransactionSummaryReportMarkup
-} from '../../../../utils/escPosGenerator';
 import { printPosReport } from '../../../../utils/reportPrinter';
 
 import type { 
@@ -474,9 +465,8 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintVoidSummary = async (directPrint: boolean) => {
     try {
       const html = generateVoidOrderReportHtml(voidSummaryLogs, fromDate, toDate);
-      const markup = generateVoidOrderReportMarkup(voidSummaryLogs, fromDate, toDate);
       if (directPrint) {
-        await printPosReport({ html, markup, directPrint: true, title: 'Void Order Summary' });
+        await printPosReport({ html, directPrint: true, title: 'Void Order Summary' });
         showToast('Printing Void Order Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -489,9 +479,8 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintVoidProductSummary = async (directPrint: boolean) => {
     try {
       const html = generateVoidProductReportHtml(voidProductSummaryLogs, fromDate, toDate);
-      const markup = generateVoidProductReportMarkup(voidProductSummaryLogs, fromDate, toDate);
       if (directPrint) {
-        await printPosReport({ html, markup, directPrint: true, title: 'Void Product Summary' });
+        await printPosReport({ html, directPrint: true, title: 'Void Product Summary' });
         showToast('Printing Void Product Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -504,9 +493,8 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintVoidInvoiceSummary = async (directPrint: boolean) => {
     try {
       const html = generateVoidInvoiceReportHtml(voidInvoiceSummaryLogs, fromDate, toDate);
-      const markup = generateVoidInvoiceReportMarkup(voidInvoiceSummaryLogs, fromDate, toDate);
       if (directPrint) {
-        await printPosReport({ html, markup, directPrint: true, title: 'Cancelled Invoice Summary' });
+        await printPosReport({ html, directPrint: true, title: 'Cancelled Invoice Summary' });
         showToast('Printing Cancelled Invoice Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -519,9 +507,8 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintInvoiceComplementarySummary = async (directPrint: boolean) => {
     try {
       const html = generateBillComplementaryReportHtml(invoiceComplementaryLogs, fromDate, toDate);
-      const markup = generateBillComplementaryReportMarkup(invoiceComplementaryLogs, fromDate, toDate);
       if (directPrint) {
-        await printPosReport({ html, markup, directPrint: true, title: 'Bill Complementary Summary' });
+        await printPosReport({ html, directPrint: true, title: 'Bill Complementary Summary' });
         showToast('Printing Bill Complementary Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -534,9 +521,8 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintDriverSummary = async (directPrint: boolean) => {
     try {
       const html = generateDriverSummaryReportHtml(driverSummaryLogs, fromDate, toDate);
-      const markup = generateDriverSummaryReportMarkup(driverSummaryLogs, fromDate, toDate);
       if (directPrint) {
-        await printPosReport({ html, markup, directPrint: true, title: 'Driver Summary' });
+        await printPosReport({ html, directPrint: true, title: 'Driver Summary' });
         showToast('Printing Driver Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -549,9 +535,8 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
   const handlePrintAllTransactionSummary = async (directPrint: boolean) => {
     try {
       const html = generateAllTransactionSummaryReportHtml(allTransactionLogs, fromDate, toDate);
-      const markup = generateAllTransactionSummaryReportMarkup(allTransactionLogs, fromDate, toDate);
       if (directPrint) {
-        await printPosReport({ html, markup, directPrint: true, title: 'All Transaction Summary' });
+        await printPosReport({ html, directPrint: true, title: 'All Transaction Summary' });
         showToast('Printing All Transaction Summary...', 'success');
       } else {
         setPreviewHtml(html);
@@ -573,12 +558,10 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
 
     try {
       let html = '';
-      let markup = '';
       const reportTitle = activeTab === 'DAY_END' ? 'Day End Report' : 'Shift End Report';
       if (activeTab === 'DAY_END') {
         const reportData = await cashierLogService.getDayEndReport(selectedDayId!);
         html = await generateEndReportHtml(reportData, 'DAYEND', !directPrint);
-        markup = generateEndReportMarkup(reportData, 'DAYEND');
       } else {
         const reportData = await cashierLogService.getShiftEndReport(selectedDayId!, selectedShiftId!);
         const selectedLog = shiftLogs.find(l => l.dayId === selectedDayId && l.shiftId === selectedShiftId);
@@ -591,11 +574,10 @@ export const PosReportModal: React.FC<PosReportModalProps> = ({ isOpen, onClose 
           }
         }
         html = await generateEndReportHtml(reportData, 'SHIFTEND', !directPrint);
-        markup = generateEndReportMarkup(reportData, 'SHIFTEND');
       }
 
       if (directPrint) {
-        await printPosReport({ html, markup, directPrint: true, title: reportTitle });
+        await printPosReport({ html, directPrint: true, title: reportTitle });
         showToast('Printing report...', 'success');
       } else {
         setPreviewHtml(html);

@@ -9,7 +9,7 @@ type View = 'Inclusive' | 'Exclusive';
 const savedBill = (dataView: View, printPrice: View, masterData: any, detailsData: any[], options: Record<string, unknown> = {}): any =>
   buildPrintPricing({ masterData, detailsData }, { dataView, printPrice, orderType: masterData.orderType, ...options });
 
-describe('Printing Generation (escPosGenerator.ts & guestPrintTemplate.ts)', () => {
+describe('Printing Generation (guestPrintTemplate.ts)', () => {
   beforeEach(() => {
     localStorage.clear();
     localStorage.setItem('enableVat', 'true');
