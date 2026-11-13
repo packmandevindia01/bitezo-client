@@ -532,6 +532,9 @@ the provider's products for a provider id even with providerOwnStatus=false (806
 writes `providerOwnStatus` into this device's `posConfigs` copy (it was left out) and fires `pos_config_updated`
 (`pos/utils/posConfigEvents.ts`); `usePosProducts` reloads the menu on it (and on another tab's posConfigs write). Back Office
 Delivery Status does NOT hide a provider in the POS. Bulk settlement still lists every provider (old unsettled orders).
+Counter on prints (2026-11-13, `pos/utils/printCounterName.ts`): KOT, guest, settle, recall, settled and dine-in prints used
+the fixed text "Main". Now a saved order prints its own counter (server `counterName`), else this device's counter from system
+registration (localStorage `systemCounterName`); empty when unknown. Test: `printCounterName.test.ts` (snapshots print "Counter1").
 Provider customer (2026-11-13): picking a provider sets its post account as the customer WITH its name
 (`usePosProviderTender` → `setSelectedCustomer`; name from `GET /provider/account-list`, `pos/utils/providerAccountName.ts`,
 loaded once). The settle receipt takes the on-screen customer (`buildSettleReceiptPayload({ customerName })`) after the saved

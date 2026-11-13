@@ -763,7 +763,7 @@ export const generateGuestPrintHtml = async (
             <td style="width: 50%; white-space: nowrap;">Waiter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(النادل)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.waiter}</span></td>
           </tr>
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الكاونتر)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.counter}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الكاونتر)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${escapeHtml(data.counter ?? "")}</span></td>
             ${isDineIn ? `<td style="width: 50%; white-space: nowrap;">Section${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(القسم)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.section}</span></td>` : (driverVal ? `<td style="width: 50%; white-space: nowrap;">Driver${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(السائق)</bdi>' : ''} :&nbsp;<span style="font-weight: bold; white-space: nowrap;">${driverVal}</span></td>` : '<td style="width: 50%;"></td>')}
           </tr>
           ${isDineIn ? `
@@ -786,7 +786,7 @@ export const generateGuestPrintHtml = async (
           </tr>
           <tr>
             <td style="width: 50%; white-space: nowrap;">Waiter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(النادل)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.waiter}</span></td>
-            <td style="width: 50%; white-space: nowrap;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الكاونتر)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${data.counter}</span></td>
+            <td style="width: 50%; white-space: nowrap;">Counter${isBillArabic ? ' <bdi class="arabic-text" style="font-size: 9.5px; font-weight: normal;">(الكاونتر)</bdi>' : ''} :&nbsp;<span style="font-weight: normal; white-space: nowrap;">${escapeHtml(data.counter ?? "")}</span></td>
           </tr>
           ${isDineIn ? `
           <tr>

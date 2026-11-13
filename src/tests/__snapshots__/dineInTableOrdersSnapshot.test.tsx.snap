@@ -307,7 +307,7 @@ exports[`Dine-In table orders window > order 0 (item discount) > GUEST: guest re
           </tr>
           <tr>
             <td style="width: 50%; white-space: nowrap;">Waiter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Ali</span></td>
-            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Main</span></td>
+            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Counter1</span></td>
           </tr>
           
           <tr>
@@ -764,7 +764,7 @@ exports[`Dine-In table orders window > order 0 (item discount) > SETTLE: invoice
             <td style="width: 50%; white-space: nowrap;">Waiter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Ali</span></td>
           </tr>
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Main</span></td>
+            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Counter1</span></td>
             <td style="width: 50%; white-space: nowrap;">Section :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Hall</span></td>
           </tr>
           
@@ -1215,7 +1215,7 @@ exports[`Dine-In table orders window > order 1 (bill discount) > GUEST: guest re
           </tr>
           <tr>
             <td style="width: 50%; white-space: nowrap;">Waiter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Ali</span></td>
-            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Main</span></td>
+            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Counter1</span></td>
           </tr>
           
           <tr>
@@ -1620,7 +1620,7 @@ exports[`Dine-In table orders window > order 1 (bill discount) > SETTLE: invoice
             <td style="width: 50%; white-space: nowrap;">Waiter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Ali</span></td>
           </tr>
           <tr>
-            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Main</span></td>
+            <td style="width: 50%; white-space: nowrap;">Counter :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Counter1</span></td>
             <td style="width: 50%; white-space: nowrap;">Section :&nbsp;<span style="font-weight: normal; white-space: nowrap;">Hall</span></td>
           </tr>
           

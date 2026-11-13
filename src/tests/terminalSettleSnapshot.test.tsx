@@ -122,6 +122,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date("2026-11-06T12:30:00"));
   localStorage.clear();
+  localStorage.setItem("systemCounterName", "Counter1"); // this device's counter (system registration)
   sessionStorage.clear();
   printed.length = 0;
   vi.clearAllMocks();

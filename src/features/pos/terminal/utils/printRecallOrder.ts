@@ -1,3 +1,4 @@
+import { printCounterName } from "../../utils/printCounterName";
 import { orderTypeNameFromId } from "../../utils/providerOrderType";
 import { getTerminalBranchId } from "@shared/config/device";
 import { orderApi } from "../../services/orderApi";
@@ -451,7 +452,7 @@ export const printRecallOrderGuestReceipt = async (
       orderNo: master.orderNo ?? String(orderId),
       ticketNo: toDisplayNo(master.ticketNo) ?? "",
       waiter: await resolveEmployeeNameForPrint(master.employeeId ?? master.empId, master.employeeName ?? master.waiter ?? order?.employeeName),
-      counter: "Main",
+      counter: printCounterName(master),
       section: master.sectionName || "DINE IN",
       table: master.tableNo || "",
       orderType: orderTypeName,

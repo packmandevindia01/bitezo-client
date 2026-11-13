@@ -505,7 +505,7 @@ export const generateKotHtml = async (
 
   // Common meta rows
   let metaHtml = metaRow("Date", dateStr, "Time", timeStr);
-  metaHtml += metaRow("Waiter", data.waiter, "Counter", data.counter);
+  metaHtml += metaRow("Waiter", data.waiter, "Counter", escapeHtml(data.counter ?? ""));
   if (isDineIn) {
     metaHtml += metaRow("Section", data.section, "Table", data.table);
   }

@@ -1,3 +1,4 @@
+import { printCounterName } from "../../utils/printCounterName";
 /**
  * Dine-In table screen prints: the guest bill of a table order (row PRINT) and the receipt after SETTLE.
  * Moved out of DineInTableOrdersModal (2026-11-11, split of the window).
@@ -103,7 +104,7 @@ export const printDineInGuestReceipt = async ({ orderIdArg, data, selectedMaster
       orderNo: master.orderNo ?? String(master.orderId),
       ticketNo: toDisplayNo(master.ticketNo) ?? "",
       waiter: resolvedWaiter,
-      counter: "Main",
+      counter: printCounterName(master),
       section: master.sectionName || "DINE IN",
       table: table?.tableName || "",
       orderType: "DINE IN",

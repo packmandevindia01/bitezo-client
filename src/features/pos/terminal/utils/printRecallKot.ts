@@ -1,3 +1,4 @@
+import { printCounterName } from "../../utils/printCounterName";
 import { orderTypeNameFromId } from "../../utils/providerOrderType";
 /**
  * Recall → KOT (reprint the kitchen ticket of a saved order). Moved verbatim out of PosRecallDetailsModal
@@ -211,7 +212,7 @@ const orderTypeName = fallbackOrderTypeByName(orderTypeCandidate).orderType;
       orderNo: master.orderNo ?? String(orderId),
       ticketNo: toDisplayNo(master.ticketNo) ?? "",
       waiter: await resolveEmployeeNameForPrint(master.employeeId ?? master.empId, master.employeeName ?? fallbackDetails?.employeeName),
-      counter: "Main",
+      counter: printCounterName(master),
       section: master.sectionName || "DINE IN",
       table: master.tableNo || "",
       // Provider order: the KOT shows the provider name ("ZOMATO") like a new order KOT does.

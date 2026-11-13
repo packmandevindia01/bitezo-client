@@ -1,3 +1,4 @@
+import { printCounterName } from "../../utils/printCounterName";
 import { orderTypeNameFromId } from "../../utils/providerOrderType";
 /**
  * Settled orders → PRINT (guest bill of a settled order). Moved verbatim out of PosSettledDetailsModal
@@ -435,7 +436,7 @@ export const printSettledOrderReceipt = async ({ orderId, order, orderDetailsStr
       // The real id only (list row, then saved order). The voucher number is not a sale id.
       saleId: Number(orderSummary?.saleId ?? orderSummary?.SaleId ?? master.saleId ?? 0) || undefined,
       waiter: resolvedWaiter,
-      counter: "Main",
+      counter: printCounterName(master),
       section: master.sectionName || "DINE IN",
       table: master.tableNo || "",
       orderType: orderTypeName,

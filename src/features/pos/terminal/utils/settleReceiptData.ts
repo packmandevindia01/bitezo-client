@@ -1,3 +1,4 @@
+import { printCounterName } from "../../utils/printCounterName";
 /**
  * Terminal settle → the receipt data, after the sales invoice is saved: reads the settled order back (settled
  * details → invoice data → settled print data → order → the cart as last resort), merges the original order's
@@ -759,7 +760,7 @@ export const buildSettleReceiptPayload = async ({ orderPayload, salesPayload, cr
       invoiceNo: invoiceNoStr || (finalSaleId > 0 ? String(finalSaleId) : undefined),
       saleId: finalSaleId > 0 ? finalSaleId : undefined,
       waiter: waiterStr,
-      counter: "Main",
+      counter: printCounterName(masterData as any),
       section: sectionStr,
       table: tableStr,
       // Provider order: the provider name, so the header prints "(ZOMATO)" (charges are unaffected).

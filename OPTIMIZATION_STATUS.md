@@ -3,6 +3,8 @@
 Last updated 2026-11-13. `refactor/pricing-engine` merged into `main` on 2026-11-11 (merge 8a07d3c). Real-terminal test done by the owner on 2026-11-13: no visible issues (visual check, not a line-by-line comparison).
 The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11).
 
+Counter on prints (2026-11-13): prints showed "Main" (fixed text); now the counter that made the order, or this device's registered counter. Testers: KOT, guest and settle print on a counter registered as e.g. Counter1 → "Counter : Counter1"; a reprint of another counter's order shows that counter.
+
 Provider Settings find product (2026-11-13): find box above the grid; matching rows highlighted, current one scrolled to, "n of N", Enter / Shift+Enter or ▲ / ▼ between matches, Esc clears. Testers: a long price list → type part of a name → it scrolls to the row; a product on two rows → both highlighted, Enter jumps between them.
 
 Settle receipt customer (2026-11-13): a direct settle printed "WALK IN"; it now prints the order's customer (provider post account, picked customer, or CASH CUSTOMER). Picking a provider now also shows its post account name on screen. Testers: Swiggy order → settle print says CASH CUSTOMER; Zomato → Rahul.

@@ -1,3 +1,4 @@
+import { printCounterName } from "../../utils/printCounterName";
 /**
  * Dine-In table screen → SETTLE: the order sent with the sales invoice (built from the STORED order) and the
  * receipt printed after it. Moved verbatim out of DineInTableOrdersModal.executeSettlement (2026-11-11).
@@ -222,7 +223,7 @@ export const printDineInSettleReceipt = async ({ master, employeeId, settleOrder
     invoiceNo: invoiceNoStr,
     saleId: settledSaleId,
     waiter: settleWaiter,
-    counter: "Main",
+    counter: printCounterName(master),
     section: master.sectionName || "DINE IN",
     table: table.tableName || "",
     orderType: "DINE IN",

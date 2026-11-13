@@ -1,3 +1,4 @@
+import { printCounterName } from "../../utils/printCounterName";
 import { useState, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
 import { useToast } from "../../../../app/providers/useToast";
@@ -564,7 +565,7 @@ export const usePosCartActions = () => {
         orderNo: orderNoStr,
         ticketNo: ticketNoStr,
         waiter: waiterStr,
-        counter: "Main",
+        counter: printCounterName(masterData as any),
         section: sectionStr,
         table: tableStr,
         orderType: orderTypeStr,
