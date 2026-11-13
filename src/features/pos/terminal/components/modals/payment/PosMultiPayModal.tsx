@@ -647,16 +647,17 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
           <div className="grid grid-cols-3 gap-3.5 sm:gap-4 font-['Outfit']">
 
             {/* 1. Total Due */}
-            <div className="bg-gradient-to-br from-[#0f172a] via-[#1e293b] to-[#0f172a] text-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-[0_12px_28px_-6px_rgba(15,23,42,0.35)] border border-slate-700/60 relative overflow-hidden flex flex-col justify-between">
-              <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/[0.04] pointer-events-none" />
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border-2 border-slate-200 shadow-[0_6px_18px_-8px_rgba(15,23,42,0.25)] relative overflow-hidden flex flex-col justify-between">
+              <div className="absolute left-0 inset-y-0 w-1.5 bg-gradient-to-b from-slate-700 to-slate-900 pointer-events-none" />
+              <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-slate-100 pointer-events-none" />
               <div className="flex items-center justify-between relative z-10">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 text-slate-300 text-[10px] sm:text-[11px] font-black uppercase tracking-wider border border-white/10">
-                  <Receipt size={12} className="text-teal-400" /> Total Due
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] sm:text-[11px] font-black uppercase tracking-wider border border-slate-200">
+                  <Receipt size={12} className="text-teal-600" /> Total Due
                 </span>
                 <span className="text-[10px] sm:text-[11px] font-extrabold text-slate-400 uppercase tracking-widest">{currencySymbol}</span>
               </div>
               <div className="mt-2.5 sm:mt-3 relative z-10">
-                <span className="text-3xl sm:text-4xl font-black text-white tracking-tight tabular-nums drop-shadow-sm">
+                <span className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight tabular-nums">
                   {formatAmount(totalDue)}
                 </span>
                 <span className="block text-[10px] sm:text-[11px] font-semibold text-slate-400 tracking-wider uppercase mt-0.5">
@@ -666,22 +667,23 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
             </div>
 
             {/* 2. Total Paid */}
-            <div className="bg-gradient-to-br from-[#1e40af] via-[#1d4ed8] to-[#172554] text-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-[0_12px_28px_-6px_rgba(29,78,216,0.35)] border border-blue-400/40 relative overflow-hidden flex flex-col justify-between">
-              <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/[0.05] pointer-events-none" />
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border-2 border-green-200 shadow-[0_6px_18px_-8px_rgba(22,163,74,0.3)] relative overflow-hidden flex flex-col justify-between">
+              <div className="absolute left-0 inset-y-0 w-1.5 bg-gradient-to-b from-green-500 to-green-700 pointer-events-none" />
+              <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-green-50 pointer-events-none" />
               <div className="flex items-center justify-between relative z-10">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/15 text-blue-100 text-[10px] sm:text-[11px] font-black uppercase tracking-wider border border-white/15">
-                  <CheckCircle2 size={12} className="text-cyan-300" /> Total Paid
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-green-50 text-green-700 text-[10px] sm:text-[11px] font-black uppercase tracking-wider border border-green-200">
+                  <CheckCircle2 size={12} className="text-green-600" /> Total Paid
                 </span>
-                <span className="text-[10px] sm:text-[11px] font-extrabold text-blue-200/70 uppercase tracking-widest">{currencySymbol}</span>
+                <span className="text-[10px] sm:text-[11px] font-extrabold text-green-300 uppercase tracking-widest">{currencySymbol}</span>
               </div>
               <div className="mt-2.5 sm:mt-3 relative z-10">
-                <span className="text-3xl sm:text-4xl font-black text-white tracking-tight tabular-nums drop-shadow-sm">
+                <span className="text-3xl sm:text-4xl font-black text-green-700 tracking-tight tabular-nums">
                   {formatAmount(totalPaid)}
                 </span>
                 {/* Real-time settlement progress bar */}
-                <div className="w-full bg-black/25 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div className="w-full bg-green-100 h-1.5 rounded-full mt-2 overflow-hidden">
                   <div
-                    className="bg-cyan-300 h-full rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(103,232,249,0.8)]"
+                    className="bg-gradient-to-r from-green-500 to-emerald-400 h-full rounded-full transition-all duration-300"
                     style={{ width: `${Math.min(100, (roundedPaid / (roundedDue || 1)) * 100)}%` }}
                   />
                 </div>
@@ -689,37 +691,38 @@ export const PosMultiPayModal: React.FC<PosMultiPayModalProps> = ({
             </div>
 
             {/* 3. Remaining or Change */}
-            <div className={`rounded-2xl sm:rounded-3xl p-4 sm:p-5 border relative overflow-hidden flex flex-col justify-between transition-all duration-300 text-white ${
+            <div className={`bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-5 border-2 relative overflow-hidden flex flex-col justify-between transition-all duration-300 ${
               remaining === 0
-                ? change > 0
-                  ? 'bg-gradient-to-br from-[#059669] via-[#047857] to-[#064e3b] shadow-[0_12px_28px_-6px_rgba(5,150,105,0.4)] border-emerald-400/50'
-                  : 'bg-gradient-to-br from-[#059669] via-[#047857] to-[#064e3b] shadow-[0_12px_28px_-6px_rgba(5,150,105,0.4)] border-emerald-400/50'
-                : 'bg-gradient-to-br from-[#ea580c] via-[#c2410c] to-[#7c2d12] shadow-[0_12px_28px_-6px_rgba(234,88,12,0.35)] border-amber-400/40'
+                ? 'border-emerald-300 shadow-[0_6px_18px_-8px_rgba(5,150,105,0.35)]'
+                : 'border-orange-300 shadow-[0_6px_18px_-8px_rgba(234,88,12,0.35)]'
             }`}>
-              <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/[0.05] pointer-events-none" />
+              <div className={`absolute left-0 inset-y-0 w-1.5 pointer-events-none bg-gradient-to-b ${remaining === 0 ? 'from-emerald-400 to-emerald-600' : 'from-orange-400 to-orange-600'}`} />
+              <div className={`absolute -right-8 -top-8 w-28 h-28 rounded-full pointer-events-none ${remaining === 0 ? 'bg-emerald-50' : 'bg-orange-50'}`} />
               <div className="flex items-center justify-between relative z-10">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/15 text-white text-[10px] sm:text-[11px] font-black uppercase tracking-wider border border-white/15">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-wider border ${
+                  remaining === 0 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-orange-50 text-orange-700 border-orange-200'
+                }`}>
                   {remaining === 0 && change > 0 ? (
                     <>
-                      <Sparkles size={12} className="text-emerald-200" /> Change Due
+                      <Sparkles size={12} className="text-emerald-600" /> Change Due
                     </>
                   ) : remaining === 0 ? (
                     <>
-                      <CheckCircle2 size={12} className="text-emerald-200" /> Settled
+                      <CheckCircle2 size={12} className="text-emerald-600" /> Settled
                     </>
                   ) : (
                     <>
-                      <Clock size={12} className="text-amber-200" /> Remaining
+                      <Clock size={12} className="text-orange-600" /> Remaining
                     </>
                   )}
                 </span>
-                <span className="text-[10px] sm:text-[11px] font-extrabold text-white/70 uppercase tracking-widest">{currencySymbol}</span>
+                <span className={`text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest ${remaining === 0 ? 'text-emerald-300' : 'text-orange-300'}`}>{currencySymbol}</span>
               </div>
               <div className="mt-2.5 sm:mt-3 relative z-10">
-                <span className="text-3xl sm:text-4xl font-black text-white tracking-tight tabular-nums drop-shadow-sm">
+                <span className={`text-3xl sm:text-4xl font-black tracking-tight tabular-nums ${remaining === 0 ? 'text-emerald-600' : 'text-orange-600'}`}>
                   {formatAmount(remaining === 0 ? change : remaining)}
                 </span>
-                <span className="block text-[10px] sm:text-[11px] font-semibold text-white/70 tracking-wider uppercase mt-0.5">
+                <span className="block text-[10px] sm:text-[11px] font-semibold text-slate-400 tracking-wider uppercase mt-0.5">
                   {remaining === 0 && change > 0
                     ? 'Return to Customer'
                     : remaining === 0
