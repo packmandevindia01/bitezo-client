@@ -536,6 +536,9 @@ Delivery addresses (2026-11-13, `PosDeliveryPage`): UPDATE edits the address on 
 `useDelivery.updateAddress`) and stays on the page; it is disabled when no saved address is loaded (new data). New addresses for
 a customer only through MORE ADDRESS (`PosMoreAddressModal`, POST). Save Delivery on a changed saved address edits it (it used to
 POST a new copy every time); only a number with no address gets its first one created. Test: `deliveryAddressUpdate.test.tsx`.
+Leaving unsaved: Back to POS asks "Leave without saving?" (Yes, leave / No, stay) when the form differs from how the screen
+opened or from the last UPDATE (`baselineFormRef`, checked on click); Save Delivery leaves without asking. Re-opening with a chosen
+address no longer looks the number up again (that replaced it with the FIRST saved address); the lookup skips its first run.
 Counter on prints (2026-11-13, `pos/utils/printCounterName.ts`): KOT, guest, settle, recall, settled and dine-in prints used
 the fixed text "Main". Now a saved order prints its own counter (server `counterName`), else this device's counter from system
 registration (localStorage `systemCounterName`); empty when unknown. Test: `printCounterName.test.ts` (snapshots print "Counter1").

@@ -5,6 +5,8 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 
 Delivery addresses (2026-11-13): UPDATE now edits the address on screen (no new copy) and is disabled for new data; More Address is the only way to add another address; Save Delivery on a changed address edits it. Testers: load a number, change Flat, UPDATE → More Address list shows ONE address with the new Flat; a new number → UPDATE greyed out.
 
+Delivery leave warning (2026-11-13): Back to POS with unsaved changes asks "Leave without saving?"; re-opening the screen keeps the address chosen through More Address. Testers: change a field → POS → No stays / Yes leaves; no change → leaves at once; pick the 2nd address in More Address, Save, reopen Delivery → still the 2nd address.
+
 Counter on prints (2026-11-13): prints showed "Main" (fixed text); now the counter that made the order, or this device's registered counter. Testers: KOT, guest and settle print on a counter registered as e.g. Counter1 → "Counter : Counter1"; a reprint of another counter's order shows that counter.
 
 Provider Settings find product (2026-11-13): find box above the grid; matching rows highlighted, current one scrolled to, "n of N", Enter / Shift+Enter or ▲ / ▼ between matches, Esc clears. Testers: a long price list → type part of a name → it scrolls to the row; a product on two rows → both highlighted, Enter jumps between them.

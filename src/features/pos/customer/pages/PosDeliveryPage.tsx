@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ChevronLeft, Search, Save, RotateCcw, Truck, Keyboard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { FormInput, Button } from "../../../../components/common";
+import { FormInput, Button, ConfirmDialog } from "../../../../components/common";
 import { PosDeliveryKeyboard } from "../components/PosDeliveryKeyboard";
 import { useDelivery } from "../hooks/useDelivery";
 import { PosMoreAddressModal } from "../components/PosMoreAddressModal";
@@ -27,6 +27,23 @@ interface PosDeliveryPageProps {
   isModal?: boolean;
   onCloseModal?: () => void;
 }
+
+/** The delivery form with nothing entered (Clear, and the "unsaved changes" baseline of a fresh screen). */
+const EMPTY_DELIVERY_FORM = {
+  mobileNo: "",
+  customerName: "",
+  isComing: false,
+  comingTime: "",
+  flatNo: "",
+  buildingNo: "",
+  roadNo: "",
+  blockNo: "",
+  area: "",
+  note: "",
+  callBack: "",
+  isMissedCall: false,
+  keepChanges: "",
+};
 
 export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
   isModal = false,
@@ -65,6 +82,11 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
     keepChanges: ""
   });
 
+  // Unsaved changes: the form as it was when the screen opened (or after the last UPDATE). Leaving with a
+  // different form asks first (Back to POS); Save Delivery leaves without asking.
+  const baselineFormRef = useRef<string | null>(null);
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
+
   const [activeField, setActiveField] = useState<keyof typeof form | null>("mobileNo");
   const [showKeyboard, setShowKeyboard] = useState(true);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
@@ -81,6 +103,16 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
   const callBackRef = useRef<HTMLInputElement>(null);
   const keepChangesRef = useRef<HTMLInputElement>(null);
 
+  /** Back to POS from the header: ask first when something was changed and not saved. */
+  const requestBack = () => {
+    const hasUnsavedChanges = baselineFormRef.current !== null && JSON.stringify(form) !== baselineFormRef.current;
+    if (hasUnsavedChanges) {
+      setIsLeaveConfirmOpen(true);
+      return;
+    }
+    handleBack();
+  };
+
   const handleBack = () => {
     if (isModal && onCloseModal) {
       onCloseModal();
@@ -90,21 +122,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
   };
 
   const handleClearForm = () => {
-    setForm({
-      mobileNo: "",
-      customerName: "",
-      isComing: false,
-      comingTime: "",
-      flatNo: "",
-      buildingNo: "",
-      roadNo: "",
-      blockNo: "",
-      area: "",
-      note: "",
-      callBack: "",
-      isMissedCall: false,
-      keepChanges: ""
-    });
+    setForm({ ...EMPTY_DELIVERY_FORM });
     setCurrentAddressId(null);
     lastLookedUpMobileRef.current = "";
     lastLoadedAddressRef.current = null;
@@ -128,7 +146,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
         } catch {}
       }
 
-      setForm({
+      const restoredForm = {
         mobileNo: reduxContactNo || reduxDeliveryDetails?.contactNo || "",
         customerName: reduxCustomerName || reduxDeliveryDetails?.customerName || "",
         isComing: Boolean(reduxDeliveryDetails?.isComing),
@@ -142,8 +160,13 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
         callBack: reduxCallBack || reduxDeliveryDetails?.callBack || "",
         isMissedCall: Boolean(reduxMissedCall || reduxDeliveryDetails?.isMissedCall),
         keepChanges: reduxChange || reduxDeliveryDetails?.change || ""
-      });
+      };
+      setForm(restoredForm);
+      baselineFormRef.current = JSON.stringify(restoredForm);
       if (reduxDeliveryDetails?.addressId) {
+        // The chosen address is already restored: don't look the number up again (it replaced it with the
+        // FIRST saved address, undoing a More Address choice, and counted as an unsaved change).
+        lastLookedUpMobileRef.current = restoredForm.mobileNo.trim();
         setCurrentAddressId(reduxDeliveryDetails.addressId);
         lastLoadedAddressRef.current = {
           customerName: reduxCustomerName || reduxDeliveryDetails?.customerName || "",
@@ -158,6 +181,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
       }
     } else {
       handleClearForm();
+      baselineFormRef.current = JSON.stringify(EMPTY_DELIVERY_FORM);
     }
     setTimeout(() => mobileRef.current?.focus(), 100);
     setActiveField("mobileNo");
@@ -219,7 +243,14 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
   };
 
   // Mobile address lookup
+  const lookupStartedRef = useRef(false);
   useEffect(() => {
+    // The first run sees the empty starting form, before the restore above has filled it: skip it (it would
+    // treat the restored number as deleted and wipe the restored address).
+    if (!lookupStartedRef.current) {
+      lookupStartedRef.current = true;
+      return;
+    }
     const lookupMobile = async () => {
       const trimmed = form.mobileNo.trim();
       if (trimmed.length >= 8 && trimmed !== lastLookedUpMobileRef.current) {
@@ -493,7 +524,10 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
       return;
     }
     const ok = await updateAddress(currentAddressId, addressPayload());
-    if (ok) lastLoadedAddressRef.current = { ...addressFields(), addressId: currentAddressId };
+    if (ok) {
+      lastLoadedAddressRef.current = { ...addressFields(), addressId: currentAddressId };
+      baselineFormRef.current = JSON.stringify(form); // saved: leaving now doesn't ask
+    }
   };
 
   const handleSelectAddressFromMore = (address: DeliveryAddress) => {
@@ -522,7 +556,7 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
       <header className="flex items-center justify-between bg-[#49293e] px-4 md:px-6 h-[54px] md:h-[60px] text-white shrink-0 shadow-md border-b border-white/10">
         <div className="flex items-center gap-3">
           <button
-            onClick={handleBack}
+            onClick={requestBack}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white transition-all text-xs font-bold"
           >
             <ChevronLeft size={18} />
@@ -913,6 +947,20 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
             <span>Show Keyboard</span>
           </button>
         )}
+
+        <ConfirmDialog
+          isOpen={isLeaveConfirmOpen}
+          title="Leave without saving?"
+          message="The delivery details you entered are not saved. Go back to the POS without saving?"
+          confirmLabel="Yes, leave"
+          cancelLabel="No, stay"
+          confirmVariant="danger"
+          onConfirm={() => {
+            setIsLeaveConfirmOpen(false);
+            handleBack();
+          }}
+          onCancel={() => setIsLeaveConfirmOpen(false)}
+        />
 
         <PosMoreAddressModal
           isOpen={isMoreAddressOpen}
