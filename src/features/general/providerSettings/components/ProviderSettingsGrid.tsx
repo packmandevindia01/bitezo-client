@@ -1,9 +1,10 @@
 import { useMemo, useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Search, ChevronUp, ChevronDown, X } from "lucide-react";
 import { SearchableSelect } from "../../../../components/common";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import type { ProviderSettingEntry, ProductSearchItem, AltNameItem } from "../types";
 import { formatPriceInput } from "../utils/priceInput";
+import { findMatchingRows, stepMatch } from "../utils/gridSearch";
 
 interface Props {
   entries: ProviderSettingEntry[];
@@ -94,8 +95,98 @@ const ProviderSettingsGrid = ({
     });
   }, [entries, altNamesMap, onLoadAltNames]);
 
+  // ─── Find a product in the grid: highlight every matching row, scroll to the current one ───
+  const [findQuery, setFindQuery] = useState("");
+  const [findPos, setFindPos] = useState(-1);
+  const matches = useMemo(() => findMatchingRows(entries, findQuery), [entries, findQuery]);
+  const matchSet = useMemo(() => new Set(matches), [matches]);
+  const currentMatchRow = findPos >= 0 && findPos < matches.length ? matches[findPos] : -1;
+
+  // New search text: start at the first match. Rows added / removed: keep the position in range.
+  useEffect(() => {
+    setFindPos(matches.length > 0 ? 0 : -1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the text changes
+  }, [findQuery]);
+  useEffect(() => {
+    setFindPos((p) => (matches.length === 0 ? -1 : Math.min(Math.max(p, 0), matches.length - 1)));
+  }, [matches.length]);
+
+  useEffect(() => {
+    if (currentMatchRow < 0) return;
+    const el = document.getElementById(`ps-grid-row-${currentMatchRow}`);
+    el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+  }, [currentMatchRow]);
+
+  const goToMatch = (step: 1 | -1) => setFindPos((p) => stepMatch(p, matches.length, step));
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* Find product */}
+      <div className="flex-none flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-white">
+        <div className="relative flex-1 max-w-sm">
+          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input
+            id="ps-grid-find"
+            type="text"
+            autoComplete="off"
+            value={findQuery}
+            onChange={(e) => setFindQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                goToMatch(e.shiftKey ? -1 : 1);
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setFindQuery("");
+              }
+            }}
+            placeholder="Find product in list (name, alt name or code)..."
+            aria-label="Find product in list"
+            className="w-full h-8 pl-8 pr-7 text-xs bg-white border border-gray-200 hover:border-gray-300 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e] rounded-md outline-none"
+          />
+          {findQuery && (
+            <button
+              type="button"
+              onClick={() => setFindQuery("")}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              title="Clear search (Esc)"
+              aria-label="Clear search"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+        {findQuery.trim() && (
+          <>
+            <span
+              data-testid="ps-grid-find-count"
+              className={`text-[11px] font-semibold whitespace-nowrap ${matches.length ? "text-gray-600" : "text-red-500"}`}
+            >
+              {matches.length ? `${findPos + 1} of ${matches.length}` : "No match"}
+            </span>
+            <button
+              type="button"
+              onClick={() => goToMatch(-1)}
+              disabled={matches.length < 2}
+              className="p-1.5 rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-[#49293e] disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Previous match (Shift+Enter)"
+              aria-label="Previous match"
+            >
+              <ChevronUp size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => goToMatch(1)}
+              disabled={matches.length < 2}
+              className="p-1.5 rounded-md border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-[#49293e] disabled:opacity-40 disabled:cursor-not-allowed"
+              title="Next match (Enter)"
+              aria-label="Next match"
+            >
+              <ChevronDown size={14} />
+            </button>
+          </>
+        )}
+      </div>
       <div className="flex-1 overflow-auto">
         <table className="min-w-full text-xs border-collapse">
           <thead>
@@ -161,7 +252,15 @@ const ProviderSettingsGrid = ({
                 return (
                   <tr
                     key={`${row.productId}-${row.unitId}-${index}`}
-                    className="hover:bg-blue-50/20 transition-colors group"
+                    id={`ps-grid-row-${index}`}
+                    data-find={currentMatchRow === index ? "current" : matchSet.has(index) ? "match" : undefined}
+                    className={`transition-colors group ${
+                      currentMatchRow === index
+                        ? "[&>td]:!bg-amber-200 outline outline-2 outline-amber-400 -outline-offset-2"
+                        : matchSet.has(index)
+                        ? "[&>td]:!bg-amber-50"
+                        : "hover:bg-blue-50/20"
+                    }`}
                   >
                     {/* SL */}
                     <td className="px-2 py-1 text-center font-mono text-gray-400 text-xs border-r border-gray-100 bg-gray-50/30 w-12">

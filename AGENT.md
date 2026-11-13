@@ -561,6 +561,10 @@ Price box (2026-11-13, `utils/priceInput.ts`): shown with the company's currency
 decimals (`acceptPriceInput`, otherwise the old value stays); blur / Enter tidies it ("1.5" → "1.500"). Enter moves to the next
 row's price (its product box if that row is empty); the last row adds a row (Enter used to do nothing on other rows). Tests:
 `providerSettingsPriceInput.test.tsx`, `providerSettingsForm.test.tsx`.
+Find product (2026-11-13, `utils/gridSearch.ts`): a find box above the grid highlights every row whose product name, alt name
+or code contains the text (case-insensitive), scrolls the current match into view and shows "n of N"; Enter / ▼ next,
+Shift+Enter / ▲ previous (wraps), Esc / × clears; the same product on several rows is found on each. Test:
+`providerSettingsGridSearch.test.tsx`.
 
 **Extras & Modifiers** (More → EXTRAS & MODIFIERS, route `/pos/menu-masters`, `pos/menuMasters/`): tabs for Extras, Extras Type,
 Modifier and Modifier Type. Each tab renders the Back Office page (`inventory/extrasMaster`, `extrasType`, `modifier`, `modifierType`),
