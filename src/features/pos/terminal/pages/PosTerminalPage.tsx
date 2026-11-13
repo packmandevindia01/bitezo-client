@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Capacitor } from "@capacitor/core";
 import { useEvent } from "../../../../hooks/useEvent";
 import { useNavigate } from "react-router-dom";
@@ -13,16 +13,18 @@ import { usePosModals } from "../hooks/usePosModals";
 import { usePosCheckoutFlow } from "../hooks/usePosCheckoutFlow";
 import { usePosDiscountFlow } from "../hooks/usePosDiscountFlow";
 import { usePosVoidFlow } from "../hooks/usePosVoidFlow";
+import { usePosProviderTender } from "../hooks/usePosProviderTender";
+import { usePosItemEdits } from "../hooks/usePosItemEdits";
+import { usePosSettleAction } from "../hooks/usePosSettleAction";
+import { usePosOrderAction } from "../hooks/usePosOrderAction";
 import { PosActionButtons } from "../components/layout/PosActionButtons";
+import { PosMobileCartButton } from "../components/layout/PosMobileCartButton";
 import { PosTerminalModals } from "../components/modals/PosTerminalModals";
 import { useBarcodeScanner } from "../hooks/useBarcodeScanner";
 import { SettlePrintPrompt } from "../components/modals/payment/SettlePrintPrompt";
 import { usePosShortcuts } from "../hooks/usePosShortcuts";
-import { clearAllItemDiscounts, setCustomerId, setCustomDeliveryCharge, setWaiter, setMenuProviderId } from "../store/posSlice";
+import { clearAllItemDiscounts, setCustomerId, setCustomDeliveryCharge } from "../store/posSlice";
 import { selectDeliveryCharge, selectMenuOrderTypeId } from "../store/posSelectors";
-import { roundCalc } from "../utils/billing";
-import { disableDefaultEmployeeConfig, isDefaultEmployeeValidInCache } from "../../utils/defaultEmployee";
-import { getModifierTypeNameById } from "../../services/menuApi";
 import { PosProductSearchDropdown } from "../components/menu/PosProductSearchDropdown";
 import type { PosProductSearchResult } from "../../types";
 import ErrorBoundary from "../../../../components/common/ErrorBoundary";
@@ -37,6 +39,11 @@ import { useProductSelection } from "../hooks/menu/useProductSelection";
 import { EmployeePasswordModal } from "../components/modals/system/EmployeePasswordModal";
 import { SubscriptionBanner } from "../../../company/components/SubscriptionBanner";
 
+/**
+ * The POS terminal screen. Its actions live in hooks (split 2026-11-13): usePosProviderTender (provider order,
+ * payment method), usePosItemEdits (price, qty, complimentary), usePosOrderAction (ORDER), usePosSettleAction
+ * (SETTLE), next to the checkout, discount and void flows.
+ */
 export const PosTerminalPage = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -47,16 +54,8 @@ export const PosTerminalPage = () => {
   const { status, isLoading } = useCashierLog();
 
   const [selectedProviderForOrder, setSelectedProviderForOrder] = useState<MenuProvider | null>(null);
-  const [activeProvider, setActiveProvider] = useState<{ provider: MenuProvider; orderNo: string } | null>(null);
-  // The menu follows the provider of a provider order (its own products and prices): see selectMenuOrderTypeId.
-  // Set when a provider order starts (a new object every time, so picking the same provider again still sets it).
-  // Cleared by clearCart; a recalled provider order sets its own provider in loadRecalledOrder.
-  useEffect(() => {
-    if (activeProvider?.provider?.providerId) dispatch(setMenuProviderId(activeProvider.provider.providerId));
-  }, [activeProvider, dispatch]);
   const menuOrderTypeId = useAppSelector(selectMenuOrderTypeId);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [selectedTender, setSelectedTender] = useState<string>("");
   const [extrasModifierType, setExtrasModifierType] = useState<"none" | "extras" | "modifiers">("none");
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
 
@@ -74,48 +73,14 @@ export const PosTerminalPage = () => {
     setIsCashModalOpen: modals.setIsCashModalOpen,
   });
 
-  const isCreditProviderActive = useMemo(() => {
-    if (!activeProvider?.provider) return false;
-    const { paymodeId, paymode, paymodeName } = activeProvider.provider;
-    if (paymodeId === 2) return true;
-    if (paymode && paymode.toLowerCase().includes("credit")) return true;
-    if (paymodeName && paymodeName.toLowerCase().includes("credit")) return true;
-    const matchTender = terminal.tenderOptions.find((t) => t.id === String(paymodeId));
-    if (matchTender && matchTender.label.toLowerCase().includes("credit")) return true;
-    return false;
-  }, [activeProvider, terminal.tenderOptions]);
-
-  useEffect(() => {
-    if (activeProvider?.provider) {
-      if (activeProvider.provider.paymodeId) {
-        setSelectedTender(String(activeProvider.provider.paymodeId));
-      }
-      if (activeProvider.provider.postAccountId) {
-        dispatch(setCustomerId(activeProvider.provider.postAccountId));
-      }
-    }
-  }, [activeProvider, dispatch]);
-
-  useEffect(() => {
-    if (terminal.tenderOptions.length > 0) {
-      const cashTender =
-        terminal.tenderOptions.find((t) => String(t.id) === "1") ||
-        terminal.tenderOptions.find((t) => t.label.toLowerCase().includes("cash")) ||
-        terminal.tenderOptions[0];
-
-      if (!selectedTender) {
-        setSelectedTender(cashTender.id);
-      } else {
-        const currentTenderObj = terminal.tenderOptions.find((t) => String(t.id) === String(selectedTender));
-        const isCredit =
-          (currentTenderObj?.label || "").toLowerCase().includes("credit") &&
-          !(currentTenderObj?.label || "").toLowerCase().includes("multi");
-        if (isCredit && (!terminal.selectedCustomerId || Number(terminal.selectedCustomerId) === 1)) {
-          setSelectedTender(cashTender.id);
-        }
-      }
-    }
-  }, [terminal.tenderOptions, selectedTender, terminal.selectedCustomerId]);
+  const {
+    activeProvider,
+    setActiveProvider,
+    selectedTender,
+    setSelectedTender,
+    isCreditProviderActive,
+    selectCashTender,
+  } = usePosProviderTender({ terminal, dispatch });
 
   const billDiscountValue = useAppSelector((state) => state.pos.billDiscountValue);
   const billDiscountType = useAppSelector((state) => state.pos.billDiscountType);
@@ -181,12 +146,7 @@ export const PosTerminalPage = () => {
     resetTerminalState();
     setActiveProvider(null);
     dispatch(setCustomerId(1));
-    const cashTender =
-      terminal.tenderOptions.find((t) => String(t.id) === "1") ||
-      terminal.tenderOptions.find((t) => t.label.toLowerCase().includes("cash"));
-    if (cashTender) {
-      setSelectedTender(cashTender.id);
-    }
+    selectCashTender();
     void applyDefaultOrderType(true);
   };
 
@@ -258,185 +218,23 @@ export const PosTerminalPage = () => {
     requestAuthorization,
   });
 
-  const handleApplyPrice = (val: string) => {
-    const num = parseFloat(val);
-    if (!isNaN(num) && selectedKey) {
-      if (num === 0) {
-        showToast("Price cannot be zero. Use Item Complimentary.", "error");
-        return;
-      }
-      const currentItem = terminal.cartDetails.find((item) => item.uniqueId === selectedKey);
-      // Rule 4: If the product is configured as Inclusive, any price entered manually
-      // from the menu must be treated as Inclusive. Otherwise, treat the entered price as Exclusive.
-      const isProductConfiguredInclusive = Boolean(
-        currentItem?.isIncl ??
-        currentItem?.product?.isIncl ??
-        (currentItem?.productId ? (terminal as any)?.productCache?.[currentItem.productId]?.isIncl : false)
-      );
-      terminal.updateItemPrice(selectedKey, num, isProductConfiguredInclusive);
-      modals.setIsPriceModalOpen(false);
-    }
-  };
-
-  const handlePriceModalClose = () => {
-    modals.setIsPriceModalOpen(false);
-    if (selectedKey) {
-      const currentItem = terminal.cartDetails.find((item) => item.uniqueId === selectedKey);
-      if (
-        currentItem &&
-        (currentItem.price === 0 || currentItem.price === undefined) &&
-        !(currentItem.discountType === "percentage" && currentItem.discountValue === 100)
-      ) {
-        terminal.removeItem(selectedKey);
-        setSelectedKey(null);
-      }
-    }
-  };
-
-  const handleItemComplimentary = () => {
-    if (!selectedKey) {
-      showToast("Select an item first", "warning");
-      return;
-    }
-    requestAuthorization({
-      actionLabel: "Item Complimentary",
-      permissionId: 13,
-      onAuthorized: () => {
-        terminal.setItemDiscount(selectedKey, 100, "percentage");
-        showToast("Item marked as complimentary", "success");
-      },
-    });
-  };
-
-  const handleBillComplimentary = () => {
-    if (terminal.cartDetails.length === 0) {
-      showToast("Cart is empty", "warning");
-      return;
-    }
-    requestAuthorization({
-      actionLabel: "Bill Complimentary",
-      permissionId: 12,
-      onAuthorized: () => {
-        terminal.setBillDiscount(100, "percentage");
-        showToast("Bill marked as complimentary", "success");
-      },
-    });
-  };
-
-  const handleApplyQty = (value: string) => {
-    const numValue = parseInt(value, 10);
-    if (isNaN(numValue) || numValue < 1) return;
-
-    if (selectedKey) {
-      const item = terminal.cartDetails.find((i) => i.uniqueId === selectedKey);
-      if (item && terminal.editingOrderId && item.isExisting) {
-        if (numValue < item.quantity) {
-          const origQty = item.originalQty ?? item.quantity;
-          const effectiveSavedQty = Math.min(item.quantity, origQty);
-          const voidDiff = Math.max(0, effectiveSavedQty - numValue);
-
-          if (voidDiff > 0) {
-            requestAuthorization({
-              actionLabel: "Void Item Qty",
-              permissionId: 8,
-              onAuthorized: () => {
-                const unitId = item.product?.unitId || 1;
-                const mapId = Number(item.mapId || 0);
-                const ratio = item.quantity > 0 ? voidDiff / item.quantity : 1;
-
-                const voidExtras = (item.extras || []).map((ex: any) => ({
-                  id: ex.id || ex.modifierId,
-                  name: (ex.name && ex.name !== "Extra") ? ex.name : (ex.modifierName || ex.name || "Extra"),
-                  arabicName: ex.arabicName || ex.arabic,
-                  price: ex.price || 0,
-                  qty: Math.max(1, Math.round((ex.qty || 1) * ratio)),
-                  typeId: ex.typeId || 2,
-                }));
-
-                const voidModifiers = (item.modifiers || []).map((mod: any) => {
-                  const typeId = Number(mod.typeId ?? 1);
-                  const typeName = mod.typeName || mod.modifierTypeName || (typeId ? getModifierTypeNameById(typeId) : "") || "";
-                  const name = (mod.name && mod.name !== "Modifier") ? mod.name : (mod.modifierName || mod.name || "Modifier");
-                  return {
-                    id: mod.id || mod.modifierId,
-                    name,
-                    arabicName: mod.arabicName || mod.arabic,
-                    qty: Math.max(1, Math.round((mod.qty || 1) * ratio)),
-                    typeId,
-                    typeName,
-                  };
-                });
-
-                const voidMessages = (item.messages || []).map((msg: any) => ({
-                  id: msg.id,
-                  name: msg.name,
-                }));
-
-                terminal.addVoidProduct({
-                  productId: item.productId,
-                  productName: item.product?.name || `Product #${item.productId}`,
-                  unitId,
-                  qty: voidDiff,
-                  amount: roundCalc((item.price || 0) * voidDiff),
-                  pricedLine: voidFlow.priceVoidedUnits(item, voidDiff, voidExtras),
-                  mapId,
-                  variantName: item.variantName,
-                  variantArabic: item.variantArabic,
-                  categoryId: item.product?.categoryId || (item as any).categoryId,
-                  extras: voidExtras,
-                  modifiers: voidModifiers,
-                  messages: voidMessages,
-                });
-
-                const allModifiers = [
-                  ...voidExtras,
-                  ...voidModifiers,
-                ];
-
-                allModifiers.forEach((mod: any) => {
-                  const modPrice = mod.price || 0;
-                  terminal.addVoidModifier({
-                    mapId,
-                    modifierId: mod.id,
-                    qty: mod.qty || 1,
-                    amount: roundCalc(modPrice * (mod.qty || 1)),
-                    typeId: mod.typeId || 1,
-                    name: mod.name,
-                    arabicName: mod.arabicName || mod.arabic,
-                    typeName: mod.typeName,
-                  });
-                });
-
-                terminal.updateItemQty(selectedKey, numValue);
-                showToast(
-                  `Reduced quantity for ${item.product?.name || `Product #${item.productId}`} by ${voidDiff}`,
-                  "success"
-                );
-              },
-            });
-            modals.setIsQtyModalOpen(false);
-            return;
-          }
-        }
-      }
-      terminal.updateItemQty(selectedKey, numValue);
-    }
-    modals.setIsQtyModalOpen(false);
-  };
-
-  const openPriceModal = () => {
-    if (!selectedKey) return;
-    requestAuthorization({
-      actionLabel: "Price Change",
-      permissionId: 9,
-      onAuthorized: () => modals.setIsPriceModalOpen(true),
-    });
-  };
-
-  const openQtyModal = () => {
-    if (!selectedKey) return;
-    modals.setIsQtyModalOpen(true);
-  };
+  const {
+    handleApplyPrice,
+    handlePriceModalClose,
+    handleItemComplimentary,
+    handleBillComplimentary,
+    handleApplyQty,
+    openPriceModal,
+    openQtyModal,
+  } = usePosItemEdits({
+    terminal,
+    modals,
+    selectedKey,
+    setSelectedKey,
+    priceVoidedUnits: voidFlow.priceVoidedUnits,
+    requestAuthorization,
+    showToast,
+  });
 
   const stableSetCategory = useEvent((id: string) => {
     const parsedId = parseInt(id, 10);
@@ -460,299 +258,29 @@ export const PosTerminalPage = () => {
     });
   });
 
-  const handleSettle = async (shouldPrint: boolean) => {
-    if (terminal.itemCount === 0) {
-      showToast("Cart is empty", "warning");
-      return;
-    }
+  const { settleShouldPrintRef } = checkoutFlow;
 
-    if (isDelivery && (!terminal.selectedAddressId || Number(terminal.selectedAddressId) === 0)) {
-      showToast("Please select a delivery address before settling.", "warning");
-      return;
-    }
+  const { handleSettle } = usePosSettleAction({
+    terminal,
+    checkoutFlow,
+    modals,
+    isDelivery,
+    selectedTender,
+    getRuntimePosConfig,
+    requestAuthorization,
+    showToast,
+    dispatch,
+  });
 
-    checkoutFlow.settleShouldPrintRef.current = shouldPrint;
-
-    if (!selectedTender) {
-      showToast("Please select a payment method", "warning");
-      return;
-    }
-
-    const currentTenderObj = terminal.tenderOptions.find((t) => String(t.id) === String(selectedTender));
-    const currentTenderLabel = (currentTenderObj?.label || "").toLowerCase();
-    const isMultiPayTender = currentTenderLabel.includes("multi") || selectedTender === "3";
-    const isCreditTender = currentTenderLabel.includes("credit") && !isMultiPayTender;
-    const isCashTender = currentTenderLabel.includes("cash") || selectedTender === "1";
-
-    if (isCreditTender && (!terminal.selectedCustomerId || Number(terminal.selectedCustomerId) === 1)) {
-      showToast("Credit payment is not allowed for Cash Customer. Please select a customer first.", "warning");
-      return;
-    }
-
-    let paymodeIdToSend = Number(selectedTender);
-    if (!paymodeIdToSend || isNaN(paymodeIdToSend) || paymodeIdToSend <= 0) {
-      const cashTender = terminal.tenderOptions.find((t) => t.label.toLowerCase().includes("cash"));
-      paymodeIdToSend = cashTender ? Number(cashTender.id) : 1;
-    }
-
-    const openPaymentModal = (employeeId: number) => {
-      checkoutFlow.setSettlementEmployeeId(employeeId);
-      localStorage.setItem("authorizedEmployeeId", String(employeeId));
-      if (isMultiPayTender) {
-        modals.setIsMultiPayModalOpen(true);
-      } else if (isCashTender) {
-        modals.setIsCashModalOpen(true);
-      } else {
-        checkoutFlow.handleCardCreditSettlement(paymodeIdToSend, employeeId);
-      }
-    };
-
-    let config: any = null;
-    try {
-      config = await getRuntimePosConfig();
-    } catch {
-      showToast("Unable to load POS configuration", "error");
-      return;
-    }
-
-    // 1. If a waiter is explicitly selected from the Waiter button, use their employee ID
-    if (terminal.waiterId && terminal.waiterId > 0) {
-      if (!isDefaultEmployeeValidInCache(terminal.waiterId)) {
-        dispatch(setWaiter({ waiterId: null, waiterName: null }));
-        localStorage.removeItem("selectedWaiterId");
-        localStorage.removeItem("selectedWaiterName");
-        showToast("The selected waiter was not found in this branch and has been cleared. Please authorize settlement.", "warning");
-        requestAuthorization({
-          actionLabel: "Settlement",
-          permissionId: 19, // Settle
-          bypassDefaultEmployee: true,
-          onAuthorized: (empId) => openPaymentModal(empId),
-        });
-        return;
-      }
-      openPaymentModal(terminal.waiterId);
-      return;
-    }
-
-    const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
-    const defaultEmployeeId = Number(config?.employeeId ?? 0);
-
-    // 2. When default employee is configured, check cache and use that employee ID
-    if (defaultEmployeeEnabled && defaultEmployeeId > 0) {
-      if (!isDefaultEmployeeValidInCache(defaultEmployeeId)) {
-        disableDefaultEmployeeConfig("Default employee not found in branch employees cache");
-        dispatch(setWaiter({ waiterId: null, waiterName: null }));
-        showToast("Configured default employee was not found in this branch and has been disabled. Please authorize settlement.", "warning");
-        requestAuthorization({
-          actionLabel: "Settlement",
-          permissionId: 19, // Settle
-          bypassDefaultEmployee: true,
-          onAuthorized: (empId) => openPaymentModal(empId),
-        });
-        return;
-      }
-      openPaymentModal(defaultEmployeeId);
-      return;
-    }
-
-    if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
-      disableDefaultEmployeeConfig("Invalid default employee ID in configuration");
-      dispatch(setWaiter({ waiterId: null, waiterName: null }));
-      showToast("Default employee was not configured properly and has been disabled. Please authorize settlement.", "warning");
-      requestAuthorization({
-        actionLabel: "Settlement",
-        permissionId: 19, // Settle
-        bypassDefaultEmployee: true,
-        onAuthorized: (empId) => openPaymentModal(empId),
-      });
-      return;
-    }
-
-    // 3. Default employee is not configured -> Ask for employee code / authorization right when clicking Settle!
-    requestAuthorization({
-      actionLabel: "Settlement",
-      permissionId: 19, // Settle
-      bypassDefaultEmployee: true,
-      onAuthorized: (empId) => openPaymentModal(empId),
-    });
-  };
-
-  const isOrderingRef = useRef<boolean>(false);
-
-  const handleOrder = async (shouldPrint: boolean) => {
-    if (isOrderingRef.current || terminal.orderLoading) {
-      console.warn("[PosTerminalPage] Order already in progress, ignoring extra click.");
-      return;
-    }
-    if (terminal.itemCount === 0) {
-      showToast("Cart is empty", "warning");
-      return;
-    }
-    if (!status) return;
-
-    isOrderingRef.current = true;
-    terminal.setOrderLoading(true);
-
-    try {
-      let config: any = null;
-      try {
-        config = await getRuntimePosConfig();
-      } catch {
-        showToast("Unable to load POS configuration", "error");
-        return;
-      }
-
-      // If a waiter is explicitly selected from the Waiter button, use their employee ID
-      if (terminal.waiterId && terminal.waiterId > 0) {
-        if (!isDefaultEmployeeValidInCache(terminal.waiterId)) {
-          dispatch(setWaiter({ waiterId: null, waiterName: null }));
-          localStorage.removeItem("selectedWaiterId");
-          localStorage.removeItem("selectedWaiterName");
-          showToast("The selected waiter was not found in this branch and has been cleared. Please select an employee.", "warning");
-          terminal.setOrderLoading(false);
-          isOrderingRef.current = false;
-          requestAuthorization({
-            actionLabel: "Order",
-            bypassDefaultEmployee: true,
-            onAuthorized: async (empId) => {
-              if (isOrderingRef.current || terminal.orderLoading) return;
-              isOrderingRef.current = true;
-              terminal.setOrderLoading(true);
-              try {
-                await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
-              } finally {
-                terminal.setOrderLoading(false);
-                isOrderingRef.current = false;
-              }
-            },
-          });
-          return;
-        }
-        const waiterRes = await checkoutFlow.submitOrderForEmployee(terminal.waiterId, shouldPrint);
-        if (waiterRes && (waiterRes as any).isEmployeeNotFound) {
-          dispatch(setWaiter({ waiterId: null, waiterName: null }));
-          localStorage.removeItem("selectedWaiterId");
-          localStorage.removeItem("selectedWaiterName");
-          terminal.setOrderLoading(false);
-          isOrderingRef.current = false;
-          requestAuthorization({
-            actionLabel: "Order",
-            bypassDefaultEmployee: true,
-            onAuthorized: async (empId) => {
-              if (isOrderingRef.current || terminal.orderLoading) return;
-              isOrderingRef.current = true;
-              terminal.setOrderLoading(true);
-              try {
-                await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
-              } finally {
-                terminal.setOrderLoading(false);
-                isOrderingRef.current = false;
-              }
-            },
-          });
-        }
-        return;
-      }
-
-      const defaultEmployeeEnabled = config?.defaultEmployee === "Enable";
-      const defaultEmployeeId = Number(config?.employeeId ?? 0);
-
-      // When default employee is configured, check cache and submit order directly using that employee ID
-      if (defaultEmployeeEnabled && defaultEmployeeId > 0) {
-        if (!isDefaultEmployeeValidInCache(defaultEmployeeId)) {
-          disableDefaultEmployeeConfig("Default employee not found in branch employees cache");
-          dispatch(setWaiter({ waiterId: null, waiterName: null }));
-          showToast("Configured default employee was not found in this branch and has been disabled. Please select an employee.", "warning");
-          terminal.setOrderLoading(false);
-          isOrderingRef.current = false;
-          requestAuthorization({
-            actionLabel: "Order",
-            bypassDefaultEmployee: true,
-            onAuthorized: async (empId) => {
-              if (isOrderingRef.current || terminal.orderLoading) return;
-              isOrderingRef.current = true;
-              terminal.setOrderLoading(true);
-              try {
-                await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
-              } finally {
-                terminal.setOrderLoading(false);
-                isOrderingRef.current = false;
-              }
-            },
-          });
-          return;
-        }
-
-        const res = await checkoutFlow.submitOrderForEmployee(defaultEmployeeId, shouldPrint);
-        if (res && (res as any).isEmployeeNotFound) {
-          dispatch(setWaiter({ waiterId: null, waiterName: null }));
-          terminal.setOrderLoading(false);
-          isOrderingRef.current = false;
-          requestAuthorization({
-            actionLabel: "Order",
-            bypassDefaultEmployee: true,
-            onAuthorized: async (empId) => {
-              if (isOrderingRef.current || terminal.orderLoading) return;
-              isOrderingRef.current = true;
-              terminal.setOrderLoading(true);
-              try {
-                await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
-              } finally {
-                terminal.setOrderLoading(false);
-                isOrderingRef.current = false;
-              }
-            },
-          });
-        }
-        return;
-      }
-
-      if (defaultEmployeeEnabled && (!Number.isFinite(defaultEmployeeId) || defaultEmployeeId <= 0)) {
-        disableDefaultEmployeeConfig("Invalid default employee ID in configuration");
-        dispatch(setWaiter({ waiterId: null, waiterName: null }));
-        showToast("Default employee was not configured properly and has been disabled. Please select an employee.", "warning");
-        terminal.setOrderLoading(false);
-        isOrderingRef.current = false;
-        requestAuthorization({
-          actionLabel: "Order",
-          bypassDefaultEmployee: true,
-          onAuthorized: async (empId) => {
-            if (isOrderingRef.current || terminal.orderLoading) return;
-            isOrderingRef.current = true;
-            terminal.setOrderLoading(true);
-            try {
-              await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
-            } finally {
-              terminal.setOrderLoading(false);
-              isOrderingRef.current = false;
-            }
-          },
-        });
-        return;
-      }
-
-      // Default employee is not configured -> Ask for employee code / authorization
-      terminal.setOrderLoading(false);
-      isOrderingRef.current = false;
-      requestAuthorization({
-        actionLabel: "Order",
-        onAuthorized: async (empId) => {
-          if (isOrderingRef.current || terminal.orderLoading) return;
-          isOrderingRef.current = true;
-          terminal.setOrderLoading(true);
-          try {
-            await checkoutFlow.submitOrderForEmployee(empId, shouldPrint);
-          } finally {
-            terminal.setOrderLoading(false);
-            isOrderingRef.current = false;
-          }
-        },
-      });
-    } finally {
-      terminal.setOrderLoading(false);
-      isOrderingRef.current = false;
-    }
-  };
+  const { handleOrder } = usePosOrderAction({
+    status,
+    terminal,
+    checkoutFlow,
+    getRuntimePosConfig,
+    requestAuthorization,
+    showToast,
+    dispatch,
+  });
 
   const stableHandleOrder = useEvent((print: boolean) => handleOrder(print));
   const stableHandleSettle = useEvent((print: boolean) => handleSettle(print));
@@ -909,30 +437,7 @@ export const PosTerminalPage = () => {
                 </ErrorBoundary>
 
                 {!modals.isCartOpen && (
-                  <button
-                    onClick={() => modals.setIsCartOpen(true)}
-                    className="md:hidden absolute bottom-4 right-4 z-40 bg-[#ff9500] hover:bg-[#e68600] text-white p-4 rounded-full shadow-2xl transition-transform active:scale-95 flex items-center justify-center"
-                  >
-                    <svg
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
-                      <path d="M3 6h18" />
-                      <path d="M16 10a4 4 0 0 1-8 0" />
-                    </svg>
-                    {terminal.itemCount > 0 && (
-                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[#fcf9fb]">
-                        {terminal.itemCount}
-                      </span>
-                    )}
-                  </button>
+                  <PosMobileCartButton itemCount={terminal.itemCount} onOpen={() => modals.setIsCartOpen(true)} />
                 )}
               </div>
 
@@ -1090,11 +595,11 @@ export const PosTerminalPage = () => {
         tenderOptions={terminal.tenderOptions}
         selectedCustomerId={terminal.selectedCustomerId}
         onBeforeSettle={() => {
-          checkoutFlow.settleShouldPrintRef.current = true;
+          settleShouldPrintRef.current = true;
         }}
         onCancelSettle={() => {
           checkoutFlow.setSettlementEmployeeId(null);
-          checkoutFlow.settleShouldPrintRef.current = false;
+          settleShouldPrintRef.current = false;
         }}
       />
 

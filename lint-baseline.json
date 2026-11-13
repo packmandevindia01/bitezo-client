@@ -1,9 +1,9 @@
 {
-  "total": 2911,
+  "total": 2908,
   "byRule": {
-    "@typescript-eslint/no-explicit-any": 2797,
+    "@typescript-eslint/no-explicit-any": 2795,
     "no-empty": 55,
-    "react-hooks/set-state-in-effect": 27,
+    "react-hooks/set-state-in-effect": 26,
     "react-hooks/refs": 11,
     "react-refresh/only-export-components": 4,
     "react-hooks/use-memo": 4,

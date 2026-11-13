@@ -1,6 +1,6 @@
 # Optimization status
 
-Last updated 2026-11-11. `refactor/pricing-engine` merged into `main` on 2026-11-11 (merge 8a07d3c), before the real-terminal test.
+Last updated 2026-11-13. `refactor/pricing-engine` merged into `main` on 2026-11-11 (merge 8a07d3c). Real-terminal test done by the owner on 2026-11-13: no visible issues (visual check, not a line-by-line comparison).
 The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11).
 
 ## Phases
@@ -8,7 +8,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 | Phase | Work | Status |
 |---|---|---|
 | 0 | Foundations | Done |
-| 2 | POS core | Done, real-terminal test pending |
+| 2 | POS core | Done, real-terminal test passed 2026-11-13 |
 | 4 | Report framework | Done, 31 of 31 reports; 6 reports not seen with real rows |
 | 5 | Back Office forms | **Partly done** (below) |
 | 1 | Design system | Not started, needs approval to move `components/common` |
@@ -25,10 +25,11 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 - Not checked in the real app: open, PRINT and EDIT from Settled; KOT, GUEST, EDIT and SETTLE from Recall.
 - Terminal settle hook `usePosCheckoutFlow`: 1,264 → 486 lines. The 775 lines that build the receipt data after the invoice is saved moved verbatim to `utils/settleReceiptData.ts` (`buildSettleReceiptPayload`, with the saved-line mapping and the driver lookup as their own functions). Safety net `terminalSettleSnapshot` (new cart cash; recalled Dine-In with item discount; delivery with bill discount, address, driver, keep change; combined order; settled bill update) records the invoice and every page printed and matched before and after; `settleReceiptLines` covers the saved-line mapping. No intended change. Not checked in the real app: terminal settle cash / card / multi-pay, recall settle, settled edit.
 - Dine-In table orders window: 1,306 → 664 lines. Order loader, invoice building, settle receipt, guest bill, the shared bill figures, the reserved / row-text / payment-type helpers and the row component moved out (`loadDineInOrder.ts`, `dineInSettlement.ts`, `printDineInOrder.ts`, `dineInBillFigures.ts`, `dineInTable.ts`, `TableOrderRow.tsx`). The guest bill and the settle receipt had the same line and totals code twice; now one helper (settle receipt still shows a discount only for a bill discount). The terminal uses the same Cash-first payment order helper. Safety net `dineInTableOrdersSnapshot` (list, invoice, both receipts, cart after Edit) matched before and after; unit tests `dineInHelpers`. No intended change. Not checked in the real app: table list, row PRINT, SETTLE (receipt, drawer) and EDIT.
+- Terminal page `PosTerminalPage` (2026-11-13): 1,109 → 614 lines. ORDER key → `hooks/usePosOrderAction.ts`; SETTLE key → `hooks/usePosSettleAction.ts`; price, qty and complimentary keys → `hooks/usePosItemEdits.ts` (Qty-reduction voids in `utils/qtyReductionVoid.ts`); provider order and payment method → `hooks/usePosProviderTender.ts`; phone cart button → `components/layout/PosMobileCartButton.tsx`. Order and Settle pick the employee with one helper, `pos/utils/actionEmployee.ts` (`resolveActionEmployee`: waiter, then default employee, then ask); ORDER had the same "ask for an employee" callback six times, now once. Same checks, messages and order as before; screen markup unchanged. Test: `posTerminalActions` (20 cases, every branch). No intended change. Not checked in the real app: ORDER and SETTLE with a waiter, with the default employee and with an employee code; Qty lowered on a recalled line; a provider order.
 
 ### Not done
 
-- `PosCashierSessionModal` (1,169), `PosTerminalPage` (1,101). The employee choice before settling is written out three times in the Dine-In window (left as is).
+- `PosCashierSessionModal` (1,169). The employee choice before settling is written out three times in the Dine-In window (left as is; it could now use `resolveActionEmployee`).
 - Printing module (P5) and the 3-zone layout.
 
 ## Phase 6 (2026-11-11)
@@ -121,7 +122,7 @@ The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11
 
 ## Pending from the owner
 
-1. Real-terminal test: one shift with a printer, on web and Android. Then merge to `main`.
+1. ~~Real-terminal test~~: done 2026-11-13, no visible issues.
 2. Production HTTPS host.
 3. Decide whether to move `components/common` to `shared/ui`, which Phase 1 needs.
 4. GCC fils and 14-decimal precision: what the actual fils problem is, and the database column precision.
