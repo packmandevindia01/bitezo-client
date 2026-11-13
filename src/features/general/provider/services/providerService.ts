@@ -64,57 +64,39 @@ export const fetchProviderPaymodes = async (): Promise<ProviderPaymodeItem[]> =>
 
 
 
-export const uploadProviderImage = async (id: number, imageFile: File, oldPath: string = "string"): Promise<void> => {
-  const formData = new FormData();
-  formData.append("ProviderId", String(id));
-  formData.append("OldPath", oldPath || "string");
-  formData.append("ProviderImage", imageFile);
-
-  await axiosInstance.post("/provider/provider-image", formData);
-};
-
-export const createProvider = async (payload: ProviderPayload): Promise<{id: number}> => {
-  const { imageFile, ...jsonData } = payload;
-  
-  // Remove providerId for create request
-  delete jsonData.providerId;
-
-  const response = await unwrap(
-    axiosInstance.post<ApiResponse<{ id: number }>>(BASE, {
-      ...jsonData,
-      createdAt: jsonData.createdAt || new Date().toISOString(),
-    })
+// The backend takes provider create / update as multipart form data, image included
+// (the old separate /provider/provider-image upload is gone). Field names are the DTO's PascalCase.
+function buildProviderForm(payload: ProviderPayload): FormData {
+  const form = new FormData();
+  form.append("ProviderName", payload.providerName);
+  form.append("PaymodeId", String(payload.paymodeId));
+  form.append("PostAccountId", String(payload.postAccountId ?? 0));
+  form.append("DeliveryStatus", String(!!payload.deliveryStatus));
+  (payload.branchIds || []).forEach((id) => form.append("BranchIds", String(id)));
+  // Same as the product master: the backend needs an ImageFile part every time (500 without it),
+  // so an empty placeholder goes when no new image was picked.
+  form.append(
+    "ImageFile",
+    payload.imageFile instanceof File
+      ? payload.imageFile
+      : new File([""], "empty.bin", { type: "application/octet-stream" })
   );
+  return form;
+}
 
-  if (response?.id && imageFile) {
-    await uploadProviderImage(response.id, imageFile);
-  }
-  
-  return response;
+export const createProvider = async (payload: ProviderPayload): Promise<{ id: number }> => {
+  const form = buildProviderForm(payload);
+  form.append("CreatedAt", payload.createdAt || new Date().toISOString());
+  return unwrap(axiosInstance.post<ApiResponse<{ id: number }>>(BASE, form));
 };
 
+/** isImageChanged: a new image was picked, or the saved one was removed (ImageFile is then the empty placeholder). */
 export const updateProvider = async (id: number, payload: ProviderPayload): Promise<void> => {
-  const { imageFile, ...jsonData } = payload;
-  const url = `${BASE}/${id}`;
-
-  await unwrap(
-    axiosInstance.put<ApiResponse<{ id: number }>>(url, {
-      ...jsonData,
-      providerId: id,
-      updatedAt: new Date().toISOString(),
-      createdAt: jsonData.createdAt || new Date().toISOString(),
-    })
-  );
-
-  if (imageFile) {
-    try {
-      // For updates, we might need the old path to replace it
-      // But the detail response provides fileUrl/filePath
-      await uploadProviderImage(id, imageFile);
-    } catch (error) {
-      console.error("Provider image upload failed:", error);
-    }
-  }
+  const form = buildProviderForm(payload);
+  form.append("ProviderId", String(id));
+  form.append("IsImageChanged", String(!!payload.isImageChanged));
+  form.append("UpdatedAt", new Date().toISOString());
+  await unwrap(axiosInstance.put<ApiResponse<{ id: number }>>(`${BASE}/${id}`, form));
 };
 
 

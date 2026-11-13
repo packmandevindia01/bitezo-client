@@ -1,6 +1,7 @@
 import { escapeHtml } from "../../../utils/html";
 import type { PosCartItem } from "../types";
 import { modifierLabelOf } from "./modifierLabel";
+import { providerNameFromOrderType } from "./providerOrderType";
 import { barcodeHtml } from "./printBarcode";
 import { toDisplayNo } from "../services/orderResponse";
 import { branchApi } from "../../inventory/branches/services/branchApi";
@@ -299,6 +300,11 @@ export const generateGuestPrintHtml = async (
   else if (isDriveThru) orderTypeSuffix = isBillArabic ? "(DRIVE THRU / طلبات السيارات)" : "(DRIVE THRU)";
   else if (isDineIn) orderTypeSuffix = isBillArabic ? "(DINE IN / محلي)" : "(DINE IN)";
   else if (isDelivery) orderTypeSuffix = isBillArabic ? "(DELIVERY / توصيل)" : "(DELIVERY)";
+  // Provider order: orderType carries the provider name ("Zomato") → "(ZOMATO)".
+  else if (providerNameFromOrderType(data.orderType)) {
+    const pName = escapeHtml(providerNameFromOrderType(data.orderType).toUpperCase());
+    orderTypeSuffix = isBillArabic ? `(${pName} / مزودي الخدمة)` : `(${pName})`;
+  }
 
   const arabicInvoiceTitle = data.enableVat !== false
     ? '<div dir="rtl" lang="ar" class="arabic-text" style="font-size:12px; font-weight:bold; text-align:center; margin-top:2px; line-height:1.3;">فاتورة ضريبية مبسطة</div>'

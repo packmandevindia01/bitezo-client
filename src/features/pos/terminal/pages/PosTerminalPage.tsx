@@ -571,6 +571,7 @@ export const PosTerminalPage = () => {
         handleCompleteSettlement={checkoutFlow.handleCompleteSettlement}
         resetTerminalState={resetTerminalState}
         setActiveProvider={setActiveProvider}
+        activeProviderId={activeProvider?.provider?.providerId ?? null}
         refreshLockedProducts={terminal.refreshLockedProducts}
         discountStep={discountFlow.discountStep}
         setDiscountStep={discountFlow.setDiscountStep}

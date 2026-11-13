@@ -43,6 +43,8 @@ export interface OrderModalsProps {
   setSelectedProviderForOrder: (p: MenuProvider | null) => void;
   resetTerminalState: () => void;
   setActiveProvider: (data: any) => void;
+  /** The order's current provider (Select Provider marks it and offers Clear Provider only then). */
+  activeProviderId?: number | null;
   handleClearCart: () => void;
   /** Called before the settle modal opens so the caller can set print state */
   onBeforeSettle?: () => void;
@@ -63,7 +65,8 @@ export const OrderModals: React.FC<OrderModalsProps> = React.memo((props) => {
             props.resetTerminalState();
             props.setActiveProvider({ provider, orderNo });
             props.dispatch(
-              setOrderType({ orderTypeId: 5, orderType: provider.providerName || "Providers" })
+              // The provider's own id is its order type on the server (5 Swiggy, 6 Zomato …), not a shared 5.
+              setOrderType({ orderTypeId: provider.providerId, orderType: provider.providerName || "Providers" })
             );
             props.showToast(`${provider.providerName} order #${orderNo} started`, "success");
           }
@@ -145,10 +148,11 @@ export const OrderModals: React.FC<OrderModalsProps> = React.memo((props) => {
               modals.setIsProviderModalOpen(false);
               props.setSelectedProviderForOrder(provider);
             }}
-            onClear={() => {
+            activeProviderId={props.activeProviderId ?? null}
+            onClear={props.activeProviderId ? () => {
               props.setActiveProvider(null);
               props.dispatch(setCustomerId(1));
-            }}
+            } : undefined}
           />
         )}
       </Suspense>

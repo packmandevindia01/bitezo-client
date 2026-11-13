@@ -1,3 +1,4 @@
+import { orderTypeNameFromId } from "../../utils/providerOrderType";
 /**
  * Saved order → POS cart. ONE loader for every path that puts a saved order back into the cart
  * (Phase 2a, OPTIMIZATION_PLAN.md):
@@ -55,9 +56,6 @@ export interface SavedOrderLoad {
   prevUpdatedAt?: string;
 }
 
-const ORDER_TYPE_ID_TO_NAME: Record<number, string> = {
-  1: "DineIn", 2: "TakeOut", 3: "DriveThru", 4: "Delivery", 5: "Providers", 6: "Coming",
-};
 
 const masterOf = (orderData: any) => {
   const raw = orderData?.masterData || orderData?.master || orderData;
@@ -123,7 +121,7 @@ export const buildSavedOrderLoad = (orderData: any, options: SavedOrderLoadOptio
   // ── Order type ─────────────────────────────────────────────────────────────
   const typeCandidate =
     master.orderType || master.orderTypeName ||
-    (master.orderTypeId ? ORDER_TYPE_ID_TO_NAME[Number(master.orderTypeId)] : "") ||
+    (master.orderTypeId ? orderTypeNameFromId(master.orderTypeId) : "") ||
     orderTypeHints.find((h) => !!h) ||
     (mode === "settledEdit" ? "DineIn" : "TakeOut");
   const resolvedType = fallbackOrderTypeByName(String(typeCandidate));
@@ -276,7 +274,8 @@ export const buildSavedOrderLoad = (orderData: any, options: SavedOrderLoadOptio
     orderTypeId,
     orderTypeName,
     // Provider of a saved provider order, so the POS shows that provider's own menu (selectMenuOrderTypeId).
-    providerId: Number(master.providerId ?? master.ProviderId ?? orderData?.providerId) || null,
+    // The order type of a provider order IS the provider's id (5 Swiggy, 6 Zomato …).
+    providerId: Number(master.providerId ?? master.ProviderId ?? orderData?.providerId) || (orderTypeId > 4 ? orderTypeId : null),
     customerId: master.customerId || 1,
     addressId: master.addressId || 0,
     ...resolveRecalledBillDiscount(orderData, Number(resolvedBillDiscVal || 0), resolvedBillDiscType),

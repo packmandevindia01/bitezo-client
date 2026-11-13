@@ -31,7 +31,8 @@ export const getProviderOwnStatus = (orderTypeId?: number) => {
     const full = saved ? JSON.parse(saved) : {};
     const val = full?.configs?.providerOwnStatus ?? 
                 full?.configs?.providerOwnMenuStatus ?? 
-                full?.configs?.ProviderOwnStatus;
+                full?.configs?.ProviderOwnStatus ??
+                full?.providerOwnStatus;
     if (val !== undefined && val !== null) {
       return val === true || val === "Enable" || val === "true" || val === 1;
     }
@@ -62,7 +63,7 @@ const providerPrices = (orderTypeId: number): Promise<Map<number, number>> => {
   const hit = providerPriceCache.get(orderTypeId);
   if (hit && Date.now() - hit.at < PROVIDER_PRICE_TTL_MS) return hit.prices;
   const prices = menuApi
-    .searchProducts({ productName: "", orderTypeId })
+    .searchProducts({ productName: "", orderTypeId, providerOnly: true })
     .then((list) => new Map(list.map((p) => [Number(p.productId), Number(p.price)] as [number, number])))
     .catch(() => new Map<number, number>());
   providerPriceCache.set(orderTypeId, { at: Date.now(), prices });
@@ -369,7 +370,25 @@ export const menuApi = {
     orderTypeId?: number;
     currentDateTime?: string;
     providerOwnStatus?: boolean;
+    /** Only the provider's own products, as the server returns them (provider price list). */
+    providerOnly?: boolean;
   }): Promise<import("../types").PosProductSearchResult[]> => {
+    // Provider order with its own menu OFF: every product, at the provider's price where it has one.
+    // The server's product-list returns only the provider's products for a provider id even with
+    // providerOwnStatus=false (8060, 2026-11-13: Zomato 13 of 16), so merge it over the normal list.
+    const ownMenu = params.providerOwnStatus ?? getProviderOwnStatus(params.orderTypeId);
+    if (isProviderMenuOrderType(params.orderTypeId) && !ownMenu && !params.providerOnly) {
+      const [all, mine] = await Promise.all([
+        menuApi.searchProducts({ ...params, orderTypeId: 1, providerOwnStatus: false }),
+        menuApi.searchProducts({ ...params, providerOnly: true }),
+      ]);
+      const minePrice = new Map(mine.map((p) => [Number(p.productId), p.price] as [number, number]));
+      const allIds = new Set(all.map((p) => Number(p.productId)));
+      return [
+        ...all.map((p) => (minePrice.has(Number(p.productId)) ? { ...p, price: minePrice.get(Number(p.productId))! } : p)),
+        ...mine.filter((p) => !allIds.has(Number(p.productId))),
+      ];
+    }
     try {
       const res = await axiosInstance.get<any>(`/menu/product-list`, {
         params: {
@@ -549,8 +568,14 @@ export const menuApi = {
   },
 
   /** GET /api/menu/providers */
-  getProviders: () =>
-    unwrap(axiosInstance.get<ApiResponse<import("../types").MenuProvider[]>>(`/menu/providers${getTenantQuery()}`)),
+  getProviders: async (): Promise<import("../types").MenuProvider[]> => {
+    const list = await unwrap(axiosInstance.get<ApiResponse<any[]>>(`/menu/providers${getTenantQuery()}`));
+    // Image saved in the Back Office provider master; the path is relative to the backend.
+    return (list || []).map((p: any) => ({
+      ...p,
+      imageUrl: resolveImageUrl(p.imageUrl || p.fileUrl || p.filePath) || null,
+    }));
+  },
 
   /** GET /api/menu/message */
   getMessages: async (messageName?: string): Promise<{ id: number; name: string }[]> => {

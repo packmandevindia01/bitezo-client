@@ -1,3 +1,4 @@
+import { orderTypeNameFromId } from "../../../../utils/providerOrderType";
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
@@ -9,7 +10,7 @@ import { useAppSelector } from "../../../../../../app/hooks";
 import { useToast } from "../../../../../../app/providers/useToast";
 import { PosSplitTableModal } from "./PosSplitTableModal";
 import { calculateLineItem, calculateOrder, roundCalc, CALC_PRECISION, getBillingConfigForOrder, getPriceView, getDiscountCalculation, toPricingSettings } from "../../../utils/billing";
-import { storedLineToCartPricing, deriveOrderChargeRatesFromMaster, ORDER_TYPE_NAMES, priceLine } from "../../../../pricing";
+import { storedLineToCartPricing, deriveOrderChargeRatesFromMaster, priceLine } from "../../../../pricing";
 import { useCashierLog } from "../../../../cashier";
 import { formatItemDisplayName } from "../../../../utils/alternativeHelpers";
 import { mapOrderDetailToCartItem } from "../../../mappers/orderDetailToCartMapper";
@@ -165,7 +166,7 @@ export const PosSplitModal: React.FC<PosSplitModalProps> = ({
       const dataView = getPriceView();
       const storedOrder = { masterData, detailsData, modifiersData };
       const orderTypeName =
-        masterData.orderType || masterData.orderTypeName || ORDER_TYPE_NAMES[Number(masterData.orderTypeId)] || "DineIn";
+        masterData.orderType || masterData.orderTypeName || orderTypeNameFromId(masterData.orderTypeId) || "DineIn";
       const savedRates = deriveOrderChargeRatesFromMaster(storedOrder, dataView);
       const discountCalc = getDiscountCalculation();
       setOriginalOrder({ ...masterData, orderTypeName, savedRates });

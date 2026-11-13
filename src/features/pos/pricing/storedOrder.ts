@@ -1,3 +1,4 @@
+import { orderTypeNameFromId } from "../utils/providerOrderType";
 /**
  * Saved (backend) orders.
  *
@@ -381,8 +382,7 @@ export const ORDER_TYPE_NAMES: Record<number, string> = {
   2: "TakeOut",
   3: "DriveThru",
   4: "Delivery",
-  5: "Providers",
-  6: "Coming",
+  // Above 4: each provider by its own id (orderTypeNameFromId). There is no "Coming" order type.
 };
 
 /** Fields only `/menu/order/order_data` returns per line, copied onto the recall lines. */
@@ -402,7 +402,7 @@ const pick = (src: any, keys: string[]) => {
 
 const normalizeMenuOnly = (menu: StoredOrderParts): StoredOrderParts => {
   const master = { ...(menu.masterData || {}) };
-  if (!master.orderType && master.orderTypeId) master.orderType = ORDER_TYPE_NAMES[Number(master.orderTypeId)];
+  if (!master.orderType && master.orderTypeId) master.orderType = orderTypeNameFromId(master.orderTypeId);
   return {
     ...menu,
     modifiersData: dedupeModifierRows(menu.modifiersData),
@@ -430,7 +430,7 @@ export const mergeStoredOrderSources = (recall: StoredOrderParts | null | undefi
   const m = menu as StoredOrderParts;
   const menuLines = m.detailsData || [];
   const master = { ...(r.masterData || {}), ...pick(m.masterData, MENU_MASTER_FIELDS) };
-  if (!master.orderType && master.orderTypeId) master.orderType = ORDER_TYPE_NAMES[Number(master.orderTypeId)];
+  if (!master.orderType && master.orderTypeId) master.orderType = orderTypeNameFromId(master.orderTypeId);
 
   return {
     ...r,

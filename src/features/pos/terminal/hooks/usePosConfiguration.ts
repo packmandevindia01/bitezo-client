@@ -1,3 +1,4 @@
+import { notifyPosConfigUpdated } from "../../utils/posConfigEvents";
 import { getTerminalBranchId } from "@shared/config/device";
 import { useEffect, useState, useCallback } from "react";
 import { INITIAL_CONFIG } from "../../../general/configuration/constants";
@@ -253,8 +254,7 @@ export const usePosConfiguration = () => {
             { label: "Dine In", value: "1" },
             { label: "Take Out", value: "2" },
             { label: "Drive Thru", value: "3" },
-            { label: "Delivery", value: "4" },
-            { label: "Coming", value: "6" },
+            { label: "Delivery", value: "4" }
           ]);
         }
 
@@ -465,6 +465,8 @@ export const usePosConfiguration = () => {
           parsed.configs.groupDayend = payload.groupDayend;
           parsed.configs.driverDayend = payload.driverDayend;
           parsed.configs.alternativeOrder = payload.alternativeOrder;
+          // Provider Own Menu Status: also shows / hides providers on the POS (isProvidersEnabled reads it here).
+          parsed.configs.providerOwnStatus = payload.providerOwnStatus;
           parsed.configs.defaultEmployee = payload.defaultEmployee;
           parsed.configs.employeeId = payload.employeeId;
           parsed.configs.itemSeperation = payload.itemSeperation;
@@ -518,6 +520,7 @@ export const usePosConfiguration = () => {
         parsed.groupDayend = payload.groupDayend;
         parsed.driverDayend = payload.driverDayend;
         parsed.alternativeOrder = payload.alternativeOrder;
+        parsed.providerOwnStatus = payload.providerOwnStatus;
 
         localStorage.setItem("posConfigs", JSON.stringify(parsed));
         localStorage.setItem("serviceCharges", String(payload.serviceCharges ?? 0));
@@ -526,6 +529,7 @@ export const usePosConfiguration = () => {
         localStorage.setItem("deliveryCharge", String(payload.deliveryCharge ?? 0));
         localStorage.setItem("defaultDeliveryCharge", String(payload.deliveryCharge ?? 0));
         clearAllPosCache();
+        notifyPosConfigUpdated();
       } catch (e) {
         console.error("Failed to update cached posConfigs:", e);
       }

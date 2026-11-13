@@ -1,3 +1,4 @@
+import { isProviderOrderRow } from "../../../../utils/providerOrderType";
 import React, { useState, useEffect } from "react";
 import Modal from "../../../../../../components/common/Modal";
 import Button from "../../../../../../components/common/Button";
@@ -24,9 +25,11 @@ const ORDER_TYPES = [
   { id: 2, label: "Take Out", value: 2 },
   { id: 3, label: "Drive Thru", value: 3 },
   { id: 4, label: "Delivery", value: 4 },
-  { id: 5, label: "Providers", value: 5 },
-  { id: 6, label: "Coming", value: 6 },
+  // Providers: every provider has its own order type id (5 Swiggy, 6 Zomato …), so ask for all (0)
+  // and keep the provider rows here. There is no "Coming" order type (it is a delivery column).
+  { id: 5, label: "Providers", value: 0 },
 ];
+const PROVIDERS_TAB = 5;
 
 export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) => {
   const dispatch = useAppDispatch();
@@ -71,9 +74,10 @@ export const PosVoidModal: React.FC<PosVoidModalProps> = ({ isOpen, onClose }) =
   };
 
   const displayedOrders = React.useMemo(() => {
-    if (!search || !search.trim()) return orders;
-    return orders.filter((order) => matchesOrderSearch(order, search, searchStatus));
-  }, [orders, search, searchStatus]);
+    const list = activeTab === PROVIDERS_TAB ? orders.filter((order) => isProviderOrderRow(order)) : orders;
+    if (!search || !search.trim()) return list;
+    return list.filter((order) => matchesOrderSearch(order, search, searchStatus));
+  }, [orders, activeTab, search, searchStatus]);
 
   const handleVoidOrder = async () => {
     if (!selectedOrderId) return;

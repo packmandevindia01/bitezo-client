@@ -1,5 +1,6 @@
+import { orderTypeNameFromId } from "../../../../utils/providerOrderType";
 import React, { useState, useEffect, useRef } from "react";
-import { ORDER_TYPE_NAMES, deriveOrderChargeRatesFromMaster } from "../../../../pricing";
+import { deriveOrderChargeRatesFromMaster } from "../../../../pricing";
 import { applyStoredPricingToCartItems } from "../../../../services/storedOrderView";
 import { getPriceView } from "../../../utils/billing";
 import { Modal, Button, ConfirmDialog } from "../../../../../../components/common";
@@ -291,7 +292,7 @@ export const PosCombineModal: React.FC<PosCombineModalProps> = ({ isOpen, onClos
           // The endpoints return orderType / orderTypeId (never orderTypeName): use the saved order's real type,
           // not whatever type the terminal currently has selected.
           orderTypeName: targetMaster?.orderType || targetMaster?.orderTypeName ||
-            (targetMaster?.orderTypeId ? ORDER_TYPE_NAMES[Number(targetMaster.orderTypeId)] : undefined) || selectedOrderTypeName,
+            (targetMaster?.orderTypeId ? orderTypeNameFromId(targetMaster.orderTypeId) : undefined) || selectedOrderTypeName,
           customerId: targetMaster?.customerId || selectedCustomerId,
           addressId: targetMaster?.addressId || selectedAddressId,
           billDiscountValue: 0,

@@ -1,3 +1,4 @@
+import { isProviderOrderRow } from "../../../../utils/providerOrderType";
 import React, { useState, useEffect } from "react";
 import { pickOrderMoney } from "../../../../pricing";
 import Modal from "../../../../../../components/common/Modal";
@@ -28,9 +29,11 @@ const ORDER_TYPES = [
   { id: 2, label: "Take Out", value: 2 },
   { id: 3, label: "Drive Thru", value: 3 },
   { id: 4, label: "Delivery", value: 4 },
-  { id: 5, label: "Providers", value: 5 },
-  { id: 6, label: "Coming", value: 6 },
+  // Providers: every provider has its own order type id (5 Swiggy, 6 Zomato …), so ask for all (0)
+  // and keep the provider rows here. There is no "Coming" order type (it is a delivery column).
+  { id: 5, label: "Providers", value: 0 },
 ];
+const PROVIDERS_TAB = 5;
 
 export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClose, onEditSuccess }) => {
   const { orders, loading, fetchOrders, cancelOrder } = usePosSettled();
@@ -192,9 +195,10 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
   };
 
   const displayedOrders = React.useMemo(() => {
-    if (!search || !search.trim()) return orders;
-    return orders.filter((order: any) => matchesOrderSearch(order, search, searchStatus));
-  }, [orders, search, searchStatus]);
+    const list = activeTab === PROVIDERS_TAB ? orders.filter((order: any) => isProviderOrderRow(order)) : orders;
+    if (!search || !search.trim()) return list;
+    return list.filter((order: any) => matchesOrderSearch(order, search, searchStatus));
+  }, [orders, activeTab, search, searchStatus]);
 
   return (
     <Modal
@@ -424,7 +428,7 @@ export const PosSettledModal: React.FC<PosSettledModalProps> = ({ isOpen, onClos
       {/* FOOTER */}
       <div className="p-4 bg-white border-t border-gray-200 flex justify-between items-center shrink-0">
         <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">
-          Total Records: {orders.length}
+          Total Records: {displayedOrders.length}
         </div>
       </div>
 

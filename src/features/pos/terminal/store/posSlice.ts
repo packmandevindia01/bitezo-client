@@ -247,12 +247,18 @@ const normalizeOrderTypeName = (value?: string) => (value || "").toLowerCase().r
 export const fallbackOrderTypeByName = (name: string): PosOrderType => {
   const normalized = normalizeOrderTypeName(name);
   if (normalized.includes("provider")) return { orderTypeId: 5, orderType: "Providers" };
-  if (normalized.includes("coming")) return { orderTypeId: 6, orderType: "Coming" };
   if (normalized.includes("takeout") || normalized.includes("takeaway")) return { orderTypeId: 2, orderType: "TakeOut" };
   if (normalized.includes("drive")) return { orderTypeId: 3, orderType: "DriveThru" };
-  if (normalized.includes("delivery")) return { orderTypeId: 4, orderType: "Delivery" };
+  // "Coming" is a delivery order (isComing column), not an order type of its own.
+  if (normalized.includes("delivery") || normalized.includes("coming")) return { orderTypeId: 4, orderType: "Delivery" };
+  // Any other name is a provider: the POS keeps the provider's name as the order type of a provider
+  // order, and the backend returns it as `orderType` ("Zomato"). It used to fall to DineIn. The real id
+  // is the provider's id (5 Swiggy, 6 Zomato …); callers that have the saved orderTypeId use that instead.
+  if (normalized && !normalized.includes("dine")) return { orderTypeId: 5, orderType: "Providers" };
   return { orderTypeId: 1, orderType: "DineIn" };
 };
+
+export { providerNameFromOrderType } from "../../utils/providerOrderType";
 
 const posSlice = createSlice({
   name: 'pos',

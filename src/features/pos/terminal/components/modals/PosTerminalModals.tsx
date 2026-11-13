@@ -43,6 +43,7 @@ export interface PosTerminalModalsProps {
   handleCompleteSettlement: (payments: any[], change: number) => void;
   resetTerminalState: () => void;
   setActiveProvider: (data: any) => void;
+  activeProviderId?: number | null;
   refreshLockedProducts: () => void;
 
   // Specific States
@@ -147,6 +148,7 @@ export const PosTerminalModals = React.memo(function PosTerminalModals(props: Po
         setSelectedProviderForOrder={props.setSelectedProviderForOrder}
         resetTerminalState={props.resetTerminalState}
         setActiveProvider={props.setActiveProvider}
+        activeProviderId={props.activeProviderId}
         handleClearCart={props.handleClearCart}
         onBeforeSettle={props.onBeforeSettle}
       />

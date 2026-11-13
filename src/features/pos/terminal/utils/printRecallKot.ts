@@ -1,3 +1,4 @@
+import { orderTypeNameFromId } from "../../utils/providerOrderType";
 /**
  * Recall → KOT (reprint the kitchen ticket of a saved order). Moved verbatim out of PosRecallDetailsModal
  * (2026-11-11, split of the saved-order windows); the guest bill is printRecallOrder.ts.
@@ -6,7 +7,7 @@ import { getTerminalBranchId } from "@shared/config/device";
 import { toDisplayNo } from "../../services/orderResponse";
 import { buildPrintPricing } from "../../utils/printPricing";
 import { deliveryApi } from "../../customer/services/deliveryApi";
-import { fallbackOrderTypeByName } from "../store/posSlice";
+import { fallbackOrderTypeByName, providerNameFromOrderType } from "../store/posSlice";
 import { generateKotHtml } from "../../utils/kotTemplate";
 import { executeKotRouting } from "../../utils/printerRouting";
 import { printHtmlReceipt } from "../../services/qzService";
@@ -44,13 +45,9 @@ export const printRecallOrderKot = async ({ orderId, order, fallbackDetails, ord
     const rawMaster = order.masterData || order.master || order;
     const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
     
-    const orderTypeMap: Record<number, string> = {
-      1: "DineIn", 2: "TakeOut", 3: "DriveThru",
-      4: "Delivery", 5: "Providers", 6: "Coming"
-    };
     const orderTypeCandidate =
   master.orderType ||
-  orderTypeMap[master.orderTypeId] ||
+  orderTypeNameFromId(master.orderTypeId) ||
   master.orderTypeName ||
   order?.orderTypeName ||
   fallbackDetails?.orderTypeName ||
@@ -217,7 +214,8 @@ const orderTypeName = fallbackOrderTypeByName(orderTypeCandidate).orderType;
       counter: "Main",
       section: master.sectionName || "DINE IN",
       table: master.tableNo || "",
-      orderType: orderTypeName,
+      // Provider order: the KOT shows the provider name ("ZOMATO") like a new order KOT does.
+      orderType: providerNameFromOrderType(orderTypeCandidate) || orderTypeName,
       vehicleNo: master.vehicleNo || "",
       customerName: resolvedCustomerName,
       driver: isDeliveryOrder ? (resolvedDriver || undefined) : undefined,

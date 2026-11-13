@@ -1,3 +1,4 @@
+import { POS_CONFIG_UPDATED_EVENT } from "../../utils/posConfigEvents";
 import { useDeferredValue, useEffect, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAppDispatch, useAppSelector } from "../../../../app/hooks";
@@ -131,6 +132,15 @@ export const usePosProducts = () => {
     };
     window.addEventListener("pos_menu_updated", handleCustomEvent);
 
+    // 3b. POS configuration saved (e.g. Provider Own Menu Status): reload the menu at once — same tab by event,
+    // another tab through its posConfigs storage write.
+    const handleConfigSaved = () => handleSync();
+    const handleConfigStorage = (e: StorageEvent) => {
+      if (e.key === "posConfigs") handleSync();
+    };
+    window.addEventListener(POS_CONFIG_UPDATED_EVENT, handleConfigSaved);
+    window.addEventListener("storage", handleConfigStorage);
+
     // 4. Category Master updates (same-tab and cross-tab sync)
     const unsubCategorySync = subscribeToCategoryUpdates(() => {
       handleSync();
@@ -156,6 +166,8 @@ export const usePosProducts = () => {
       unsubCategorySync();
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener("pos_menu_updated", handleCustomEvent);
+      window.removeEventListener(POS_CONFIG_UPDATED_EVENT, handleConfigSaved);
+      window.removeEventListener("storage", handleConfigStorage);
       window.removeEventListener("focus", handleVisibilityOrFocus);
       document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
     };

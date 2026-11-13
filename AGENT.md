@@ -129,7 +129,10 @@ it as `localStorage.posConfigs` and mirrors some fields as direct keys.
 Live configuration at time of writing: VAT on, 3 decimals, Price View / Print Price / Discount Calc
 all `Inclusive`.
 
-Order types: `1 DineIn, 2 TakeOut, 3 DriveThru, 4 Delivery, 5 Providers, 6 Coming`
+Order types (one server list, `GET /pos-config/order-type-list-name`): `1 DineIn, 2 TakeOut, 3 DriveThru, 4 Delivery`, then every
+provider by its OWN id (`5 Swiggy, 6 Zomato, 7 …`). A provider order is saved with orderTypeId = provider id; any id > 4 is a provider
+(`pos/utils/providerOrderType.ts`: `isProviderOrderTypeId`, `orderTypeNameFromId`). There is NO "Providers" or "Coming" type on the
+server: "Coming" is only the `isComing` column of a Delivery (4) order (fixed 2026-11-13; it used to save as 6 = a provider).
 (`ORDER_TYPE_NAMES` in `pricing/storedOrder.ts`).
 
 ---
@@ -514,6 +517,33 @@ fixed (no duplicates; products without an alternative now come with an EMPTY cod
 load_products); category products one row each at Zomato's price (two-provider mixing not testable: Swiggy has no settings);
 product data STILL returns another provider's price (Swiggy masala dosa = Zomato's 2); alternatives STILL repeat (Chicken
 Biriyani "aaa" ×2 with a provider, ×1 without). Workaround kept.
+Provider image (2026-11-13): saved with the Back Office provider master. `POST /provider` and `PUT /provider/{id}` are
+multipart form data (PascalCase fields, `BranchIds` repeated, `ImageFile`; update also `IsImageChanged`: true for a new file or a
+removed image), built by `buildProviderForm` in `providerService`; the old `/provider/provider-image` call is gone. Read by the POS
+provider picker from `GET /menu/providers` → `imageUrl` (`menuApi.getProviders`, also accepts `fileUrl` / `filePath`). Both the
+picker and the Back Office edit preview pass the path through `resolveImageUrl` (relative backend path → backend origin, needed
+on IIS where there is no `/uploads` proxy). A missing or broken file shows the provider's initials. The picker reloads the list
+each time it opens, so a new image shows on the next open. POS Config "Provider Own Menu Status" (`providerOwnStatus`,
+owner's rule 2026-11-13, replaces the earlier "hide providers" rule): providers are ALWAYS on the POS. ON = a provider order
+shows only the categories / products in that provider's Provider Settings (server categories + `fixProviderMenuProducts`; a
+provider with no settings for the branch shows nothing). OFF = every category and product, at the provider's price where it has
+one. Search (`searchProducts`) with OFF merges the normal list with the provider's list, because `/menu/product-list` returns only
+the provider's products for a provider id even with providerOwnStatus=false (8060: Zomato 13 of 16). Saving POS Configuration
+writes `providerOwnStatus` into this device's `posConfigs` copy (it was left out) and fires `pos_config_updated`
+(`pos/utils/posConfigEvents.ts`); `usePosProducts` reloads the menu on it (and on another tab's posConfigs write). Back Office
+Delivery Status does NOT hide a provider in the POS. Bulk settlement still lists every provider (old unsettled orders).
+Provider order type name (2026-11-13): a provider order keeps the PROVIDER NAME as its order-type name ("Zomato": set in
+OrderModals on pick; the backend returns it as `orderType` on recall / print data). `providerNameFromOrderType`
+(`pos/utils/providerOrderType.ts`) spots it; `fallbackOrderTypeByName` maps any non-standard name to Providers (5) — it used to
+fall to DineIn (recall window "Type: DineIn", recall KOT, recalled order loaded for Edit). The recall / settled window shows
+"Providers (Zomato)"; the KOT prints the provider name; the guest / invoice header prints "(ZOMATO)" (settle receipt gets it
+from `activeProvider` via `buildSettleReceiptPayload({ providerName })`). Charges are unaffected (only /dine/ adds service charge).
+Provider order id (fixed 2026-11-13, front end): the POS used to save EVERY provider order as orderTypeId 5, which the server reads
+as Swiggy (orders 60, 61 were Zomato, customer = Zomato's account 5, and show "Swiggy" for good). Now OrderModals sets the
+provider's id as the order type and `orderPayloadMapper` sends `session.providerId` as orderTypeId; `selectMenuOrderTypeId` uses
+any id > 4; a recalled order restores the provider from orderTypeId (`savedOrderToCart`). Recall / Void / Settled "Providers" tab:
+fetches all (no OrderTypeId) and keeps provider rows (`isProviderOrderRow`); the Coming tab is gone. The order APIs have no
+`providerId` field (Swagger) — orderTypeId IS the provider. On 2026-11-13 backend 8060 returned `imageUrl: null` for Swiggy and Zomato.
 Backend endpoint with the duplicate / wrong code + alt name rows: `GET /api/v1/provider-settings/{transId}/provider-settings-data`.
 Back Office Provider Settings form (`general/providerSettings`, checked 2026-11-12): payloads match the backend DTOs
 (POST: branchId, providerId, createdAt, details[productId, unitId, isIncl, price]; PUT adds transId, updatedAt instead of
@@ -548,6 +578,11 @@ cart keep the price and name they were added with.
    `src/tests/pricingGoldenOrders.test.ts`, `order288RoundedVat.test.ts`, `order297DineIn.test.ts`,
    `order301StaleMaster.test.ts`).
 8. Run `npx vitest run` and `npx tsc -b` before declaring done.
+8a. **Every change gets tests (owner's rule, 2026-11-13).** Any new feature, update or bug fix that touches logic (pricing,
+   payloads, mappers, filters, state, API handling) ships with tests in the same change; a bug fix includes a test that fails on
+   the old code. Backend behaviour is pinned with mocked responses as seen on the server (e.g. `providerOrders.test.ts`).
+   Visual-only changes (colour, spacing, layout) need a real-app check instead; snapshot only when the markup itself matters
+   (receipts, KOT). When tests are skipped for a change, say why.
 9. Never paste API responses that contain a bearer token into code, tests or chat.
 
 ---

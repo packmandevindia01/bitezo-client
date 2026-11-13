@@ -113,8 +113,7 @@ export const posConfigApi = {
       { orderTypeId: 1, orderTypeName: "Dine In" },
       { orderTypeId: 2, orderTypeName: "Take Out" },
       { orderTypeId: 3, orderTypeName: "Drive Thru" },
-      { orderTypeId: 4, orderTypeName: "Delivery" },
-      { orderTypeId: 6, orderTypeName: "Coming" },
+      { orderTypeId: 4, orderTypeName: "Delivery" }
     ];
   },
   updatePosConfig: async (data: PosConfigUpdatePayload): Promise<any> => {

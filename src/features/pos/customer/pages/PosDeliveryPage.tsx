@@ -437,8 +437,9 @@ export const PosDeliveryPage: React.FC<PosDeliveryPageProps> = ({
       form.area === (lastLoadedAddressRef.current.area || "") &&
       form.note === (lastLoadedAddressRef.current.note || "");
 
-    // "Coming (Come & Collect)" orders use the Coming order type
-    const orderTypeName = form.isComing ? "Coming" : "Delivery";
+    // "Coming (Come & Collect)" is a Delivery order with the isComing column set — there is no Coming
+    // order type (id 6 is a provider on the server).
+    const orderTypeName = "Delivery";
 
     if (isUnchanged && currentAddressId) {
       applyDeliveryFieldsToStore(currentAddressId);

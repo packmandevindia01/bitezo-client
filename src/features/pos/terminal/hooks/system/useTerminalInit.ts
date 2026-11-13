@@ -221,8 +221,6 @@ export const useTerminalInit = ({
             ? "DriveThru"
             : defaultId === 4
             ? "Delivery"
-            : defaultId === 6
-            ? "Coming"
             : "DineIn";
         dispatch(setOrderTypeByName(fallbackName));
       }

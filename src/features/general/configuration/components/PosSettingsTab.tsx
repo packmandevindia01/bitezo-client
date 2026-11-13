@@ -27,8 +27,7 @@ const PosSettingsTab = ({ form, employeeOptions, orderTypeOptions = [], onChange
     { value: "1", label: "Dine In" },
     { value: "2", label: "Take Out" },
     { value: "3", label: "Drive Thru" },
-    { value: "4", label: "Delivery" },
-    { value: "6", label: "Coming" },
+    { value: "4", label: "Delivery" }
   ];
 
   const localizedOrderTypes = defaultOrderTypes.map(ot => ({

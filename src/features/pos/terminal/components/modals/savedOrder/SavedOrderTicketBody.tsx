@@ -1,3 +1,4 @@
+import { orderTypeNameFromId } from "../../../../utils/providerOrderType";
 /**
  * The Recall preview's ticket (meta fields, items with extras / modifiers / messages, item discounts, delivery block,
  * totals) for one saved order. Shared by the Recall preview (PosRecallDetailsModal) and the Dine-In table cards
@@ -6,7 +7,7 @@
 import React, { useState, useEffect } from "react";
 import { toDisplayNo } from "../../../../services/orderResponse";
 import { storedOrderFooter } from "../../../../pricing";
-import { fallbackOrderTypeByName } from "../../../store/posSlice";
+import { fallbackOrderTypeByName, providerNameFromOrderType } from "../../../store/posSlice";
 import { formatAmount, getDecimalPart } from "../../../../../../utils/currency";
 import { balanceBillFooter } from "../../../../../../utils/money";
 import { isEnableVatGuestPrint } from "../../../../utils/guestPrintTemplate";
@@ -78,23 +79,18 @@ export const SavedOrderTicketBody: React.FC<SavedOrderTicketBodyProps> = ({
   const shownEmployee = savedOrderWaiterName(rawEmpName, master.employeeId ?? master.empId ?? master.salespersonId);
   const employeeName = shownEmployee === "Waiter" && lookedUpEmployee ? lookedUpEmployee : shownEmployee;
   
-  const orderTypeMap: Record<number, string> = {
-    1: "DineIn",
-    2: "TakeOut",
-    3: "DriveThru",
-    4: "Delivery",
-    5: "Providers",
-    6: "Coming"
-  };
   const orderTypeCandidate =
     master.orderType ||
-    orderTypeMap[master.orderTypeId] ||
+    orderTypeNameFromId(master.orderTypeId) ||
     master.orderTypeName ||
     order?.orderTypeName ||
     fallbackDetails?.orderTypeName ||
     (orderDetailsStr?.match(/\((DineIn|TakeOut|DriveThru|Delivery|Providers|Coming)\)/i)?.[1]) ||
     "TakeOut";
   const orderTypeName = fallbackOrderTypeByName(orderTypeCandidate).orderType;
+  // Provider orders: show which provider ("Providers (Zomato)"), from the backend's orderType name.
+  const providerName = providerNameFromOrderType(orderTypeCandidate);
+  const orderTypeLabel = providerName ? `${orderTypeName} (${providerName})` : orderTypeName;
   
   // Extract time from orderDetailsStr as a reliable fallback (e.g. "7:46:02 PM")
   const timeFromDetails = (() => {
@@ -259,7 +255,7 @@ export const SavedOrderTicketBody: React.FC<SavedOrderTicketBodyProps> = ({
             <MetaField label="Order No">{orderNo}</MetaField>
             <MetaField label="Ticket" className="text-right">{ticketNo}</MetaField>
             <MetaField label="Emp">{employeeName}</MetaField>
-            <MetaField label="Type" className="text-right" valueClassName="font-bold text-[#49293e]">{orderTypeName}</MetaField>
+            <MetaField label="Type" className="text-right" valueClassName="font-bold text-[#49293e]">{orderTypeLabel}</MetaField>
             <MetaField label="Customer" className="col-span-2 sm:col-span-1">
               {master.deliveryCustomerName || master.vehicleCustomerName || master.customerName || "CASH CUSTOMER"}
             </MetaField>

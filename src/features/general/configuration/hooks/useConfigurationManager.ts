@@ -1,3 +1,4 @@
+import { notifyPosConfigUpdated } from "../../../pos/utils/posConfigEvents";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { INITIAL_CONFIG, INITIAL_BACKOFFICE_CONFIG } from "../constants";
@@ -122,8 +123,7 @@ export const useConfigurationManager = () => {
             { label: "Dine In", value: "1" },
             { label: "Take Out", value: "2" },
             { label: "Drive Thru", value: "3" },
-            { label: "Delivery", value: "4" },
-            { label: "Coming", value: "6" },
+            { label: "Delivery", value: "4" }
           ]);
         }
       } catch (err) {
@@ -379,6 +379,7 @@ export const useConfigurationManager = () => {
           localStorage.setItem("masterKotBillPrinter", payload.masterKotBillPrinter);
         }
         localStorage.setItem("posConfigs", JSON.stringify(parsed));
+        notifyPosConfigUpdated();
       } catch (err) {
         // Saved on the server, but this device still has the old copy (price view, print price, discount calc …).
         console.warn("POS configuration: could not update this device's copy", err);

@@ -378,7 +378,8 @@ export const buildDirectSettleOrderPayload = (
     netAmount: netPayable,
     deliveryCharge: roundCalc(Math.max(0, deliveryCharge)),
     updatedAt: new Date().toISOString(),
-    orderTypeId: session.providerId ? 5 : (selectedOrderTypeId || 1),
+    // Provider order: the provider's id IS the order type on the server (5 Swiggy, 6 Zomato …).
+    orderTypeId: session.providerId ? Number(session.providerId) : (selectedOrderTypeId || 1),
     sectionId: isDineIn ? selectedSectionId || 0 : 0,
     tableId: isDineIn ? selectedTableId || 0 : 0,
     tableNo: isDineIn ? selectedTableNo || "" : "",

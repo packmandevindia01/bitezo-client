@@ -23,6 +23,8 @@ import { isRealEmployeeName, resolveEmployeeNameForPrint } from "../../utils/emp
 type Loose = any;
 
 export interface SettleReceiptInput {
+  /** Provider order: the provider name printed in the header ("(ZOMATO)"). */
+  providerName?: string;
   /** The settle order payload (getDirectSettleOrderPayload). */
   orderPayload: Loose;
   /** The sales invoice that was sent. */
@@ -368,15 +370,16 @@ const resolveDeliveryDriverName = async (masterData: Loose, origOrderMaster: Loo
 };
 
 /** The receipt data (`{ mappedItems, unifiedPricing, printData }`) for a settle that has just been saved. */
-export const buildSettleReceiptPayload = async ({ orderPayload, salesPayload, createRes, newSaleId, editingSaleId, editingOrderId, invoiceNoStr: savedInvoiceNo, employeeId, waiterId, waiterName, isCombinedOrder, cartDetails, subtotal, totalDiscountAmount, totalServiceCharge, totalLevy, totalVat, total, deliveryCharge, payments, tenderOptions, cashChange }: SettleReceiptInput) => {
+export const buildSettleReceiptPayload = async ({ orderPayload, salesPayload, createRes, newSaleId, editingSaleId, editingOrderId, invoiceNoStr: savedInvoiceNo, employeeId, waiterId, waiterName, isCombinedOrder, cartDetails, subtotal, totalDiscountAmount, totalServiceCharge, totalLevy, totalVat, total, deliveryCharge, payments, tenderOptions, cashChange, providerName }: SettleReceiptInput) => {
   let invoiceNoStr = savedInvoiceNo;
   const finalSaleId = newSaleId || editingSaleId || 0;
   const now = new Date();
   const paymentNames: Record<number, string> = { 1: "Cash", 2: "Card", 3: "Credit" };
   const orderTypesMap: Record<number, string> = {
-    1: "DINE IN", 2: "TAKE OUT", 3: "DRIVE THRU", 4: "DELIVERY", 5: "PROVIDERS", 6: "COMING"
+    1: "DINE IN", 2: "TAKE OUT", 3: "DRIVE THRU", 4: "DELIVERY"
   };
-  const mappedOrderType = orderTypesMap[orderPayload.orderTypeId] || "DINE IN";
+  // Above 4 = a provider's own id (5 Swiggy, 6 Zomato …).
+  const mappedOrderType = orderTypesMap[orderPayload.orderTypeId] || (Number(orderPayload.orderTypeId) > 4 ? "PROVIDERS" : "DINE IN");
   
 
 
@@ -753,7 +756,8 @@ export const buildSettleReceiptPayload = async ({ orderPayload, salesPayload, cr
       counter: "Main",
       section: sectionStr,
       table: tableStr,
-      orderType: mappedOrderType,
+      // Provider order: the provider name, so the header prints "(ZOMATO)" (charges are unaffected).
+      orderType: Number(orderPayload.orderTypeId) > 4 && providerName ? providerName : mappedOrderType,
       date: now.toLocaleDateString('en-GB'),
       time: now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       customerName: finalCustomerName,

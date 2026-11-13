@@ -1,6 +1,7 @@
 import { escapeHtml } from "../../../utils/html";
 import type { PosCartItem } from "../types";
 import { modifierLabelOf } from "./modifierLabel";
+import { providerNameFromOrderType } from "./providerOrderType";
 import { toDisplayNo } from "../services/orderResponse";
 import { branchApi } from "../../inventory/branches/services/branchApi";
 import { printLineHtml } from "../../inventory/branches/utils/lineHelpers";
@@ -217,22 +218,24 @@ export const generateKotHtml = async (
   // Map internal camelCase/PascalCase names → human-readable display
   const orderTypeIdMap: Record<number, string> = {
     1: "DINE IN", 2: "TAKE OUT", 3: "DRIVE THRU",
-    4: "DELIVERY", 5: "PROVIDERS", 6: "COMING"
+    4: "DELIVERY"
   };
   const orderTypeNameMap: Record<string, string> = {
     "dinein": "DINE IN", "takein": "DINE IN",
     "takeout": "TAKE OUT", "takeaway": "TAKE OUT",
     "drivethru": "DRIVE THRU", "drivethrough": "DRIVE THRU",
     "delivery": "DELIVERY",
-    "providers": "PROVIDERS",
-    "coming": "COMING"
+    "providers": "PROVIDERS"
   };
   const rawOrderType = data.orderType || "";
   const normalizedKey = rawOrderType.toLowerCase().replace(/[\s_-]/g, "");
-  const orderTypeStr = orderTypeNameMap[normalizedKey]
+  // Provider order: orderType carries the provider's name ("Zomato"); print that instead of "PROVIDERS".
+  const providerName = providerNameFromOrderType(rawOrderType);
+  const orderTypeStr = providerName ? "PROVIDERS" : (orderTypeNameMap[normalizedKey]
     || (data as any).orderTypeIdMap?.[(data as any).orderTypeId]
     || orderTypeIdMap[(data as any).orderTypeId as number]
-    || (rawOrderType ? rawOrderType.replace(/([A-Z])/g, " $1").trim().toUpperCase() : "DINE IN");
+    || (Number((data as any).orderTypeId) > 4 ? "PROVIDERS" : "")
+    || (rawOrderType ? rawOrderType.replace(/([A-Z])/g, " $1").trim().toUpperCase() : "DINE IN"));
   const isDineIn = orderTypeStr === "DINE IN";
   const isDelivery = orderTypeStr === "DELIVERY" || Boolean(data.flatNo || data.buildingNo || data.blockNo || data.roadNo || data.area || data.address);
 
@@ -244,12 +247,12 @@ export const generateKotHtml = async (
     "DELIVERY": "توصيل",
     "DRIVE THRU": "طلبات السيارات",
     "PROVIDERS": "مزودي الخدمة",
-    "COMING": "قادم",
   };
   const orderTypeAr = orderTypeArabicMap[orderTypeStr] || "";
-  const orderTypeDisplay = isKotArabic && orderTypeAr 
-    ? `${orderTypeStr} <span class="arabic-text" style="font-size: 16px;">(${orderTypeAr})</span>`
-    : orderTypeStr;
+  const orderTypeShown = providerName ? escapeHtml(providerName.toUpperCase()) : orderTypeStr;
+  const orderTypeDisplay = isKotArabic && orderTypeAr
+    ? `${orderTypeShown} <span class="arabic-text" style="font-size: 16px;">(${orderTypeAr})</span>`
+    : orderTypeShown;
 
   const isMasterKot = Boolean(data.isMaster);
   let effectiveTitle = data.headerTitle || (isMasterKot ? "MASTER KOT" : "KOT");

@@ -13,6 +13,7 @@ import { subscribeToPaymodeUpdates } from "../../paymode/utils/paymodeSync";
 import { paymodeService } from "../../paymode/services/paymodeService";
 import axiosInstance from "../../../../api/axiosInstance";
 import type { ApiResponse } from "../../../inventory/product/types";
+import { resolveImageUrl } from "../../../../utils/imageUtils";
 
 export const useProviderManager = () => {
   const { showToast } = useToast();
@@ -197,6 +198,8 @@ export const useProviderManager = () => {
     mutationFn: async (data: ProviderFormType) => {
       const payload = {
         ...data,
+        // New file picked, or the saved image removed (REMOVE clears fileUrl).
+        isImageChanged: !!data.imageFile || form.getFieldState("fileUrl").isDirty,
       };
       if (editingId) {
         return await updateProvider(editingId, payload);
@@ -311,7 +314,7 @@ export const useProviderManager = () => {
         imageFile: null,
       });
 
-      setImagePreview(detail.provider.fileUrl || "");
+      setImagePreview(resolveImageUrl(detail.provider.fileUrl || detail.provider.filePath));
       setOpen(true);
       setTimeout(() => {
         const el = document.getElementById("prov-name");

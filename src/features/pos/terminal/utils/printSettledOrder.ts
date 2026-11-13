@@ -1,3 +1,4 @@
+import { orderTypeNameFromId } from "../../utils/providerOrderType";
 /**
  * Settled orders → PRINT (guest bill of a settled order). Moved verbatim out of PosSettledDetailsModal
  * (2026-11-11, split of the saved-order windows); the window passes what it has loaded.
@@ -53,17 +54,9 @@ export const printSettledOrderReceipt = async ({ orderId, order, orderDetailsStr
     const rawMaster = order.masterData || order.master || order;
     const master = Array.isArray(rawMaster) ? (rawMaster[0] || {}) : (rawMaster || {});
 
-    const orderTypeMap: Record<number, string> = {
-      1: "DineIn",
-      2: "TakeOut",
-      3: "DriveThru",
-      4: "Delivery",
-      5: "Providers",
-      6: "Coming",
-    };
     const orderTypeName =
       master.orderType ||
-      orderTypeMap[master.orderTypeId] ||
+      orderTypeNameFromId(master.orderTypeId) ||
       master.orderTypeName ||
       order?.orderTypeName ||
       "DineIn";

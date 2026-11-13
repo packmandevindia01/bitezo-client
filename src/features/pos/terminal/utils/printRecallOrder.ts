@@ -1,3 +1,4 @@
+import { orderTypeNameFromId } from "../../utils/providerOrderType";
 import { getTerminalBranchId } from "@shared/config/device";
 import { orderApi } from "../../services/orderApi";
 import { toDisplayNo } from "../../services/orderResponse";
@@ -26,14 +27,6 @@ export interface PrintRecallOrderOptions {
   showToast: (msg: string, type?: "success" | "error" | "info" | "warning") => void;
 }
 
-const orderTypeIdToNameMap: Record<number, string> = {
-  1: "DineIn",
-  2: "TakeOut",
-  3: "DriveThru",
-  4: "Delivery",
-  5: "Providers",
-  6: "Coming",
-};
 
 /**
  * Single Unified Guest Receipt Print Pipeline for Recall Orders.
@@ -80,7 +73,7 @@ export const printRecallOrderGuestReceipt = async (
     const initialOrderType =
       matchedOrderRow?.orderType ||
       matchedOrderRow?.orderTypeName ||
-      (matchedOrderRow?.orderTypeId ? orderTypeIdToNameMap[Number(matchedOrderRow.orderTypeId)] : undefined) ||
+      (matchedOrderRow?.orderTypeId ? orderTypeNameFromId(matchedOrderRow.orderTypeId) : undefined) ||
       parsedTypeFromStr ||
       "TakeOut";
 
@@ -103,7 +96,7 @@ export const printRecallOrderGuestReceipt = async (
     const orderTypeName =
       master.orderType ||
       master.orderTypeName ||
-      (master.orderTypeId ? orderTypeIdToNameMap[Number(master.orderTypeId)] : "") ||
+      (master.orderTypeId ? orderTypeNameFromId(master.orderTypeId) : "") ||
       initialOrderType ||
       "TakeOut";
 

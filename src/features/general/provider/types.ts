@@ -45,6 +45,7 @@ export interface ProviderPayload {
   updatedAt?: string;
   branchIds: number[];
   imageFile?: File | null;
+  isImageChanged?: boolean;
   fileUrl?: string;
 }
 

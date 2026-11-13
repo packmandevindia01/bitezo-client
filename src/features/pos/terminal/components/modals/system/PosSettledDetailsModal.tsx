@@ -1,3 +1,4 @@
+import { orderTypeNameFromId } from "../../../../utils/providerOrderType";
 import React, { useState, useEffect } from "react";
 import { buildPrintPricing } from "../../../../utils/printPricing";
 import { storedOrderFooter } from "../../../../pricing";
@@ -127,17 +128,9 @@ export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({
   const modifiersData = dedupeModifierRows(Array.isArray(order?.modifiersData) ? order.modifiersData : (Array.isArray(order?.modifiers) ? order.modifiers : []));
 
   const orderNo = master.orderNo ?? order?.orderNo ?? orderId ?? "";
-  const orderTypeMap: Record<number, string> = {
-    1: "DineIn",
-    2: "TakeOut",
-    3: "DriveThru",
-    4: "Delivery",
-    5: "Providers",
-    6: "Coming",
-  };
   const orderTypeName =
     master.orderType ||
-    orderTypeMap[master.orderTypeId] ||
+    orderTypeNameFromId(master.orderTypeId) ||
     master.orderTypeName ||
     order?.orderTypeName ||
     "DineIn";

@@ -1,3 +1,4 @@
+import { isProviderOrderRow } from "../../../../utils/providerOrderType";
 import React, { useState, useEffect } from "react";
 import Modal from "../../../../../../components/common/Modal";
 import Checkbox from "../../../../../../components/common/Checkbox";
@@ -28,9 +29,11 @@ const ORDER_TYPES = [
   { id: 2, label: "Take Out", value: 2 },
   { id: 3, label: "Drive Thru", value: 3 },
   { id: 4, label: "Delivery", value: 4 },
-  { id: 5, label: "Providers", value: 5 },
-  { id: 6, label: "Coming", value: 6 },
+  // Providers: every provider has its own order type id (5 Swiggy, 6 Zomato …), so ask for all (0)
+  // and keep the provider rows here. There is no "Coming" order type (it is a delivery column).
+  { id: 5, label: "Providers", value: 0 },
 ];
+const PROVIDERS_TAB = 5;
 
 export const PosRecallModal: React.FC<PosRecallModalProps> = ({
   isOpen,
@@ -106,7 +109,9 @@ export const PosRecallModal: React.FC<PosRecallModalProps> = ({
     // Filter by OrderTypeId client-side if a specific tab (Dine In, Take Out, etc.) is active
     if (activeTab > 0) {
       const typeObj = ORDER_TYPES.find((t) => t.id === activeTab);
-      if (typeObj) {
+      if (typeObj?.id === PROVIDERS_TAB) {
+        list = list.filter((order) => isProviderOrderRow(order));
+      } else if (typeObj) {
         const typeNormalized = typeObj.label.replace(/\s+/g, "").toLowerCase();
         list = list.filter((order) => {
           const oAny = order as any;
