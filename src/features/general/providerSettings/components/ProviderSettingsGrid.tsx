@@ -1,8 +1,9 @@
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { SearchableSelect } from "../../../../components/common";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import type { ProviderSettingEntry, ProductSearchItem, AltNameItem } from "../types";
+import { formatPriceInput } from "../utils/priceInput";
 
 interface Props {
   entries: ProviderSettingEntry[];
@@ -12,6 +13,8 @@ interface Props {
   onAltNameSelect: (index: number, unitId: number) => void;
   onToggleTax: (index: number) => void;
   onPriceChange: (index: number, val: string) => void;
+  /** Leaving the price box: tidy it to the currency's decimals. */
+  onPriceCommit?: (index: number) => void;
   onRemove: (index: number) => void;
   onAddRow: () => void;
   onLoadAltNames: (productId: number) => Promise<void>;
@@ -26,12 +29,34 @@ const ProviderSettingsGrid = ({
   onAltNameSelect,
   onToggleTax,
   onPriceChange,
+  onPriceCommit,
   onRemove,
   onAddRow,
   onLoadAltNames,
   disabled = false,
 }: Props) => {
   const { decimalPart, formatAmount } = useCurrency();
+  // The price box being typed in shows the typed text; every other box shows the price with the currency's decimals.
+  const [editingPriceIndex, setEditingPriceIndex] = useState<number | null>(null);
+
+  /** Enter in a price box: next row's price (its product box when it has no product yet); the last row adds a row. */
+  const handlePriceEnter = (index: number) => {
+    onPriceCommit?.(index);
+    if (index === entries.length - 1) {
+      onAddRow();
+      setTimeout(() => {
+        document.getElementById(`ps-grid-prod-${entries.length}`)?.focus();
+      }, 50);
+      return;
+    }
+    const next = entries[index + 1];
+    const target = next?.productId ? `ps-grid-price-${index + 1}` : `ps-grid-prod-${index + 1}`;
+    setTimeout(() => {
+      const el = document.getElementById(target) as HTMLInputElement | null;
+      el?.focus();
+      el?.select?.();
+    }, 0);
+  };
 
   // Clean product labels avoiding empty parentheses like "demo1 ()"
   const productOptions = useMemo(() => {
@@ -207,23 +232,30 @@ const ProviderSettingsGrid = ({
                     <td className="p-1 border-r border-gray-100 w-32">
                       <input
                         id={`ps-grid-price-${index}`}
-                        type="number"
-                        min="0"
-                        step="any"
+                        // text + decimal keypad: a number box can't limit decimals or keep "1.500" as typed
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
                         disabled={disabled || !row.productId}
-                        value={row.rawPrice !== undefined ? row.rawPrice : (row.price ? String(row.price) : "")}
+                        value={
+                          editingPriceIndex === index
+                            ? (row.rawPrice ?? formatPriceInput(row.price, decimalPart))
+                            : formatPriceInput(row.price, decimalPart)
+                        }
                         placeholder={formatAmount(0)}
-                        onFocus={(e) => e.target.select()}
+                        onFocus={(e) => {
+                          setEditingPriceIndex(index);
+                          e.target.select();
+                        }}
+                        onBlur={() => {
+                          setEditingPriceIndex((cur) => (cur === index ? null : cur));
+                          onPriceCommit?.(index);
+                        }}
                         onChange={(e) => onPriceChange(index, e.target.value)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
                             e.preventDefault();
-                            if (index === entries.length - 1) {
-                              onAddRow();
-                              setTimeout(() => {
-                                document.getElementById(`ps-grid-prod-${entries.length}`)?.focus();
-                              }, 50);
-                            }
+                            handlePriceEnter(index);
                           }
                         }}
                         className="w-full h-8 text-right font-mono font-bold text-[#49293e] bg-white border border-gray-200 hover:border-gray-300 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e] rounded px-2 py-1 text-xs outline-none disabled:bg-gray-50"

@@ -69,6 +69,7 @@ const ProviderSettingsForm = ({ initialData, onSubmit, onCancel, submitting }: P
           onAltNameSelect={form.handleGridAltNameSelect}
           onToggleTax={form.handleGridToggleTax}
           onPriceChange={form.handleGridPriceChange}
+          onPriceCommit={form.handleGridPriceCommit}
           onRemove={form.handleRemoveEntry}
           onAddRow={form.handleAddRow}
           onLoadAltNames={form.loadAltNames}

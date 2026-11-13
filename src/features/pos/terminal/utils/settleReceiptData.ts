@@ -25,6 +25,8 @@ type Loose = any;
 export interface SettleReceiptInput {
   /** Provider order: the provider name printed in the header ("(ZOMATO)"). */
   providerName?: string;
+  /** The order's customer as on screen (provider post account, picked customer, Cash Customer). */
+  customerName?: string;
   /** The settle order payload (getDirectSettleOrderPayload). */
   orderPayload: Loose;
   /** The sales invoice that was sent. */
@@ -370,7 +372,7 @@ const resolveDeliveryDriverName = async (masterData: Loose, origOrderMaster: Loo
 };
 
 /** The receipt data (`{ mappedItems, unifiedPricing, printData }`) for a settle that has just been saved. */
-export const buildSettleReceiptPayload = async ({ orderPayload, salesPayload, createRes, newSaleId, editingSaleId, editingOrderId, invoiceNoStr: savedInvoiceNo, employeeId, waiterId, waiterName, isCombinedOrder, cartDetails, subtotal, totalDiscountAmount, totalServiceCharge, totalLevy, totalVat, total, deliveryCharge, payments, tenderOptions, cashChange, providerName }: SettleReceiptInput) => {
+export const buildSettleReceiptPayload = async ({ orderPayload, salesPayload, createRes, newSaleId, editingSaleId, editingOrderId, invoiceNoStr: savedInvoiceNo, employeeId, waiterId, waiterName, isCombinedOrder, cartDetails, subtotal, totalDiscountAmount, totalServiceCharge, totalLevy, totalVat, total, deliveryCharge, payments, tenderOptions, cashChange, providerName, customerName }: SettleReceiptInput) => {
   let invoiceNoStr = savedInvoiceNo;
   const finalSaleId = newSaleId || editingSaleId || 0;
   const now = new Date();
@@ -718,7 +720,11 @@ export const buildSettleReceiptPayload = async ({ orderPayload, salesPayload, cr
     localStorage.getItem("pos_current_callBack") ||
     ""
   ) : "";
-  const finalCustomerName = masterData?.deliveryCustomerName || masterData?.vehicleCustomerName || masterData?.customerName || (orderPayload as any).deliveryCustomerName || orderPayload.customerName || (orderPayload as any).vehicleCustomerName || (isDeliveryOrder ? "DELIVERY CUSTOMER" : "WALK IN");
+  const finalCustomerName = masterData?.deliveryCustomerName || masterData?.vehicleCustomerName || masterData?.customerName || (orderPayload as any).deliveryCustomerName || orderPayload.customerName || (orderPayload as any).vehicleCustomerName ||
+    // A direct settle has no saved order to read the name from: use the customer on screen (e.g. the provider's
+    // post account "CASH CUSTOMER" / "Rahul") before the generic fallback.
+    (customerName ? String(customerName).toUpperCase() : "") ||
+    (isDeliveryOrder ? "DELIVERY CUSTOMER" : "WALK IN");
   const finalFlatNo = isDeliveryOrder ? (masterData?.flatNo || masterData?.flat || masterData?.flatNumber || (orderPayload as any).flatNo || "") : "";
   const finalBuildingNo = isDeliveryOrder ? (masterData?.buildingNo || masterData?.building || masterData?.buildingNumber || (orderPayload as any).buildingNo || "") : "";
   const finalBlockNo = isDeliveryOrder ? (masterData?.blockNo || masterData?.block || masterData?.blockNumber || (orderPayload as any).blockNo || "") : "";

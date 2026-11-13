@@ -27,6 +27,7 @@ import type {
 import type { SubCategoryListItem } from "../../../inventory/subcategory/types";
 
 import { toLocalDateString } from "../../../../utils/date";
+import { acceptPriceInput, formatPriceInput } from "../utils/priceInput";
 const createEmptyEntry = (): ProviderSettingEntry => ({
   productId: 0,
   unitId: 0,
@@ -194,7 +195,7 @@ export const useProviderSettingsForm = (
             vatRate: knownVatRate(d.productId),
             ...splitPrice(d.price, d.isIncl, knownVatRate(d.productId)),
             price: d.price,
-            rawPrice: d.price ? String(d.price) : "",
+            rawPrice: formatPriceInput(d.price, decimalPart),
           });
 
           if (!newAltMap[d.productId]) {
@@ -400,7 +401,7 @@ export const useProviderSettingsForm = (
             vatRate: knownVatRate(prodId),
             ...splitPrice(price, isIncl, knownVatRate(prodId)),
             price,
-            rawPrice: price ? String(price) : "",
+            rawPrice: formatPriceInput(price, decimalPart),
           });
         }
       });
@@ -518,7 +519,7 @@ export const useProviderSettingsForm = (
       altName: product.altName,
       isIncl,
       price,
-      rawPrice: price ? String(price) : "",
+      rawPrice: formatPriceInput(price, decimalPart),
       exclPrice,
       inclPrice,
       vatRate,
@@ -577,7 +578,7 @@ export const useProviderSettingsForm = (
         altName: alt.altName,
         isIncl,
         price: newPrice,
-        rawPrice: newPrice ? String(newPrice) : "",
+        rawPrice: formatPriceInput(newPrice, decimalPart),
         exclPrice,
         inclPrice,
       };
@@ -603,19 +604,35 @@ export const useProviderSettingsForm = (
   };
 
   const handleGridPriceChange = (index: number, val: string) => {
+    // Only a plain number with at most the currency's decimals; anything else keeps the previous value.
+    const accepted = acceptPriceInput(val, decimalPart);
+    if (accepted === null) return;
     setEntries((prev) => {
       const updated = [...prev];
       const row = updated[index];
       if (!row) return prev;
-      const num = parseFloat(val) || 0;
+      const num = parseFloat(accepted) || 0;
       const { exclPrice, inclPrice } = splitPrice(num, row.isIncl, row.vatRate);
       updated[index] = {
         ...row,
         price: num,
-        rawPrice: val,
+        rawPrice: accepted,
         exclPrice,
         inclPrice,
       };
+      return updated;
+    });
+  };
+
+  /** Leaving the price box (blur / Enter): show it with the currency's decimals ("1.5" → "1.500"). */
+  const handleGridPriceCommit = (index: number) => {
+    setEntries((prev) => {
+      const row = prev[index];
+      if (!row) return prev;
+      const shown = formatPriceInput(row.price, decimalPart);
+      if (row.rawPrice === shown) return prev;
+      const updated = [...prev];
+      updated[index] = { ...row, rawPrice: shown };
       return updated;
     });
   };
@@ -740,6 +757,7 @@ export const useProviderSettingsForm = (
     handleGridAltNameSelect,
     handleGridToggleTax,
     handleGridPriceChange,
+    handleGridPriceCommit,
     loadAltNames,
     // handlers
     handleLoad,

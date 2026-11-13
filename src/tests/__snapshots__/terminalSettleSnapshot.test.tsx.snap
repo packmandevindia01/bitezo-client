@@ -288,7 +288,7 @@ exports[`terminal settle > (a) new Take Out cart, cash: receipt rebuilt from the
           
           
           <tr>
-            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">WALK IN</span></td>
+            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">CASH CUSTOMER</span></td>
           </tr>
           
         </table>
@@ -713,7 +713,7 @@ exports[`terminal settle > (b) recalled Dine-In order, item discount, settled da
           
           
           <tr>
-            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">WALK IN</span></td>
+            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">CASH CUSTOMER</span></td>
           </tr>
           
         </table>
@@ -1571,7 +1571,7 @@ exports[`terminal settle > (d) combined order: receipt from the cart lines 1`] =
           
           
           <tr>
-            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">WALK IN</span></td>
+            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">CASH CUSTOMER</span></td>
           </tr>
           
         </table>
@@ -1980,7 +1980,7 @@ exports[`terminal settle > (e) settled bill edited and updated 1`] = `
           
           
           <tr>
-            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">WALK IN</span></td>
+            <td colspan="2" style="white-space: normal; word-break: break-word;">Customer :&nbsp;<span style="font-weight: normal;" dir="auto">CASH CUSTOMER</span></td>
           </tr>
           
         </table>

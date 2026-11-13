@@ -532,6 +532,11 @@ the provider's products for a provider id even with providerOwnStatus=false (806
 writes `providerOwnStatus` into this device's `posConfigs` copy (it was left out) and fires `pos_config_updated`
 (`pos/utils/posConfigEvents.ts`); `usePosProducts` reloads the menu on it (and on another tab's posConfigs write). Back Office
 Delivery Status does NOT hide a provider in the POS. Bulk settlement still lists every provider (old unsettled orders).
+Provider customer (2026-11-13): picking a provider sets its post account as the customer WITH its name
+(`usePosProviderTender` → `setSelectedCustomer`; name from `GET /provider/account-list`, `pos/utils/providerAccountName.ts`,
+loaded once). The settle receipt takes the on-screen customer (`buildSettleReceiptPayload({ customerName })`) after the saved
+order's names and before "WALK IN" — a direct settle has no saved order, so it used to print WALK IN (cash sale now prints
+CASH CUSTOMER; `terminalSettleSnapshot` updated). Test: `providerCustomerName.test.tsx`.
 Provider order type name (2026-11-13): a provider order keeps the PROVIDER NAME as its order-type name ("Zomato": set in
 OrderModals on pick; the backend returns it as `orderType` on recall / print data). `providerNameFromOrderType`
 (`pos/utils/providerOrderType.ts`) spots it; `fallbackOrderTypeByName` maps any non-standard name to Providers (5) — it used to
@@ -551,6 +556,11 @@ createdAt). Fixes: Edit loads each product's REAL alternatives (list_alt_name) a
 of the server's wrong ones; a product row without a unit warns instead of being dropped; a second price list for the same
 provider + branch is refused; Excl / Incl use the product's own sales VAT (`utils/providerVat.ts`: productid-data sVatId +
 product load_master-data VAT list), not a fixed 5 %. Test: `providerSettingsForm.test.tsx`.
+Price box (2026-11-13, `utils/priceInput.ts`): shown with the company's currency decimals (`useCurrency` decimalPart: 150 →
+"150.000") on load / product pick / alt pick and when not being edited; typing accepts only digits + one dot with at most that many
+decimals (`acceptPriceInput`, otherwise the old value stays); blur / Enter tidies it ("1.5" → "1.500"). Enter moves to the next
+row's price (its product box if that row is empty); the last row adds a row (Enter used to do nothing on other rows). Tests:
+`providerSettingsPriceInput.test.tsx`, `providerSettingsForm.test.tsx`.
 
 **Extras & Modifiers** (More → EXTRAS & MODIFIERS, route `/pos/menu-masters`, `pos/menuMasters/`): tabs for Extras, Extras Type,
 Modifier and Modifier Type. Each tab renders the Back Office page (`inventory/extrasMaster`, `extrasType`, `modifier`, `modifierType`),

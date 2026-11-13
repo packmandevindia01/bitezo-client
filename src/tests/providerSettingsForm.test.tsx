@@ -133,3 +133,33 @@ describe("Provider Settings form", () => {
     expect(toast).toHaveBeenCalledWith("Please select the Alt Name (unit) for Tea", "warning");
   });
 });
+
+describe("price box: currency decimals (3 here) and validation (2026-11-13)", () => {
+  it("Edit shows saved prices with 3 decimals (150 → 150.000, 1 → 1.000)", async () => {
+    const { result } = renderHook(() => useProviderSettingsForm(savedSwiggy as never, vi.fn()));
+    await waitFor(() => expect(result.current.entries).toHaveLength(2));
+    expect(result.current.entries.find((e) => e.productId === 4)!.rawPrice).toBe("150.000");
+    expect(result.current.entries.find((e) => e.productId === 5)!.rawPrice).toBe("1.000");
+  });
+
+  it("typing: up to 3 decimals accepted, a 4th decimal or letters are refused (previous value kept)", async () => {
+    const { result } = renderHook(() => useProviderSettingsForm(savedSwiggy as never, vi.fn()));
+    await waitFor(() => expect(result.current.entries).toHaveLength(2));
+    const idx = result.current.entries.findIndex((e) => e.productId === 5);
+    act(() => result.current.handleGridPriceChange(idx, "1.25"));
+    expect(result.current.entries[idx]).toMatchObject({ rawPrice: "1.25", price: 1.25 });
+    act(() => result.current.handleGridPriceChange(idx, "1.2555"));
+    expect(result.current.entries[idx]).toMatchObject({ rawPrice: "1.25", price: 1.25 });
+    act(() => result.current.handleGridPriceChange(idx, "1.2a"));
+    expect(result.current.entries[idx].rawPrice).toBe("1.25");
+  });
+
+  it("leaving the box (blur / Enter) shows it with 3 decimals: 1.5 → 1.500", async () => {
+    const { result } = renderHook(() => useProviderSettingsForm(savedSwiggy as never, vi.fn()));
+    await waitFor(() => expect(result.current.entries).toHaveLength(2));
+    const idx = result.current.entries.findIndex((e) => e.productId === 5);
+    act(() => result.current.handleGridPriceChange(idx, "1.5"));
+    act(() => result.current.handleGridPriceCommit(idx));
+    expect(result.current.entries[idx]).toMatchObject({ rawPrice: "1.500", price: 1.5 });
+  });
+});

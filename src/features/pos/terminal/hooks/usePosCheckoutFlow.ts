@@ -358,6 +358,7 @@ export const usePosCheckoutFlow = ({
           isCombinedOrder, cartDetails, subtotal, totalDiscountAmount, totalServiceCharge, totalLevy, totalVat, total, deliveryCharge,
           payments, tenderOptions, cashChange: settlementCashChangeRef.current,
           providerName: activeProvider?.provider?.providerName,
+          customerName: store.getState().pos.selectedCustomerName,
         });
 
         setSettledPrintPayload(printPayloadObj);

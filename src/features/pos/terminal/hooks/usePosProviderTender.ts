@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AppDispatch } from "../../../../app/store";
-import { setCustomerId, setMenuProviderId } from "../store/posSlice";
+import { setCustomerId, setMenuProviderId, setSelectedCustomer } from "../store/posSlice";
+import { providerAccountName } from "../../utils/providerAccountName";
 import type { MenuProvider } from "../../types";
 import type { usePosTerminal } from "./usePosTerminal";
 
@@ -43,8 +44,19 @@ export const usePosProviderTender = ({ terminal, dispatch }: UsePosProviderTende
         // eslint-disable-next-line react-hooks/set-state-in-effect -- moved unchanged from PosTerminalPage; follows the provider picked
         setSelectedTender(String(activeProvider.provider.paymodeId));
       }
-      if (activeProvider.provider.postAccountId) {
-        dispatch(setCustomerId(activeProvider.provider.postAccountId));
+      const accountId = activeProvider.provider.postAccountId;
+      if (accountId) {
+        dispatch(setCustomerId(accountId));
+        // The provider's post account is the order's customer: set its NAME too, so the screen and the settle
+        // receipt show it (setCustomerId alone kept the previous name, and the receipt fell back to "WALK IN").
+        let cancelled = false;
+        const known = activeProvider.provider.postAccountName;
+        void (known ? Promise.resolve(known) : providerAccountName(accountId)).then((name) => {
+          if (!cancelled && name) dispatch(setSelectedCustomer({ id: accountId, name }));
+        });
+        return () => {
+          cancelled = true;
+        };
       }
     }
   }, [activeProvider, dispatch]);
