@@ -1,7 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import { Save, Trash2, Plus, PackagePlus, Loader2, X as CloseIcon } from "lucide-react";
 import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox } from "../../../../components/common";
-import ConfirmDialog from "../../../../components/common/ConfirmDialog";
+import { ClearFormDialog } from "../../shared/documentForm/ClearFormDialog";
+import { focusOnEnter, makeRowEnter } from "../../shared/documentForm/documentKeys";
 import { useProductionForm } from "../hooks/useProductionForm";
 import { formatDateOnly } from "../services/productionApi";
 import { useParams, useNavigate } from "react-router-dom";
@@ -61,29 +62,15 @@ const ProductionPage = () => {
     }
   };
 
-  const hk = (e: React.KeyboardEvent, nextId?: string) => {
-    if (e.key === "Enter") { e.preventDefault(); if (nextId) document.getElementById(nextId)?.focus(); }
-  };
+  const hk = (e: React.KeyboardEvent, nextId?: string) => focusOnEnter(e, nextId);
 
-  const handleGridNav = (e: React.KeyboardEvent, rowIndex?: number) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (rowIndex !== undefined) {
-        const rowProduct = form.getValues(`items.${rowIndex}.product`);
-        if (!rowProduct || rowProduct.trim() === "") {
-          if (items.length > 1) remove(rowIndex);
-          setTimeout(() => document.getElementById("prod-save-btn")?.focus(), 50);
-          return;
-        }
-      }
-      const formElements = Array.from(document.querySelectorAll('input:not([tabindex="-1"]):not([type="hidden"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
-        .filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'));
-      const currentIndex = formElements.indexOf(e.target as Element);
-      if (currentIndex > -1 && formElements[currentIndex + 1]) {
-        (formElements[currentIndex + 1] as HTMLElement).focus();
-      }
-    }
-  };
+  // Enter on an empty line leaves the grid for Save
+  const handleGridNav = makeRowEnter({
+    getRowProduct: (rowIndex) => form.getValues(`items.${rowIndex}.product`),
+    rowCount: items.length,
+    removeRow: remove,
+    exitToId: "prod-save-btn",
+  });
 
   useEffect(() => { setTimeout(() => { document.getElementById("prod-date")?.focus(); }, 200); }, []);
 
@@ -477,11 +464,8 @@ const ProductionPage = () => {
         </div>
       </FormProvider>
 
-      <ConfirmDialog
+      <ClearFormDialog
         isOpen={showClearConfirm}
-        title="Clear Form"
-        message="Are you sure you want to clear the form? All unsaved data will be lost."
-        confirmLabel="Clear"
         onConfirm={async () => {
           form.reset();
           setShowClearConfirm(false);

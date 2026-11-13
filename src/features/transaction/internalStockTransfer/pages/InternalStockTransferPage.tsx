@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { FormProvider, Controller } from "react-hook-form";
-import PageShell from "../../../../components/common/PageShell";
+import { useParams } from "react-router-dom";
+import { Controller } from "react-hook-form";
+import { DocumentFormShell } from "../../shared/documentForm/DocumentFormShell";
+import { ClearFormDialog } from "../../shared/documentForm/ClearFormDialog";
+import { focusOnEnter } from "../../shared/documentForm/documentKeys";
 import Button from "../../../../components/common/Button";
 import FormInput from "../../../../components/common/FormInput";
 import SearchableSelect from "../../../../components/common/Searchableselect";
 import SearchableCombobox from "../../../../components/common/SearchableCombobox";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
-import { Trash2, Printer, Plus, Save, RotateCcw, ShieldAlert, X } from "lucide-react";
+import { Trash2, Printer, Plus, Save, RotateCcw, ShieldAlert } from "lucide-react";
 import { useInternalStockTransfer } from "../hooks/useInternalStockTransfer";
 import InternalStockTransferPrintModal from "../components/InternalStockTransferPrintModal";
 import { formatAmount } from "../../../../utils/currency";
@@ -19,7 +21,6 @@ import { useToast } from "../../../../app/providers/useToast";
 
 const InternalStockTransferPage = () => {
   const { id } = useParams();
-  const navigate = useNavigate();
   const { showToast } = useToast();
 
   const {
@@ -154,12 +155,7 @@ const InternalStockTransferPage = () => {
     }
   };
 
-  const hk = (e: React.KeyboardEvent, nextId?: string) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (nextId) document.getElementById(nextId)?.focus();
-    }
-  };
+  const hk = (e: React.KeyboardEvent, nextId?: string) => focusOnEnter(e, nextId);
 
   // Map forms/items to display names for the print template
   const printForm = useMemo(() => {
@@ -278,22 +274,50 @@ const InternalStockTransferPage = () => {
 
   const canSave = true; 
 
-  return (
-    <PageShell title={id ? "Edit Stock Transfer" : "Create Stock Transfer"}>
-      <FormProvider {...methods}>
-        <div className="relative rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
-          
-          {/* Close Button in top right */}
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard/internal-stock-transfers")}
-            className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
-            title="Close"
-            tabIndex={-1}
-          >
-            <X size={18} />
-          </button>
+  const dialogs = (
+    <>
+      {/* ── Confirmation Modals ── */}
+      <ClearFormDialog
+        isOpen={showClearConfirm}
+        confirmLabel="Clear Data"
+        confirmVariant="danger"
+        onConfirm={() => {
+          handleReset();
+          setShowClearConfirm(false);
+        }}
+        onCancel={() => setShowClearConfirm(false)}
+      />
 
+      <ConfirmDialog
+        isOpen={showSaveConfirm}
+        title="Save Stock Transfer"
+        message={`Are you sure you want to save this internal stock transfer with ${items.length} item(s)?`}
+        confirmLabel="Save"
+        onConfirm={doSave}
+        onCancel={() => setShowSaveConfirm(false)}
+      />
+
+      <InternalStockTransferPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => {
+          setIsPrintModalOpen(false);
+          if (!id) handleReset();
+        }}
+        form={printForm as any}
+        items={printItems as any}
+        branches={masterData.fromBranches}
+        toBranches={masterData.toBranches}
+      />
+    </>
+  );
+
+  return (
+    <DocumentFormShell
+      title={id ? "Edit Stock Transfer" : "Create Stock Transfer"}
+      methods={methods}
+      closeTo="/dashboard/internal-stock-transfers"
+      dialogs={dialogs}
+    >
           {/* ── Scrollable Body ── */}
           <div className="flex-1 overflow-y-auto p-2 md:p-3">
 
@@ -605,44 +629,7 @@ const InternalStockTransferPage = () => {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* ── Confirmation Modals ── */}
-        <ConfirmDialog
-          isOpen={showClearConfirm}
-          title="Clear Form"
-          message="Are you sure you want to clear the form? All unsaved data will be lost."
-          confirmLabel="Clear Data"
-          confirmVariant="danger"
-          onConfirm={() => {
-            handleReset();
-            setShowClearConfirm(false);
-          }}
-          onCancel={() => setShowClearConfirm(false)}
-        />
-
-        <ConfirmDialog
-          isOpen={showSaveConfirm}
-          title="Save Stock Transfer"
-          message={`Are you sure you want to save this internal stock transfer with ${items.length} item(s)?`}
-          confirmLabel="Save"
-          onConfirm={doSave}
-          onCancel={() => setShowSaveConfirm(false)}
-        />
-
-        <InternalStockTransferPrintModal
-          isOpen={isPrintModalOpen}
-          onClose={() => {
-            setIsPrintModalOpen(false);
-            if (!id) handleReset();
-          }}
-          form={printForm as any}
-          items={printItems as any}
-          branches={masterData.fromBranches}
-          toBranches={masterData.toBranches}
-        />
-      </FormProvider>
-    </PageShell>
+    </DocumentFormShell>
   );
 };
 

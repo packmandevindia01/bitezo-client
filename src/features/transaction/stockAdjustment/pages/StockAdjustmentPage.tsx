@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { Save, RotateCcw, Trash2, Plus, Printer, X } from "lucide-react";
-import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox } from "../../../../components/common";
+import { Save, RotateCcw, Trash2, Plus, Printer } from "lucide-react";
+import { Button, FormInput, SearchableSelect, SearchableCombobox } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
+import { DocumentFormShell } from "../../shared/documentForm/DocumentFormShell";
+import { ClearFormDialog } from "../../shared/documentForm/ClearFormDialog";
+import { focusOnEnter, makeRowEnter } from "../../shared/documentForm/documentKeys";
 import StockAdjustmentPrintModal from "../components/StockAdjustmentPrintModal";
 import type { StockAdjustmentLineItem } from "../types";
 import { getLineUnitOptions } from "../../shared/lineUnits";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import { useStockAdjustment, formatDateOnly } from "../hooks/useStockAdjustment";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { FormProvider, Controller } from "react-hook-form";
+import { Controller } from "react-hook-form";
 import { useToast } from "../../../../app/providers/useToast";
 import { generateUUID } from "../../../../utils/uuid";
 
@@ -63,33 +66,15 @@ const StockAdjustmentPage = () => {
   const [activeRowIndex, setActiveRowIndex] = useState<number>(0);
   const activeItem = watchedItems[activeRowIndex] || watchedItems[0] || {};
 
-  const hk = (e: React.KeyboardEvent, nextId?: string) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (nextId) document.getElementById(nextId)?.focus();
-    }
-  };
+  const hk = (e: React.KeyboardEvent, nextId?: string) => focusOnEnter(e, nextId);
 
-  const handleGridNav = (e: React.KeyboardEvent, rowIndex?: number) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      // If the current row's product is empty → exit the grid, go to Save
-      if (rowIndex !== undefined) {
-        const rowProduct = methods.getValues(`items.${rowIndex}.product`);
-        if (!rowProduct || rowProduct.trim() === "") {
-          if (items.length > 1) remove(rowIndex);
-          setTimeout(() => document.getElementById("sa-save-btn")?.focus(), 50);
-          return;
-        }
-      }
-      const formElements = Array.from(document.querySelectorAll('input:not([tabindex="-1"]):not([type="hidden"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
-        .filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'));
-      const currentIndex = formElements.indexOf(e.target as Element);
-      if (currentIndex > -1 && formElements[currentIndex + 1]) {
-        (formElements[currentIndex + 1] as HTMLElement).focus();
-      }
-    }
-  };
+  // Enter on an empty line leaves the grid for Save
+  const handleGridNav = makeRowEnter({
+    getRowProduct: (rowIndex) => methods.getValues(`items.${rowIndex}.product`),
+    rowCount: items.length,
+    removeRow: remove,
+    exitToId: "sa-save-btn",
+  });
 
   useEffect(() => {
     setTimeout(() => {
@@ -181,28 +166,54 @@ const StockAdjustmentPage = () => {
 
   const canSave = true; // By default enabled
 
+  const dialogs = (
+    <>
+      <ConfirmDialog
+        isOpen={showSaveConfirm}
+        title="Save Stock Adjustment"
+        message="Are you sure you want to save this stock adjustment?"
+        confirmLabel="Save"
+        onConfirm={doSave}
+        onCancel={() => setShowSaveConfirm(false)}
+      />
+
+      <ClearFormDialog
+        isOpen={showClearConfirm}
+        onConfirm={() => {
+          handleReset();
+          setShowClearConfirm(false);
+        }}
+        onCancel={() => setShowClearConfirm(false)}
+      />
+
+      <StockAdjustmentPrintModal
+        isOpen={isPrintModalOpen}
+        onClose={() => {
+          setIsPrintModalOpen(false);
+          if (shouldResetAfterPrint) {
+            if (id) {
+              navigate("/dashboard/stock-adjustment");
+            } else {
+              handleReset();
+              setShouldResetAfterPrint(false);
+            }
+          }
+        }}
+        form={printForm as any}
+        items={printItems}
+        branches={masterData.branches}
+      />
+    </>
+  );
+
   return (
-    <PageShell title={id ? "Edit Stock Adjustment" : "Create Stock Adjustment"}>
-      <FormProvider {...methods}>
-        {masterError && (
-          <div className="mb-3 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-600 border border-red-200">
-            Error loading master data: {masterError}
-          </div>
-        )}
-
-        <div className="relative rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
-          
-          {/* Close Button in top right */}
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard/stock-adjustments")}
-            className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
-            title="Close"
-            tabIndex={-1}
-          >
-            <X size={18} />
-          </button>
-
+    <DocumentFormShell
+      title={id ? "Edit Stock Adjustment" : "Create Stock Adjustment"}
+      methods={methods}
+      closeTo="/dashboard/stock-adjustments"
+      masterError={masterError}
+      dialogs={dialogs}
+    >
           {/* ── Scrollable Body ── */}
           <div className="flex-1 overflow-y-auto p-2 md:p-3">
 
@@ -635,48 +646,7 @@ const StockAdjustmentPage = () => {
               </div>
             </div>
           </div>
-        </div>
-
-        <ConfirmDialog
-          isOpen={showSaveConfirm}
-          title="Save Stock Adjustment"
-          message="Are you sure you want to save this stock adjustment?"
-          confirmLabel="Save"
-          onConfirm={doSave}
-          onCancel={() => setShowSaveConfirm(false)}
-        />
-
-        <ConfirmDialog
-          isOpen={showClearConfirm}
-          title="Clear Form"
-          message="Are you sure you want to clear the form? All unsaved data will be lost."
-          confirmLabel="Clear"
-          onConfirm={() => {
-            handleReset();
-            setShowClearConfirm(false);
-          }}
-          onCancel={() => setShowClearConfirm(false)}
-        />
-
-        <StockAdjustmentPrintModal
-          isOpen={isPrintModalOpen}
-          onClose={() => {
-            setIsPrintModalOpen(false);
-            if (shouldResetAfterPrint) {
-              if (id) {
-                navigate("/dashboard/stock-adjustment");
-              } else {
-                handleReset();
-                setShouldResetAfterPrint(false);
-              }
-            }
-          }}
-          form={printForm as any}
-          items={printItems}
-          branches={masterData.branches}
-        />
-      </FormProvider>
-    </PageShell>
+    </DocumentFormShell>
   );
 };
 

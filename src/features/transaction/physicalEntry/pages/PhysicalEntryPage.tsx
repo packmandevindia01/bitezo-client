@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
-import { FormProvider, Controller } from "react-hook-form";
+import { Controller } from "react-hook-form";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Save, Plus, X, Trash2, RotateCcw } from "lucide-react";
+import { Save, Plus, Trash2, RotateCcw } from "lucide-react";
 import {
-  PageShell,
   FormInput,
   Button,
   SearchableSelect,
   ConfirmDialog
 } from "../../../../components/common";
+import { DocumentFormShell } from "../../shared/documentForm/DocumentFormShell";
+import { ClearFormDialog } from "../../shared/documentForm/ClearFormDialog";
+import { focusOnEnter, makeRowEnter } from "../../shared/documentForm/documentKeys";
 import { usePhysicalEntry, calculateLine } from "../hooks/usePhysicalEntry";
 import { formatDateOnly } from "../services/physicalEntryApi";
 import { useCurrency } from "../../../../hooks/useCurrency";
@@ -54,35 +56,15 @@ const PhysicalEntryPage = () => {
   const canSave = true; // By default enabled
   
   // Custom focus navigation handler
-  const hk = (e: React.KeyboardEvent, nextId: string) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      setTimeout(() => {
-        const el = document.getElementById(nextId);
-        if (el) el.focus();
-      }, 50);
-    }
-  };
+  const hk = (e: React.KeyboardEvent, nextId: string) => focusOnEnter(e, nextId, 50);
 
-  const handleGridNav = (e: React.KeyboardEvent, rowIndex?: number) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (rowIndex !== undefined) {
-        const rowProduct = methods.getValues(`items.${rowIndex}.product`);
-        if (!rowProduct || rowProduct.trim() === "") {
-          if (items.length > 1) remove(rowIndex);
-          setTimeout(() => document.getElementById("pe-save-btn")?.focus(), 50);
-          return;
-        }
-      }
-      const formElements = Array.from(document.querySelectorAll('input:not([tabindex="-1"]):not([type="hidden"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])'))
-        .filter(el => !el.hasAttribute('disabled') && !el.hasAttribute('readonly'));
-      const currentIndex = formElements.indexOf(e.target as Element);
-      if (currentIndex > -1 && formElements[currentIndex + 1]) {
-        (formElements[currentIndex + 1] as HTMLElement).focus();
-      }
-    }
-  };
+  // Enter on an empty line leaves the grid for Save
+  const handleGridNav = makeRowEnter({
+    getRowProduct: (rowIndex) => methods.getValues(`items.${rowIndex}.product`),
+    rowCount: items.length,
+    removeRow: remove,
+    exitToId: "pe-save-btn",
+  });
 
   useEffect(() => {
     setTimeout(() => {
@@ -171,22 +153,35 @@ const PhysicalEntryPage = () => {
   const isEditMode = !!id;
   const hasProductsAdded = items.some((item: any) => item.product && String(item.product).trim() !== "");
 
-  return (
-    <PageShell title={isEditMode ? "Edit Physical Entry" : "New Physical Entry"}>
-      <FormProvider {...methods}>
-        <div className="relative rounded-2xl border border-gray-200 bg-white shadow-sm flex flex-col" style={{ height: "calc(100vh - 110px)" }}>
-          
-          {/* Close Button in top right */}
-          <button
-            type="button"
-            onClick={() => navigate("/dashboard/physical-entries")}
-            className="absolute top-2 right-2 p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-30"
-            title="Close"
-            tabIndex={-1}
-          >
-            <X size={18} />
-          </button>
+  const dialogs = (
+    <>
+      <ConfirmDialog
+        isOpen={showSaveConfirm}
+        title="Save Physical Entry"
+        message="Are you sure you want to save this physical entry? This will replace current stock."
+        confirmLabel="Save"
+        onConfirm={doSave}
+        onCancel={() => setShowSaveConfirm(false)}
+      />
 
+      <ClearFormDialog
+        isOpen={showClearConfirm}
+        onConfirm={() => {
+          handleReset();
+          setShowClearConfirm(false);
+        }}
+        onCancel={() => setShowClearConfirm(false)}
+      />
+    </>
+  );
+
+  return (
+    <DocumentFormShell
+      title={isEditMode ? "Edit Physical Entry" : "New Physical Entry"}
+      methods={methods}
+      closeTo="/dashboard/physical-entries"
+      dialogs={dialogs}
+    >
           {/* ── Scrollable Body ── */}
           <div className="flex-1 overflow-y-auto p-2 md:p-3">
 
@@ -439,30 +434,7 @@ const PhysicalEntryPage = () => {
               </div>
             </div>
           </div>
-        </div>
-
-        <ConfirmDialog
-          isOpen={showSaveConfirm}
-          title="Save Physical Entry"
-          message="Are you sure you want to save this physical entry? This will replace current stock."
-          confirmLabel="Save"
-          onConfirm={doSave}
-          onCancel={() => setShowSaveConfirm(false)}
-        />
-
-        <ConfirmDialog
-          isOpen={showClearConfirm}
-          title="Clear Form"
-          message="Are you sure you want to clear the form? All unsaved data will be lost."
-          confirmLabel="Clear"
-          onConfirm={() => {
-            handleReset();
-            setShowClearConfirm(false);
-          }}
-          onCancel={() => setShowClearConfirm(false)}
-        />
-      </FormProvider>
-    </PageShell>
+    </DocumentFormShell>
   );
 };
 
