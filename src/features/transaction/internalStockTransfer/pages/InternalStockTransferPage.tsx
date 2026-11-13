@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Controller } from "react-hook-form";
 import { DocumentFormShell } from "../../shared/documentForm/DocumentFormShell";
 import { ClearFormDialog } from "../../shared/documentForm/ClearFormDialog";
-import { focusOnEnter } from "../../shared/documentForm/documentKeys";
+import { focusOnEnter, focusLineQty } from "../../shared/documentForm/documentKeys";
 import Button from "../../../../components/common/Button";
 import FormInput from "../../../../components/common/FormInput";
 import SearchableSelect from "../../../../components/common/Searchableselect";
@@ -396,10 +396,7 @@ const InternalStockTransferPage = () => {
                                           methods.setValue(`items.${index}.qty`, "1");
                                           methods.setValue(`items.${index}.cost`, formatAmount(0));
                                         }
-                                        setTimeout(() => {
-                                          const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                          qtyInputs[0]?.focus();
-                                        }, 100);
+                                        focusLineQty(index, 100);
                                       }}
                                       onKeyDown={async (e) => {
                                         if (e.key === "Enter") {
@@ -431,10 +428,7 @@ const InternalStockTransferPage = () => {
                                                 methods.setValue(`items.${index}.code`, p.productCode || "");
                                                 methods.setValue(`items.${index}.productName`, p.productName);
                                                 handleProductSelect(index, String(p.productId));
-                                                setTimeout(() => {
-                                                  const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                                  qtyInputs[0]?.focus();
-                                                }, 100);
+                                                focusLineQty(index, 100);
                                                 return;
                                               }
                                               showToast(
@@ -473,18 +467,12 @@ const InternalStockTransferPage = () => {
                                   options={getLineUnitOptions(itemWatch, categoryUnits, masterData?.units)}
                                   onChange={(val) => {
                                     handleUnitChange(index, val);
-                                    setTimeout(() => {
-                                      const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                      qtyInputs[0]?.focus();
-                                    }, 100);
+                                    focusLineQty(index, 100);
                                   }}
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
                                       e.preventDefault();
-                                      setTimeout(() => {
-                                        const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                        qtyInputs[0]?.focus();
-                                      }, 50);
+                                      focusLineQty(index, 50);
                                     }
                                   }}
                                   disabled={!canSave || !itemWatch.product}

@@ -10,14 +10,8 @@ export const focusOnEnter = (e: React.KeyboardEvent, nextId?: string, delayMs?: 
   if (e.key !== "Enter") return;
   e.preventDefault();
   if (!nextId) return;
-  if (delayMs === undefined) {
-    document.getElementById(nextId)?.focus();
-  } else {
-    setTimeout(() => {
-      const el = document.getElementById(nextId);
-      if (el) el.focus();
-    }, delayMs);
-  }
+  if (delayMs === undefined) document.getElementById(nextId)?.focus();
+  else focusFieldLater(nextId, delayMs);
 };
 
 const FOCUSABLE = 'input:not([tabindex="-1"]):not([type="hidden"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])';
@@ -129,4 +123,31 @@ export const limitDigitsPaste = (
     target.value = truncated;
     setValue(truncated);
   }
+};
+
+/** Focus the Qty cell of a line (after `delayMs`, when given). */
+export const focusLineQty = (index: number, delayMs?: number) => {
+  const focus = () => {
+    const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
+    qtyInputs[0]?.focus();
+  };
+  if (delayMs === undefined) focus();
+  else setTimeout(focus, delayMs);
+};
+
+/** After `delayMs`, focus a line's product box; a line not drawn yet gets one more try 50 ms later. */
+export const focusLineProduct = (index: number, delayMs: number) => {
+  setTimeout(() => {
+    const el = document.getElementById(`product-select-${index}`);
+    if (el) el.focus();
+    else setTimeout(() => document.getElementById(`product-select-${index}`)?.focus(), 50);
+  }, delayMs);
+};
+
+/** After `delayMs`, focus the field with this id. */
+export const focusFieldLater = (id: string, delayMs: number) => {
+  setTimeout(() => {
+    const target = document.getElementById(id);
+    if (target) target.focus();
+  }, delayMs);
 };

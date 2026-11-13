@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Save, Trash2, Plus, PackagePlus, Loader2, X as CloseIcon } from "lucide-react";
 import { Button, FormInput, PageShell, SearchableSelect, SearchableCombobox } from "../../../../components/common";
 import { ClearFormDialog } from "../../shared/documentForm/ClearFormDialog";
-import { focusOnEnter, makeRowEnter } from "../../shared/documentForm/documentKeys";
+import { focusOnEnter, makeRowEnter, focusLineQty, focusFieldLater } from "../../shared/documentForm/documentKeys";
 import { useProductionForm } from "../hooks/useProductionForm";
 import { formatDateOnly } from "../services/productionApi";
 import { useParams, useNavigate } from "react-router-dom";
@@ -132,10 +132,7 @@ const ProductionPage = () => {
                     value={field.value}
                     onChange={(val) => {
                       setValue("branchId", val);
-                      setTimeout(() => {
-                        const target = document.getElementById("prod-employee");
-                        if (target) target.focus();
-                      }, 100);
+                      focusFieldLater("prod-employee", 100);
                     }}
                     onKeyDown={(e) => hk(e, "prod-employee")}
                     disabled={!!id || isBranchLocked}
@@ -156,10 +153,7 @@ const ProductionPage = () => {
                     value={field.value}
                     onChange={(val) => {
                       setValue("employeeId", val);
-                      setTimeout(() => {
-                        const target = document.getElementById("prod-finProduct");
-                        if (target) target.focus();
-                      }, 100);
+                      focusFieldLater("prod-finProduct", 100);
                     }}
                     onKeyDown={(e) => hk(e, "prod-finProduct")}
                     placeholder="Select Employee"
@@ -183,10 +177,7 @@ const ProductionPage = () => {
                     value={field.value}
                     onChange={(val) => {
                       handleFinishedProductSelect(val);
-                      setTimeout(() => {
-                        const target = document.getElementById("prod-finUnit");
-                        if (target) target.focus();
-                      }, 100);
+                      focusFieldLater("prod-finUnit", 100);
                     }}
                     onKeyDown={(e) => hk(e, "prod-finUnit")}
                     required
@@ -216,10 +207,7 @@ const ProductionPage = () => {
                       setValue("finishedProductUnit", val);
                       const name = finishedProductUnits.find(u => u.value === val)?.label || val;
                       setValue("finishedProductUnitName", name);
-                      setTimeout(() => {
-                        const target = document.getElementById("prod-finQty");
-                        if (target) target.focus();
-                      }, 100);
+                      focusFieldLater("prod-finQty", 100);
                     }}
                     onKeyDown={(e) => hk(e, "prod-finQty")}
                     placeholder={finishedProductUnits.length === 0 ? "Select product first" : "Select unit"}
@@ -290,10 +278,7 @@ const ProductionPage = () => {
                                         setValue(`items.${index}.qty`, "1");
                                         setValue(`items.${index}.cost`, "0");
                                       }
-                                      setTimeout(() => {
-                                        const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                        qtyInputs[0]?.focus();
-                                      }, 100);
+                                      focusLineQty(index, 100);
                                     }}
                                     onKeyDown={async (e) => {
                                       if (e.key === "Enter") {
@@ -306,10 +291,7 @@ const ProductionPage = () => {
                                           e.preventDefault();
                                           const success = await handleBarcodeScan(index, rawValue.trim());
                                           if (success) {
-                                            setTimeout(() => {
-                                              const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                              qtyInputs[0]?.focus();
-                                            }, 100);
+                                            focusLineQty(index, 100);
                                           }
                                           return;
                                         }

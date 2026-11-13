@@ -4,7 +4,7 @@ import { Button, FormInput, SearchableSelect, SearchableCombobox } from "../../.
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { DocumentFormShell } from "../../shared/documentForm/DocumentFormShell";
 import { ClearFormDialog } from "../../shared/documentForm/ClearFormDialog";
-import { focusOnEnter, makeRowEnter } from "../../shared/documentForm/documentKeys";
+import { focusOnEnter, makeRowEnter, focusLineQty, focusLineProduct } from "../../shared/documentForm/documentKeys";
 import StockAdjustmentPrintModal from "../components/StockAdjustmentPrintModal";
 import type { StockAdjustmentLineItem } from "../types";
 import { getLineUnitOptions } from "../../shared/lineUnits";
@@ -75,6 +75,21 @@ const StockAdjustmentPage = () => {
     removeRow: remove,
     exitToId: "sa-save-btn",
   });
+
+  const appendBlankLine = () =>
+    append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: formatAmount(0), type: "", effect: "" }, { shouldFocus: false });
+
+  /** Enter on the last field of a line: the last filled line gets a new line after it, other lines move on. */
+  const addLineOrMoveOn = (e: React.KeyboardEvent, index: number) => {
+    const rowProduct = methods.getValues(`items.${index}.product`);
+    if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
+      handleProductSearch("");
+      appendBlankLine();
+      focusLineProduct(items.length, 100);
+    } else {
+      handleGridNav(e, index);
+    }
+  };
 
   useEffect(() => {
     setTimeout(() => {
@@ -302,19 +317,13 @@ const StockAdjustmentPage = () => {
                                           methods.setValue(`items.${index}.cost`, "0");
                                           methods.setValue(`items.${index}.type`, "");
                                         }
-                                      setTimeout(() => {
-                                        const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                        qtyInputs[0]?.focus();
-                                      }, 100);
+                                      focusLineQty(index, 100);
                                     }}
                                     onKeyDown={async (e) => {
                                       if (e.key === "Enter") {
                                         if (productSelectedRef.current) {
                                           productSelectedRef.current = false;
-                                          setTimeout(() => {
-                                            const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                            qtyInputs[0]?.focus();
-                                          }, 100);
+                                          focusLineQty(index, 100);
                                           return;
                                         }
                                         const rawValue = e.currentTarget.value;
@@ -324,10 +333,7 @@ const StockAdjustmentPage = () => {
                                           e.preventDefault();
                                           const success = await handleBarcodeScan(index, rawValue.trim());
                                           if (success) {
-                                            setTimeout(() => {
-                                              const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                              qtyInputs[0]?.focus();
-                                            }, 100);
+                                            focusLineQty(index, 100);
                                           }
                                           return;
                                         }
@@ -337,10 +343,7 @@ const StockAdjustmentPage = () => {
                                           setTimeout(() => document.getElementById("sa-save-btn")?.focus(), 50);
                                         } else {
                                           e.preventDefault();
-                                          setTimeout(() => {
-                                            const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                            qtyInputs[0]?.focus();
-                                          }, 100);
+                                          focusLineQty(index, 100);
                                         }
                                       }
                                     }}
@@ -364,16 +367,12 @@ const StockAdjustmentPage = () => {
                                   options={getLineUnitOptions(itemWatch, categoryUnits, masterData?.units)}
                                   onChange={(val) => {
                                     handleUnitChange(index, val);
-                                    setTimeout(() => {
-                                      const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                      qtyInputs[0]?.focus();
-                                    }, 100);
+                                    focusLineQty(index, 100);
                                   }}
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter") {
                                       e.preventDefault();
-                                      const qtyInputs = document.querySelectorAll<HTMLInputElement>(`input[name="items.${index}.qty"]`);
-                                      qtyInputs[0]?.focus();
+                                      focusLineQty(index);
                                     }
                                   }}
                                   disabled={!canSave || !itemWatch.product}
@@ -432,15 +431,10 @@ const StockAdjustmentPage = () => {
                                     const rowProduct = methods.getValues(`items.${index}.product`);
                                     if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
                                       handleProductSearch("");
-                                      // Wait slightly longer than SearchableSelect's internal 50ms handleFocusNextInput 
+                                      // Wait slightly longer than SearchableSelect's internal 50ms handleFocusNextInput
                                       setTimeout(() => {
-                                        append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: formatAmount(0), type: "", effect: "" }, { shouldFocus: false });
-                                        const nextIndex = items.length;
-                                        setTimeout(() => {
-                                          const el = document.getElementById(`product-select-${nextIndex}`);
-                                          if (el) el.focus();
-                                          else setTimeout(() => document.getElementById(`product-select-${nextIndex}`)?.focus(), 50);
-                                        }, 50);
+                                        appendBlankLine();
+                                        focusLineProduct(items.length, 50);
                                       }, 60);
                                     }
                                   }}
@@ -452,19 +446,7 @@ const StockAdjustmentPage = () => {
                                       if (isEditable) {
                                         document.getElementById(`effect-select-${index}`)?.focus();
                                       } else {
-                                        const rowProduct = methods.getValues(`items.${index}.product`);
-                                        if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
-                                          handleProductSearch("");
-                                          append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: formatAmount(0), type: "", effect: "" }, { shouldFocus: false });
-                                          const nextIndex = items.length;
-                                          setTimeout(() => {
-                                            const el = document.getElementById(`product-select-${nextIndex}`);
-                                            if (el) el.focus();
-                                            else setTimeout(() => document.getElementById(`product-select-${nextIndex}`)?.focus(), 50);
-                                          }, 100);
-                                        } else {
-                                          handleGridNav(e, index);
-                                        }
+                                        addLineOrMoveOn(e, index);
                                       }
                                     }
                                   }}
@@ -490,20 +472,7 @@ const StockAdjustmentPage = () => {
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
                                     e.preventDefault();
-                                    
-                                    const rowProduct = methods.getValues(`items.${index}.product`);
-                                    if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
-                                      handleProductSearch("");
-                                      append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: formatAmount(0), type: "", effect: "" }, { shouldFocus: false });
-                                      const nextIndex = items.length;
-                                      setTimeout(() => {
-                                        const el = document.getElementById(`product-select-${nextIndex}`);
-                                        if (el) el.focus();
-                                        else setTimeout(() => document.getElementById(`product-select-${nextIndex}`)?.focus(), 50);
-                                      }, 100);
-                                    } else {
-                                      handleGridNav(e, index);
-                                    }
+                                    addLineOrMoveOn(e, index);
                                   }
                                 }}
                               >
@@ -519,19 +488,7 @@ const StockAdjustmentPage = () => {
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
                                     e.preventDefault();
-                                    const rowProduct = methods.getValues(`items.${index}.product`);
-                                    if (rowProduct && rowProduct.trim() !== "" && index === items.length - 1) {
-                                      handleProductSearch("");
-                                      append({ id: generateUUID(), product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: formatAmount(0), type: "", effect: "" }, { shouldFocus: false });
-                                      const nextIndex = items.length;
-                                      setTimeout(() => {
-                                        const el = document.getElementById(`product-select-${nextIndex}`);
-                                        if (el) el.focus();
-                                        else setTimeout(() => document.getElementById(`product-select-${nextIndex}`)?.focus(), 50);
-                                      }, 100);
-                                    } else {
-                                      handleGridNav(e, index);
-                                    }
+                                    addLineOrMoveOn(e, index);
                                   }
                                 }}
                               />
@@ -568,17 +525,8 @@ const StockAdjustmentPage = () => {
                             type="button"
                             onClick={() => {
                               handleProductSearch("");
-                              append({
-                                id: generateUUID(),
-                                product: "", code: "", unit: "", unitCategory: "", qty: "1", cost: formatAmount(0), type: "", effect: ""
-                              }, { shouldFocus: false });
-                              
-                              const nextIndex = items.length;
-                              setTimeout(() => {
-                                const el = document.getElementById(`product-select-${nextIndex}`);
-                                if (el) el.focus();
-                                else setTimeout(() => document.getElementById(`product-select-${nextIndex}`)?.focus(), 50);
-                              }, 50);
+                              appendBlankLine();
+                              focusLineProduct(items.length, 50);
                             }}
                             disabled={!canSave}
                             className="flex items-center gap-1.5 px-3 py-1 text-xs font-semibold text-[#49293e] hover:text-[#3a2132] hover:bg-[#49293e]/10 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
