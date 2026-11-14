@@ -3,6 +3,8 @@
 Last updated 2026-11-14. `refactor/pricing-engine` merged into `main` on 2026-11-11 (merge 8a07d3c). Real-terminal test done by the owner on 2026-11-13: no visible issues (visual check, not a line-by-line comparison).
 The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11).
 
+Order preview time AM/PM (2026-11-14): the POS Recall and Settled order previews (and the Dine-In table order cards, which use the Recall ticket) showed the order time in 24-hour form (13:40:00); now 12-hour with AM/PM (01:40:00 PM), shared helper `pos/utils/orderDateTime.ts`. The prints (guest bill, settle receipt reprint, KOT) were already AM/PM and are unchanged. Testers: recall an order taken after 12 noon → Date shows e.g. 01:40:00 PM; same in Settled details and the Dine-In table cards; a morning order shows AM.
+
 POS login background (2026-11-14): the faint watermark behind the PIN pad on Cashier In still read "BITEZO"; now "BITEVO" (the side picture was already the Bitevo one). Login page image alt text also says Bitevo. Testers: open the POS Cashier In screen → the large faint word behind the keypad reads BITEVO.
 
 Provider Settings Enter key (2026-11-14): Enter after picking a product lost focus (now goes to Alt Name, then Price); Enter on Alt Name did nothing; Enter after Category / Sub Category skipped Load Data and jumped to the find box; when editing, Enter on Date got stuck on the locked Branch. Testers: new price list with keyboard only: Provider, Date, Branch, Category, Enter → Load Data is focused, Enter loads; in a row pick a product with Enter → Alt Name → Enter → Price → Enter → next row; Edit a saved list → Enter on Date opens Category.

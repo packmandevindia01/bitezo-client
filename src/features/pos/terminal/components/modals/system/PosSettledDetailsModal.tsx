@@ -19,6 +19,7 @@ import { printSettledOrderReceipt } from "../../../utils/printSettledOrder";
 import { loadSettledOrderDetails } from "../../../utils/loadSettledOrder";
 import { SavedOrderWindow, SavedOrderActions, TicketActionButton, MetaField, ItemDiscountRow, LineAddons, SavedOrderTotals } from "../savedOrder/SavedOrderTicket";
 import { dedupeModifierRows, modifierRowsOfLine, classifyLineModifiers } from "../savedOrder/lineModifiers";
+import { formatOrderDateTime } from "../../../../utils/orderDateTime";
 
 interface PosSettledDetailsModalProps {
   isOpen: boolean;
@@ -31,31 +32,8 @@ interface PosSettledDetailsModalProps {
 
 // Waiter name for prints: utils/employeeNames.ts resolveEmployeeNameForPrint (shared with table orders).
 
-const formatVoucherDate = (raw?: string | null): string => {
-  try {
-    if (!raw) return "";
-    const d = new Date(raw);
-    if (isNaN(d.getTime())) {
-      if (/am|pm/i.test(raw)) {
-        const today = new Date();
-        const dd = String(today.getDate()).padStart(2, "0");
-        const mm = String(today.getMonth() + 1).padStart(2, "0");
-        const yyyy = today.getFullYear();
-        return `${dd}/${mm}/${yyyy} ${raw}`;
-      }
-      return raw;
-    }
-    const dd = String(d.getDate()).padStart(2, "0");
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    const hh = String(d.getHours()).padStart(2, "0");
-    const min = String(d.getMinutes()).padStart(2, "0");
-    const ss = String(d.getSeconds()).padStart(2, "0");
-    return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
-  } catch {
-    return raw || "";
-  }
-};
+// dd/MM/yyyy hh:mm:ss AM/PM (utils/orderDateTime.ts)
+const formatVoucherDate = (raw?: string | null): string => formatOrderDateTime(raw);
 
 
 export const PosSettledDetailsModal: React.FC<PosSettledDetailsModalProps> = ({

@@ -386,6 +386,8 @@ each the Recall preview's own ticket (`savedOrder/SavedOrderTicketBody.tsx`, loa
 `fetchRecallOrderData`, the same loader the Recall preview uses; reloaded when the order total changes on the 10 s refresh).
 Tap a card = select; action column NEW/ASSIGN · EDIT · SETTLE · KOT · GUEST · CLOSE works on the selected card; DETAILS / double-click /
 Enter opens `PosRecallDetailsModal`, whose Edit / Settle are routed back to the table screen's Dine-In flows via `onEditRequest` / `onSettleRequest`.
+Order date on the Recall ticket and the Settled preview (2026-11-14): `pos/utils/orderDateTime.ts` `formatOrderDateTime` →
+"dd/MM/yyyy hh:mm:ss AM/PM" (was 24-hour). The prints already use `toLocaleTimeString("en-US", { hour12: true })`. Test: `orderDateTime`.
 The Printed badge still comes from the Recall list (`GET /order/recall?OrderTypeId=1`). Edit → `loadRecalledOrder` (see §5.8).
 The table screen's code outside the window (2026-11-11): `utils/loadDineInOrder.ts` (order → cart items),
 `utils/dineInSettlement.ts` (`buildDineInSettleOrder`: invoice order from the STORED order; `printDineInSettleReceipt`),

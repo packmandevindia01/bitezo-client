@@ -1,4 +1,5 @@
 import { orderTypeNameFromId } from "../../../../utils/providerOrderType";
+import { formatOrderDateTime } from "../../../../utils/orderDateTime";
 /**
  * The Recall preview's ticket (meta fields, items with extras / modifiers / messages, item discounts, delivery block,
  * totals) for one saved order. Shared by the Recall preview (PosRecallDetailsModal) and the Dine-In table cards
@@ -125,31 +126,8 @@ export const SavedOrderTicketBody: React.FC<SavedOrderTicketBodyProps> = ({
     order?.createdAt ??
     timeFromDetails; // last resort: extract from the recall list text
 
-  // Format date as dd/MM/yyyy preserving time portion
-  const formatVoucherDate = (raw: string): string => {
-    try {
-      if (!raw) return "";
-      const d = new Date(raw);
-      if (isNaN(d.getTime())) {
-        // If it's just a time string like "7:46:02 PM" extracted from details, prepend today's date
-        if (/am|pm/i.test(raw)) {
-          const today = new Date();
-          const dd = String(today.getDate()).padStart(2, '0');
-          const mm = String(today.getMonth() + 1).padStart(2, '0');
-          const yyyy = today.getFullYear();
-          return `${dd}/${mm}/${yyyy} ${raw}`;
-        }
-        return raw;
-      }
-      const dd = String(d.getDate()).padStart(2, '0');
-      const mm = String(d.getMonth() + 1).padStart(2, '0');
-      const yyyy = d.getFullYear();
-      const hh = String(d.getHours()).padStart(2, '0');
-      const min = String(d.getMinutes()).padStart(2, '0');
-      const ss = String(d.getSeconds()).padStart(2, '0');
-      return `${dd}/${mm}/${yyyy} ${hh}:${min}:${ss}`;
-    } catch { return raw; }
-  };
+  // dd/MM/yyyy hh:mm:ss AM/PM (utils/orderDateTime.ts)
+  const formatVoucherDate = (raw: string): string => formatOrderDateTime(raw);
 
   // Master Totals directly from API
   const rawVatExcl = Number(
