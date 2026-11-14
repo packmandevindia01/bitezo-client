@@ -31,7 +31,7 @@ const LoginPage = () => {
       <div className="relative w-full h-48 md:h-full bg-[#1a0f18] flex-none md:flex-1">
         <img 
           src={loginImage}
-          alt={isPos ? "Bitezo POS" : "Bitezo Backoffice"} 
+          alt={isPos ? "Bitevo POS" : "Bitevo Backoffice"}
           className="absolute inset-0 w-full h-full object-cover object-left"
         />
       </div>

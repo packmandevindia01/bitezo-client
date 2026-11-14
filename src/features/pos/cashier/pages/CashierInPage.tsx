@@ -300,7 +300,7 @@ const CashierInPage = () => {
 
         {/* Large Decorative Watermark */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#49293e]/[0.03] pointer-events-none select-none font-black text-[180px] md:text-[240px] leading-none uppercase tracking-tighter -rotate-12 z-0">
-          BITEZO
+          BITEVO
         </div>
       </div>
     </div>
