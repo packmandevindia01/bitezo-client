@@ -575,6 +575,10 @@ Find product (2026-11-13, `utils/gridSearch.ts`): a find box above the grid high
 or code contains the text (case-insensitive), scrolls the current match into view and shows "n of N"; Enter / ▼ next,
 Shift+Enter / ▲ previous (wraps), Esc / × clears; the same product on several rows is found on each. Test:
 `providerSettingsGridSearch.test.tsx`.
+Enter key (2026-11-14): Provider → Date → Branch → Category → Load Data (Sub Category → Load Data; Category goes to Sub Category
+only if its list is already loaded); editing: Date skips the locked Branch. Grid: product pick → Alt Name → Enter → Price → next row.
+Rows are keyed by index (a key holding productId / unitId rebuilt the row on pick and focus was lost). `handleFocusNextInput`
+(`utils/keyboard.ts`) also stops on buttons marked `data-focus-next` (opt-in; only Load Data uses it). Test: `providerSettingsEnterKey.test.tsx`.
 
 **Extras & Modifiers** (More → EXTRAS & MODIFIERS, route `/pos/menu-masters`, `pos/menuMasters/`): tabs for Extras, Extras Type,
 Modifier and Modifier Type. Each tab renders the Back Office page (`inventory/extrasMaster`, `extrasType`, `modifier`, `modifierType`),

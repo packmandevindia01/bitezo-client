@@ -251,7 +251,8 @@ const ProviderSettingsGrid = ({
 
                 return (
                   <tr
-                    key={`${row.productId}-${row.unitId}-${index}`}
+                    // Index only: a key with the product in it rebuilt the row on pick, and Enter lost focus
+                    key={index}
                     id={`ps-grid-row-${index}`}
                     data-find={currentMatchRow === index ? "current" : matchSet.has(index) ? "match" : undefined}
                     className={`transition-colors group ${
@@ -296,6 +297,14 @@ const ProviderSettingsGrid = ({
                           if (row.productId) void onLoadAltNames(row.productId);
                         }}
                         onChange={(e) => onAltNameSelect(index, Number(e.target.value))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            const price = document.getElementById(`ps-grid-price-${index}`) as HTMLInputElement | null;
+                            price?.focus();
+                            price?.select();
+                          }
+                        }}
                         className="w-full h-8 text-xs bg-white border border-gray-200 hover:border-gray-300 focus:border-[#49293e] focus:ring-1 focus:ring-[#49293e] rounded px-2 py-1 outline-none disabled:bg-gray-50 disabled:text-gray-400 cursor-pointer"
                       >
                         {rowAltOptions.length === 0 ? (

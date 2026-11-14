@@ -1,4 +1,5 @@
 import { RefreshCcw, X } from "lucide-react";
+import { handleFocusNextInput } from "../../../../utils/keyboard";
 import { Button, FormInput, SearchableSelect } from "../../../../components/common";
 import type { 
   ProviderMasterItem, 
@@ -52,12 +53,11 @@ const ProviderSettingsFilters = ({
   onSubCategoryChange,
   onLoad,
 }: Props) => {
-  const handleKeyDown = (e: React.KeyboardEvent, nextFieldId?: string) => {
+  // Enter on Date: the next box that can be used (Branch; Category when editing, as Branch is locked then)
+  const handleDateKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (nextFieldId) {
-        document.getElementById(nextFieldId)?.focus();
-      }
+      handleFocusNextInput(e.currentTarget);
     }
   };
 
@@ -81,7 +81,7 @@ const ProviderSettingsFilters = ({
           type="date"
           value={selectedDate}
           onChange={(e) => onDateChange(e.target.value)}
-          onKeyDown={(e) => handleKeyDown(e, "ps-branch")}
+          onKeyDown={handleDateKeyDown}
         />
 
         <SearchableSelect
@@ -120,6 +120,8 @@ const ProviderSettingsFilters = ({
         <div className="flex flex-col w-full mb-1">
           <Button 
             id="ps-load-btn"
+            // Enter from Category / Sub Category stops here instead of skipping to the grid
+            data-focus-next
             onClick={onLoad} 
             disabled={loading} 
             isAction

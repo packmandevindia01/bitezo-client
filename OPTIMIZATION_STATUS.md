@@ -1,7 +1,9 @@
 # Optimization status
 
-Last updated 2026-11-13. `refactor/pricing-engine` merged into `main` on 2026-11-11 (merge 8a07d3c). Real-terminal test done by the owner on 2026-11-13: no visible issues (visual check, not a line-by-line comparison).
+Last updated 2026-11-14. `refactor/pricing-engine` merged into `main` on 2026-11-11 (merge 8a07d3c). Real-terminal test done by the owner on 2026-11-13: no visible issues (visual check, not a line-by-line comparison).
 The plan is in `OPTIMIZATION_PLAN.md`; how the code works is in `AGENT.md` (§11).
+
+Provider Settings Enter key (2026-11-14): Enter after picking a product lost focus (now goes to Alt Name, then Price); Enter on Alt Name did nothing; Enter after Category / Sub Category skipped Load Data and jumped to the find box; when editing, Enter on Date got stuck on the locked Branch. Testers: new price list with keyboard only: Provider, Date, Branch, Category, Enter → Load Data is focused, Enter loads; in a row pick a product with Enter → Alt Name → Enter → Price → Enter → next row; Edit a saved list → Enter on Date opens Category.
 
 Delivery addresses (2026-11-13): UPDATE now edits the address on screen (no new copy) and is disabled for new data; More Address is the only way to add another address; Save Delivery on a changed address edits it. Testers: load a number, change Flat, UPDATE → More Address list shows ONE address with the new Flat; a new number → UPDATE greyed out.
 

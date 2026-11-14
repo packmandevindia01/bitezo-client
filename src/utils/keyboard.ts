@@ -19,7 +19,9 @@ export const handleFocusNextInput = (currentEl: HTMLElement) => {
       'input:not([disabled]):not([readonly]):not([type="checkbox"]):not([type="radio"]), ' +
       'textarea:not([disabled]):not([readonly]), ' +
       'select:not([disabled]), ' +
-      'div[role="combobox"]:not([tabindex="-1"])'
+      'div[role="combobox"]:not([tabindex="-1"]), ' +
+      // opt-in: a button that Enter should stop on (e.g. a filter row's "Load Data")
+      'button[data-focus-next]:not([disabled])'
     )
   ).filter((el) => {
     // Ensure the element is visible in the viewport and not hidden by display: none or scale 0
