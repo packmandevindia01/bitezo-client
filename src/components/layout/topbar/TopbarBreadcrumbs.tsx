@@ -85,6 +85,8 @@ const getPageTitle = (pathname: string): string => {
     "/dashboard/receipt-voucher": "Receipt Voucher",
     "/dashboard/recipes": "Recipes",
     "/dashboard/configuration": "Configuration",
+    "/dashboard/about-us": "About Us",
+    "/dashboard/subscription": "Subscription",
     "/cashier/in": "Cashier In — Open Shift",
     "/cashier/out": "Cashier Out — Close Shift",
     "/system/register": "System Registration",

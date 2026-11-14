@@ -4,6 +4,7 @@ import type {
   CompanyMasterloadResponse,
   CurrencyOption,
   SubscriptionStatusData,
+  SubscriptionData,
 } from "../types";
 
 import { toLocalDateString } from "../../../utils/date";
@@ -130,6 +131,12 @@ export const fetchSubscriptionStatus = async (): Promise<SubscriptionStatusData 
   const { data } = await axiosInstance.get<{ data: SubscriptionStatusData; isSuccess: boolean }>(
     "/company/subscription-status"
   );
+  return data?.data ?? null;
+};
+
+/** Fetch the subscription details (start, expiry, days left) for Help → Subscription */
+export const fetchSubscriptionData = async (): Promise<SubscriptionData | null> => {
+  const { data } = await axiosInstance.get<{ data: SubscriptionData; isSuccess: boolean }>("/company/subscription-data");
   return data?.data ?? null;
 };
 

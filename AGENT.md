@@ -692,7 +692,18 @@ and reports. It lives under `/dashboard` inside `MainLayout` (sidebar + topbar).
 
 ### 10.4 Module map
 All routes are under `/dashboard/…` (`app/routes/AppRoutes.tsx`). Sidebar groups live in
-`components/layout/sidebar/` (`NavMasterGroup`, `NavTransactionGroup`, `NavReportGroup`, `NavSettingsGroup`).
+`components/layout/sidebar/` (`NavMasterGroup`, `NavTransactionGroup`, `NavReportGroup`, `NavSettingsGroup`, `NavHelpGroup`).
+Help → Subscription (2026-11-14): first item of `NavHelpGroup`, page `/dashboard/subscription` (`company/pages/SubscriptionPage.tsx`, no
+RoleGuard) loads GET `/company/subscription-data` (`fetchSubscriptionData`; startAt, isExpired, daysLeft, expiresAt) and shows status, a days-left
+ring, start / expiry / plan period / days remaining, a usage bar and a renew box. `company/utils/subscriptionSummary.ts` does the maths: Expired
+when isExpired (days left shown as 0), Expiring soon at 7 days or fewer (same as the banner), else Active; 0001 dates are treated as missing.
+The top banner / badge still use `/company/subscription-status`. Test: `subscriptionPage`.
+`shared/api/http.ts` treats every `/company/*` URL as onboarding (no Bearer token) EXCEPT `/company/subscription-*`; a new logged-in
+`/company/...` endpoint must be added to that exception, or it goes out without the token, gets 401 and logs the user out. Test: `tokenRefresh`.
+Help → About Us (2026-11-14): second item of `NavHelpGroup` (last group, no permission check), opens the page `/dashboard/about-us`
+(`general/aboutUs/pages/AboutUsPage.tsx`, route without RoleGuard, breadcrumb "About Us"): Packman Solutions, V1, website, email and the two
+phone numbers as cards (links: https in a new tab, mailto, tel; ids `about-website`, `about-email`, `about-phone-1/2`). The details are a
+constant at the top of `AboutUsPage.tsx`. Test: `aboutUsMenu`.
 
 **Masters and settings**
 | Screen (route) | Folder | Main endpoints |

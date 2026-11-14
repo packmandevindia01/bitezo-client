@@ -101,6 +101,11 @@ export interface SubscriptionStatusData {
   expiresAt: string;
 }
 
+/** GET /company/subscription-data (Help → Subscription): the status fields plus the start date. */
+export interface SubscriptionData extends SubscriptionStatusData {
+  startAt: string;
+}
+
 export interface SubscriptionStatusResponse {
   data: SubscriptionStatusData;
   status: number;

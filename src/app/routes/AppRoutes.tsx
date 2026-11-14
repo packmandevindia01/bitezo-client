@@ -78,6 +78,8 @@ const ReceiptVoucherFormPage = lazy(() => import("../../features/transaction/rec
 const BulkSettlementPage = lazy(() => import("../../features/pos/bulkSettlement/pages/BulkSettlementPage"));
 const HappyHourPage = lazy(() => import("../../features/general/happyHour/pages/HappyHourPage"));
 const HappyHourFormPage = lazy(() => import("../../features/general/happyHour/pages/HappyHourFormPage"));
+const AboutUsPage = lazy(() => import("../../features/general/aboutUs/pages/AboutUsPage"));
+const SubscriptionPage = lazy(() => import("../../features/company/pages/SubscriptionPage"));
 const ProviderSettingsFormPage = lazy(() => import("../../features/general/providerSettings/pages/ProviderSettingsFormPage"));
 const LockItemPage = lazy(() => import("../../features/pos/lockItem/pages/LockItemPage"));
 const PosMenuMastersPage = lazy(() => import("../../features/pos/menuMasters/pages/PosMenuMastersPage"));
@@ -284,6 +286,8 @@ const AppRoutes = () => {
                   <Route path="happy-hour" element={<RoleGuard moduleName="Configuration"><HappyHourPage /></RoleGuard>} />
                   <Route path="happy-hour/new" element={<RoleGuard moduleName="Configuration"><HappyHourFormPage /></RoleGuard>} />
                   <Route path="happy-hour/edit/:id" element={<RoleGuard moduleName="Configuration"><HappyHourFormPage /></RoleGuard>} />
+                  <Route path="subscription" element={<SubscriptionPage />} />
+                  <Route path="about-us" element={<AboutUsPage />} />
                   
                   <Route path="reports/sales" element={<RoleGuard moduleName="Sales Report"><SalesReportPage /></RoleGuard>} />
                   <Route path="reports/purchase" element={<RoleGuard moduleName="Purchase Report"><PurchaseReportPage /></RoleGuard>} />
