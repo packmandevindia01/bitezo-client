@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { pickSavedAt } from "../../../../utils/printDateTime";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCurrency } from "../../../../hooks/useCurrency";
@@ -30,6 +31,8 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   const [masterData, setMasterData] = useState<PurchaseInvoiceMasterData | null>(null);
   const [loadingMaster, setLoadingMaster] = useState(true);
   const [masterError, setMasterError] = useState<string | null>(null);
+  // When the open document was saved (backend created time, or the moment Save succeeded): the print's time, AM/PM
+  const [savedAt, setSavedAt] = useState("");
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -428,6 +431,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       setLoadingMaster(true);
       const res = await purchaseInvoiceApi.getPurchaseInvoiceById(id);
       const master = res.masterData;
+      setSavedAt(pickSavedAt(master));
       const rootPaymodeId = res.masterData.paymodeId || 1;
       
       const branchId = Number(master.branchId) || 0;
@@ -533,6 +537,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   }, [invoiceId]);
 
   const handleReset = () => {
+    setSavedAt("");
     const branchToSet = isBranchLocked ? initialBranchId : (masterData?.branches?.[0]?.branchId?.toString() || "");
     const seriesToSet = masterData?.series?.[0]?.seriesId?.toString() || "";
     reset({
@@ -652,6 +657,8 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   };
 
   return {
+    savedAt,
+    setSavedAt,
     methods,
     items,
     append,

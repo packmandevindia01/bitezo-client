@@ -62,6 +62,8 @@ const StockAdjustmentPage = () => {
     categoryUnits,
     getRowOptions,
     isBranchLocked,
+    savedAt,
+    setSavedAt,
   } = useStockAdjustment(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
@@ -179,6 +181,7 @@ const StockAdjustmentPage = () => {
     methods.handleSubmit(async (data) => {
       const success = await onSubmit(data);
       if (success) {
+        setSavedAt(new Date().toISOString()); // the print after Save shows the time it was saved
         setIsPrintModalOpen(true);
         setShouldResetAfterPrint(true);
       }
@@ -218,6 +221,7 @@ const StockAdjustmentPage = () => {
 
       <StockAdjustmentPrintModal
         isOpen={isPrintModalOpen}
+        savedAt={savedAt}
         onClose={() => {
           setIsPrintModalOpen(false);
           if (shouldResetAfterPrint) {

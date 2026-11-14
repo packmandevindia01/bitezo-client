@@ -82,7 +82,8 @@ export const AgainstVoucherPage = ({ kind, transId, doc, api }: AgainstVoucherPa
     branchList,
     isLoading, 
     isSaving, 
-    saveMutation
+    saveMutation,
+    savedAt
   } = doc;
   
   const handleBranchChange = (val: string) => {
@@ -326,6 +327,7 @@ export const AgainstVoucherPage = ({ kind, transId, doc, api }: AgainstVoucherPa
       voucherType: cfg.printType as any,
       voucherNo: vals.vchNo || "",
       date: vals.voucherDate ? formatDateOnly(vals.voucherDate) : "",
+      savedAt,
       paymentType: paymode?.paymodeName || cfg.cashName,
       partyName: selectedAccountName || "",
       amount: totalAmount,
@@ -342,7 +344,7 @@ export const AgainstVoucherPage = ({ kind, transId, doc, api }: AgainstVoucherPa
         receivedAmount: Number(f.amount) || 0,
       }))
     };
-  }, [form.watch(), selectedAccountName, masterData, fields, totalAmount]);
+  }, [form.watch(), selectedAccountName, masterData, fields, totalAmount, savedAt]);
 
   if (isLoading) {
     return (

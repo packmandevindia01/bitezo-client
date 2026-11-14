@@ -1,5 +1,6 @@
 import { multiPaymodeId } from "./voucherCalc";
 import { useState, useEffect, useMemo } from "react";
+import { pickSavedAt } from "../../../utils/printDateTime";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
@@ -373,6 +374,8 @@ export const useVoucherForm = (config: VoucherConfig, transId?: number, onSucces
   });
 
   const isCancelled = voucherData?.masterData?.isCancelled || false;
+  // When the open voucher was saved (backend created time): the print's time, AM/PM
+  const savedAt = useMemo(() => pickSavedAt((voucherData?.masterData ?? voucherData) as Record<string, unknown> | undefined), [voucherData]);
 
   useEffect(() => {
     if (voucherData) {
@@ -547,6 +550,7 @@ export const useVoucherForm = (config: VoucherConfig, transId?: number, onSucces
     form,
     onSubmit,
     clearForm,
+    savedAt,
     isSaving: saveMutation.isPending,
     isLoadingList,
     isLoadingData,

@@ -1,6 +1,7 @@
 import React from "react";
 import { formatAmount } from "../../../../utils/formatters";
 import { getCurrencySymbol } from "../../../../utils/currency";
+import { formatDocDateTime, formatPrintedOn } from "../../../../utils/printDateTime";
 
 export interface VoucherPrintData {
   voucherType: "RECEIPT" | "PAYMENT" | "PAYMENT AGAINST";
@@ -10,6 +11,8 @@ export interface VoucherPrintData {
   companyPhone: string;
   voucherNo: string;
   date: string;
+  /** When the voucher was saved (ISO); shown as the time after the date, AM/PM. */
+  savedAt?: string;
   paymentType: string;
   partyName: string; // Received from / Paid to
   amount: number;
@@ -51,7 +54,7 @@ export const VoucherPrintTemplate: React.FC<VoucherPrintTemplateProps> = ({ data
 
         <div className="mb-3 text-[11px]">
           <div className="flex justify-between"><span className="font-semibold text-gray-600">Voucher No:</span> <span className="font-bold">{data.voucherNo}</span></div>
-          <div className="flex justify-between"><span className="font-semibold text-gray-600">Date:</span> <span className="font-bold">{data.date}</span></div>
+          <div className="flex justify-between"><span className="font-semibold text-gray-600">Date:</span> <span className="font-bold">{formatDocDateTime(data.date, data.savedAt)}</span></div>
           <div className="flex justify-between"><span className="font-semibold text-gray-600">Type:</span> <span className="font-bold">{data.paymentType || (isReceipt ? "CASH RECEIPT" : "CASH PAYMENT")}</span></div>
         </div>
 
@@ -119,6 +122,7 @@ export const VoucherPrintTemplate: React.FC<VoucherPrintTemplateProps> = ({ data
 
         <div className="text-center mt-6 pt-3 border-t border-black border-dashed text-[11px] font-semibold text-gray-600">
           <p>*** Thank You ***</p>
+          <p className="mt-1 font-normal">Printed on : {formatPrintedOn()}</p>
         </div>
       </div>
     );
@@ -156,7 +160,7 @@ export const VoucherPrintTemplate: React.FC<VoucherPrintTemplateProps> = ({ data
           <div className="flex">
             <span className="w-24">Date</span>
             <span className="mr-2">:</span>
-            <span>{data.date}</span>
+            <span>{formatDocDateTime(data.date, data.savedAt)}</span>
           </div>
         </div>
         <div className="flex">
@@ -242,6 +246,7 @@ export const VoucherPrintTemplate: React.FC<VoucherPrintTemplateProps> = ({ data
           </table>
         </div>
       )}
+      <div className="mt-6 text-[10px] text-left">Printed on : {formatPrintedOn()}</div>
     </div>
   );
 };

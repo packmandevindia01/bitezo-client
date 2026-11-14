@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { pickSavedAt } from "../../../../utils/printDateTime";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -55,6 +56,8 @@ export const useStockAdjustment = (id?: string | null) => {
 
   // Product Search State
   const [productOptions, setProductOptions] = useState<SearchableOption[]>([]);
+  // The moment Save succeeded (print after Save); a loaded document uses its backend created time (savedAt below)
+  const [justSavedAt, setSavedAt] = useState("");
   const [searchingProducts, setSearchingProducts] = useState(false);
   const defaultProductOptionsRef = useRef<SearchableOption[]>([]);
 
@@ -372,6 +375,10 @@ export const useStockAdjustment = (id?: string | null) => {
     }
   }, [branchData, id, setValue, getValues]);
 
+  // When the open document was saved: the print's time, AM/PM
+  const savedRaw = id ? (recordData?.rawData as Record<string, unknown> | undefined) : undefined;
+  const savedAt = justSavedAt || pickSavedAt((savedRaw?.masterData as Record<string, unknown> | undefined) || savedRaw);
+
   // Combined loading state
   const loadingMaster = loadingBranches || loadingTypes || loadingBranchDetails || loadingRecord;
 
@@ -468,6 +475,7 @@ export const useStockAdjustment = (id?: string | null) => {
   const handleUnitChange = useStockUnitChange({ getUnitCost: stockAdjustmentApi.getUnitCost, getValues, setValue, formatAmount, showToast, loadStock });
 
   const handleReset = useCallback(() => {
+    setSavedAt("");
     if (id && recordData) {
       reset(recordData.formPayload);
       setProductOptions(recordData.productOptions);
@@ -565,6 +573,8 @@ export const useStockAdjustment = (id?: string | null) => {
   };
 
   return {
+    savedAt,
+    setSavedAt,
     methods,
     items,
     append,

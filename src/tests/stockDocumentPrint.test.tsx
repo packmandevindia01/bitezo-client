@@ -86,3 +86,36 @@ describe("Stock Transfer print", () => {
     expect(text).toContain("Rice");
   });
 });
+
+// 2026-11-14: the Date line shows the time the document was saved (backend createdAt), AM/PM, and a "Printed on" line.
+describe("print time (AM/PM)", () => {
+  const withCreatedAt = () => {
+    const base = http.get.getMockImplementation()!;
+    http.get.mockImplementation(async (url: string) =>
+      url.includes("/data/") ? ok({ masterData: { ...MASTER, createdAt: "2026-11-05T15:25:00" }, detailsData: [LINE] }) : base(url));
+  };
+  const printedOn = /Printed on\s*:\s*\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} (AM|PM)/;
+
+  it("Stock Adjustment: saved time after the date, and Printed on", async () => {
+    withCreatedAt();
+    show(createElement(StockAdjustmentPage), "/x?id=1", "/x");
+    const text = await openPrint();
+    expect(text).toMatch(/Date\s*:\s*05\/11\/2026 03:25 PM/);
+    expect(text).toMatch(printedOn);
+  });
+
+  it("Stock Transfer: saved time after the date, and Printed on", async () => {
+    withCreatedAt();
+    show(createElement(InternalStockTransferPage), "/x/1", "/x/:id");
+    const text = await openPrint();
+    expect(text).toMatch(/Date\s*:\s*05\/11\/2026 03:25 PM/);
+    expect(text).toMatch(printedOn);
+  });
+
+  it("no saved time from the backend: the date alone (no made-up time)", async () => {
+    show(createElement(StockAdjustmentPage), "/x?id=1", "/x");
+    const text = await openPrint();
+    expect(text).toMatch(/Date\s*:\s*05\/11\/2026(?! \d)/);
+    expect(text).toMatch(printedOn);
+  });
+});

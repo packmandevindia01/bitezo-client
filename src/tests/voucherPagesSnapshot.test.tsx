@@ -176,3 +176,38 @@ describe("plain voucher pages: choices made when they were merged", () => {
     expect(shown(`${p}-paymode`)).not.toContain("Cash");
   });
 });
+
+// 2026-11-14: voucher prints show the time the voucher was saved (backend createdAt), AM/PM, and "Printed on".
+describe("voucher print time (AM/PM)", () => {
+  const withCreatedAt = () => {
+    const base = http.get.getMockImplementation()!;
+    http.get.mockImplementation(async (url: string) =>
+      url.includes("/data/") ? { data: { isSuccess: true, data: { ...voucher, masterData: { ...voucher.masterData, createdAt: "2026-11-05T16:45:00" } } } } : base(url));
+  };
+  const openPrint = async () => {
+    fireEvent.click(screen.getByRole("button", { name: /Print/ }));
+    const title = await screen.findByText("Print Preview", {}, { timeout: 3000 });
+    const box = () => (title.closest("[role=dialog]")?.textContent || document.body.textContent || "").replace(/\s+/g, " ");
+    await waitFor(() => expect(box()).toMatch(/Date\s*:/), { timeout: 3000 });
+    return box();
+  };
+
+  it("Receipt Voucher", async () => {
+    withCreatedAt();
+    renderAt("/receipt-voucher/edit/1", "/receipt-voucher/edit/:id", ReceiptVoucherFormPage);
+    await waitFor(() => expect(fieldValue("rv-refno")).toBe("R-1"));
+    await settle();
+    const text = await openPrint();
+    expect(text).toMatch(/Date\s*:\s*05\/11\/2026 04:45 PM/);
+    expect(text).toMatch(/Printed on\s*:\s*13\/11\/2026 10:00 AM/);
+  });
+
+  it("Receipt Against Voucher", async () => {
+    withCreatedAt();
+    renderAt("/receipt-against-voucher/1", "/receipt-against-voucher/:id", ReceiptAgainstVoucherPage);
+    await waitFor(() => expect(document.body.innerHTML).toContain("A2"));
+    await settle();
+    const text = await openPrint();
+    expect(text).toMatch(/Date\s*:\s*05\/11\/2026 04:45 PM/);
+  });
+});

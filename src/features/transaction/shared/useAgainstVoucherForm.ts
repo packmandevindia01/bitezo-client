@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { AgainstVoucherApi } from "./againstVoucherApi";
 import { formatDateOnly } from "./purchaseDocument";
+import { pickSavedAt } from "../../../utils/printDateTime";
 import type { AgainstVoucherFormData, createAgainstVoucherSchema } from "./againstVoucherSchema";
 import type {
   AgainstCreatePayload,
@@ -552,7 +553,11 @@ export const useAgainstVoucherForm = (config: AgainstVoucherConfig, transId?: nu
     mutationFn: (id: number) => api.cancel(id),
   });
 
+  // When the open voucher was saved (backend created time): the print's time, AM/PM
+  const savedAt = useMemo(() => pickSavedAt(existingData?.masterData as Record<string, unknown> | undefined), [existingData]);
+
   return {
+    savedAt,
     form,
     masterData: masterData ? { ...masterData, paymodes: paymodeList } : undefined,
     paymodeList,

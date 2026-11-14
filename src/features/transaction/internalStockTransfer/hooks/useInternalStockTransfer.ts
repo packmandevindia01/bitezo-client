@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
+import { pickSavedAt } from "../../../../utils/printDateTime";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -49,6 +50,8 @@ export const useInternalStockTransfer = (id?: string) => {
   const { showToast } = useToast();
   const [saving, setSaving] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  // When the open document was saved (backend created time, or the moment Save succeeded): the print's time, AM/PM
+  const [savedAt, setSavedAt] = useState("");
 
   const { categoryUnits, loadCategoryUnits } = useCategoryUnits(internalStockTransferApi.getUnits);
 
@@ -164,6 +167,7 @@ export const useInternalStockTransfer = (id?: string) => {
       const responseData = await internalStockTransferApi.getTransferById(transId);
       
       const master = responseData.masterData || responseData;
+      setSavedAt(pickSavedAt(master));
       const details = responseData.detailsData || responseData.details || [];
       
       const formPayload: any = {
@@ -273,6 +277,7 @@ export const useInternalStockTransfer = (id?: string) => {
   const handleUnitChange = useStockUnitChange({ getUnitCost: internalStockTransferApi.getUnitCost, getValues, setValue, formatAmount, showToast, loadStock });
 
   const handleReset = () => {
+    setSavedAt("");
     reset(initialTransferForm);
   };
 
@@ -376,6 +381,8 @@ export const useInternalStockTransfer = (id?: string) => {
   }, [watchedItems]);
 
   return {
+    savedAt,
+    setSavedAt,
     methods,
     fields: items,
     append,

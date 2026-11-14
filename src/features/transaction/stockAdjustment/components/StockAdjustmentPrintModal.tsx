@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { X, Download, FileSpreadsheet, Printer } from "lucide-react";
 import { Button } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
+import { formatDocDateTime, formatPrintedOn } from "../../../../utils/printDateTime";
 import type { StockAdjustmentForm, StockAdjustmentLineItem } from "../types";
 
 /** The list labels start with the code, which has its own column on the report. */
@@ -80,6 +81,8 @@ interface PrintModalProps {
   form: StockAdjustmentForm;
   items: StockAdjustmentLineItem[];
   branches: { value: string; label: string }[];
+  /** When the adjustment was saved (ISO): time after the date, AM/PM. */
+  savedAt?: string;
 }
 
 const openPrintWindow = (html: string, title: string) => {
@@ -111,7 +114,8 @@ const StockAdjustmentPrintModal: React.FC<PrintModalProps> = ({
   onClose,
   form,
   items,
-  branches
+  branches,
+  savedAt
 }) => {
   const { showToast } = useToast();
   const printRef = useRef<HTMLDivElement>(null);
@@ -158,7 +162,7 @@ const StockAdjustmentPrintModal: React.FC<PrintModalProps> = ({
         [""],
         ["STOCK ADJUSTMENT REPORT"],
         [""],
-        [`ST No : ${form.refNo || ""}`, "", `Depot Name : ${branchName || ""}`, "", `Date : ${form.date ? form.date.split("-").reverse().join("/") : ""}`],
+        [`ST No : ${form.refNo || ""}`, "", `Depot Name : ${branchName || ""}`, "", `Date : ${formatDocDateTime(form.date, savedAt)}`],
         [""],
         ["No", "Product", "Code", "Stock Effect", "Quantity"]
       ];
@@ -336,7 +340,7 @@ const StockAdjustmentPrintModal: React.FC<PrintModalProps> = ({
               <div>
                 <span style={{ width: "40px" }}>Date</span>
                 <span>:</span>
-                <span style={{ minWidth: "100px" }}>{form.date ? form.date.split("-").reverse().join("/") : "______________"}</span>
+                <span style={{ minWidth: "100px" }}>{formatDocDateTime(form.date, savedAt) || "______________"}</span>
               </div>
             </div>
 
@@ -367,6 +371,7 @@ const StockAdjustmentPrintModal: React.FC<PrintModalProps> = ({
                 ))}
               </tbody>
             </table>
+            <div style={{ marginTop: "16px", fontSize: "10px" }}>Printed on : {formatPrintedOn()}</div>
           </div>
         </div>
       </div>

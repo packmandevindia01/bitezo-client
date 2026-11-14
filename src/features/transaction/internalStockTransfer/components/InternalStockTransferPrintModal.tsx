@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { X, Download, FileSpreadsheet, Printer } from "lucide-react";
 import { Button } from "../../../../components/common";
 import { useToast } from "../../../../app/providers/useToast";
+import { formatDocDateTime, formatPrintedOn } from "../../../../utils/printDateTime";
 
 // Interfaces to match the parent component's state
 interface PrintModalProps {
@@ -17,6 +18,8 @@ interface PrintModalProps {
   items: any[];
   branches: { value: string; label: string }[];
   toBranches: { value: string; label: string }[];
+  /** When the transfer was saved (ISO): time after the date, AM/PM. */
+  savedAt?: string;
 }
 
 const printStyles = `
@@ -153,7 +156,8 @@ const InternalStockTransferPrintModal: React.FC<PrintModalProps> = ({
   form,
   items,
   branches,
-  toBranches
+  toBranches,
+  savedAt
 }) => {
   const { showToast } = useToast();
   const printRef = useRef<HTMLDivElement>(null);
@@ -164,7 +168,7 @@ const InternalStockTransferPrintModal: React.FC<PrintModalProps> = ({
   const docTitle = "INTERNAL_STOCK_TRANSFER_NOTE";
 
   // Format date correctly if present
-  const formattedDate = form.transDate ? form.transDate.split("-").reverse().join("/") : "";
+  const formattedDate = formatDocDateTime(form.transDate, savedAt);
 
   const handleExportPDF = async () => {
     if (!printRef.current) return;
@@ -444,6 +448,7 @@ const InternalStockTransferPrintModal: React.FC<PrintModalProps> = ({
                 <div className="print-footer-line"></div>
               </div>
             </div>
+            <div style={{ marginTop: "16px", fontSize: "10px" }}>Printed on : {formatPrintedOn()}</div>
 
           </div>
         </div>

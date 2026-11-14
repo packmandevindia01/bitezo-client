@@ -44,7 +44,9 @@ const InternalStockTransferPage = () => {
     setIsPrintModalOpen,
     categoryUnits,
     handleUnitChange,
-    isBranchLocked
+    isBranchLocked,
+    savedAt,
+    setSavedAt,
   } = useInternalStockTransfer(id);
 
   const { register, control, getValues, formState: { errors } } = methods;
@@ -278,6 +280,7 @@ const InternalStockTransferPage = () => {
       async (data) => {
         const success = await onSubmit(data);
         if (success) {
+          setSavedAt(new Date().toISOString()); // the print after Save shows the time it was saved
           setIsPrintModalOpen(true);
         }
       },
@@ -314,6 +317,7 @@ const InternalStockTransferPage = () => {
 
       <InternalStockTransferPrintModal
         isOpen={isPrintModalOpen}
+        savedAt={savedAt}
         onClose={() => {
           setIsPrintModalOpen(false);
           if (!id) handleReset();

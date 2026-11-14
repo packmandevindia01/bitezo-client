@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
 import { formatAmount } from "../../../../utils/formatters";
 import { numberToWords } from "../../../../utils/numberToWords";
+import { formatDocDateTime, formatPrintedOn } from "../../../../utils/printDateTime";
 
 export interface PurchasePrintData {
   companyName: string;
@@ -16,6 +17,8 @@ export interface PurchasePrintData {
   voucherNo: string;
   purchaseNo: string; // PRT No. for return
   date: string;
+  /** When the document was saved (ISO); shown as the time after the date, AM/PM. */
+  savedAt?: string;
   paymode: string;
   
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -173,7 +176,7 @@ export const PurchasePrintTemplate = forwardRef<HTMLDivElement, PurchasePrintTem
           <div className="w-64">
             <div className="flex"><span className="w-24">{isReturn ? 'PRT No.' : 'Voucher No'}</span>: {data.voucherNo}</div>
             <div className="flex"><span className="w-24">{isReturn ? 'Inv No' : 'Purchase No'}</span>: {data.purchaseNo}</div>
-            <div className="flex"><span className="w-24">{isReturn ? 'PRT Dt' : 'Date'}</span>: {data.date}</div>
+            <div className="flex"><span className="w-24">{isReturn ? 'PRT Dt' : 'Date'}</span>: {formatDocDateTime(data.date, data.savedAt)}</div>
             {!isReturn && <div className="flex"><span className="w-24">Paymode</span>: {data.paymode}</div>}
           </div>
         </div>
@@ -325,6 +328,7 @@ export const PurchasePrintTemplate = forwardRef<HTMLDivElement, PurchasePrintTem
             Authority Signatory
           </div>
         )}
+        <div className="mt-6 text-[10px] text-left">Printed on : {formatPrintedOn()}</div>
       </div>
     );
   }

@@ -32,7 +32,7 @@ export const usePurchaseFormPage = (kind: PurchaseKind, doc: PurchaseDoc) => {
   const cfg = PURCHASE_KIND[kind];
   const { hasPermission } = usePermissions();
   const { showToast } = useToast();
-  const { methods, items, remove, watchedItems, payments, totals, onSubmit, handleReset, masterData, supplierOptions, productOptions, grossTotal, watchedDiscAmount, handleSupplierCreated, selectedPaymodeId } = doc;
+  const { methods, items, remove, watchedItems, payments, totals, onSubmit, handleReset, masterData, supplierOptions, productOptions, grossTotal, watchedDiscAmount, handleSupplierCreated, selectedPaymodeId, savedAt, setSavedAt } = doc;
   const { getValues } = methods as any;
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -151,6 +151,7 @@ export const usePurchaseFormPage = (kind: PurchaseKind, doc: PurchaseDoc) => {
     (methods as any).handleSubmit(async (data: any) => {
       const success = await onSubmit(data);
       if (success) {
+        setSavedAt(new Date().toISOString()); // the print after Save shows the time it was saved
         setIsPrintModalOpen(true);
         setShouldResetAfterPrint(true);
       }
@@ -196,6 +197,7 @@ export const usePurchaseFormPage = (kind: PurchaseKind, doc: PurchaseDoc) => {
       purchaseNo: formVals.purchaseNo,
       // Invoice prints the supplier's invoice date, Return its own return date.
       date: kind === "invoice" ? formVals.invoiceDate : formVals.purchaseDate,
+      savedAt,
       paymode: payments.length > 0 ? payments[0].mode.toUpperCase() : "CASH",
       items: validItems.map((item: any) => {
         const line = purchaseLineTotals(item, grossTotal, Number(watchedDiscAmount) || 0);
@@ -225,7 +227,7 @@ export const usePurchaseFormPage = (kind: PurchaseKind, doc: PurchaseDoc) => {
       taxSummary: Array.from(taxSummaryMap.values())
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- same inputs as the pages had
-  }, [watchedItems, payments, supplierOptions, productOptions, totals, getValues]);
+  }, [watchedItems, payments, supplierOptions, productOptions, totals, getValues, savedAt]);
 
   const watchedBranchId = (methods as any).watch("branch");
   const seriesOptions = ((masterData as any)?.series || [])

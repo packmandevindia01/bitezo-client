@@ -40,7 +40,7 @@ export const VoucherFormPage = ({ kind, id, doc }: VoucherFormPageProps) => {
   const navigate = useNavigate();
   const {
     form, onSubmit, clearForm, isSaving, formBranchList, employeeList, seriesList, accountList, paymodeList,
-    isCancelled, cancelMutation, isMultiPayOpen, setIsMultiPayOpen, isBranchLocked,
+    isCancelled, cancelMutation, isMultiPayOpen, setIsMultiPayOpen, isBranchLocked, savedAt,
   } = doc;
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -75,6 +75,7 @@ export const VoucherFormPage = ({ kind, id, doc }: VoucherFormPageProps) => {
       voucherType: cfg.voucherType,
       voucherNo: vals.voucherNo || "",
       date: vals.voucherDate ? formatDateOnly(vals.voucherDate) : "",
+      savedAt,
       paymentType: paymode?.paymodeName || cfg.cashName,
       partyName: account?.accountName || "",
       amount: Number(vals.amount) || 0,
@@ -82,7 +83,7 @@ export const VoucherFormPage = ({ kind, id, doc }: VoucherFormPageProps) => {
       narration: vals.narration || "",
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- recomputed whenever any form value changes, as before
-  }, [formValues, accountList, paymodeList]);
+  }, [formValues, accountList, paymodeList, savedAt]);
 
   const handleCancelVoucher = async () => {
     if (id) {

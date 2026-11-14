@@ -281,3 +281,59 @@ describe("find product in list on the document grids", () => {
   });
 });
 
+// 2026-11-14: Purchase prints show the time the document was saved (backend createdAt), AM/PM, and "Printed on".
+describe("purchase print time (AM/PM)", () => {
+  const openPurchasePrint = async () => {
+    fireEvent.click(screen.getByRole("button", { name: /^Print$/ }));
+    const dialog = await screen.findByRole("dialog");
+    return (dialog.textContent || "").replace(/\s+/g, " ");
+  };
+
+  it("Purchase Invoice opened for edit: the date shows the saved time", async () => {
+    mock(purchaseInvoiceApi.getPurchaseInvoiceById).mockResolvedValue({
+      masterData: { ...purchaseHeader, purchaseNo: "1", purchaseDate: "2026-11-07T00:00:00", invoiceNo: "INV1", invoiceDate: "2026-11-06T00:00:00", createdAt: "2026-11-07T15:25:00" },
+      detailsData: purchaseLines, paymodesData: null,
+    });
+    renderAt("/purchase-invoice/edit/1", "/purchase-invoice/edit/:id", PurchaseInvoiceFormPage);
+    await waitFor(() => expect((document.getElementById("pi-invoiceNo") as HTMLInputElement)?.value).toBe("INV1"));
+    await settle();
+    const text = await openPurchasePrint();
+    expect(text).toMatch(/Date\s*:\s*06\/11\/2026 03:25 PM/);
+    expect(text).toMatch(/Printed on\s*:\s*\d{2}\/\d{2}\/\d{4} \d{2}:\d{2} (AM|PM)/);
+  });
+
+  it("print right after Save shows the time of the save", async () => {
+    mock(purchaseInvoiceApi.getPurchaseInvoiceById).mockResolvedValue({
+      masterData: { ...purchaseHeader, purchaseNo: "1", purchaseDate: "2026-11-07T00:00:00", invoiceNo: "INV1", invoiceDate: "2026-11-06T00:00:00" },
+      detailsData: purchaseLines, paymodesData: null,
+    });
+    renderAt("/purchase-invoice/edit/1", "/purchase-invoice/edit/:id", PurchaseInvoiceFormPage);
+    await waitFor(() => expect((document.getElementById("pi-invoiceNo") as HTMLInputElement)?.value).toBe("INV1"));
+    await settle();
+    fireEvent.click(document.getElementById("pi-save-btn")!);
+    // the save question's own Save button (the page's Save button comes first)
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /^Save$/ }).length).toBeGreaterThan(1));
+    const buttons = screen.getAllByRole("button", { name: /^Save$/ });
+    fireEvent.click(buttons[buttons.length - 1]);
+    const dialog = await screen.findByText("Print Preview", {}, { timeout: 3000 });
+    const box = () => (dialog.closest("[role=dialog]")?.textContent || "").replace(/\s+/g, " ");
+    await waitFor(() => expect(box()).toMatch(/Date\s*:/), { timeout: 3000 });
+    const text = box();
+    const now = new Date(); // fake timers fake only Date; the save happens at the faked "now"
+    const h = now.getHours();
+    const expected = `${String(h % 12 === 0 ? 12 : h % 12).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+    expect(text).toMatch(new RegExp(`Date\\s*:\\s*06/11/2026 ${expected}`));
+  });
+
+  it("Purchase Return opened for edit: the date shows the saved time", async () => {
+    mock(purchaseReturnApi.getPurchaseReturnById).mockResolvedValue({
+      masterData: { ...purchaseHeader, purchaseId: 0, purchaseReturnNo: "1", purchaseReturnDate: "2026-11-07T00:00:00", createdAt: "2026-11-07T09:05:00" },
+      detailsData: purchaseLines, paymodesData: null,
+    });
+    renderAt("/purchase-return/edit/1", "/purchase-return/edit/:id", PurchaseReturnFormPage);
+    await waitFor(() => expect((document.getElementById("pr-refNo") as HTMLInputElement)?.value).toBe("R-1"));
+    await settle();
+    const text = await openPurchasePrint();
+    expect(text).toMatch(/PRT Dt\s*:\s*07\/11\/2026 09:05 AM/);
+  });
+});
