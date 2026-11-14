@@ -46,3 +46,23 @@ describe("token refresh through the registered refresher", () => {
     expect(localStorage.getItem("accessToken")).toBeNull();
   });
 });
+
+// 2026-11-14: /company/subscription-data went out without the Bearer token (all /company/* were treated as onboarding),
+// got 401 and logged the Back Office user out when opening Help → Subscription.
+describe("company subscription calls carry the login token", () => {
+  const seen = async (url: string) => {
+    let auth = "";
+    const adapter: AxiosAdapter = async (config) => {
+      auth = String(config.headers?.get?.("Authorization") ?? config.headers?.Authorization ?? "");
+      return { data: { ok: true }, status: 200, statusText: "OK", headers: {}, config };
+    };
+    await http.get(url, { adapter });
+    return auth;
+  };
+
+  it("subscription-data and subscription-status send Bearer; onboarding masterload does not", async () => {
+    expect(await seen("/company/subscription-data")).toBe("Bearer old-token");
+    expect(await seen("/company/subscription-status")).toBe("Bearer old-token");
+    expect(await seen("/company/masterload")).toBe("");
+  });
+});

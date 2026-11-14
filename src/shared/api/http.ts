@@ -58,8 +58,10 @@ axiosInstance.interceptors.request.use((config) => {
   const hasTempToken = Boolean(
     config.headers && (config.headers["Temp-Token"] || config.headers["temp-token"])
   );
-  const isSubscriptionStatus = url.includes("subscription-status");
-  const isOnboardingCompany = !isSubscriptionStatus && (url.startsWith("/company/") || url === "/company/masterload" || (url === "/company" && hasTempToken));
+  // /company/subscription-status (banner) and /company/subscription-data (Help → Subscription) are logged-in calls:
+  // without the Bearer token the backend answers 401 and the user is logged out (2026-11-14).
+  const isSubscriptionCall = url.includes("/company/subscription-");
+  const isOnboardingCompany = !isSubscriptionCall && (url.startsWith("/company/") || url === "/company/masterload" || (url === "/company" && hasTempToken));
   const isRefreshTokenEndpoint = url.includes("refresh-token");
   const isAuthOrAdmin = (url.startsWith("/auth") && !isRefreshTokenEndpoint) || 
                         url.startsWith("/admin") || 
