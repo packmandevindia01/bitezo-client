@@ -326,6 +326,7 @@ export const ProductDetailsSection = ({
           placeholder="Select sales VAT"
           onChange={(v) => setValue("sVatId", v, { shouldValidate: true })}
           required
+          onKeyDown={(e) => handleKeyDown(e, "prod-save-btn")} // last field → Save Product (2026-11-14; Enter used to stop here)
           error={errors.sVatId?.message as string}
         />
       </div>

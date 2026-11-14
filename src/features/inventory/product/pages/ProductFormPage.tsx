@@ -93,6 +93,7 @@ const ProductFormPage = () => {
 
       <Button
         id="prod-save-btn"
+        data-focus-next // picking a Sales VAT from the list moves here too (2026-11-14)
         type="button"
         variant="primary"
         onClick={form.handleSubmit(
