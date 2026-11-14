@@ -16,7 +16,7 @@ const PurchaseInvoiceFormPage = () => {
   const page = usePurchaseFormPage("invoice", doc);
   const { methods, isBranchLocked, loadingMaster, masterError, supplierOptions, searchingSuppliers, handleSupplierSearch } = doc;
   const { register, control, formState: { errors } } = methods;
-  const { canSave, hk, seriesOptions, branchOptions, salesmanOptions, setIsSupplierModalOpen } = page;
+  const { canSave, hk, firstLineId, seriesOptions, branchOptions, salesmanOptions, setIsSupplierModalOpen } = page;
 
   return (
     <DocumentFormShell
@@ -30,9 +30,9 @@ const PurchaseInvoiceFormPage = () => {
       <div className="p-2 md:p-3 pb-0 pr-10">
 
         {/* ── Header Fields ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-2 gap-y-2 mb-2 items-end">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-2 gap-y-2 items-end">
           <Controller name="series" control={control} render={({ field }) => (
-            <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-series" label="Series" value={field.value} options={seriesOptions} onChange={(val) => { field.onChange(val); methods.trigger("series"); }} onKeyDown={(e) => hk(e, "pi-purchaseNo")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
+            <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-series" label="Series" value={field.value} options={seriesOptions} onChange={(val) => { field.onChange(val); methods.trigger("series"); }} onKeyDown={(e) => hk(e, "pi-purchaseDate")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
           )} />
           <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs cursor-not-allowed text-[#49293e]" id="pi-purchaseNo" label="Purchase No" {...register("purchaseNo", { onChange: () => methods.trigger("purchaseNo") })} onKeyDown={(e) => hk(e, "pi-purchaseDate")} readOnly={true} error={errors.purchaseNo?.message as string} />
           <FormInput required={true} inputClassName="!h-8 !px-2 !text-xs" id="pi-purchaseDate" label="Purchase Date" type="date" max={new Date().toLocaleDateString("en-CA")} {...register("purchaseDate", { onChange: () => methods.trigger("purchaseDate") })} onKeyDown={(e) => hk(e, "pi-invoiceNo")} readOnly={!canSave} error={errors.purchaseDate?.message as string} />
@@ -42,7 +42,7 @@ const PurchaseInvoiceFormPage = () => {
           <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-2 flex items-end gap-1">
             <div className="flex-1 min-w-0">
               <Controller name="supplier" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={(val) => { field.onChange(val); methods.trigger("supplier"); }} onKeyDown={(e) => hk(e, "pi-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={(val) => { field.onChange(val); methods.trigger("supplier"); }} onKeyDown={(e) => hk(e, ["pi-branch", "pi-salesman"])} disabled={!canSave} error={errors.supplier?.message as string} />
               )} />
             </div>
             <button type="button" onClick={() => setIsSupplierModalOpen(true)} className="mb-1 shrink-0 h-8 w-8 flex items-center justify-center rounded border border-[#49293e] bg-[#49293e] hover:bg-[#3c2232] hover:border-[#3c2232] text-white transition-colors">
@@ -53,7 +53,7 @@ const PurchaseInvoiceFormPage = () => {
             <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-branch" label="Branch" placeholder="Select Branch" value={field.value} options={branchOptions} onChange={(val) => { field.onChange(val); methods.trigger("branch"); }} onKeyDown={(e) => hk(e, "pi-salesman")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
           )} />
           <Controller name="salesman" control={control} render={({ field }) => (
-            <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-salesman" label="Salesman" placeholder="Select Employee" value={field.value} options={salesmanOptions} onChange={(val) => { field.onChange(val); methods.trigger("salesman"); }} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+            <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pi-salesman" label="Salesman" placeholder="Select Employee" value={field.value} options={salesmanOptions} onChange={(val) => { field.onChange(val); methods.trigger("salesman"); }} onKeyDown={(e) => hk(e, firstLineId())} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
           )} />
         </div>
       </div>

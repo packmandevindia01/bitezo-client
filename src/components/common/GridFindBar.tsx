@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Search, ChevronUp, ChevronDown, X } from "lucide-react";
 import type { GridFind } from "../../hooks/useGridFind";
 
@@ -6,13 +7,15 @@ interface Props {
   /** id of the text box (tests / focus). */
   id: string;
   className?: string;
+  /** Extra buttons at the right end of the bar (e.g. Purchase Invoice's "New Product"). */
+  actions?: ReactNode;
 }
 
 /**
  * "Find product in list" box above a line grid (same as Provider Settings): highlights matching rows,
  * shows "n of N"; Enter / ▼ next, Shift+Enter / ▲ previous (wraps), Esc / × clears.
  */
-const GridFindBar = ({ find, id, className = "" }: Props) => {
+const GridFindBar = ({ find, id, className = "", actions }: Props) => {
   const { query, setQuery, matchCount, position, goTo } = find;
   return (
     <div className={`flex-none flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-white ${className}`}>
@@ -22,6 +25,7 @@ const GridFindBar = ({ find, id, className = "" }: Props) => {
           id={id}
           type="text"
           autoComplete="off"
+          data-enter-skip // Enter moving from the header to the first line passes over this box
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {
@@ -80,6 +84,7 @@ const GridFindBar = ({ find, id, className = "" }: Props) => {
           </button>
         </>
       )}
+      {actions && <div className="ml-auto flex items-center gap-2">{actions}</div>}
     </div>
   );
 };

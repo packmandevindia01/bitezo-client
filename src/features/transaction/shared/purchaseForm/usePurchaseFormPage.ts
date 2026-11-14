@@ -6,7 +6,7 @@ import { createSupplier } from "../../../general/supplier/services/index";
 import { notifySuppliersUpdated } from "../../../general/supplier/utils/supplierSync";
 import type { PurchasePrintData } from "../components/PurchasePrintTemplate";
 import { calculatePurchaseLine } from "../purchaseCalc";
-import { focusOnEnter, makeRowEnter } from "../documentForm/documentKeys";
+import { firstUsableId, focusOnEnter, makeRowEnter } from "../documentForm/documentKeys";
 import type { usePurchaseInvoice } from "../../purchaseInvoice/hooks/usePurchaseInvoice";
 import type { usePurchaseReturn } from "../../purchaseReturn/hooks/usePurchaseReturn";
 
@@ -240,7 +240,15 @@ export const usePurchaseFormPage = (kind: PurchaseKind, doc: PurchaseDoc) => {
   const canEdit = hasPermission(cfg.module, "Edit");
   const canSave = canAdd || canEdit;
 
-  const hk = (e: React.KeyboardEvent, nextId?: string) => focusOnEnter(e, nextId);
+  /** Enter → the next field; with a list, the first of them that can take focus (a locked Branch is passed over). */
+  const hk = (e: React.KeyboardEvent, next?: string | string[]) => focusOnEnter(e, Array.isArray(next) ? firstUsableId(next) : next);
+
+  /** Product box of the first line without a product (the last line when all are filled): where the header hands over. */
+  const firstLineId = () => {
+    const lines = (getValues("items") || []) as { product?: string }[];
+    const empty = lines.findIndex((l) => !l?.product || String(l.product).trim() === "");
+    return `product-select-${empty >= 0 ? empty : Math.max(0, lines.length - 1)}`;
+  };
 
   // Enter on an empty line leaves the grid for Disc(%)
   const handleGridNav = makeRowEnter({
@@ -257,6 +265,7 @@ export const usePurchaseFormPage = (kind: PurchaseKind, doc: PurchaseDoc) => {
     canAdd,
     canSave,
     hk,
+    firstLineId,
     handleGridNav,
     seriesOptions,
     branchOptions,

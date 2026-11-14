@@ -24,6 +24,8 @@ export const handleFocusNextInput = (currentEl: HTMLElement) => {
       'button[data-focus-next]:not([disabled])'
     )
   ).filter((el) => {
+    // opt-out: a box Enter should pass over (e.g. the "Find product in list" box between a header and its grid)
+    if (el.hasAttribute("data-enter-skip")) return false;
     // Ensure the element is visible in the viewport and not hidden by display: none or scale 0
     const rect = el.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;

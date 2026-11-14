@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Save, Trash2, Ban, X } from "lucide-react";
-import { useParams, useNavigate } from "react-router-dom";
+import { Save, Trash2, Ban, X, ArrowLeft } from "lucide-react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { Button, ConfirmDialog, PageShell } from "../../../../components/common";
 import ProductMasterForm from "../components/ProductMasterForm";
@@ -8,12 +8,18 @@ import { useProductForm } from "../hooks/useProductForm";
 import { useBarcodeScanner } from "../../../pos/terminal/hooks/useBarcodeScanner";
 import { productService } from "../services/productService";
 import { useToast } from "../../../../app/providers/useToast";
+import { isPurchaseInvoicePath, saveCreatedProduct } from "../../../transaction/purchaseInvoice/utils/purchaseInvoiceDraft";
 
 const ProductFormPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const isNative = Capacitor.isNativePlatform();
+  // Opened from Purchase Invoice → "New Product" (2026-11-14): Back and Save Product go back to that invoice.
+  const [searchParams] = useSearchParams();
+  const returnToParam = searchParams.get("returnTo");
+  const returnTo = !id && isPurchaseInvoicePath(returnToParam) ? returnToParam : null;
+  const closeTo = returnTo || "/dashboard/products";
   
   const {
     form,
@@ -98,7 +104,14 @@ const ProductFormPage = () => {
         variant="primary"
         onClick={form.handleSubmit(
           (data) => {
-            saveMutation.mutate(data);
+            saveMutation.mutate(data, {
+              onSuccess: (res) => {
+                if (!returnTo) return;
+                const createdId = Number((res as { id?: number } | undefined)?.id) || 0;
+                if (createdId > 0) saveCreatedProduct({ id: createdId, name: data.name, code: data.code, barcode: data.barcode });
+                navigate(returnTo);
+              },
+            });
           },
           () => {
             showToast("Please fill in all mandatory fields.", "error");
@@ -119,11 +132,25 @@ const ProductFormPage = () => {
         className="rounded-2xl border border-gray-100 bg-white shadow-sm flex flex-col relative"
         style={isNative ? undefined : { height: "calc(100vh - 120px)" }}
       >
+        {returnTo && (
+          <div className="flex flex-wrap items-center gap-3 border-b border-[#49293e]/10 bg-[#49293e]/5 px-4 py-2.5 rounded-t-2xl">
+            <button
+              id="prod-back-to-invoice"
+              type="button"
+              onClick={() => navigate(returnTo)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-[#49293e] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#3c2232]"
+            >
+              <ArrowLeft size={14} /> Back to Purchase Invoice
+            </button>
+            <span className="text-xs text-gray-600">Save the product to add it to the invoice, or go back without adding one. The invoice is kept as you left it.</span>
+          </div>
+        )}
+
         {/* Close Button */}
         <button
           type="button"
-          onClick={() => navigate("/dashboard/products")}
-          className="absolute top-6 right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-10"
+          onClick={() => navigate(closeTo)}
+          className={`absolute ${returnTo ? "top-16" : "top-6"} right-6 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors z-10`}
           title="Close"
         >
           <X size={20} />

@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { purchaseInvoicePath, takeCreatedProduct, takePurchaseInvoiceDraft } from "../utils/purchaseInvoiceDraft";
 import { pickSavedAt } from "../../../../utils/printDateTime";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -35,6 +36,10 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
   const [savedAt, setSavedAt] = useState("");
 
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const draftPath = purchaseInvoicePath(invoiceId); // where "New Product" comes back to
+  // Edit: the saved invoice has been loaded (a draft from "New Product" is put back only after that)
+  const [invoiceLoaded, setInvoiceLoaded] = useState(!invoiceId);
+  const draftCheckedRef = useRef(false);
 
   // Product Search State
   const [productOptions, setProductOptions] = useState<{label: string, value: string, code: string, barcode: string}[]>([]);
@@ -184,6 +189,49 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       .catch(e => console.error("Failed to load products", e))
       .finally(() => setSearchingProducts(false));
   }, [watchedBranch]);
+
+  /**
+   * A product made in Product Master from the invoice's "New Product" button (2026-11-14): added to the product list
+   * and put on the first line without a product (a new line when all are filled), then loaded like a picked product.
+   * Returns the line index.
+   */
+  const addCreatedProduct = (product: { id: number; name: string; code: string; barcode: string }) => {
+    const value = String(product.id);
+    const option = { label: product.code ? `[${product.code}] ${product.name}` : product.name, value, code: product.code || "", barcode: product.barcode || "" };
+    setProductOptions((prev) => (prev.some((o) => o.value === value) ? prev : [...prev, option]));
+    const lines = (methods.getValues("items") || []) as { product?: string }[];
+    let index = lines.findIndex((l) => !l?.product || String(l.product).trim() === "");
+    if (index < 0) {
+      index = lines.length;
+      append({ id: generateUUID(), product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0" }, { shouldFocus: false });
+    }
+    setValue(`items.${index}.product`, value, { shouldValidate: true });
+    setValue(`items.${index}.code`, option.code);
+    void handleProductSelect(index, value, option.barcode);
+    return index;
+  };
+
+  // Back from Product Master ("New Product"): put the invoice back as it was typed, then add the new product.
+  useEffect(() => {
+    if (draftCheckedRef.current || loadingMaster || !masterData || !invoiceLoaded) return;
+    draftCheckedRef.current = true;
+    const draft = takePurchaseInvoiceDraft(draftPath);
+    if (!draft) return;
+    const created = takeCreatedProduct();
+    reset(draft.values);
+    if (draft.selectedPaymodeId) setSelectedPaymodeId(draft.selectedPaymodeId);
+    const lines = (draft.values.items || []) as { unitCategory?: string }[];
+    new Set(lines.map((l) => l?.unitCategory).filter(Boolean) as string[]).forEach((c) => void loadCategoryUnits(c));
+    setTimeout(() => {
+      if (created) {
+        const index = addCreatedProduct(created);
+        setTimeout(() => document.querySelector<HTMLInputElement>(`input[name="items.${index}.qty"]`)?.focus(), 300);
+      } else {
+        document.getElementById(`product-select-${Math.max(0, lines.length - 1)}`)?.focus();
+      }
+    }, 250); // after the page's own first focus (Series)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once, when the page has finished loading
+  }, [loadingMaster, masterData, invoiceLoaded]);
 
   const parseStockValue = useCallback((res: unknown) => readStock(res, formatAmount), [formatAmount]);
 
@@ -527,6 +575,7 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
       showToast(error.message || "Failed to load invoice details", "error");
     } finally {
       setLoadingMaster(false);
+      setInvoiceLoaded(true);
     }
   };
 
@@ -694,6 +743,8 @@ export const usePurchaseInvoice = (invoiceId?: string) => {
     handleSupplierSearch,
     handleSupplierCreated,
     handleProductSelect,
+    addCreatedProduct,
+    draftPath,
     handleUnitChange,
     categoryUnits,
     masterUnits,

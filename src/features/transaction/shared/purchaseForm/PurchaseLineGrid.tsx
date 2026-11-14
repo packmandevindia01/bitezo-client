@@ -1,7 +1,8 @@
 import type React from "react";
 import { useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { Controller } from "react-hook-form";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, PackagePlus } from "lucide-react";
 import { SearchableSelect, SearchableCombobox } from "../../../../components/common";
 import { useCurrency } from "../../../../hooks/useCurrency";
 import GridFindBar from "../../../../components/common/GridFindBar";
@@ -10,6 +11,8 @@ import type { GridFindLine, GridFindOption } from "../../../../utils/gridFind";
 import { generateUUID } from "../../../../utils/uuid";
 import { limitDigitsKeyDown, limitDigitsPaste } from "../documentForm/documentKeys";
 import { purchaseLineTotals, type PurchaseDoc, type PurchaseFormPage, type PurchaseKind } from "./usePurchaseFormPage";
+import { productMasterFromInvoice, savePurchaseInvoiceDraft } from "../../purchaseInvoice/utils/purchaseInvoiceDraft";
+import { usePermissions } from "../../../../hooks/usePermissions";
 
 const EMPTY_LINE = { product: "", code: "", unit: "", qty: "1", foc: "0", price: "0", vatId: "0", vatPercent: "0", discPercent: "0" };
 const newLine = () => ({ id: generateUUID(), ...EMPTY_LINE });
@@ -28,6 +31,8 @@ interface PurchaseLineGridProps {
  * - Invoice: clicking a row makes it the active row; qty (7) and price (10) are limited in length; the unit list
  *   comes from the product's unit category; picking a product passes its barcode.
  * - Return: the unit list also searches every category for the line's unit; picking a product passes its code.
+ * - Invoice only: "New Product" next to the find box keeps the invoice as typed and opens Product Master; Save Product
+ *   or Back there comes back to the invoice (the new product on the first empty line).
  */
 export const PurchaseLineGrid = ({ kind, doc, page }: PurchaseLineGridProps) => {
   const { formatAmount } = useCurrency();
@@ -53,6 +58,17 @@ export const PurchaseLineGrid = ({ kind, doc, page }: PurchaseLineGridProps) => 
     [watchedItems, productLabels]
   );
   const find = useGridFind(findRows, "purchase-line-row");
+
+  // Invoice: "New Product" → Product Master and back (2026-11-14). Return has no such button.
+  const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canAddProduct = hasPermission("Product Master", "Add");
+  const openProductMaster = () => {
+    const path = (doc as { draftPath?: string }).draftPath;
+    if (!path) return;
+    savePurchaseInvoiceDraft(path, (methods as { getValues: () => Record<string, unknown> }).getValues(), doc.selectedPaymodeId || 0);
+    navigate(productMasterFromInvoice(path));
+  };
 
   // Tracks whether a product was just selected via Enter (so we don't exit grid accidentally)
   const productSelectedRef = useRef(false);
@@ -118,9 +134,26 @@ export const PurchaseLineGrid = ({ kind, doc, page }: PurchaseLineGridProps) => 
     limitDigitsPaste(e, maxChars, (v) => setValue(field, v, { shouldValidate: true, shouldDirty: true }));
 
   return (
-    <div className="flex-1 overflow-y-auto p-2 md:p-3">
+    <div className="flex-1 overflow-y-auto px-2 md:px-3 pt-2 pb-2">
       <div className="h-full flex flex-col rounded-xl border border-gray-200 bg-white">
-        <GridFindBar find={find} id="purchase-line-find" className="rounded-t-xl" />
+        <GridFindBar
+          find={find}
+          id="purchase-line-find"
+          className="rounded-t-xl"
+          actions={isInvoice && canSave && canAddProduct ? (
+            <button
+              id="pi-new-product"
+              type="button"
+              tabIndex={-1}
+              onClick={openProductMaster}
+              title="Open Product Master to add a product; you come back to this invoice with it"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#49293e] px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-[#3c2232] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <PackagePlus size={14} /> New Product
+            </button>
+          ) : undefined}
+        />
+
         <div className="flex-1 overflow-auto">
           <table className="min-w-full text-left text-xs">
             <thead>

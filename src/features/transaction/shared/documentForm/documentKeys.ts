@@ -14,6 +14,16 @@ export const focusOnEnter = (e: React.KeyboardEvent, nextId?: string, delayMs?: 
   else focusFieldLater(nextId, delayMs);
 };
 
+/**
+ * The first of these ids whose field can take focus (exists, not disabled, not read-only, not tabindex -1).
+ * For Enter moves where the next field may be locked, e.g. a locked Branch.
+ */
+export const firstUsableId = (ids: string[]): string | undefined =>
+  ids.find((id) => {
+    const el = document.getElementById(id);
+    return !!el && !el.hasAttribute("disabled") && !el.hasAttribute("readonly") && el.getAttribute("tabindex") !== "-1" && el.getAttribute("aria-disabled") !== "true";
+  });
+
 const FOCUSABLE = 'input:not([tabindex="-1"]):not([type="hidden"]), select:not([tabindex="-1"]), button:not([tabindex="-1"]), [role="combobox"]:not([tabindex="-1"])';
 
 /** Focus the next enabled, editable field of the page after the event's target. */

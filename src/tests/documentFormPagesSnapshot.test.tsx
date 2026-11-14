@@ -6,7 +6,7 @@
  */
 import { createElement } from "react";
 import { Provider } from "react-redux";
-import { MemoryRouter, Routes, Route } from "react-router-dom";
+import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -64,6 +64,8 @@ vi.mock("../app/providers/useToast", () => ({ useToast: () => ({ showToast: vi.f
 vi.mock("../hooks/usePermissions", () => ({ usePermissions: () => ({ hasPermission: () => true }) }));
 
 const mock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
+/** Stands in for Product Master: shows the query it was opened with. */
+const ProductAddStub = () => createElement("div", { "data-testid": "product-add-stub" }, useLocation().search);
 
 const purchaseLines = [
   { productName: "Rice", barcode: "1", unitName: "Box", qty: 3, foc: 1, price: 7.125, discPer: 0, discAmount: 0, vatName: "10%", vatAmount: 0, netAmount: 0, productId: 5, unitId: 2, vatId: 1, vatValue: 10 },
@@ -335,5 +337,138 @@ describe("purchase print time (AM/PM)", () => {
     await settle();
     const text = await openPurchasePrint();
     expect(text).toMatch(/PRT Dt\s*:\s*07\/11\/2026 09:05 AM/);
+  });
+});
+
+// 2026-11-14: Enter on the Purchase Invoice / Return header and paymode, and Purchase Invoice's "New Product" window.
+import { firstUsableId } from "../features/transaction/shared/documentForm/documentKeys";
+import { handleFocusNextInput } from "../utils/keyboard";
+
+describe("purchase Enter keys and New Product", () => {
+  beforeEach(() => {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue({ x: 0, y: 0, top: 0, left: 0, bottom: 30, right: 200, width: 200, height: 30, toJSON: () => ({}) } as DOMRect);
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  const openInvoice = async () => {
+    mock(purchaseInvoiceApi.getPurchaseInvoiceById).mockResolvedValue({
+      masterData: { ...purchaseHeader, purchaseNo: "1", purchaseDate: "2026-11-07T00:00:00", invoiceNo: "INV1", invoiceDate: "2026-11-06T00:00:00" }, detailsData: purchaseLines, paymodesData: null,
+    });
+    renderAt("/purchase-invoice/edit/1", "/purchase-invoice/edit/:id", PurchaseInvoiceFormPage);
+    await waitFor(() => expect((document.getElementById("pi-invoiceNo") as HTMLInputElement)?.value).toBe("INV1"));
+    await settle();
+  };
+  const openReturn = async () => {
+    mock(purchaseReturnApi.getPurchaseReturnById).mockResolvedValue({
+      masterData: { ...purchaseHeader, purchaseId: 0, purchaseReturnNo: "1", purchaseReturnDate: "2026-11-07T00:00:00" }, detailsData: purchaseLines, paymodesData: null,
+    });
+    renderAt("/purchase-return/edit/1", "/purchase-return/edit/:id", PurchaseReturnFormPage);
+    await waitFor(() => expect((document.getElementById("pr-refNo") as HTMLInputElement)?.value).toBe("R-1"));
+    await settle();
+  };
+  const enterOn = (id: string) => fireEvent.keyDown(document.getElementById(id)!, { key: "Enter" });
+
+  it("Purchase Invoice: Series skips the read-only Purchase No; Salesman hands over to the lines; Paymode (Cash) → Save", async () => {
+    await openInvoice();
+    enterOn("pi-series");
+    expect(document.activeElement?.id).toBe("pi-purchaseDate");
+    enterOn("pi-salesman");
+    expect(document.activeElement?.id).toBe("product-select-1"); // both lines filled: the last line
+    enterOn("pi-paymode");
+    expect(document.activeElement?.id).toBe("pi-save-btn");
+  });
+
+  it("Purchase Return: Salesman hands over to the lines; Paymode → Save", async () => {
+    await openReturn();
+    enterOn("pr-salesman");
+    expect(document.activeElement?.id).toBe("product-select-1");
+    enterOn("pr-paymode");
+    expect(document.activeElement?.id).toBe("pr-save-btn");
+  });
+
+  it("a locked or disabled next field is passed over; the Find box is passed over by a list pick", () => {
+    document.body.innerHTML = `<form>
+      <div id="sel" role="combobox" tabindex="0"></div>
+      <div id="branch" role="combobox" tabindex="-1"></div>
+      <input id="inv" disabled />
+      <input id="ref" />
+      <input id="find" data-enter-skip="true" />
+      <input id="line" />
+    </form>`;
+    expect(firstUsableId(["branch", "inv", "ref"])).toBe("ref");
+    expect(firstUsableId(["missing", "branch"])).toBeUndefined();
+    const ref = document.getElementById("ref")!;
+    handleFocusNextInput(ref);
+    expect(document.activeElement?.id).toBe("line");
+  });
+
+  // "New Product" → Product Master → back: the invoice is kept as typed and the new product goes on a line.
+  const renderInvoiceRoutes = (path: string) =>
+    render(
+      createElement(Provider, { store, children:
+        createElement(QueryClientProvider, { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }), children:
+          createElement(MemoryRouter, { initialEntries: [path], children:
+            createElement(Routes, null,
+              createElement(Route, { path: "/dashboard/purchase-invoice/edit/:id", element: createElement(PurchaseInvoiceFormPage) }),
+              createElement(Route, { path: "/dashboard/products/add", element: createElement(ProductAddStub) })) }) }) }),
+    );
+  const loadSavedInvoice = async () => {
+    mock(purchaseInvoiceApi.getPurchaseInvoiceById).mockResolvedValue({
+      masterData: { ...purchaseHeader, purchaseNo: "1", purchaseDate: "2026-11-07T00:00:00", invoiceNo: "INV1", invoiceDate: "2026-11-06T00:00:00" }, detailsData: purchaseLines, paymodesData: null,
+    });
+    renderInvoiceRoutes("/dashboard/purchase-invoice/edit/1");
+    await waitFor(() => expect((document.getElementById("pi-invoiceNo") as HTMLInputElement)?.value).toBe("INV1"));
+    await settle();
+  };
+
+  it("New Product keeps the invoice as typed and opens Product Master, which will come back here", async () => {
+    sessionStorage.clear();
+    await loadSavedInvoice();
+    fireEvent.change(document.getElementById("pi-refNo")!, { target: { value: "TYPED" } });
+    fireEvent.click(document.getElementById("pi-new-product")!);
+    expect(await screen.findByTestId("product-add-stub")).toBeTruthy();
+    expect(screen.getByTestId("product-add-stub").textContent).toBe("?returnTo=%2Fdashboard%2Fpurchase-invoice%2Fedit%2F1");
+    const draft = JSON.parse(sessionStorage.getItem("purchaseInvoiceDraft")!);
+    expect(draft.path).toBe("/dashboard/purchase-invoice/edit/1");
+    expect(draft.values.refNo).toBe("TYPED");
+    expect(draft.values.items).toHaveLength(2);
+    expect(draft.selectedPaymodeId).toBe(1);
+  });
+
+  it("back from Product Master with a new product: the typed invoice is put back and the product is on a new line", async () => {
+    sessionStorage.clear();
+    // what New Product stored, then what Save Product stored
+    await loadSavedInvoice();
+    fireEvent.change(document.getElementById("pi-refNo")!, { target: { value: "TYPED" } });
+    fireEvent.click(document.getElementById("pi-new-product")!);
+    await screen.findByTestId("product-add-stub");
+    cleanup();
+    sessionStorage.setItem("purchaseInvoiceCreatedProduct", JSON.stringify({ id: 77, name: "New Rice", code: "N1", barcode: "N1" }));
+
+    await loadSavedInvoice();
+    await waitFor(() => expect((document.getElementById("pi-refNo") as HTMLInputElement).value).toBe("TYPED"));
+    await waitFor(() => expect(document.getElementById("purchase-line-row-2")).toBeTruthy());
+    await waitFor(() => expect((document.getElementById("product-select-2") as HTMLInputElement).value).toContain("New Rice"));
+    expect(sessionStorage.getItem("purchaseInvoiceDraft")).toBeNull();
+    expect(sessionStorage.getItem("purchaseInvoiceCreatedProduct")).toBeNull();
+  });
+
+  it("back from Product Master without saving: the typed invoice is put back, no line is added", async () => {
+    sessionStorage.clear();
+    await loadSavedInvoice();
+    fireEvent.change(document.getElementById("pi-refNo")!, { target: { value: "TYPED" } });
+    fireEvent.click(document.getElementById("pi-new-product")!);
+    await screen.findByTestId("product-add-stub");
+    cleanup();
+
+    await loadSavedInvoice();
+    await waitFor(() => expect((document.getElementById("pi-refNo") as HTMLInputElement).value).toBe("TYPED"));
+    await settle();
+    expect(document.getElementById("purchase-line-row-2")).toBeNull();
+  });
+
+  it("Purchase Return has no New Product button", async () => {
+    await openReturn();
+    expect(document.getElementById("pi-new-product")).toBeNull();
   });
 });

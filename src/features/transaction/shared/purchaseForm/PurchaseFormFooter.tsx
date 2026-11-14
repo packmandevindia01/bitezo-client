@@ -15,7 +15,7 @@ interface PurchaseFormFooterProps {
 /**
  * Footer of the Purchase Invoice and Purchase Return forms: bill discount, other charge, round off, narration,
  * the active line's stock and average cost, payments, paymode, grand total and the New / Save / Print / Clear keys.
- * Return's paymode is required (it shows an error) and Enter on it goes to Save.
+ * Return's paymode is required (it shows an error). Enter on the paymode goes to Save on both.
  */
 export const PurchaseFormFooter = ({ kind, doc, page }: PurchaseFormFooterProps) => {
   const { formatAmount } = useCurrency();
@@ -134,7 +134,9 @@ export const PurchaseFormFooter = ({ kind, doc, page }: PurchaseFormFooterProps)
               key={paymodeSelectKey}
               id={`${p}-paymode`}
               label="Paymode"
-              {...(isReturn ? { required: true, error: returnDoc.paymodeError, onKeyDown: (e: React.KeyboardEvent) => hk(e, `${p}-save-btn`) } : {})}
+              {...(isReturn ? { required: true, error: returnDoc.paymodeError } : {})}
+              // Enter → Save on both (2026-11-14; the invoice's default Cash used to keep Enter here). The payment follows the total.
+              onKeyDown={(e: React.KeyboardEvent) => hk(e, `${p}-save-btn`)}
               value={selectedPaymodeId === multiPayId ? String(multiPayId) : String(selectedPaymodeId || "")}
               forcePlacement="top"
               onChange={(val) => {

@@ -22,7 +22,7 @@ const PurchaseReturnFormPage = () => {
     invoiceOptions, searchingInvoices, handleInvoiceSearch, handleInvoiceSelect, purchaseId,
   } = doc;
   const { register, control, getValues, formState: { errors } } = methods;
-  const { canSave, hk, seriesOptions, branchOptions, salesmanOptions, setIsSupplierModalOpen } = page;
+  const { canSave, hk, firstLineId, seriesOptions, branchOptions, salesmanOptions, setIsSupplierModalOpen } = page;
 
   const watchedBranch = getValues("branch");
   const watchedSupplier = getValues("supplier");
@@ -39,7 +39,7 @@ const PurchaseReturnFormPage = () => {
       <div className="p-2 md:p-3 pb-0 pr-10">
 
         {/* ── Header Fields ── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-2 gap-y-2 mb-2 items-end">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-x-2 gap-y-2 items-end">
           <Controller name="series" control={control} render={({ field }) => (
             <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-series" label="Series" value={field.value} options={seriesOptions} onChange={(val) => { field.onChange(val); methods.trigger("series"); }} onKeyDown={(e) => hk(e, "pr-purchaseDate")} disabled={!canSave || loadingMaster} error={errors.series?.message as string} />
           )} />
@@ -49,7 +49,7 @@ const PurchaseReturnFormPage = () => {
           <div className="col-span-2 sm:col-span-2 md:col-span-2 lg:col-span-2 flex items-end gap-1">
             <div className="flex-1 min-w-0">
               <Controller name="supplier" control={control} render={({ field }) => (
-                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={(val) => { field.onChange(val); methods.trigger("supplier"); }} onKeyDown={(e) => hk(e, "pr-branch")} disabled={!canSave} error={errors.supplier?.message as string} />
+                <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-supplier" label="Supplier" value={field.value} options={supplierOptions} onSearch={handleSupplierSearch} loading={searchingSuppliers} onChange={(val) => { field.onChange(val); methods.trigger("supplier"); }} onKeyDown={(e) => hk(e, ["pr-branch", "pr-invoiceNo", "pr-refNo"])} disabled={!canSave} error={errors.supplier?.message as string} />
               )} />
             </div>
             <button type="button" onClick={() => setIsSupplierModalOpen(true)} className="mb-1 shrink-0 h-8 w-8 flex items-center justify-center rounded border border-[#49293e] bg-[#49293e] hover:bg-[#3c2232] hover:border-[#3c2232] text-white transition-colors">
@@ -57,7 +57,7 @@ const PurchaseReturnFormPage = () => {
             </button>
           </div>
           <Controller name="branch" control={control} render={({ field }) => (
-            <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" placeholder="Select Branch" value={field.value} options={branchOptions} onChange={(val) => { field.onChange(val); methods.trigger("branch"); }} onKeyDown={(e) => hk(e, "pr-invoiceNo")} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
+            <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-branch" label="Branch" placeholder="Select Branch" value={field.value} options={branchOptions} onChange={(val) => { field.onChange(val); methods.trigger("branch"); }} onKeyDown={(e) => hk(e, ["pr-invoiceNo", "pr-refNo"])} disabled={!canSave || loadingMaster || isBranchLocked} error={errors.branch?.message as string} />
           )} />
 
           <Controller name="invoiceNo" control={control} render={({ field }) => (
@@ -92,7 +92,7 @@ const PurchaseReturnFormPage = () => {
             />
           )} />
           <Controller name="salesman" control={control} render={({ field }) => (
-            <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={(val) => { field.onChange(val); methods.trigger("salesman"); }} onKeyDown={(e) => hk(e, "product-select-0")} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
+            <SearchableSelect required={true} className="h-8 !px-2 !text-xs" id="pr-salesman" label="Salesman" value={field.value} options={salesmanOptions} onChange={(val) => { field.onChange(val); methods.trigger("salesman"); }} onKeyDown={(e) => hk(e, firstLineId())} disabled={!canSave || loadingMaster} error={errors.salesman?.message as string} />
           )} />
         </div>
       </div>
