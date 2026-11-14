@@ -10,6 +10,9 @@ import SearchableSelect from "../../../../components/common/Searchableselect";
 import SearchableCombobox from "../../../../components/common/SearchableCombobox";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { Trash2, Printer, Plus, Save, RotateCcw, ShieldAlert } from "lucide-react";
+import GridFindBar from "../../../../components/common/GridFindBar";
+import { useGridFind, gridFindRowClass } from "../../../../hooks/useGridFind";
+import type { GridFindLine, GridFindOption } from "../../../../utils/gridFind";
 import { useInternalStockTransfer } from "../hooks/useInternalStockTransfer";
 import InternalStockTransferPrintModal from "../components/InternalStockTransferPrintModal";
 import { formatAmount } from "../../../../utils/currency";
@@ -120,6 +123,18 @@ const InternalStockTransferPage = () => {
     if (alreadyPresent) return productOptions;
     return [{ label: storedName, value: storedValue }, ...productOptions];
   }, [productOptions, watchedItems]);
+
+  // Find a product in the lines (same box as Provider Settings): name as shown in the product box, or the code
+  const findRows = useMemo(
+    () =>
+      (watchedItems as GridFindLine[]).map((it, i) => ({
+        productId: it?.product || 0,
+        productName: getRowOptions(i).find((o: GridFindOption) => String(o.value) === String(it?.product))?.label ?? it?.productName,
+        productCode: it?.code,
+      })),
+    [watchedItems, getRowOptions]
+  );
+  const find = useGridFind(findRows, "ist-line-row");
 
   // Keyboard navigation logic
   const handleGridNav = (e: React.KeyboardEvent<HTMLInputElement | HTMLSelectElement>, index: number) => {
@@ -339,6 +354,7 @@ const InternalStockTransferPage = () => {
 
             {/* ── Inline Editable DataGrid ── */}
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <GridFindBar find={find} id="ist-line-find" />
               <div className="max-h-[400px] overflow-auto">
                 <table className="min-w-full text-left text-xs">
                   <thead>
@@ -360,7 +376,7 @@ const InternalStockTransferPage = () => {
                       const lineAmount = qty * cost;
 
                       return (
-                        <tr key={item.id} onFocusCapture={() => setActiveRowIndex(index)} className="hover:bg-[#49293e]/5 transition-colors">
+                        <tr key={item.id} id={`ist-line-row-${index}`} data-find={find.rowState(index)} onFocusCapture={() => setActiveRowIndex(index)} className={`transition-colors ${gridFindRowClass(find.rowState(index)) || "hover:bg-[#49293e]/5"}`}>
                           <td className="px-2 py-1 text-center font-bold text-gray-400 border-r border-gray-100 w-10">{index + 1}</td>
                           <td className="p-0 border-r border-gray-100 min-w-[200px] max-w-sm">
                             <Controller

@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { Save, RotateCcw, Trash2, Plus, Printer } from "lucide-react";
+import GridFindBar from "../../../../components/common/GridFindBar";
+import { useGridFind, gridFindRowClass } from "../../../../hooks/useGridFind";
+import type { GridFindLine, GridFindOption } from "../../../../utils/gridFind";
 import { Button, FormInput, SearchableSelect, SearchableCombobox } from "../../../../components/common";
 import ConfirmDialog from "../../../../components/common/ConfirmDialog";
 import { DocumentFormShell } from "../../shared/documentForm/DocumentFormShell";
@@ -65,6 +68,18 @@ const StockAdjustmentPage = () => {
 
   const [activeRowIndex, setActiveRowIndex] = useState<number>(0);
   const activeItem = watchedItems[activeRowIndex] || watchedItems[0] || {};
+
+  // Find a product in the lines (same box as Provider Settings): name as shown in the product box, or the code
+  const findRows = useMemo(
+    () =>
+      (watchedItems as GridFindLine[]).map((it, i) => ({
+        productId: it?.product || 0,
+        productName: getRowOptions(i).find((o: GridFindOption) => String(o.value) === String(it?.product))?.label ?? it?.productName,
+        productCode: it?.code,
+      })),
+    [watchedItems, getRowOptions]
+  );
+  const find = useGridFind(findRows, "sa-line-row");
 
   const hk = (e: React.KeyboardEvent, nextId?: string) => focusOnEnter(e, nextId);
 
@@ -247,6 +262,7 @@ const StockAdjustmentPage = () => {
 
             {/* ── Inline Editable DataGrid ── */}
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <GridFindBar find={find} id="sa-line-find" />
               <div className="max-h-[400px] overflow-auto">
                 <table className="min-w-full text-left text-xs">
                   <thead>
@@ -280,7 +296,7 @@ const StockAdjustmentPage = () => {
                       const isEffectEditable = rawType && (rawType.effect === "All" || rawType.effect === "all" || rawType.effect === "*");
 
                       return (
-                        <tr key={item.id} onFocusCapture={() => setActiveRowIndex(index)} className="hover:bg-[#49293e]/5 transition-colors">
+                        <tr key={item.id} id={`sa-line-row-${index}`} data-find={find.rowState(index)} onFocusCapture={() => setActiveRowIndex(index)} className={`transition-colors ${gridFindRowClass(find.rowState(index)) || "hover:bg-[#49293e]/5"}`}>
                           <td className="px-2 py-1 text-center font-bold text-gray-400 border-r border-gray-100 w-10">{index + 1}</td>
                           <td className="p-0 border-r border-gray-100 min-w-[200px] max-w-xs">
                             <Controller

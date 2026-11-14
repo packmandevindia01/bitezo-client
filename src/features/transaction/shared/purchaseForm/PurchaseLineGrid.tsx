@@ -1,9 +1,12 @@
 import type React from "react";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { Controller } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 import { SearchableSelect, SearchableCombobox } from "../../../../components/common";
 import { useCurrency } from "../../../../hooks/useCurrency";
+import GridFindBar from "../../../../components/common/GridFindBar";
+import { useGridFind, gridFindRowClass, useRememberedLabels } from "../../../../hooks/useGridFind";
+import type { GridFindLine, GridFindOption } from "../../../../utils/gridFind";
 import { generateUUID } from "../../../../utils/uuid";
 import { limitDigitsKeyDown, limitDigitsPaste } from "../documentForm/documentKeys";
 import { purchaseLineTotals, type PurchaseDoc, type PurchaseFormPage, type PurchaseKind } from "./usePurchaseFormPage";
@@ -36,6 +39,20 @@ export const PurchaseLineGrid = ({ kind, doc, page }: PurchaseLineGridProps) => 
   const setValue = (methods as any).setValue;
   const { canSave, handleGridNav, setActiveRowIndex, cfg } = page;
   const isInvoice = kind === "invoice";
+
+  // Find a product in the lines (same box as Provider Settings): name as shown in the product box, or the code
+  // Product names are remembered: a later product search replaces productOptions, but the box keeps showing the name.
+  const productLabels = useRememberedLabels(productOptions as GridFindOption[]);
+  const findRows = useMemo(
+    () =>
+      (watchedItems as GridFindLine[]).map((it) => ({
+        productId: it?.product || 0,
+        productName: productLabels[String(it?.product)] ?? it?.productName,
+        productCode: it?.code,
+      })),
+    [watchedItems, productLabels]
+  );
+  const find = useGridFind(findRows, "purchase-line-row");
 
   // Tracks whether a product was just selected via Enter (so we don't exit grid accidentally)
   const productSelectedRef = useRef(false);
@@ -103,6 +120,7 @@ export const PurchaseLineGrid = ({ kind, doc, page }: PurchaseLineGridProps) => 
   return (
     <div className="flex-1 overflow-y-auto p-2 md:p-3">
       <div className="h-full flex flex-col rounded-xl border border-gray-200 bg-white">
+        <GridFindBar find={find} id="purchase-line-find" className="rounded-t-xl" />
         <div className="flex-1 overflow-auto">
           <table className="min-w-full text-left text-xs">
             <thead>
@@ -121,7 +139,7 @@ export const PurchaseLineGrid = ({ kind, doc, page }: PurchaseLineGridProps) => 
                 const itemWatch: any = watchedItems[index] || {};
                 const lineTotals = purchaseLineTotals(itemWatch, grossTotal, Number(watchedDiscAmount) || 0);
                 return (
-                  <tr key={field.id} onFocusCapture={() => setActiveRowIndex(index)} {...(isInvoice ? { onClick: () => setActiveRowIndex(index) } : {})} className="hover:bg-blue-50/30 transition-colors group">
+                  <tr key={field.id} id={`purchase-line-row-${index}`} data-find={find.rowState(index)} onFocusCapture={() => setActiveRowIndex(index)} {...(isInvoice ? { onClick: () => setActiveRowIndex(index) } : {})} className={`transition-colors group ${gridFindRowClass(find.rowState(index)) || "hover:bg-blue-50/30"}`}>
                     <td className="px-2 py-1 text-[10px] text-gray-400 font-medium text-center border-r border-gray-100 bg-gray-50/30 w-8">{index + 1}</td>
                     <td className="p-0.5 border-r border-gray-100 min-w-[200px] bg-white">
                       <Controller

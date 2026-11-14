@@ -19,6 +19,7 @@ import InternalStockTransferPage from "../features/transaction/internalStockTran
 import ProductionPage from "../features/transaction/production/pages/ProductionPage";
 import { purchaseInvoiceApi } from "../features/transaction/purchaseInvoice/services/purchaseInvoiceApi";
 import { purchaseReturnApi } from "../features/transaction/purchaseReturn/services/purchaseReturnApi";
+import { productService } from "../features/inventory/product/services/productService";
 
 vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
 
@@ -215,3 +216,68 @@ describe("choosing MultiPay as the paymode", () => {
     expect(await screen.findByText("PAYMODE")).toBeTruthy();
   });
 });
+
+// 2026-11-14: the Provider Settings "find product in list" box on the five document grids (shared GridFindBar).
+describe("find product in list on the document grids", () => {
+  const findIn = (boxId: string, rowPrefix: string, text: string) => {
+    fireEvent.change(document.getElementById(boxId)!, { target: { value: text } });
+    return [0, 1].map((i) => document.getElementById(`${rowPrefix}-${i}`)?.getAttribute("data-find") ?? null);
+  };
+  const checkFind = (boxId: string, rowPrefix: string, withCode: boolean) => {
+    // saved lines are found by the product name shown in their product box
+    expect(findIn(boxId, rowPrefix, "oil")).toEqual([null, "current"]);
+    expect(screen.getByTestId(`${boxId}-count`).textContent).toBe("1 of 1");
+    expect(findIn(boxId, rowPrefix, "RICE")).toEqual(["current", null]);
+    if (withCode) expect(findIn(boxId, rowPrefix, "p6")).toEqual([null, "current"]);
+    expect(findIn(boxId, rowPrefix, "sugar")).toEqual([null, null]);
+    expect(screen.getByTestId(`${boxId}-count`).textContent).toBe("No match");
+    // Esc clears
+    fireEvent.keyDown(document.getElementById(boxId)!, { key: "Escape" });
+    expect((document.getElementById(boxId) as HTMLInputElement).value).toBe("");
+  };
+
+  it("Purchase Invoice", async () => {
+    mock(purchaseInvoiceApi.getPurchaseInvoiceById).mockResolvedValue({
+      masterData: { ...purchaseHeader, purchaseNo: "1", purchaseDate: "2026-11-07T00:00:00", invoiceNo: "INV1", invoiceDate: "2026-11-06T00:00:00" }, detailsData: purchaseLines, paymodesData: null,
+    });
+    renderAt("/purchase-invoice/edit/1", "/purchase-invoice/edit/:id", PurchaseInvoiceFormPage);
+    await waitFor(() => expect((document.getElementById("pi-invoiceNo") as HTMLInputElement)?.value).toBe("INV1"));
+    await settle();
+    checkFind("purchase-line-find", "purchase-line-row", false);
+  });
+
+  it("Purchase Return", async () => {
+    // Purchase Return edit names its lines through the product lookup
+    mock(productService.getById).mockImplementation(async (id: number) => ({ product: { productId: id, code: "", barcode: "", name: id === 5 ? "Rice" : "Oil" } }));
+    mock(purchaseReturnApi.getPurchaseReturnById).mockResolvedValue({
+      masterData: { ...purchaseHeader, purchaseId: 0, purchaseReturnNo: "1", purchaseReturnDate: "2026-11-07T00:00:00" }, detailsData: purchaseLines, paymodesData: null,
+    });
+    renderAt("/purchase-return/edit/1", "/purchase-return/edit/:id", PurchaseReturnFormPage);
+    await waitFor(() => expect((document.getElementById("pr-refNo") as HTMLInputElement)?.value).toBe("R-1"));
+    await settle();
+    checkFind("purchase-line-find", "purchase-line-row", false);
+    mock(productService.getById).mockImplementation(async () => null);
+  });
+
+  it("Stock Adjustment", async () => {
+    renderAt("/stock-adjustment?id=1", "/stock-adjustment", StockAdjustmentPage);
+    await waitFor(() => expect(document.body.innerHTML).toContain("Rice"));
+    await settle();
+    checkFind("sa-line-find", "sa-line-row", true);
+  });
+
+  it("Physical Entry", async () => {
+    renderAt("/physical-entry?id=1", "/physical-entry", PhysicalEntryPage);
+    await waitFor(() => expect(document.body.innerHTML).toContain("Rice"));
+    await settle();
+    checkFind("pe-line-find", "pe-line-row", true);
+  });
+
+  it("Stock Transfer", async () => {
+    renderAt("/internal-stock-transfer/edit/1", "/internal-stock-transfer/edit/:id", InternalStockTransferPage);
+    await waitFor(() => expect(document.body.innerHTML).toContain("Rice"));
+    await settle();
+    checkFind("ist-line-find", "ist-line-row", true);
+  });
+});
+

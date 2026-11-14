@@ -573,7 +573,7 @@ Price box (2026-11-13, `utils/priceInput.ts`): shown with the company's currency
 decimals (`acceptPriceInput`, otherwise the old value stays); blur / Enter tidies it ("1.5" → "1.500"). Enter moves to the next
 row's price (its product box if that row is empty); the last row adds a row (Enter used to do nothing on other rows). Tests:
 `providerSettingsPriceInput.test.tsx`, `providerSettingsForm.test.tsx`.
-Find product (2026-11-13, `utils/gridSearch.ts`): a find box above the grid highlights every row whose product name, alt name
+Find product (2026-11-13; shared since 2026-11-14 as `utils/gridFind.ts` + `hooks/useGridFind.ts` + `common/GridFindBar.tsx`): a find box above the grid highlights every row whose product name, alt name
 or code contains the text (case-insensitive), scrolls the current match into view and shows "n of N"; Enter / ▼ next,
 Shift+Enter / ▲ previous (wraps), Esc / × clears; the same product on several rows is found on each. Test:
 `providerSettingsGridSearch.test.tsx`.
@@ -1119,6 +1119,7 @@ Purchase Invoice and Purchase Return stay two hooks: their load, save, invoice s
 - Payment and Receipt Against Vouchers share `useAgainstVoucherForm.ts`, `useAgainstVoucherList.ts`, `againstVoucherApi.ts`, `againstVoucherSchema.ts`, `againstVoucherTypes.ts`, and since 2026-11-13 one page, `shared/voucherForm/AgainstVoucherPage.tsx` (Supplier / Customer wording and Receipt's tolerant reading of pending invoices kept per kind). `againstVoucherPayloadGolden.test.tsx` snapshots URL and body.
 - Exact copies of `unwrap` and `formatDateOnly` now come from `shared/api/unwrap.ts` and `shared/lib/date.ts`: pick the variant that matches a service's error rules, do not add copies.
 - Purchase Invoice and Return pages (2026-11-13) render `shared/purchaseForm/`: `PurchaseLineGrid`, `PurchaseFormFooter`, `PurchaseFormDialogs`, `usePurchaseFormPage` (save question and save, print after save, new supplier, paymode bookkeeping). Each page keeps its header. Their differences are a `kind` switch, marked in the code. Purchase Return MultiPay now opens the payment window (it did nothing).
+- Find product in list (2026-11-14): Purchase, Purchase Return (`PurchaseLineGrid`), Stock Adjustment, Stock Transfer and Physical Entry have the Provider Settings find box above the lines (`GridFindBar` + `useGridFind`; row ids `purchase-line-row-n`, `sa-line-row-n`, `ist-line-row-n`, `pe-line-row-n`; box ids `purchase-line-find`, `sa-/ist-/pe-line-find`). It matches the product name shown in the product box (the row options; Purchase remembers every name seen with `useRememberedLabels`, because each product search replaces its options) or the line code. Production has no find box. Test: `documentFormPagesSnapshot` ("find product in list").
 - All six document pages use `shared/documentForm/`: `DocumentFormShell` (title, master-data error, card, close button; Production keeps its own larger card), `ClearFormDialog`, `documentKeys.ts` (Enter moves, row exit, number-cell limits, focus helpers). The four stock grids stay separate on purpose (owner, 2026-11-13): their controls, styles and keys differ.
 - `stockDocumentPayloadGolden.test.tsx` snapshots editing the four stock documents; their hooks are not merged yet.
 - Done and pending for every phase: `OPTIMIZATION_STATUS.md`.

@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Controller } from "react-hook-form";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Save, Plus, Trash2, RotateCcw } from "lucide-react";
+import GridFindBar from "../../../../components/common/GridFindBar";
+import { useGridFind, gridFindRowClass } from "../../../../hooks/useGridFind";
+import type { GridFindLine, GridFindOption } from "../../../../utils/gridFind";
 import {
   FormInput,
   Button,
@@ -54,6 +57,19 @@ const PhysicalEntryPage = () => {
   const { control, watch, register, getValues, formState: { errors } } = methods;
   
   const canSave = true; // By default enabled
+  const peItems = watch("items") || [];
+
+  // Find a product in the lines (same box as Provider Settings): name as shown in the product box, or the code
+  const findRows = useMemo(
+    () =>
+      (peItems as GridFindLine[]).map((it, i) => ({
+        productId: it?.product || 0,
+        productName: getRowOptions(i).find((o: GridFindOption) => String(o.value) === String(it?.product))?.label ?? it?.productName,
+        productCode: it?.code,
+      })),
+    [peItems, getRowOptions]
+  );
+  const find = useGridFind(findRows, "pe-line-row");
   
   // Custom focus navigation handler
   const hk = (e: React.KeyboardEvent, nextId: string) => focusOnEnter(e, nextId, 50);
@@ -200,6 +216,7 @@ const PhysicalEntryPage = () => {
 
             {/* ── Inline Editable DataGrid ── */}
             <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+              <GridFindBar find={find} id="pe-line-find" />
               <div className="max-h-[350px] overflow-auto">
                 <table className="min-w-full text-left text-xs">
                   <thead>
@@ -238,7 +255,7 @@ const PhysicalEntryPage = () => {
                         : rawUnitList;
 
                       return (
-                        <tr key={field.id} className="hover:bg-gray-50/30 transition-colors group">
+                        <tr key={field.id} id={`pe-line-row-${index}`} data-find={find.rowState(index)} className={`transition-colors group ${gridFindRowClass(find.rowState(index)) || "hover:bg-gray-50/30"}`}>
                           <td className="px-2 py-1 text-center font-mono text-gray-400 border-r border-gray-100">{index + 1}</td>
                           <td className="px-2 py-1 relative">
                             <Controller
